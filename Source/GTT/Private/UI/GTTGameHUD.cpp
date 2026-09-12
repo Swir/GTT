@@ -1,4 +1,5 @@
 #include "UI/GTTGameHUD.h"
+#include "Activities/GTTFarmJobDirector.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -6,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Missions/GTTMissionComponent.h"
+#include "Police/GTTPoliceDirector.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTDayNightCycle.h"
@@ -19,12 +21,26 @@ void AGTTGameHUD::DrawHUD()
     UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(ControlledPawn);
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn);
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
+    AGTTPoliceDirector* PoliceDirector = Cast<AGTTPoliceDirector>(UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()));
+    AGTTFarmJobDirector* FarmJobDirector = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
 
     const int32 WantedLevel = Wanted ? Wanted->GetWantedLevel() : 0;
     const FLinearColor WantedColor = WantedLevel > 0 ? FLinearColor(1.0f,0.18f,0.08f,1.0f) : FLinearColor(0.72f,0.72f,0.72f,1.0f);
     DrawText(BuildWantedBar(WantedLevel), WantedColor, 36.0f, 34.0f, GEngine->GetSmallFont(), 1.35f, false);
 
     float Y = 64.0f;
+    if (PoliceDirector && WantedLevel > 0)
+    {
+        DrawText(
+            FString::Printf(TEXT("POLICE RESPONSE | FOOT %d | PURSUIT CARS %d%s"),
+                PoliceDirector->GetActiveFootUnitCount(),
+                PoliceDirector->GetActivePursuitVehicleCount(),
+                WantedLevel >= 3 ? TEXT(" | VEHICLE ESCALATION") : TEXT("")),
+            WantedLevel >= 3 ? FLinearColor(1.0f,0.35f,0.18f,1.0f) : FLinearColor(0.9f,0.72f,0.32f,1.0f),
+            36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
+        Y += 28.0f;
+    }
+
     if (GameMode)
     {
         FString WardenMarks;
@@ -43,9 +59,15 @@ void AGTTGameHUD::DrawHUD()
     if (GameMode)
     {
         const FString TimeText = GameMode->GetDayNightCycle() ? GameMode->GetDayNightCycle()->GetClockText() : TEXT("DAY ? --:--");
-        const FString JobText = GameMode->IsFarmJobActive() ? TEXT("  |  LEGAL FARM JOB ACTIVE") : TEXT("");
         const FString GarageText = FString::Printf(TEXT("  |  GARAGE %d/%d"), GameMode->GetOwnedVehicleCount(), GameMode->GetGarageCapacity());
-        DrawText(TimeText + GarageText + JobText, FLinearColor(0.95f,0.9f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
+        DrawText(TimeText + GarageText, FLinearColor(0.95f,0.9f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
+        Y += 30.0f;
+    }
+
+    if (FarmJobDirector && FarmJobDirector->IsJobActive())
+    {
+        const FString Objective = FarmJobDirector->GetObjectiveText();
+        DrawText(Objective, FLinearColor(0.35f,1.0f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
 

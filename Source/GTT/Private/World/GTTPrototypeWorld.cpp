@@ -1,4 +1,5 @@
 #include "World/GTTPrototypeWorld.h"
+#include "Activities/GTTFarmJobDirector.h"
 #include "Activities/GTTFarmJobTerminal.h"
 #include "Activities/GTTFishingSpot.h"
 #include "Activities/GTTForestPoachingSpot.h"
@@ -43,6 +44,8 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnBox(FVector(3300,0,-42),FVector(36,6,.08f),FRotator(0,90,0),false);
     SpawnLabel(TEXT("LIVE VILLAGE TRAFFIC LOOP"),FVector(0,-1800,170),FRotator(0,180,0),38.0f);
 
+    GetWorld()->SpawnActor<AGTTFarmJobDirector>();
+
     SpawnBox(FVector(-3000,-900,125),FVector(7,6,3.5f));
     SpawnLabel(TEXT("PLAYER FARM / 4-SLOT GARAGE"),FVector(-3000,-900,520));
     GetWorld()->SpawnActor<AGTTGarageTerminal>(FVector(-2350,-650,55),FRotator::ZeroRotator);
@@ -54,7 +57,7 @@ void AGTTPrototypeWorld::BuildWorld()
     }
 
     if(AGTTFarmJobTerminal* JobStart=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(-2450,-1150,55),FRotator::ZeroRotator)) JobStart->SetTerminalType(EGTTFarmJobTerminalType::Start);
-    SpawnLabel(TEXT("LEGAL FARM JOB START - E"),FVector(-2450,-1150,200),FRotator(0,180,0),46.0f);
+    SpawnLabel(TEXT("FARM CARGO CONTRACT - E"),FVector(-2450,-1150,200),FRotator(0,180,0),44.0f);
 
     SpawnBox(FVector(-3600,900,180),FVector(8,7,4.5f));
     SpawnLabel(TEXT("BARN - MISSION GOAL"),FVector(-3500,300,420));
@@ -76,6 +79,7 @@ void AGTTPrototypeWorld::BuildWorld()
 
     SpawnBox(FVector(2700,-2600,165),FVector(7,5,4.3f));
     SpawnLabel(TEXT("POLICE / ARREST RELEASE"),FVector(2700,-2600,590));
+    SpawnLabel(TEXT("3+ WANTED: PATROL CARS JOIN PURSUIT"),FVector(2700,-2150,330),FRotator(0,180,0),36.0f);
     SpawnBox(FVector(2400,2700,155),FVector(8,6,4.1f));
     SpawnLabel(TEXT("COMMUNITY HALL"),FVector(2400,2700,580));
 
@@ -88,6 +92,12 @@ void AGTTPrototypeWorld::BuildWorld()
     GetWorld()->SpawnActor<AGTTFarmVanPawn>(FVector(450,2850,110),FRotator(0,-90,0));
     SpawnLabel(TEXT("MULEBOX 1200 - FARM VAN"),FVector(450,2850,340),FRotator(0,180,0),48.0f);
 
+    // Cargo pickup creates a real midpoint instead of a start->finish button job.
+    SpawnBox(FVector(1850,3900,120),FVector(6,5,3.2f));
+    SpawnLabel(TEXT("FEED DEPOT / CARGO PICKUP"),FVector(1850,3900,510),FRotator(0,180,0),44.0f);
+    if(AGTTFarmJobTerminal* Pickup=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(1850,3400,55),FRotator::ZeroRotator)) Pickup->SetTerminalType(EGTTFarmJobTerminalType::Pickup);
+    SpawnLabel(TEXT("LOAD FEED PALLETS - E"),FVector(1850,3400,195),FRotator(0,180,0),42.0f);
+
     SpawnBox(FVector(4700,-500,-35),FVector(20,28,.12f),FRotator::ZeroRotator,false);
     SpawnLabel(TEXT("PRIVATE LAKE - NO FISHING"),FVector(4700,-500,220));
     GetWorld()->SpawnActor<AGTTFishingSpot>(FVector(4050,-500,40),FRotator::ZeroRotator);
@@ -97,7 +107,6 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("GAME WARDEN OUTPOST"),FVector(5050,700,470),FRotator(0,180,0),46.0f);
     SpawnLabel(TEXT("POACHING TRIGGERS WARDEN ALERT 1-3"),FVector(4600,350,260),FRotator(0,180,0),38.0f);
 
-    // First forest expansion: a rough woodland patch east of the lake with an illegal poaching interaction.
     for(int32 Tree=0; Tree<18; ++Tree)
     {
         const float X = 6100.0f + (Tree%6)*420.0f;
@@ -109,10 +118,12 @@ void AGTTPrototypeWorld::BuildWorld()
     GetWorld()->SpawnActor<AGTTForestPoachingSpot>(FVector(7050,-950,55),FRotator::ZeroRotator);
     SpawnLabel(TEXT("ILLEGAL FOREST POACHING - E"),FVector(7050,-950,210),FRotator(0,180,0),44.0f);
 
+    // Hill farm is now the timed cargo destination; the longer cross-map route rewards intact, fast driving.
+    SpawnBox(FVector(5850,3100,145),FVector(8,7,3.8f));
+    SpawnLabel(TEXT("HILL FARM / CARGO DELIVERY"),FVector(5850,3100,560),FRotator(0,180,0),46.0f);
     SpawnBox(FVector(5200,2550,20),FVector(20,12,.2f),FRotator::ZeroRotator,false);
-    SpawnLabel(TEXT("FIELD DELIVERY / LEGAL JOB"),FVector(5200,2550,260));
-    if(AGTTFarmJobTerminal* JobFinish=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(4850,2550,55),FRotator::ZeroRotator)) JobFinish->SetTerminalType(EGTTFarmJobTerminalType::Finish);
-    SpawnLabel(TEXT("FINISH FARM JOB - E"),FVector(4850,2550,200),FRotator(0,180,0),48.0f);
+    if(AGTTFarmJobTerminal* JobFinish=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(5200,2550,55),FRotator::ZeroRotator)) JobFinish->SetTerminalType(EGTTFarmJobTerminalType::Finish);
+    SpawnLabel(TEXT("DELIVER CARGO - E"),FVector(5200,2550,200),FRotator(0,180,0),46.0f);
 
     const TArray<FVector> CitizenSpawns={FVector(2200,450,120),FVector(3150,350,120),FVector(850,-2150,120),FVector(1650,-1650,120),FVector(-250,2150,120),FVector(2100,2200,120),FVector(-1900,-900,120),FVector(3400,-1500,120)};
     for(const FVector& P:CitizenSpawns) GetWorld()->SpawnActor<AGTTCitizenPawn>(P,FRotator::ZeroRotator);
@@ -121,7 +132,7 @@ void AGTTPrototypeWorld::BuildWorld()
     for(int32 I=0;I<9;++I) SpawnBox(FVector(-2200+I*520,-650,35),FVector(4.2f,.18f,.85f));
     for(int32 I=0;I<7;++I) SpawnBox(FVector(1450,-900+I*420,35),FVector(.18f,3.5f,.85f));
 
-    SpawnLabel(TEXT("GTT 0.0.9 | GARAGE RECALL + TUNING + FOREST POACHING"),FVector(-2500,-1250,380),FRotator(0,180,0),46.0f);
+    SpawnLabel(TEXT("GTT 0.0.10 | POLICE VEHICLE ESCALATION + CARGO JOBS"),FVector(-2500,-1250,380),FRotator(0,180,0),44.0f);
     if(APawn* PlayerPawn=UGameplayStatics::GetPlayerPawn(this,0)){ PlayerPawn->SetActorLocation(FVector(-2550,-1250,120)); PlayerPawn->SetActorRotation(FRotator(0,25,0)); }
 }
 

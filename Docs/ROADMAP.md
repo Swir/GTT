@@ -27,11 +27,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 ## 0.3 — Rural Crime & Jobs
 - [x] Fishing + fish inventory/sales
-- [x] Separate ranger/game-warden response for illegal fishing
-- [x] Ranger pursuit, citation and fish confiscation
+- [x] Separate ranger/game-warden response
 - [x] First forest / poaching gameplay
-- [x] First legal farm-job loop
-- [ ] Farm-job checkpoints, cargo and timed variants
+- [x] Staged farm cargo job with pickup checkpoint
+- [x] Timed delivery and cargo-integrity reward scaling
 - [ ] More mission archetypes
 
 ## 0.4 — Village Nights
@@ -50,7 +49,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Engine temperature / overheating
 - [x] Tire integrity and grip-loss simulation
 - [x] Repair/refuel service
-- [x] First persistent performance tuning
+- [x] Persistent performance tuning
 - [ ] Mud/off-road handling
 - [ ] Dedicated Chaos drivetrain/suspension
 
@@ -59,8 +58,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Civilian road-driving AI prototype
 - [x] Game-warden/ranger AI
 - [x] Traffic obstacle avoidance / horn / stuck recovery
-- [ ] Traffic respawn/despawn streaming rules
-- [ ] Police vehicle pursuit escalation
+- [x] Police pursuit-vehicle escalation at high wanted
+- [ ] Police roadblocks / interception tactics
 - [x] Garage vehicle recall
 - [ ] Explicit garage slot-selection UI
 - [ ] More vehicle ownership costs and fines
@@ -68,7 +67,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 ## 0.7 — Jobs & Countryside Expansion
 - [x] First east-side forest expansion
 - [ ] Larger connected road network and countryside
-- [ ] Plowing/mowing/cargo farm jobs
+- [x] Cargo farm job
+- [ ] Plowing/mowing field-work jobs
 - [ ] Forest work and legal timber transport
 - [x] Illegal poaching loop feeding the ranger system
 - [ ] Deeper poaching inventory / fence economy
@@ -89,7 +89,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 ## 0.9 — Content & Polish
 - [ ] Story mission chain
 - [ ] More NPC archetypes
-- [ ] Police escalation variety
+- [x] First police escalation variety
 - [ ] Performance passes
 - [ ] Accessibility/settings
 - [ ] Controller support
