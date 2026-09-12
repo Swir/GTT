@@ -1,12 +1,27 @@
 #include "NPC/GTTRuralFactionDirector.h"
 
 #include "Components/TextRenderComponent.h"
+#include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/TextRenderActor.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "NPC/GTTCitizenPawn.h"
 #include "Save/GTTFactionSaveGame.h"
+#include "Vehicles/GTTVehicleBase.h"
+
+namespace
+{
+APawn* ResolveCombatPawn(const UObject* Context)
+{
+    APawn* Controlled=UGameplayStatics::GetPlayerPawn(Context,0);
+    if(AGTTVehicleBase* Vehicle=Cast<AGTTVehicleBase>(Controlled))
+    {
+        if(Vehicle->GetDriverPawn()) return Vehicle->GetDriverPawn();
+    }
+    return Controlled;
+}
+}
 
 AGTTRuralFactionDirector::AGTTRuralFactionDirector()
 {
@@ -52,21 +67,22 @@ void AGTTRuralFactionDirector::Tick(float DeltaSeconds)
     if(EvaluationClock>0.0f) return;
     EvaluationClock=0.4f;
 
-    APawn* PlayerPawn=UGameplayStatics::GetPlayerPawn(this,0);
-    if(!PlayerPawn) return;
+    APawn* ControlledPawn=UGameplayStatics::GetPlayerPawn(this,0);
+    APawn* CombatPawn=ResolveCombatPawn(this);
+    if(!ControlledPawn||!CombatPawn) return;
 
     if(IsEncounterActive())
     {
         EncounterElapsed+=0.4f;
-        if(GetActiveHostileCount()<=0) CompleteEncounter(PlayerPawn);
-        else if(EncounterElapsed>150.0f || FVector::DistSquared2D(PlayerPawn->GetActorLocation(),Zones[ActiveZoneIndex].Center)>FMath::Square(5200.0f))
+        if(GetActiveHostileCount()<=0) CompleteEncounter(CombatPawn);
+        else if(EncounterElapsed>150.0f || FVector::DistSquared2D(ControlledPawn->GetActorLocation(),Zones[ActiveZoneIndex].Center)>FMath::Square(5200.0f))
         {
-            if(UGTTPlayerEconomyComponent* Economy=PlayerPawn->FindComponentByClass<UGTTPlayerEconomyComponent>()) Economy->PushMessage(TEXT("Faction pursuit broken. The gang regroups."),4.0f);
+            if(UGTTPlayerEconomyComponent* Economy=UGTTGameplayStatics::FindEconomyComponentForPawn(CombatPawn)) Economy->PushMessage(TEXT("Faction pursuit broken. The gang regroups."),4.0f);
             CleanupEncounter();
         }
         return;
     }
-    TryTriggerEncounter(PlayerPawn);
+    TryTriggerEncounter(ControlledPawn);
 }
 
 void AGTTRuralFactionDirector::TryTriggerEncounter(APawn* PlayerPawn)
@@ -78,7 +94,7 @@ void AGTTRuralFactionDirector::TryTriggerEncounter(APawn* PlayerPawn)
         if(Zone.CooldownRemaining>0.0f) continue;
         if(FVector::DistSquared2D(PlayerPawn->GetActorLocation(),Zone.Center)<=FMath::Square(Zone.TriggerRadius))
         {
-            StartEncounter(Index,PlayerPawn);
+            StartEncounter(Index,ResolveCombatPawn(this));
             return;
         }
     }
@@ -108,7 +124,7 @@ void AGTTRuralFactionDirector::StartEncounter(int32 ZoneIndex, APawn* PlayerPawn
         ActiveHostiles.Add(Hostile);
     }
 
-    if(UGTTPlayerEconomyComponent* Economy=PlayerPawn->FindComponentByClass<UGTTPlayerEconomyComponent>())
+    if(UGTTPlayerEconomyComponent* Economy=UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
         Economy->PushMessage(FString::Printf(TEXT("AMBUSH: %s | %d hostiles incoming."),*GetFactionName(ActiveFaction),ActiveHostiles.Num()),6.0f);
 }
 
@@ -130,7 +146,7 @@ void AGTTRuralFactionDirector::CompleteEncounter(APawn* PlayerPawn)
     else if(ActiveFaction==EGTTRuralFaction::MudJackals) ++MudJackalsDefeated;
     Zone.CooldownRemaining=150.0f;
 
-    if(UGTTPlayerEconomyComponent* Economy=PlayerPawn->FindComponentByClass<UGTTPlayerEconomyComponent>())
+    if(UGTTPlayerEconomyComponent* Economy=UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
     {
         Economy->AddCash(Reward,FString::Printf(TEXT("Faction territory cleared: +$%d"),Reward));
         Economy->PushMessage(FString::Printf(TEXT("%s ROUTED | +$%d | countryside notoriety %d"),*GetFactionName(ActiveFaction),Reward,FactionVictories),7.0f);
@@ -162,7 +178,7 @@ FString AGTTRuralFactionDirector::GetFactionName(EGTTRuralFaction Faction) const
 FString AGTTRuralFactionDirector::GetObjectiveText() const
 {
     if(!IsEncounterActive()) return FString();
-    return FString::Printf(TEXT("HOSTILE TERRITORY | %s | %d remaining | PRESSURE %d"),*GetFactionName(ActiveFaction),GetActiveHostileCount(),FactionVictories);
+    return FString::Printf(TEXT("HOSTILE TERRITORY | %s | %d remaining | NOTORIETY %d"),*GetFactionName(ActiveFaction),GetActiveHostileCount(),FactionVictories);
 }
 
 FString AGTTRuralFactionDirector::GetThreatText() const
