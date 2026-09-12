@@ -40,6 +40,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Rural improvised weapon pickup loop
 - [x] Assault / firearm-discharge hooks into wanted system
 - [x] Persistent Rural Arsenal loadout and shotgun ammunition
+- [x] Heavy articulated trailer contract with condition-sensitive payout
 
 ## 0.4 — Village Nights
 - [x] Village party window 18:30–02:30
@@ -70,8 +71,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Multi-gear drivetrain with vehicle-specific gearing and speed envelopes
 - [x] Vehicle-specific off-road grip response tied into mud volumes
 - [x] Live gear/contact/suspension/grip telemetry in HUD
+- [x] Articulated rigid-body farm trailer with breakable physics hitch
+- [x] Loaded/unloaded trailer mass and cargo stability simulation
 - [ ] Dedicated native Chaos drivetrain/suspension/wheel setup
-- [ ] Authored hitch sockets / articulated trailers
+- [ ] Authored skeletal trailer wheel assets and final hitch sockets
 
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
@@ -98,8 +101,9 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Main Story Arc 2 uses forest, warden outpost and Hill Farm
 - [x] Farm/timber/recovery routes consume shared vehicle damage, tire and terrain dynamics
 - [x] West-side Red Barn / County Drop campaign expansion
+- [x] Dedicated articulated-trailer heavy timber work contract
+- [x] Heavy-haul reward tied to cargo, trailer and tractor condition
 - [ ] Deeper poaching inventory / fence economy
-- [ ] Dedicated trailer/hitch work contracts
 - [ ] More shops/services
 - [ ] Larger connected countryside beyond current road graph
 
@@ -113,6 +117,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Timber payout reacts to body/tire condition
 - [x] Mud zones consume tire integrity under load
 - [x] Engine/tire tuning feeds the shared drivetrain power/grip model
+- [x] Heavy-haul payout reacts to tow-vehicle condition
 - [ ] Tractor visual upgrades
 - [ ] Old-car visual/performance variants
 - [ ] Replacement body-panel economy
