@@ -48,6 +48,7 @@ AGTTTractorPawn::AGTTTractorPawn()
     Dynamics.MaxSteerTorque = 98.0f;
     Dynamics.MaxSpeedKmh = 58.0f;
     Dynamics.BrakeStrength = 3.4f;
+    Dynamics.OffroadGripBias = 0.42f;
     Dynamics.ForwardGearTopSpeedsKmh = {9.0f, 18.0f, 30.0f, 44.0f, 58.0f};
     ConfigureDynamics(Dynamics);
 
