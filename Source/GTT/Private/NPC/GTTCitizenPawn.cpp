@@ -11,6 +11,7 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTDayNightCycle.h"
+#include "World/GTTWorldPerformanceSubsystem.h"
 
 AGTTCitizenPawn::AGTTCitizenPawn()
 {
@@ -43,6 +44,20 @@ void AGTTCitizenPawn::BeginPlay()
 void AGTTCitizenPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+
+    EGTTWorldSimulationTier SimulationTier = EGTTWorldSimulationTier::Critical;
+    const bool bUrgentSimulation = bKnockedOut || CombatTarget.IsValid() || bBrawlParticipant || IsFactionHostile();
+    if (GetWorld())
+    {
+        if (UGTTWorldPerformanceSubsystem* Performance = GetWorld()->GetSubsystem<UGTTWorldPerformanceSubsystem>())
+        {
+            SimulationTier = Performance->GetSimulationTier(this, bUrgentSimulation);
+            const float DesiredInterval = Performance->GetRecommendedTickInterval(this, bUrgentSimulation);
+            if (!FMath::IsNearlyEqual(GetActorTickInterval(), DesiredInterval, 0.01f))
+                SetActorTickInterval(DesiredInterval);
+        }
+    }
+
     CombatCooldown=FMath::Max(0.0f,CombatCooldown-DeltaSeconds);
     if(bKnockedOut)
     {
@@ -54,6 +69,11 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
         return;
     }
     if(CombatTarget.IsValid()) { UpdateCombatBehavior(DeltaSeconds); return; }
+
+    // Far-away ambient civilians keep their persistent schedule state but do not spend
+    // movement/retarget work until the player returns to that part of the countryside.
+    if(SimulationTier == EGTTWorldSimulationTier::Dormant) return;
+
     if(!DayNightCycle.IsValid()) DayNightCycle=Cast<AGTTDayNightCycle>(UGameplayStatics::GetActorOfClass(this,AGTTDayNightCycle::StaticClass()));
     RetargetTimeRemaining-=DeltaSeconds;
     const FVector ScheduleCenter=GetScheduleCenter();
@@ -69,6 +89,7 @@ void AGTTCitizenPawn::StartBrawlWith(APawn* Opponent)
     bBrawlParticipant=true;
     CombatTarget=Opponent;
     Health=MaxHealth;
+    SetActorTickInterval(0.0f);
     GetCharacterMovement()->MaxWalkSpeed=235.0f;
 }
 
@@ -76,6 +97,7 @@ void AGTTCitizenPawn::ConfigureHostileArchetype(EGTTHostileArchetype NewArchetyp
 {
     HostileArchetype=NewArchetype;
     bBrawlParticipant=true;
+    SetActorTickInterval(0.0f);
     switch(NewArchetype)
     {
         case EGTTHostileArchetype::Runner:
@@ -116,6 +138,7 @@ FString AGTTCitizenPawn::GetArchetypeLabel() const
 void AGTTCitizenPawn::ApplyCombatHit(float Damage, const FVector& HitDirection, float Knockback, APawn* Attacker)
 {
     if(bKnockedOut||Damage<=0.0f) return;
+    SetActorTickInterval(0.0f);
     Health=FMath::Max(0.0f,Health-Damage);
     LaunchCharacter(HitDirection.GetSafeNormal2D()*Knockback+FVector(0,0,FMath::Min(180.0f,Knockback*.35f)),true,true);
     CombatTarget=Attacker;

@@ -2,6 +2,27 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.25] - 2026-09-12
+
+### Added
+- **World Performance** subsystem with distance-based `Critical / Near / Mid / Far / Dormant` simulation tiers shared by ambient world actors.
+- Central tick-budget API with explicit player-distance thresholds and a separate expensive-query gate so future NPC, traffic and world systems can consume one consistent budget policy instead of inventing their own timers.
+- Dedicated `verify_world_performance.py` sanity suite covering simulation tiers, civilian/traffic wiring, combat wake-up behavior, CI integration and exact SWIR roadmap arithmetic.
+- Dedicated `PLAYTEST_0.0.25.md` regression/performance plan with dense-village, long-distance, traffic and combat checks.
+
+### Changed
+- Civilian NPCs now reduce schedule/movement update frequency as they move farther from the player; very distant ambient civilians become simulation-dormant instead of consuming full-rate wandering work.
+- Combat, brawl, knockout and hostile-faction civilians explicitly force the Critical tier, preserving immediate chase/attack/hit/recovery behavior regardless of normal ambient distance budgeting.
+- Traffic cars now scale AI tick frequency by distance while retaining a capped update interval for physical road progression.
+- Expensive traffic obstacle line traces run only in Critical/Near tiers; farther traffic continues following the shared road graph without paying the full avoidance-query cost.
+- Roadmap advances from `114/130 (87.7%)` to the exactly recalculated `115/130 (88.5%)`; the 20-segment bar remains mathematically correct at 18/20 while preserving `SWIR-ROADMAP-STANDARD:v1`.
+
+### Limitations / Next
+- Repository CI verifies structural performance-budget integration but cannot measure real frame-time gains; Game Thread/FPS comparison still requires an Unreal-equipped local or CI runner.
+- Police/ranger and mission directors are not yet migrated to the shared budget because active pursuit/mission logic is intentionally kept conservative until UE runtime profiling proves safe throttling points.
+- Full Unreal Engine 5.8 Win64 compile/package/smoke validation remains unavailable in repository CI; no packaged EXE verification is claimed.
+- Next major package should focus on accessibility/settings + controller support or continue toward native Chaos Vehicles once an Unreal-capable runner is available.
+
 ## [0.0.24] - 2026-09-12
 
 ### Added

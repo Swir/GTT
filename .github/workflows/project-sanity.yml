@@ -43,3 +43,6 @@ jobs:
 
       - name: Verify unified world-state milestone
         run: python Scripts/verify_unified_save.py
+
+      - name: Verify world performance milestone
+        run: python Scripts/verify_world_performance.py

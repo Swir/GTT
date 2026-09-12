@@ -3,6 +3,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
+#include "World/GTTWorldPerformanceSubsystem.h"
 
 AGTTTrafficCarPawn::AGTTTrafficCarPawn()
 {
@@ -41,6 +42,22 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
+    bool bAllowExpensiveQueries = true;
+    if (GetWorld())
+    {
+        if (UGTTWorldPerformanceSubsystem* Performance = GetWorld()->GetSubsystem<UGTTWorldPerformanceSubsystem>())
+        {
+            // Traffic remains physically smooth enough to move on the shared road graph,
+            // but far-away cars no longer execute full-rate AI or obstacle traces.
+            const bool bForceCritical = IsOccupied();
+            const float BudgetInterval = Performance->GetRecommendedTickInterval(this, bForceCritical);
+            const float TrafficInterval = bForceCritical ? 0.0f : FMath::Min(BudgetInterval, 0.35f);
+            if (!FMath::IsNearlyEqual(GetActorTickInterval(), TrafficInterval, 0.01f))
+                SetActorTickInterval(TrafficInterval);
+            bAllowExpensiveQueries = Performance->AllowsExpensiveQueries(this, bForceCritical);
+        }
+    }
+
     HornCooldownRemaining = FMath::Max(0.0f, HornCooldownRemaining - DeltaSeconds);
     HornVisualRemaining = FMath::Max(0.0f, HornVisualRemaining - DeltaSeconds);
     if (HornText)
@@ -76,7 +93,7 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
 
     bool bObstacleAhead = false;
     FHitResult ObstacleHit;
-    if (GetWorld())
+    if (bAllowExpensiveQueries && GetWorld())
     {
         const FVector ProbeStart = GetActorLocation() + Forward * 140.0f + FVector(0.0f, 0.0f, 35.0f);
         const FVector ProbeEnd = ProbeStart + Forward * ObstacleProbeDistance;
