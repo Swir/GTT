@@ -21,11 +21,11 @@ namespace
 
     void BuildRoom(UWorld& World, UStaticMesh* CubeMesh, const FVector& Center, const FVector& HalfScale)
     {
-        SpawnInteriorBox(World, CubeMesh, Center + FVector(0.0f, 0.0f, -70.0f), FVector(HalfScale.X, HalfScale.Y, 0.15f));
-        SpawnInteriorBox(World, CubeMesh, Center + FVector(HalfScale.X * 100.0f, 0.0f, 230.0f), FVector(0.15f, HalfScale.Y, 3.0f));
-        SpawnInteriorBox(World, CubeMesh, Center + FVector(-HalfScale.X * 100.0f, 0.0f, 230.0f), FVector(0.15f, HalfScale.Y, 3.0f));
-        SpawnInteriorBox(World, CubeMesh, Center + FVector(0.0f, HalfScale.Y * 100.0f, 230.0f), FVector(HalfScale.X, 0.15f, 3.0f));
-        SpawnInteriorBox(World, CubeMesh, Center + FVector(0.0f, -HalfScale.Y * 100.0f, 230.0f), FVector(HalfScale.X, 0.15f, 3.0f));
+        SpawnInteriorBox(World, CubeMesh, Center + FVector(0.0f, 0.0f, -70.0f), FVector(HalfScale.X * 2.0f, HalfScale.Y * 2.0f, 0.15f));
+        SpawnInteriorBox(World, CubeMesh, Center + FVector(HalfScale.X * 100.0f, 0.0f, 230.0f), FVector(0.15f, HalfScale.Y * 2.0f, 3.0f));
+        SpawnInteriorBox(World, CubeMesh, Center + FVector(-HalfScale.X * 100.0f, 0.0f, 230.0f), FVector(0.15f, HalfScale.Y * 2.0f, 3.0f));
+        SpawnInteriorBox(World, CubeMesh, Center + FVector(0.0f, HalfScale.Y * 100.0f, 230.0f), FVector(HalfScale.X * 2.0f, 0.15f, 3.0f));
+        SpawnInteriorBox(World, CubeMesh, Center + FVector(0.0f, -HalfScale.Y * 100.0f, 230.0f), FVector(HalfScale.X * 2.0f, 0.15f, 3.0f));
     }
 }
 
