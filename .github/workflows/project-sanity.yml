@@ -40,3 +40,6 @@ jobs:
 
       - name: Verify Arc 4 and North Pass countryside milestone
         run: python Scripts/verify_arc4.py
+
+      - name: Verify unified world-state milestone
+        run: python Scripts/verify_unified_save.py
