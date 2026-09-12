@@ -34,7 +34,14 @@ void AGTTMudZone::Tick(float DeltaSeconds)
 
         FVector HorizontalVelocity = Root->GetPhysicsLinearVelocity();
         HorizontalVelocity.Z = 0.0f;
-        Root->AddForce(-HorizontalVelocity * Root->GetMass() * DragStrength, NAME_None, false);
+
+        // The dynamics component owns most of the muddy handling response: reduced grip,
+        // increased rolling resistance and vehicle-profile-specific off-road recovery.
+        Vehicle->ApplyTerrainDynamicsModifier(0.52f, DragStrength * 18.0f, 0.28f);
+
+        // Keep a smaller physical drag impulse so deep mud still visibly bleeds momentum
+        // even when the driver is coasting or a recovery target is being towed.
+        Root->AddForce(-HorizontalVelocity * Root->GetMass() * DragStrength * 0.35f, NAME_None, false);
 
         if (HorizontalVelocity.SizeSquared() > FMath::Square(250.0f))
             Vehicle->ApplyTireDamage(TireWearPerSecond * DeltaSeconds);
