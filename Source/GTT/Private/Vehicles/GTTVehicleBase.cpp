@@ -21,9 +21,11 @@ AGTTVehicleBase::AGTTVehicleBase()
     SetRootComponent(VehicleMesh);
     VehicleMesh->SetSimulatePhysics(true);
     VehicleMesh->SetNotifyRigidBodyCollision(true);
-    VehicleMesh->SetLinearDamping(1.4f);
-    VehicleMesh->SetAngularDamping(2.5f);
+    VehicleMesh->SetLinearDamping(0.45f);
+    VehicleMesh->SetAngularDamping(1.4f);
     VehicleMesh->OnComponentHit.AddDynamic(this, &AGTTVehicleBase::HandleVehicleHit);
+
+    DynamicsComponent = CreateDefaultSubobject<UGTTVehicleDynamicsComponent>(TEXT("VehicleDynamics"));
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(VehicleMesh);
@@ -57,6 +59,11 @@ AGTTVehicleBase::AGTTVehicleBase()
     }
 
     VehicleDisplayName = NSLOCTEXT("GTT", "DefaultVehicleName", "Old vehicle");
+
+    FGTTVehicleDynamicsProfile DefaultProfile;
+    DefaultProfile.MaxDriveForce = DriveAcceleration;
+    DefaultProfile.MaxSteerTorque = SteeringAcceleration;
+    ConfigureDynamics(DefaultProfile);
 }
 
 void AGTTVehicleBase::BeginPlay()
@@ -65,6 +72,7 @@ void AGTTVehicleBase::BeginPlay()
     CurrentFuelLiters = FMath::Clamp(StartingFuelLiters, 0.0f, FuelCapacityLiters);
     EngineTemperatureC = NormalEngineTemperatureC;
     TireIntegrity = FMath::Clamp(TireIntegrity, 0.0f, 1.0f);
+    RefreshDynamicsPower();
     UpdateBreakableParts();
 }
 
@@ -74,10 +82,12 @@ void AGTTVehicleBase::Tick(float DeltaSeconds)
 
     FaultRestartTimeRemaining = FMath::Max(0.0f, FaultRestartTimeRemaining - DeltaSeconds);
     UpdateDamageSmoke(DeltaSeconds);
+    RefreshDynamicsPower();
 
     if (!bEngineRunning || !bOccupied || CurrentFuelLiters <= 0.0f)
     {
         EngineTemperatureC = FMath::FInterpTo(EngineTemperatureC, NormalEngineTemperatureC, DeltaSeconds, 0.18f);
+        if (DynamicsComponent) DynamicsComponent->SetDriverInputs(0.0f, 0.0f);
         return;
     }
 
@@ -97,6 +107,7 @@ void AGTTVehicleBase::Tick(float DeltaSeconds)
     {
         CurrentFuelLiters = 0.0f;
         LastThrottleInput = 0.0f;
+        LastSteeringInput = 0.0f;
         ActiveFaultStatus = TEXT("OUT OF FUEL");
         SetEngineRunning(false);
         OnOutOfFuel.Broadcast();
@@ -134,44 +145,25 @@ void AGTTVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 void AGTTVehicleBase::Interact_Implementation(AActor* Interactor)
 {
-    if (bOccupied || !IsValid(Interactor) || Condition <= 0.0f)
-    {
-        return;
-    }
+    if (bOccupied || !IsValid(Interactor) || Condition <= 0.0f) return;
 
     APawn* InteractingPawn = Cast<APawn>(Interactor);
-    if (!InteractingPawn)
-    {
-        return;
-    }
-
+    if (!InteractingPawn) return;
     AController* InteractingController = InteractingPawn->GetController();
-    if (!InteractingController)
-    {
-        return;
-    }
+    if (!InteractingController) return;
 
     if (bIllegalToTake && !bOwnedByPlayer && !bTheftReported)
     {
-        if (UGTTWantedComponent* Wanted = InteractingPawn->FindComponentByClass<UGTTWantedComponent>())
-        {
-            Wanted->AddHeat(TheftHeat);
-        }
-
+        if (UGTTWantedComponent* Wanted = InteractingPawn->FindComponentByClass<UGTTWantedComponent>()) Wanted->AddHeat(TheftHeat);
         bTheftReported = true;
         OnVehicleStolen.Broadcast();
-
-        if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
-        {
-            GameMode->NotifyVehicleStolen(this, InteractingPawn);
-        }
+        if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->NotifyVehicleStolen(this, InteractingPawn);
     }
 
     PreviousPawn = InteractingPawn;
     InteractingPawn->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
     InteractingPawn->SetActorHiddenInGame(true);
     InteractingPawn->SetActorEnableCollision(false);
-
     InteractingController->Possess(this);
     bOccupied = true;
     ActiveFaultStatus.Empty();
@@ -184,9 +176,7 @@ FText AGTTVehicleBase::GetInteractionText_Implementation() const
     if (bOccupied) return NSLOCTEXT("GTT", "VehicleOccupied", "Occupied");
     if (Condition <= 0.0f) return NSLOCTEXT("GTT", "VehicleBroken", "Broken down");
     if (CurrentFuelLiters <= KINDA_SMALL_NUMBER)
-    {
         return FText::Format(NSLOCTEXT("GTT", "EnterEmptyVehicle", "Enter {0} (empty tank)"), VehicleDisplayName);
-    }
     return FText::Format(
         bOwnedByPlayer ? NSLOCTEXT("GTT", "EnterOwnedVehicle", "Enter your {0}") : NSLOCTEXT("GTT", "EnterNamedVehicle", "Enter {0}"),
         VehicleDisplayName);
@@ -199,6 +189,8 @@ void AGTTVehicleBase::ExitVehicle()
     if (!VehicleController || !PawnToRestore) return;
 
     LastThrottleInput = 0.0f;
+    LastSteeringInput = 0.0f;
+    if (DynamicsComponent) DynamicsComponent->SetDriverInputs(0.0f, 0.0f);
     SetEngineRunning(false);
     PawnToRestore->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
     PawnToRestore->SetActorLocation(GetActorTransform().TransformPosition(ExitOffset));
@@ -214,14 +206,15 @@ void AGTTVehicleBase::ExitVehicle()
 void AGTTVehicleBase::ApplyVehicleDamage(float DamageAmount)
 {
     if (DamageAmount <= 0.0f || Condition <= 0.0f) return;
-
     const float OldCondition = Condition;
     Condition = FMath::Clamp(Condition - DamageAmount, 0.0f, MaxCondition);
+    RefreshDynamicsPower();
     UpdateBreakableParts();
 
     if (OldCondition > 0.0f && Condition <= 0.0f)
     {
         LastThrottleInput = 0.0f;
+        LastSteeringInput = 0.0f;
         ActiveFaultStatus = TEXT("BROKEN DOWN");
         SetEngineRunning(false);
         UE_LOG(LogGTT, Warning, TEXT("Vehicle %s broke down."), *GetName());
@@ -232,10 +225,10 @@ void AGTTVehicleBase::ApplyVehicleDamage(float DamageAmount)
 void AGTTVehicleBase::RepairVehicle(float RepairAmount)
 {
     if (RepairAmount <= 0.0f) return;
-
     Condition = FMath::Clamp(Condition + RepairAmount, 0.0f, MaxCondition);
     EngineTemperatureC = FMath::Min(EngineTemperatureC, NormalEngineTemperatureC + 5.0f);
     ActiveFaultStatus.Empty();
+    RefreshDynamicsPower();
     if (GetConditionPercent() >= 0.88f) RestoreBreakableParts(); else UpdateBreakableParts();
 }
 
@@ -257,7 +250,6 @@ void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, floa
     int32 InEngineUpgradeLevel, int32 InTireUpgradeLevel, float InTireIntegrity)
 {
     if (bOccupied) ExitVehicle();
-
     SetEngineRunning(false);
     SetActorTransform(InTransform, false, nullptr, ETeleportType::TeleportPhysics);
     Condition = FMath::Clamp(ConditionPercent, 0.0f, 1.0f) * MaxCondition;
@@ -273,6 +265,7 @@ void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, floa
         bIllegalToTake = false;
         bTheftReported = false;
     }
+    RefreshDynamicsPower();
     RestoreBreakableParts();
     UpdateBreakableParts();
 }
@@ -281,6 +274,7 @@ bool AGTTVehicleBase::RecallToTransform(const FTransform& Destination)
 {
     if (bOccupied || !bOwnedByPlayer || !VehicleMesh) return false;
     SetEngineRunning(false);
+    if (DynamicsComponent) DynamicsComponent->SetDriverInputs(0.0f, 0.0f);
     VehicleMesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
     VehicleMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     SetActorTransform(Destination, false, nullptr, ETeleportType::TeleportPhysics);
@@ -292,6 +286,7 @@ bool AGTTVehicleBase::InstallEngineUpgrade()
     if (!bOwnedByPlayer || EngineUpgradeLevel >= 3) return false;
     ++EngineUpgradeLevel;
     EngineTemperatureC = FMath::Min(EngineTemperatureC, NormalEngineTemperatureC);
+    RefreshDynamicsPower();
     return true;
 }
 
@@ -300,22 +295,27 @@ bool AGTTVehicleBase::InstallTireUpgrade()
     if (!bOwnedByPlayer || TireUpgradeLevel >= 3) return false;
     ++TireUpgradeLevel;
     TireIntegrity = 1.0f;
+    RefreshDynamicsPower();
     return true;
 }
 
 void AGTTVehicleBase::RepairTires()
 {
     TireIntegrity = 1.0f;
+    RefreshDynamicsPower();
 }
 
 void AGTTVehicleBase::ApplyTireDamage(float Amount)
 {
-    if (Amount <= 0.0f)
-    {
-        return;
-    }
+    if (Amount <= 0.0f) return;
     const float Reinforcement = 1.0f + TireUpgradeLevel * 0.35f;
     TireIntegrity = FMath::Clamp(TireIntegrity - Amount / Reinforcement, 0.0f, 1.0f);
+    RefreshDynamicsPower();
+}
+
+void AGTTVehicleBase::ApplyTerrainDynamicsModifier(float GripMultiplier, float ExtraRollingResistance, float DurationSeconds)
+{
+    if (DynamicsComponent) DynamicsComponent->ApplyTerrainModifier(GripMultiplier, ExtraRollingResistance, DurationSeconds);
 }
 
 float AGTTVehicleBase::GetConditionPercent() const
@@ -338,6 +338,21 @@ FString AGTTVehicleBase::GetTuningSummary() const
     return FString::Printf(TEXT("ENGINE L%d/3 | TIRES L%d/3 | TIRE %.0f%%"), EngineUpgradeLevel, TireUpgradeLevel, TireIntegrity * 100.0f);
 }
 
+FString AGTTVehicleBase::GetDynamicsSummary() const
+{
+    return DynamicsComponent ? DynamicsComponent->GetDynamicsSummary() : TEXT("DYNAMICS FALLBACK");
+}
+
+int32 AGTTVehicleBase::GetCurrentGear() const
+{
+    return DynamicsComponent ? DynamicsComponent->GetCurrentGear() : 0;
+}
+
+int32 AGTTVehicleBase::GetGroundContactCount() const
+{
+    return DynamicsComponent ? DynamicsComponent->GetGroundContactCount() : 0;
+}
+
 FString AGTTVehicleBase::GetFaultStatusText() const
 {
     if (Condition <= 0.0f) return TEXT("BROKEN DOWN");
@@ -352,7 +367,6 @@ FString AGTTVehicleBase::GetFaultStatusText() const
 void AGTTVehicleBase::HandleThrottle(float Value)
 {
     LastThrottleInput = Value;
-
     if (!bEngineRunning && bOccupied && Value > 0.20f && FaultRestartTimeRemaining <= 0.0f &&
         Condition > 0.0f && CurrentFuelLiters > KINDA_SMALL_NUMBER && EngineTemperatureC < CriticalEngineTemperatureC - 5.0f)
     {
@@ -360,40 +374,40 @@ void AGTTVehicleBase::HandleThrottle(float Value)
         SetEngineRunning(true);
     }
 
-    const float ConditionPower = FMath::Lerp(0.35f, 1.0f, GetConditionPercent());
-    const float TemperaturePower = EngineTemperatureC >= OverheatStartTemperatureC ? 0.72f : 1.0f;
-    const float EngineTunePower = 1.0f + EngineUpgradeLevel * 0.12f;
-    const float TireGrip = FMath::Lerp(0.38f, 1.0f, TireIntegrity) * (1.0f + TireUpgradeLevel * 0.04f);
-    const float EffectiveValue = bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f
-        ? Value * ConditionPower * TemperaturePower * EngineTunePower * TireGrip
-        : 0.0f;
-
-    if (!FMath::IsNearlyZero(EffectiveValue) && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
+    RefreshDynamicsPower();
+    const float EffectiveThrottle = bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f ? Value : 0.0f;
+    if (DynamicsComponent)
     {
-        VehicleMesh->AddForce(GetActorForwardVector() * EffectiveValue * DriveAcceleration, NAME_None, true);
+        DynamicsComponent->SetDriverInputs(EffectiveThrottle, LastSteeringInput);
     }
-    OnThrottleInput(EffectiveValue);
+    else if (!FMath::IsNearlyZero(EffectiveThrottle) && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
+    {
+        VehicleMesh->AddForce(GetActorForwardVector() * EffectiveThrottle * DriveAcceleration, NAME_None, true);
+    }
+    OnThrottleInput(EffectiveThrottle);
 }
 
 void AGTTVehicleBase::HandleSteering(float Value)
 {
-    if (bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
+    LastSteeringInput = Value;
+    const float EffectiveSteering = bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f ? Value : 0.0f;
+    if (DynamicsComponent)
+    {
+        DynamicsComponent->SetDriverInputs(LastThrottleInput, EffectiveSteering);
+    }
+    else if (!FMath::IsNearlyZero(EffectiveSteering) && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
     {
         const float SpeedFactor = FMath::Clamp(GetVelocity().Size2D() / 500.0f, 0.18f, 1.0f);
-        const float TireGrip = FMath::Lerp(0.28f, 1.0f, TireIntegrity) * (1.0f + TireUpgradeLevel * 0.08f);
-        VehicleMesh->AddTorqueInRadians(FVector::UpVector * Value * SteeringAcceleration * SpeedFactor * TireGrip, NAME_None, true);
+        VehicleMesh->AddTorqueInRadians(FVector::UpVector * EffectiveSteering * SteeringAcceleration * SpeedFactor, NAME_None, true);
     }
-    OnSteeringInput(Value);
+    OnSteeringInput(EffectiveSteering);
 }
 
 void AGTTVehicleBase::CycleRadio()
 {
     if (APawn* Driver = PreviousPawn.Get())
     {
-        if (UGTTRadioComponent* Radio = Driver->FindComponentByClass<UGTTRadioComponent>())
-        {
-            Radio->CycleStation();
-        }
+        if (UGTTRadioComponent* Radio = Driver->FindComponentByClass<UGTTRadioComponent>()) Radio->CycleStation();
     }
 }
 
@@ -401,10 +415,8 @@ void AGTTVehicleBase::HandleVehicleHit(UPrimitiveComponent* HitComponent, AActor
 {
     const float ExcessImpulse = NormalImpulse.Size() - MinDamagingImpulse;
     if (ExcessImpulse <= 0.0f) return;
-
     const float Damage = FMath::Clamp(ExcessImpulse / ImpulsePerDamagePoint, 0.0f, 35.0f);
     ApplyVehicleDamage(Damage);
-
     if (Damage >= 5.0f)
     {
         const float TireLoss = FMath::Clamp(Damage / 100.0f, 0.015f, 0.18f);
@@ -423,6 +435,21 @@ void AGTTVehicleBase::RegisterBreakablePart(UStaticMeshComponent* Part, float De
     BreakableParts.Add(Runtime);
 }
 
+void AGTTVehicleBase::ConfigureDynamics(const FGTTVehicleDynamicsProfile& Profile)
+{
+    if (DynamicsComponent) DynamicsComponent->ConfigureProfile(Profile);
+}
+
+void AGTTVehicleBase::RefreshDynamicsPower()
+{
+    if (!DynamicsComponent) return;
+    const float ConditionPower = FMath::Lerp(0.35f, 1.0f, GetConditionPercent());
+    const float TemperaturePower = EngineTemperatureC >= OverheatStartTemperatureC ? 0.72f : 1.0f;
+    const float EngineTunePower = 1.0f + EngineUpgradeLevel * 0.12f;
+    const float TireGrip = FMath::Lerp(0.30f, 1.0f, TireIntegrity) * (1.0f + TireUpgradeLevel * 0.08f);
+    DynamicsComponent->SetPowerMultipliers(ConditionPower * TemperaturePower * EngineTunePower, TireGrip);
+}
+
 void AGTTVehicleBase::UpdateBreakableParts()
 {
     const float ConditionPercent = GetConditionPercent();
@@ -430,7 +457,6 @@ void AGTTVehicleBase::UpdateBreakableParts()
     {
         UStaticMeshComponent* Part = Runtime.Component.Get();
         if (!Part || Runtime.bDetached || ConditionPercent > Runtime.DetachThreshold) continue;
-
         Part->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
         Part->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Part->SetSimulatePhysics(true);
@@ -473,7 +499,6 @@ void AGTTVehicleBase::UpdateDamageSmoke(float DeltaSeconds)
         if (!Puff) continue;
         Puff->SetVisibility(bShowSmoke, true);
         if (!bShowSmoke) continue;
-
         const float Phase = FMath::Fmod(DamageFxClock * (0.55f + Severity * 0.75f) + Index * 0.33f, 1.0f);
         const float Drift = FMath::Sin((DamageFxClock + Index) * 2.1f) * 18.0f;
         Puff->SetRelativeLocation(FVector(78.0f + Drift, (Index - 1) * 18.0f, 85.0f + Phase * 150.0f));
@@ -486,6 +511,7 @@ void AGTTVehicleBase::TriggerMechanicalStall(const TCHAR* Reason)
 {
     if (!bEngineRunning) return;
     LastThrottleInput = 0.0f;
+    LastSteeringInput = 0.0f;
     ActiveFaultStatus = Reason;
     FaultRestartTimeRemaining = FaultRestartDelaySeconds;
     SetEngineRunning(false);
@@ -497,5 +523,6 @@ void AGTTVehicleBase::SetEngineRunning(bool bNewRunning)
     const bool bCanRun = bNewRunning && Condition > 0.0f && CurrentFuelLiters > KINDA_SMALL_NUMBER && EngineTemperatureC < CriticalEngineTemperatureC;
     if (bEngineRunning == bCanRun) return;
     bEngineRunning = bCanRun;
+    if (!bEngineRunning && DynamicsComponent) DynamicsComponent->SetDriverInputs(0.0f, 0.0f);
     OnEngineStateChanged(bEngineRunning);
 }
