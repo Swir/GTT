@@ -1,5 +1,6 @@
 #include "Vehicles/GTTFarmTrailer.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
