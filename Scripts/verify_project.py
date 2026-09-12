@@ -38,13 +38,13 @@ EXPECTED_SOURCE_TOKENS = {
         "POLICE ROADBLOCK", "SPIKE STRIP", "ApplyTireDamage", "ApplyVehicleDamage", "SetResponseTier"
     ],
     "Source/GTT/Private/World/GTTVillageEventDirector.cpp": [
-        "18.5f", "2.5f", "COMMUNITY HALL PARTY", "SpawnNightEvent", "PartyCrowd", "waiting for the next bad idea"
+        "18.5f", "2.5f", "COMMUNITY HALL PARTY", "VILLAGE NIGHT", "SpawnNightEvent", "PartyCrowd", "waiting for the next bad idea"
     ],
     "Source/GTT/Private/World/GTTVillageEventMarker.cpp": [
         "BROKEN-DOWN NEIGHBOR", "MIDNIGHT TRACTOR MEET", "SUSPICIOUS BONFIRE RUN", "MYSTERY CRATE", "ReportWildlifeCrime"
     ],
     "Source/GTT/Private/UI/GTTGameHUD.cpp": [
-        "POLICE RESPONSE", "ROADBLOCKS", "INTERCEPTION MODE", "GetDisplayLine", "VILLAGE NIGHT", "R radio"
+        "POLICE RESPONSE", "ROADBLOCKS", "INTERCEPTION MODE", "GetDisplayLine", "NightDirector", "R radio"
     ],
     "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
         "AGTTVillageEventDirector", "THE BENT AXLE TAVERN", "4+ WANTED: ROADBLOCKS", "GTT 0.0.11"
