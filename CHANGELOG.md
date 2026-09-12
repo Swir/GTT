@@ -2,6 +2,28 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.24] - 2026-09-12
+
+### Added
+- **Unified World State** migration layer using the existing primary `GTT_Prototype_01` sandbox SaveGame as the aggregate snapshot for combat, story, Arc 3, Arc 4, rural factions and rural economy.
+- Save v4 fields for Rural Arsenal inventory/equipped weapon/shotgun ammunition, all campaign stages, Arc 4 preparation state, faction notoriety/counters, contraband, insurance, impound and road-law citation progress.
+- Automatic import of all pre-0.0.24 dedicated save slots into the primary sandbox SaveGame without deleting the old data.
+- Compatibility-mirror hydration so missing legacy domain slots can be reconstructed from an initialized v4 unified snapshot.
+- Change-aware five-second consolidation pass: the primary snapshot is rewritten only when a domain actually changed, avoiding continuous unnecessary disk writes.
+- Dedicated `verify_unified_save.py` sanity suite covering every persisted domain, migration/mirror hooks and exact SWIR roadmap dashboard arithmetic.
+- Dedicated `PLAYTEST_0.0.24.md` migration/regression plan.
+
+### Changed
+- Primary `UGTTSaveGame` schema advances from v3 to v4 and now carries the whole persistent sandbox state instead of only economy/time/garage data.
+- Legacy combat/story/faction/economy slots are retained as compatibility mirrors during migration rather than being destructively removed.
+- New profiles are protected from premature save creation: the unified subsystem never manufactures `GTT_Prototype_01` before the normal GameMode owns a real primary save.
+- Roadmap advances from `113/130 (86.9%)` to the exactly recalculated `114/130 (87.7%)`; the 20-segment bar advances to 18/20 while preserving `SWIR-ROADMAP-STANDARD:v1`.
+
+### Limitations / Next
+- Compatibility mirrors intentionally remain during this migration milestone; a later cleanup can retire them only after UE-equipped playtests prove upgrade safety across real save files.
+- The next major gameplay/technical package is a real performance pass across civilians, traffic and hostile encounters, then settings/controller work and native Chaos migration.
+- Full Unreal Engine 5.8 Win64 compile/package/smoke validation is still unavailable in repository CI; no packaged EXE verification is claimed.
+
 ## [0.0.23] - 2026-09-12
 
 ### Added
