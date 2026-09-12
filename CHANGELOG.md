@@ -2,6 +2,32 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.18] - 2026-09-12
+
+### Added
+- New reusable `UGTTCombatComponent` on the player with health, attack cooldowns, weapon inventory, weapon cycling, dropping and combat HUD state.
+- **Rural Arsenal** with eight countryside weapon archetypes: Pitchfork, Wood Axe, Heavy Branch, Rake, Cattle Chain, Shovel, Workshop Wrench and Old Farm Shotgun.
+- Physical interactable weapon pickups placed across Player Farm, barn/farm areas, workshop, forest, Hill Farm and neighbour property instead of granting the arsenal through a menu.
+- Melee sweep combat with per-weapon reach, damage, knockback, cooldown and police-heat profiles.
+- Old Farm Shotgun gameplay with limited shells, ranged spread traces, high wanted heat and vehicle/civilian damage integration.
+- Player health and defeat loop: hostile villagers can damage the player; knockout returns the player to Player Farm, clears wanted, costs `$85` and removes two shotgun shells when available.
+- Civilian combat AI: villagers can retaliate, chase the attacker, flee when badly hurt, receive knockback, become temporarily knocked out and later recover.
+- **Bent Axle Brawl** nightlife activity: zero-wanted/nighttime entry, three hostile local brawlers, two-minute limit, live HUD objective and `$260` win purse.
+- Organized brawl participants are exempt from normal melee-assault heat, while firing the shotgun still creates police heat.
+- New controls: `LMB` attack, `Q` next weapon, `G` drop current weapon.
+- Dedicated `verify_combat.py` sanity suite added to GitHub Actions alongside the existing project sanity suite.
+
+### Changed
+- Existing wanted/economy/vehicle-damage systems now receive combat events rather than combat living as an isolated prototype.
+- HUD now exposes player HP, equipped rural weapon, inventory count or shotgun shells, plus active Bent Axle Brawl status.
+- Nightlife now contains a repeatable aggressive activity instead of only social/random-event content.
+
+### Limitations / Next
+- Combat uses source-driven traces and primitive placeholder visuals; final skeletal animations, hit reactions and authored weapon meshes are still outstanding.
+- Weapon inventory is session-state in 0.0.18 and is not yet persisted in the primary sandbox SaveGame.
+- Next: Main Story Arc 3 using combat + towing, deeper hostile NPC archetypes, inventory/save persistence, more rural improvised weapons and authored animations.
+- Native Chaos wheel setup and a real UE 5.8 Win64 compile/package smoke runner remain outstanding.
+
 ## [0.0.17] - 2026-09-12
 
 ### Added

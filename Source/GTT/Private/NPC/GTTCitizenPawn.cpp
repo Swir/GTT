@@ -1,4 +1,5 @@
 #include "NPC/GTTCitizenPawn.h"
+#include "Combat/GTTCombatComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -31,6 +32,7 @@ AGTTCitizenPawn::AGTTCitizenPawn()
 void AGTTCitizenPawn::BeginPlay()
 {
     Super::BeginPlay();
+    Health = MaxHealth;
     HomeLocation = GetActorLocation();
     const FVector2D WorkOffset=FMath::RandPointInCircle(1500.0f), SocialOffset=FMath::RandPointInCircle(1100.0f);
     WorkLocation=HomeLocation+FVector(WorkOffset.X,WorkOffset.Y,0); SocialLocation=HomeLocation+FVector(SocialOffset.X,SocialOffset.Y,0);
@@ -41,6 +43,17 @@ void AGTTCitizenPawn::BeginPlay()
 void AGTTCitizenPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    CombatCooldown=FMath::Max(0.0f,CombatCooldown-DeltaSeconds);
+    if(bKnockedOut)
+    {
+        KnockoutTimeRemaining=FMath::Max(0.0f,KnockoutTimeRemaining-DeltaSeconds);
+        if(KnockoutTimeRemaining<=0.0f)
+        {
+            bKnockedOut=false; Health=MaxHealth*.55f; bBrawlParticipant=false; SetActorHiddenInGame(false); SetActorEnableCollision(true); GetCharacterMovement()->SetMovementMode(MOVE_Walking); CombatTarget.Reset(); ChooseNewWanderTarget();
+        }
+        return;
+    }
+    if(CombatTarget.IsValid()) { UpdateCombatBehavior(DeltaSeconds); return; }
     if(!DayNightCycle.IsValid()) DayNightCycle=Cast<AGTTDayNightCycle>(UGameplayStatics::GetActorOfClass(this,AGTTDayNightCycle::StaticClass()));
     RetargetTimeRemaining-=DeltaSeconds;
     const FVector ScheduleCenter=GetScheduleCenter();
@@ -50,9 +63,48 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
     if(!ToTarget.IsNearlyZero()) AddMovementInput(ToTarget.GetSafeNormal2D(),1.0f);
 }
 
+void AGTTCitizenPawn::StartBrawlWith(APawn* Opponent)
+{
+    if(!Opponent||bKnockedOut) return;
+    bBrawlParticipant=true;
+    CombatTarget=Opponent;
+    Health=MaxHealth;
+    GetCharacterMovement()->MaxWalkSpeed=235.0f;
+}
+
+void AGTTCitizenPawn::ApplyCombatHit(float Damage, const FVector& HitDirection, float Knockback, APawn* Attacker)
+{
+    if(bKnockedOut||Damage<=0.0f) return;
+    Health=FMath::Max(0.0f,Health-Damage);
+    LaunchCharacter(HitDirection.GetSafeNormal2D()*Knockback+FVector(0,0,FMath::Min(180.0f,Knockback*.35f)),true,true);
+    CombatTarget=Attacker;
+    if(Health<=0.0f)
+    {
+        bKnockedOut=true; KnockoutTimeRemaining=22.0f; CombatTarget.Reset(); GetCharacterMovement()->DisableMovement(); SetActorEnableCollision(false); SetActorHiddenInGame(true);
+        return;
+    }
+    GetCharacterMovement()->MaxWalkSpeed = Health < MaxHealth*.30f ? 310.0f : 225.0f;
+}
+
+void AGTTCitizenPawn::UpdateCombatBehavior(float DeltaSeconds)
+{
+    APawn* Target=CombatTarget.Get();
+    if(!Target){ CombatTarget.Reset(); return; }
+    FVector ToTarget=Target->GetActorLocation()-GetActorLocation(); ToTarget.Z=0;
+    const float Distance=ToTarget.Size2D();
+    if(Distance>2600.0f){ CombatTarget.Reset(); bBrawlParticipant=false; GetCharacterMovement()->MaxWalkSpeed=WanderSpeed; ChooseNewWanderTarget(); return; }
+    if(Health < MaxHealth*.30f && !bBrawlParticipant){ AddMovementInput((-ToTarget).GetSafeNormal2D(),1.0f); return; }
+    if(Distance>RetaliationDistance) AddMovementInput(ToTarget.GetSafeNormal2D(),1.0f);
+    else if(CombatCooldown<=0.0f)
+    {
+        CombatCooldown=FMath::FRandRange(.85f,1.25f);
+        if(UGTTCombatComponent* Combat=Target->FindComponentByClass<UGTTCombatComponent>()) Combat->ApplyIncomingDamage(RetaliationDamage, bBrawlParticipant?TEXT("Bent Axle brawler hit"):TEXT("Villager retaliation"));
+    }
+}
+
 bool AGTTCitizenPawn::TryWitnessVehicleTheft(AGTTVehicleBase* Vehicle, APawn* Offender)
 {
-    if(!Vehicle||!Offender||LastWitnessedVehicle.Get()==Vehicle||!GetWorld()) return false;
+    if(!Vehicle||!Offender||LastWitnessedVehicle.Get()==Vehicle||!GetWorld()||bKnockedOut) return false;
     if(FVector::DistSquared2D(GetActorLocation(),Vehicle->GetActorLocation())>FMath::Square(WitnessRadius)) return false;
     FHitResult Hit; FCollisionQueryParams Params(SCENE_QUERY_STAT(GTTWitnessSight),false,this); Params.AddIgnoredActor(this); Params.AddIgnoredActor(Offender);
     const FVector Start=GetActorLocation()+FVector(0,0,70), End=Vehicle->GetActorLocation()+FVector(0,0,80);
