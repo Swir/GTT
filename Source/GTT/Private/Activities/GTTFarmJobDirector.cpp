@@ -1,5 +1,7 @@
 #include "Activities/GTTFarmJobDirector.h"
 
+#include "Activities/GTTRecoveryDirector.h"
+#include "Activities/GTTRuralWorkDirector.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "EngineUtils.h"
@@ -25,7 +27,7 @@ AGTTVehicleBase* FindNearbyWorkVehicle(const UObject* WorldContextObject, APawn*
     for (TActorIterator<AGTTVehicleBase> It(World); It; ++It)
     {
         AGTTVehicleBase* Vehicle = *It;
-        if (!Vehicle || Vehicle->GetConditionPercent() <= 0.0f) continue;
+        if (!Vehicle || Vehicle->GetConditionPercent() <= 0.0f || Vehicle->IsRecoveryTarget()) continue;
         const float DistSq = FVector::DistSquared2D(PlayerPawn->GetActorLocation(), Vehicle->GetActorLocation());
         if (DistSq <= BestDistSq)
         {
@@ -91,6 +93,22 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
         if (GameMode->GetWildlifeAlertLevel() > 0)
         {
             PushMessage(PlayerPawn, TEXT("Clear the game-warden alert before taking a legal contract."));
+            return false;
+        }
+    }
+    if (const AGTTRuralWorkDirector* Rural = Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRuralWorkDirector::StaticClass())))
+    {
+        if (Rural->IsWorkActive())
+        {
+            PushMessage(PlayerPawn, TEXT("Finish the active rural contract before taking feed cargo."));
+            return false;
+        }
+    }
+    if (const AGTTRecoveryDirector* Recovery = Cast<AGTTRecoveryDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRecoveryDirector::StaticClass())))
+    {
+        if (Recovery->IsRecoveryActive())
+        {
+            PushMessage(PlayerPawn, TEXT("Finish the active recovery call before taking feed cargo."));
             return false;
         }
     }
