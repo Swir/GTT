@@ -38,10 +38,20 @@ if min(limits) >= max(limits):
 if not any(row[1] == "1" for row in node_rows) or not any(row[1] == "2" for row in node_rows):
     raise SystemExit("[FAIL] road lane metadata lacks one/two-lane differentiation")
 
+# The rural-economy regression suite must validate the dashboard contract without
+# freezing the repository to the 0.0.22 checkbox count forever.
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
 if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap or "ROADMAP-PROGRESS:START" not in roadmap:
     raise SystemExit("[FAIL] SWIR roadmap dashboard standard missing")
-if "DONE-111%2F129" not in roadmap or "86.0%" not in roadmap:
-    raise SystemExit("[FAIL] roadmap dashboard values are stale for 111/129 completion")
+checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M)
+done = sum(1 for state in checks if state == "x")
+total = len(checks)
+if total == 0:
+    raise SystemExit("[FAIL] roadmap has no checklist tasks")
+percent = round(done * 100.0 / total, 1)
+expected_done_badge = f"DONE-{done}%2F{total}"
+expected_percent = f"{percent:.1f}%"
+if expected_done_badge not in roadmap or expected_percent not in roadmap:
+    raise SystemExit(f"[FAIL] roadmap dashboard is inconsistent with checklist: expected {done}/{total} = {percent:.1f}%")
 
-print("[OK] GTT 0.0.22 fence inventory, insurance, arrest impound and road-law metadata look structurally sane.")
+print("[OK] GTT rural economy, insurance, impound, road law and live roadmap dashboard contract look structurally sane.")

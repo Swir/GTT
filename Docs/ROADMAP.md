@@ -6,20 +6,20 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 <!-- ROADMAP-PROGRESS:START -->
 <p align="center">
   <a href="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml"><img alt="CI" src="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml/badge.svg"></a>
-  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-86.0%25-2ea043?style=for-the-badge">
-  <img alt="Completed" src="https://img.shields.io/badge/DONE-111%2F129-1f6feb?style=for-the-badge">
+  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-86.9%25-2ea043?style=for-the-badge">
+  <img alt="Completed" src="https://img.shields.io/badge/DONE-113%2F130-1f6feb?style=for-the-badge">
   <img alt="Status" src="https://img.shields.io/badge/STATUS-IN%20PROGRESS-7c3aed?style=for-the-badge">
 </p>
 
 ## 📊 Overall progress
 
 ```text
-█████████████████░░░ 86.0%
+█████████████████░░░ 86.9%
 ```
 
 | ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |
 |---:|---:|---:|---:|
-| **111** | **18** | **129** | **86.0%** |
+| **113** | **17** | **130** | **86.9%** |
 
 > **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
@@ -131,7 +131,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Three new hostile countryside territories with automatic proximity encounters
 - [x] Deeper poaching inventory / fence economy
 - [x] More shops/services
-- [ ] Larger connected countryside beyond current road graph
+- [x] Larger connected countryside beyond current road graph
 
 ## 0.8 — Vehicle Damage & Tuning
 - [x] Detachable doors/fenders/body panels
@@ -152,6 +152,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Main Story Arc 1: County Ledger / Backroad Deal / Final Farm Meet
 - [x] Main Story Arc 2: Timber Ghosts / Warden / Forest Cache / Hill Farm evidence
 - [x] Main Story Arc 3: Red Barn Reckoning / combat ambush / police escape / county evidence haul / fleet finale
+- [x] Main Story Arc 4: North Pass Run / faction proof / contraband fence / police escape / ridge exchange
 - [x] Persistent main-story stage across quit/relaunch with Arc 1 -> Arc 2 compatibility
 - [x] Persistent Arc 3 campaign stage
 - [x] Shared mission road-route guidance
