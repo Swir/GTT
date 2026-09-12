@@ -107,7 +107,7 @@ void UGTTCombatComponent::ApplyHit(AActor* Target, const FVector& HitDirection, 
     if (AGTTCitizenPawn* Citizen = Cast<AGTTCitizenPawn>(Target))
     {
         Citizen->ApplyCombatHit(Profile.Damage, HitDirection, Profile.Knockback, Cast<APawn>(GetOwner()));
-        if (!Profile.bRanged) AddCrimeHeat(Profile.PoliceHeat, TEXT("Assault reported by villagers."));
+        if (!Profile.bRanged && !Citizen->IsBrawlParticipant()) AddCrimeHeat(Profile.PoliceHeat, TEXT("Assault reported by villagers."));
         return;
     }
     if (AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(Target))
