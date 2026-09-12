@@ -14,6 +14,8 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "NPC/GTTCitizenPawn.h"
+#include "Vehicles/GTTFarmVanPawn.h"
+#include "Vehicles/GTTOldCarPawn.h"
 #include "Vehicles/GTTTractorPawn.h"
 #include "World/GTTGarageTerminal.h"
 #include "World/GTTMissionSafeZone.h"
@@ -38,10 +40,16 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnBox(FVector(-3300,0,-42),FVector(36,6,.08f),FRotator(0,90,0),false);
     SpawnBox(FVector(3300,0,-42),FVector(36,6,.08f),FRotator(0,90,0),false);
 
+    // Player farm and four-slot prototype garage.
     SpawnBox(FVector(-3000,-900,125),FVector(7,6,3.5f));
-    SpawnLabel(TEXT("PLAYER FARM / GARAGE"),FVector(-3000,-900,520));
+    SpawnLabel(TEXT("PLAYER FARM / 4-SLOT GARAGE"),FVector(-3000,-900,520));
     GetWorld()->SpawnActor<AGTTGarageTerminal>(FVector(-2350,-650,55),FRotator::ZeroRotator);
     SpawnLabel(TEXT("GARAGE REGISTER / SAVE - E"),FVector(-2350,-650,200),FRotator(0,180,0),46.0f);
+    for(int32 Slot=0; Slot<4; ++Slot)
+    {
+        SpawnBox(FVector(-3650.0f + Slot*420.0f,-1500.0f,-35.0f),FVector(3.6f,1.8f,.05f),FRotator::ZeroRotator,false);
+        SpawnLabel(FString::Printf(TEXT("GARAGE %d"),Slot+1),FVector(-3650.0f + Slot*420.0f,-1500.0f,65.0f),FRotator(0,180,0),30.0f);
+    }
 
     if(AGTTFarmJobTerminal* JobStart=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(-2450,-1150,55),FRotator::ZeroRotator)) JobStart->SetTerminalType(EGTTFarmJobTerminalType::Start);
     SpawnLabel(TEXT("LEGAL FARM JOB START - E"),FVector(-2450,-1150,200),FRotator(0,180,0),46.0f);
@@ -50,11 +58,16 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("BARN - MISSION GOAL"),FVector(-3500,300,420));
     GetWorld()->SpawnActor<AGTTMissionSafeZone>(FVector(-3500,250,140),FRotator::ZeroRotator);
 
+    // Mission tractor at neighbour farm.
     SpawnBox(FVector(2850,700,125),FVector(7,6,3.5f));
     SpawnBox(FVector(3650,1050,110),FVector(5,8,3));
     SpawnLabel(TEXT("NEIGHBOUR FARM"),FVector(3050,700,520));
     GetWorld()->SpawnActor<AGTTTractorPawn>(FVector(2500,250,160),FRotator(0,180,0));
     SpawnLabel(TEXT("RUSTY FIELDMASTER 60"),FVector(2500,250,440),FRotator(0,180,0),65.0f);
+
+    // Old compact car near the shop. Faster than the tractor but much more fragile.
+    GetWorld()->SpawnActor<AGTTOldCarPawn>(FVector(1450,-2450,90),FRotator(0,90,0));
+    SpawnLabel(TEXT("RATTLEBACK 82 - OLD CAR"),FVector(1450,-2450,300),FRotator(0,180,0),48.0f);
 
     SpawnBox(FVector(900,-2700,150),FVector(6,5,4));
     SpawnLabel(TEXT("VILLAGE SHOP / FISH BUYER"),FVector(900,-2700,560));
@@ -66,10 +79,13 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnBox(FVector(2400,2700,155),FVector(8,6,4.1f));
     SpawnLabel(TEXT("COMMUNITY HALL"),FVector(2400,2700,580));
 
+    // Workshop plus a heavier farm van target.
     SpawnBox(FVector(-400,2900,140),FVector(7,5,3.8f));
     SpawnLabel(TEXT("WORKSHOP"),FVector(-400,2900,550));
     if(AGTTServiceTerminal* Workshop=GetWorld()->SpawnActor<AGTTServiceTerminal>(FVector(-400,2400,55),FRotator::ZeroRotator)) Workshop->SetServiceType(EGTTServiceType::Workshop);
     SpawnLabel(TEXT("REPAIR + REFUEL $75 - E"),FVector(-400,2400,190),FRotator(0,180,0),48.0f);
+    GetWorld()->SpawnActor<AGTTFarmVanPawn>(FVector(450,2850,110),FRotator(0,-90,0));
+    SpawnLabel(TEXT("MULEBOX 1200 - FARM VAN"),FVector(450,2850,340),FRotator(0,180,0),48.0f);
 
     SpawnBox(FVector(4700,-500,-35),FVector(20,28,.12f),FRotator::ZeroRotator,false);
     SpawnLabel(TEXT("PRIVATE LAKE - NO FISHING"),FVector(4700,-500,220));
@@ -88,7 +104,7 @@ void AGTTPrototypeWorld::BuildWorld()
     for(int32 I=0;I<9;++I) SpawnBox(FVector(-2200+I*520,-650,35),FVector(4.2f,.18f,.85f));
     for(int32 I=0;I<7;++I) SpawnBox(FVector(1450,-900+I*420,35),FVector(.18f,3.5f,.85f));
 
-    SpawnLabel(TEXT("GTT 0.0.5 | SAVE - OWN - WORK - GET ARRESTED - LIVE ANOTHER DAY"),FVector(-2500,-1250,380),FRotator(0,180,0),50.0f);
+    SpawnLabel(TEXT("GTT 0.0.6 | STEAL DIFFERENT RIDES - LOSE HEAT - BUILD A GARAGE"),FVector(-2500,-1250,380),FRotator(0,180,0),48.0f);
     if(APawn* PlayerPawn=UGameplayStatics::GetPlayerPawn(this,0)){ PlayerPawn->SetActorLocation(FVector(-2550,-1250,120)); PlayerPawn->SetActorRotation(FRotator(0,25,0)); }
 }
 

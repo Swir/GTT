@@ -8,7 +8,6 @@
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTVehicleBase.h"
-#include "Wanted/GTTWantedComponent.h"
 
 AGTTGarageTerminal::AGTTGarageTerminal()
 {
@@ -36,15 +35,8 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
     }
 
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Pawn);
-    UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(Pawn);
     if (!Economy)
     {
-        return;
-    }
-
-    if (Wanted && Wanted->GetWantedLevel() > 0)
-    {
-        Economy->PushMessage(TEXT("Garage refuses service while police are looking for you."), 4.0f);
         return;
     }
 
@@ -67,30 +59,19 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
         return;
     }
 
-    if (!NearestVehicle->IsOwnedByPlayer())
+    AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
+    if (!GameMode)
     {
-        if (!Economy->SpendCash(RegistrationCost, FString::Printf(TEXT("Vehicle registration: -$%d"), RegistrationCost)))
-        {
-            return;
-        }
-
-        NearestVehicle->MarkOwnedByPlayer();
-        Economy->PushMessage(TEXT("Vehicle registered to your garage. It will now persist in saves."), 5.0f);
-    }
-    else
-    {
-        Economy->PushMessage(TEXT("Owned vehicle parked. Saving progress..."), 3.0f);
+        Economy->PushMessage(TEXT("Garage manager unavailable."));
+        return;
     }
 
-    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
-    {
-        GameMode->SaveProgress();
-    }
+    GameMode->TryRegisterVehicle(NearestVehicle, Pawn, RegistrationCost);
 }
 
 FText AGTTGarageTerminal::GetInteractionText_Implementation() const
 {
     return FText::Format(
-        NSLOCTEXT("GTT", "GarageRegister", "Register / save nearby vehicle (${0})"),
+        NSLOCTEXT("GTT", "GarageRegisterMulti", "Register / save nearby vehicle (${0})"),
         FText::AsNumber(RegistrationCost));
 }

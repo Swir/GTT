@@ -37,11 +37,13 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 - [x] Vehicle fuel consumption and refuelling
 - [x] Basic cash/economy
 - [x] Mission cash rewards
-- [ ] Fines and arrest cash penalties
-- [ ] Player garage / vehicle ownership
-- [ ] Save/load
-- [ ] Day/night cycle
-- [ ] NPC schedules tied to time of day
+- [x] Fines and arrest cash penalties
+- [x] Player garage / vehicle ownership
+- [x] Multi-vehicle garage capacity and HUD occupancy
+- [x] Save/load with owned-vehicle persistence
+- [x] Save migration from the old one-tractor format
+- [x] Day/night cycle
+- [x] NPC schedules tied to time of day
 - [ ] Basic radio framework
 
 ## 0.3 — Rural Crime & Jobs
@@ -52,7 +54,8 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 - [x] Fish sale loop for cash
 - [ ] Ranger / game-warden response distinct from police
 - [ ] Forest / poaching gameplay
-- [ ] Farm work and legal side jobs
+- [x] First legal farm-job loop
+- [ ] Farm-job checkpoints, cargo and timed variants
 - [ ] More mission archetypes
 
 ## 0.4 — Village Nights
@@ -66,7 +69,9 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 ## 0.5 — Vehicle Chaos
 
 - [ ] Multiple tractor classes
-- [ ] Old cars/vans
+- [x] First old car: `Rattleback 82`
+- [x] First farm van: `Mulebox 1200`
+- [x] Different mass/condition/fuel/handling profiles per vehicle class
 - [x] Fuel system
 - [x] Condition affects available power
 - [ ] Breakable body parts
@@ -74,10 +79,38 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 - [x] Basic paid repair/refuel service
 - [ ] Full repair/tuning system
 - [ ] Mud and off-road handling
+- [ ] Dedicated Chaos wheeled vehicle drivetrain/suspension
 
-## 0.6–0.9 — Content & Polish
+## 0.6 — Roads, Rangers & Vehicle Life
 
-- [ ] Larger connected map
+- [ ] Traffic route network
+- [ ] Civilian road-driving AI
+- [ ] Parked/traffic vehicle respawn rules
+- [ ] Game-warden/ranger AI for illegal fishing and forest crime
+- [ ] Police vehicle pursuit escalation
+- [ ] Garage slot selection / vehicle recall
+- [ ] More vehicle ownership costs and fines
+
+## 0.7 — Jobs & Countryside Expansion
+
+- [ ] Larger connected road network and countryside
+- [ ] Plowing/mowing/cargo farm jobs
+- [ ] Forest work and legal timber transport
+- [ ] Illegal poaching loop
+- [ ] More shops/services
+- [ ] Side-mission chain
+
+## 0.8 — Vehicle Damage & Tuning
+
+- [ ] Detachable doors/fenders/body panels
+- [ ] Visual smoke and engine-failure states
+- [ ] Tires/wheel damage
+- [ ] Upgrade/tuning garage
+- [ ] Tractor visual upgrades
+- [ ] Old-car performance upgrades
+
+## 0.9 — Content & Polish
+
 - [ ] Story mission chain
 - [ ] More NPC archetypes
 - [ ] Police escalation variety
@@ -85,6 +118,7 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 - [ ] Accessibility/settings
 - [ ] Controller support
 - [ ] Packaging/release automation
+- [ ] Full Win64 CI/build runner
 
 ## 1.0 — First Complete Release
 

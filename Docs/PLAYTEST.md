@@ -1,6 +1,6 @@
 # GTT Prototype Playtest
 
-This document describes the current source-driven prototype loop for **GTT 0.0.4**.
+This document describes the current source-driven prototype loop for **GTT 0.0.6**.
 
 ## Requirements
 
@@ -16,69 +16,94 @@ This document describes the current source-driven prototype loop for **GTT 0.0.4
 4. Open `GTT.uproject`.
 5. Press **Play**.
 
-The project boots from Unreal's built-in Entry map. `AGTTPrototypeWorld` creates the current greybox countryside at runtime, including lighting, roads, buildings, villagers, the tractor, fishing, service terminals and the mission return zone.
+The project boots from Unreal's built-in Entry map. `AGTTPrototypeWorld` creates the current greybox countryside at runtime.
 
 ## Controls
 
 - `WASD` — walk / drive
 - Mouse — camera
 - `Space` — jump
-- `E` — interact / enter vehicle / fish / use shop or workshop
+- `E` — interact / enter vehicle / fish / shop / garage / job terminal
 - `F` — exit vehicle
+- `F5` — quick-save
+- `F9` — quick-load
 
 ## Borrowed Tractor mission
 
-1. Start at **PLAYER FARM** with $120.
-2. Follow the labels/road toward **NEIGHBOUR FARM**.
-3. Find the **RUSTY FIELDMASTER 60**.
-4. Aim at it and press `E` to enter it.
-5. The theft creates wanted heat. If a nearby villager has line of sight, they add extra heat by reporting the theft.
-6. Police units begin pursuing the currently controlled pawn.
-7. The tractor uses fuel while its engine is running; heavy throttle burns fuel faster.
-8. Escape long enough for wanted heat to decay back to zero.
-9. Drive to **BARN - MISSION GOAL**.
-10. Enter the marked goal zone while still driving the stolen tractor and with wanted level at zero.
-11. The HUD should show `MISSION COMPLETE: BORROWED TRACTOR` and the player receives **$300**.
+1. Start at **PLAYER FARM / 4-SLOT GARAGE** with $120.
+2. Reach **NEIGHBOUR FARM**.
+3. Steal the **RUSTY FIELDMASTER 60**.
+4. Witnesses can add extra wanted heat if they have line of sight.
+5. Lose the police and return the tractor to **BARN - MISSION GOAL**.
+6. Completion pays **$300** and makes the tractor player-owned.
+7. The tractor becomes one persistent garage vehicle.
+
+## Multi-vehicle garage loop
+
+GTT 0.0.6 adds three distinct persistent prototype vehicles:
+
+- **Rusty Fieldmaster 60** — heavy tractor, 55 L tank, high durability.
+- **Rattleback 82** — light old compact car, faster acceleration, fragile body, 42 L tank.
+- **Mulebox 1200** — heavy farm van, slower steering, 62 L tank, more durability than the car.
+
+To test the garage:
+
+1. Find the **RATTLEBACK 82 - OLD CAR** near the village shop or **MULEBOX 1200 - FARM VAN** near the workshop.
+2. Enter it. The first unauthorized use creates wanted heat and can be witnessed.
+3. Lose wanted level.
+4. Drive the vehicle back to **PLAYER FARM / 4-SLOT GARAGE**.
+5. Park close to **GARAGE REGISTER / SAVE - E** and exit the vehicle.
+6. Interact with the terminal. Registration costs **$250**.
+7. HUD should show the garage count increasing, for example `GARAGE 2/4`.
+8. Press `F5`, move/damage/refuel the vehicles, then press `F9` to verify that every owned vehicle restores independently.
+
+The save format is now version 2 and stores an array of owned vehicles by persistent vehicle ID. Existing 0.0.5 tractor saves retain a migration path.
 
 ## Free-roam economy loop
 
-After or during the mission you can test the first repeatable sandbox activity loop:
+- Poach fish at **PRIVATE LAKE - NO FISHING**.
+- Sell the catch at **VILLAGE SHOP / FISH BUYER**.
+- Repair/refuel at **WORKSHOP** for $75.
+- Take the legal farm job and complete **FIELD DELIVERY** for $180.
+- Use mission/job/fishing income to register more garage vehicles.
 
-1. Walk to **PRIVATE LAKE - NO FISHING**.
-2. Aim at the **POACH FISH - E** marker and press `E`.
-3. Illegal fishing adds wanted heat even when nothing bites.
-4. Successful casts add a River Perch, Village Carp or Old Pike to the player's carried catch.
-5. HUD shows fish count and total weight.
-6. Reach **VILLAGE SHOP / FISH BUYER** and interact with **SELL FISH - E**.
-7. The catch is sold by weight and cash is added immediately.
-8. Park a damaged or low-fuel vehicle near **WORKSHOP**.
-9. Exit the vehicle, aim at **REPAIR + REFUEL $75 - E** and interact.
-10. If you have enough money, the nearest vehicle is fully repaired and refuelled.
+## Police and arrest
 
-## Vehicle behaviour to verify
+- Theft, witnesses and illegal fishing add wanted heat.
+- Police pursue the currently controlled pawn.
+- A close police catch can trigger arrest.
+- Arrest clears wanted, charges a wanted-scaled fine and releases the player at the police station.
+- Arrest autosaves.
 
-- HUD shows condition, fuel percentage, litres and speed.
-- Tractor starts with 18 L in a 55 L tank.
-- Fuel decreases while the engine is running.
-- Higher throttle burns fuel faster.
-- Collision damage lowers condition.
-- Lower condition reduces available drive power.
-- Zero condition stops the vehicle through the existing breakdown path.
-- Zero fuel shuts the engine down.
+## Day/night and NPCs
 
-## NPC / witness behaviour to verify
+The runtime day/night cycle updates the clock and lighting. Citizens use a simple schedule center: work during the day, social area in the evening and home at night. The HUD displays day/time alongside garage occupancy and legal-job status.
 
-Eight prototype villagers are spawned around the village. They wander locally. When the tractor is stolen, citizens within witness range perform a line-of-sight check. A successful witness report adds wanted heat and produces a gameplay message. A theft with no valid witness shows an unnoticed-theft message instead.
+## Persistence to verify
+
+Saved state includes:
+
+- cash and carried fish,
+- player transform,
+- first mission completion,
+- day and time,
+- every owned vehicle's persistent ID,
+- vehicle transform,
+- vehicle condition,
+- vehicle fuel.
+
+Autosaves occur after important milestones such as mission completion, arrest, garage registration and legal-job completion.
 
 ## Current prototype limitations
 
-- Vehicle movement is still the source-only physics fallback, not the final Chaos wheel/suspension setup.
-- World art is intentionally greybox and uses Unreal built-in primitive meshes.
-- Police are gameplay placeholders, not final vehicle patrols or tactical AI.
-- Citizens use simple local wandering rather than navmesh schedules.
-- Fishing is interaction-driven; there is no rod animation or minigame yet.
-- Economy is runtime-only until save/load lands.
-- The bootstrap map is procedural so there is no authored village `.umap` yet.
+- Vehicle movement still uses the source-only physics fallback; final Chaos wheel/suspension tuning is not implemented yet.
+- Vehicles are primitive-mesh prototypes rather than final art assets.
+- The four garage bays are visual markers; slot assignment is logical, not a parking-management UI yet.
+- Traffic AI is not implemented yet.
+- Police and citizens are still prototype AI.
+- Fishing remains interaction-driven without rod animation/minigame.
+- The bootstrap world is procedural and still has no authored village `.umap`.
+- Repository CI is a structural sanity check, not a full Unreal Win64 compile.
 
 ## Build a Windows package
 

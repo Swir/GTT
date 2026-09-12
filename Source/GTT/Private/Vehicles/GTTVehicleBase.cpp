@@ -201,6 +201,7 @@ void AGTTVehicleBase::MarkOwnedByPlayer()
 {
     bOwnedByPlayer = true;
     bIllegalToTake = false;
+    bTheftReported = false;
 }
 
 void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, float ConditionPercent, float FuelLiters, bool bOwned)
@@ -218,6 +219,7 @@ void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, floa
     if (bOwnedByPlayer)
     {
         bIllegalToTake = false;
+        bTheftReported = false;
     }
 }
 

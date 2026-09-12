@@ -4,6 +4,24 @@
 #include "GameFramework/SaveGame.h"
 #include "GTTSaveGame.generated.h"
 
+USTRUCT(BlueprintType)
+struct FGTTStoredVehicleData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle")
+    FName VehicleId = NAME_None;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle")
+    FTransform Transform;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle")
+    float ConditionPercent = 1.0f;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle")
+    float FuelLiters = 0.0f;
+};
+
 UCLASS()
 class GTT_API UGTTSaveGame : public USaveGame
 {
@@ -11,7 +29,7 @@ class GTT_API UGTTSaveGame : public USaveGame
 
 public:
     UPROPERTY(VisibleAnywhere, Category="GTT|Save")
-    int32 SaveVersion = 1;
+    int32 SaveVersion = 2;
 
     UPROPERTY(VisibleAnywhere, Category="GTT|Save")
     int32 Cash = 120;
@@ -34,15 +52,19 @@ public:
     UPROPERTY(VisibleAnywhere, Category="GTT|Save")
     float TimeOfDayHours = 8.0f;
 
-    UPROPERTY(VisibleAnywhere, Category="GTT|Save")
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Garage")
+    TArray<FGTTStoredVehicleData> OwnedVehicles;
+
+    // Version 1 migration fields. Kept so existing prototype saves still load.
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Legacy")
     bool bTractorOwned = false;
 
-    UPROPERTY(VisibleAnywhere, Category="GTT|Save")
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Legacy")
     FTransform TractorTransform;
 
-    UPROPERTY(VisibleAnywhere, Category="GTT|Save")
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Legacy")
     float TractorConditionPercent = 1.0f;
 
-    UPROPERTY(VisibleAnywhere, Category="GTT|Save")
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Legacy")
     float TractorFuelLiters = 18.0f;
 };

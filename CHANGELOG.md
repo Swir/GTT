@@ -2,6 +2,38 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.6] - 2026-09-12
+
+### Added
+- Version-2 save format with `FGTTStoredVehicleData` and a persistent `OwnedVehicles` array.
+- Multi-vehicle persistence by stable vehicle ID, including transform, condition and fuel for every owned vehicle.
+- Migration path for existing 0.0.5 saves that only stored the Rusty Fieldmaster tractor.
+- Four-slot prototype garage capacity with occupancy shown directly on the HUD.
+- Centralized garage registration flow in `AGTTGameMode`, including wanted checks, capacity checks, registration cost and autosave.
+- New old compact car: **Rattleback 82**.
+- New farm van: **Mulebox 1200**.
+- Distinct mass, condition, acceleration, steering, tank capacity, fuel burn and theft heat profiles for the tractor, car and van.
+- Primitive-mesh bodies and wheels for both new vehicle classes without third-party art dependencies.
+- Runtime spawn locations for the Rattleback near the village shop and the Mulebox near the workshop.
+- Four visible parking-bay markers at the player farm.
+- Structural CI checks for unique persistent IDs, multi-vehicle save migration, new vehicle classes and garage capacity hooks.
+
+### Improved
+- Registering a vehicle now clears its stolen-report state and permanently disables theft heat for that owned vehicle.
+- Mission theft progression only advances when the actual Rusty Fieldmaster mission tractor is stolen.
+- Save/load reports current garage occupancy.
+- Garage logic now lives in the game mode instead of duplicating ownership/payment logic inside the terminal.
+- HUD now shows `GARAGE owned/capacity` alongside day/time and job status.
+- `Docs/PLAYTEST.md` now documents save/load, arrests, day/night, legal work and the complete three-vehicle garage loop.
+- Roadmap updated to reflect completed 0.0.5 systems and the new 0.0.6 vehicle milestone.
+
+### Next
+- Add road traffic routes and civilian driver AI.
+- Add game-warden/ranger response distinct from police for fishing/forest crime.
+- Add garage slot selection and vehicle recall.
+- Add breakable body panels and stronger degradation feedback.
+- Move the prototype drivetrain toward dedicated Chaos wheeled vehicle movement.
+
 ## [0.0.5] - 2026-09-12
 
 ### Added
@@ -20,17 +52,10 @@ All notable development steps for GTT are tracked here.
 
 ### Improved
 - Owned vehicles no longer retrigger theft heat when entered.
-- Economy can now restore a saved state and apply clamped fines.
+- Economy can restore a saved state and apply clamped fines.
 - Prototype world now contains garage, farm-job start and farm-job delivery locations.
 - HUD controls include persistence shortcuts and active legal-job state.
 - Repository sanity checks validate persistence, ownership, arrests, time-of-day and farm-job hooks.
-
-### Next
-- Add multiple owned vehicle slots and an old car/van.
-- Add traffic and road-driving NPCs.
-- Add ranger/game-warden response for fishing and forest crime.
-- Add farm-job checkpoints and more legal work variants.
-- Continue dedicated Chaos wheeled tractor drivetrain/suspension work.
 
 ## [0.0.4] - 2026-09-12
 

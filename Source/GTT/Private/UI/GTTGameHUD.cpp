@@ -33,13 +33,22 @@ void AGTTGameHUD::DrawHUD()
     {
         const FString TimeText = GameMode->GetDayNightCycle() ? GameMode->GetDayNightCycle()->GetClockText() : TEXT("DAY ? --:--");
         const FString JobText = GameMode->IsFarmJobActive() ? TEXT("  |  LEGAL FARM JOB ACTIVE") : TEXT("");
-        DrawText(TimeText + JobText, FLinearColor(0.95f, 0.9f, 0.65f, 1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
+        const FString GarageText = FString::Printf(TEXT("  |  GARAGE %d/%d"), GameMode->GetOwnedVehicleCount(), GameMode->GetGarageCapacity());
+        DrawText(TimeText + GarageText + JobText, FLinearColor(0.95f, 0.9f, 0.65f, 1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
         Y += 30.0f;
     }
 
     if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn))
     {
-        const FString VehicleLine = FString::Printf(TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  %.0f km/h%s%s"), *Vehicle->GetVehicleDisplayName().ToString(), Vehicle->GetConditionPercent()*100.0f, Vehicle->GetFuelPercent()*100.0f, Vehicle->GetFuelLiters(), Vehicle->GetSpeedKmh(), Vehicle->WasReportedStolen() ? TEXT("  |  STOLEN") : TEXT(""), Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
+        const FString VehicleLine = FString::Printf(
+            TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  %.0f km/h%s%s"),
+            *Vehicle->GetVehicleDisplayName().ToString(),
+            Vehicle->GetConditionPercent()*100.0f,
+            Vehicle->GetFuelPercent()*100.0f,
+            Vehicle->GetFuelLiters(),
+            Vehicle->GetSpeedKmh(),
+            Vehicle->WasReportedStolen() && !Vehicle->IsOwnedByPlayer() ? TEXT("  |  STOLEN") : TEXT(""),
+            Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
         DrawText(VehicleLine, FLinearColor::White, 36.0f, Y, GEngine->GetSmallFont(), 1.05f, false);
         Y += 30.0f;
     }
@@ -72,7 +81,7 @@ FString AGTTGameHUD::BuildMissionText() const
     if (!Mission) return FString();
     if (Mission->GetActiveMissionId() == FName(TEXT("BorrowedTractor")))
     {
-        if (Mission->GetMissionState() == EGTTMissionState::Completed) return TEXT("MISSION COMPLETE: BORROWED TRACTOR | tractor owned | $300 earned");
+        if (Mission->GetMissionState() == EGTTMissionState::Completed) return TEXT("MISSION COMPLETE: BORROWED TRACTOR | tractor owned | $300 earned | build your garage");
         if (Mission->GetMissionState() == EGTTMissionState::Failed) return TEXT("MISSION FAILED: BORROWED TRACTOR");
         if (Mission->GetMissionState() == EGTTMissionState::Active)
         {
