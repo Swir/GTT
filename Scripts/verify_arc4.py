@@ -9,6 +9,7 @@ required = {
     "Source/GTT/Public/Save/GTTArc4Save.h": ["Arc4Stage", "StartingFactionVictories", "bContrabandPrepared"],
     "Source/GTT/Private/World/GTTArc4WorldSubsystem.cpp": ["NORTH PASS", "RIDGE EXCHANGE", "SpawnActor<AGTTArc4Director>"],
     "Source/GTT/Private/World/GTTRoadGraph.cpp": ["NorthPassApproach", "NORTH PASS CHECKPOINT", "RiverFord", "RIDGE EXCHANGE", "QuarryNorth"],
+    "Source/GTT/Private/UI/GTTGameHUD.cpp": ["GTTArc4Director.h", "AGTTArc4Director* Arc4", "Arc4->GetObjectiveText", "EGTTArc4Stage::Completed"],
 }
 for rel, tokens in required.items():
     path = ROOT / rel
@@ -34,4 +35,4 @@ if (done, total) != (113, 130):
     raise SystemExit(f"[FAIL] roadmap checkbox count expected 113/130, got {done}/{total}")
 if "DONE-113%2F130" not in roadmap or "86.9%" not in roadmap or "█████████████████░░░ 86.9%" not in roadmap:
     raise SystemExit("[FAIL] roadmap dashboard does not match 113/130 = 86.9%")
-print("[OK] GTT 0.0.23 Arc 4, faction/fence/police integration and North Pass countryside look structurally sane.")
+print("[OK] GTT 0.0.23 Arc 4, HUD, faction/fence/police integration and North Pass countryside look structurally sane.")
