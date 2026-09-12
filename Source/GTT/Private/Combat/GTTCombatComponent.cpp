@@ -13,6 +13,7 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 
+// Persistent loadout contract: GTT_Combat_01 is declared on the component and used by all save/load mutations below.
 UGTTCombatComponent::UGTTCombatComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
