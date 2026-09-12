@@ -7,10 +7,12 @@ ROOT = Path(__file__).resolve().parents[1]
 required = {
     "Source/GTT/Public/World/GTTWorldPerformanceSubsystem.h": [
         "EGTTWorldSimulationTier", "Critical", "Near", "Mid", "Far", "Dormant",
-        "GetRecommendedTickInterval", "AllowsExpensiveQueries", "CriticalRadius", "FarRadius"
+        "GetRecommendedTickInterval", "AllowsExpensiveQueries",
+        "CriticalRadius = 2500.0f", "NearRadius = 6000.0f",
+        "MidRadius = 11000.0f", "FarRadius = 17000.0f"
     ],
     "Source/GTT/Private/World/GTTWorldPerformanceSubsystem.cpp": [
-        "2500", "6000", "11000", "17000", "0.05f", "0.20f", "0.65f", "1.50f"
+        "0.05f", "0.20f", "0.65f", "1.50f", "EGTTWorldSimulationTier::Dormant"
     ],
     "Source/GTT/Private/NPC/GTTCitizenPawn.cpp": [
         "GTTWorldPerformanceSubsystem", "bUrgentSimulation", "SetActorTickInterval",
