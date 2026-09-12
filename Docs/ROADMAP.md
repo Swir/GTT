@@ -2,14 +2,26 @@
 
 The roadmap is ordered around playable slices. Every phase should leave something testable.
 
+<!-- SWIR-ROADMAP-STANDARD:v1 -->
 <!-- ROADMAP-PROGRESS:START -->
-## Overall progress
+<p align="center">
+  <a href="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml"><img alt="CI" src="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml/badge.svg"></a>
+  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-82.9%25-2ea043?style=for-the-badge">
+  <img alt="Completed" src="https://img.shields.io/badge/DONE-107%2F129-1f6feb?style=for-the-badge">
+  <img alt="Status" src="https://img.shields.io/badge/STATUS-IN%20PROGRESS-7c3aed?style=for-the-badge">
+</p>
 
-**107 / 129 roadmap items complete — 82.9%**
+## 📊 Overall progress
 
-`█████████████████░░░ 82.9%`
+```text
+█████████████████░░░ 82.9%
+```
 
-Progress is calculated only from the task checkboxes in this roadmap: checked `[x]` items divided by all `[x]` + `[ ]` items. Whenever a roadmap task changes state, recalculate this block so it always reflects the real checklist state.
+| ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |
+|---:|---:|---:|---:|
+| **107** | **22** | **129** | **82.9%** |
+
+> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
 
 ## 0.1 — Tractor Theft Prototype
