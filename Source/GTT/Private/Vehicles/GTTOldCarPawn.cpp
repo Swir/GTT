@@ -8,10 +8,7 @@ namespace
 {
     void ConfigureCarPart(UStaticMeshComponent* Part, UStaticMesh* Mesh)
     {
-        if (!Part)
-        {
-            return;
-        }
+        if (!Part) return;
         Part->SetStaticMesh(Mesh);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Part->SetGenerateOverlapEvents(false);
@@ -36,6 +33,22 @@ AGTTOldCarPawn::AGTTOldCarPawn()
     ExitOffset = FVector(0.0f, 165.0f, 65.0f);
     LowConditionFaultChancePerSecond = 0.23f;
     CriticalEngineTemperatureC = 116.0f;
+
+    FGTTVehicleDynamicsProfile Dynamics;
+    Dynamics.WheelBaseCm = 260.0f;
+    Dynamics.TrackWidthCm = 164.0f;
+    Dynamics.SuspensionRestLengthCm = 42.0f;
+    Dynamics.WheelRadiusCm = 34.0f;
+    Dynamics.SpringStrength = 28.0f;
+    Dynamics.DamperStrength = 5.2f;
+    Dynamics.LateralGrip = 9.8f;
+    Dynamics.RollingResistance = 0.42f;
+    Dynamics.MaxDriveForce = 2550.0f;
+    Dynamics.MaxSteerTorque = 188.0f;
+    Dynamics.MaxSpeedKmh = 128.0f;
+    Dynamics.BrakeStrength = 5.5f;
+    Dynamics.ForwardGearTopSpeedsKmh = {28.0f, 52.0f, 82.0f, 108.0f, 128.0f};
+    ConfigureDynamics(Dynamics);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
