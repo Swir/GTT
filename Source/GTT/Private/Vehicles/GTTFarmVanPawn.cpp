@@ -8,10 +8,7 @@ namespace
 {
     void ConfigureVanPart(UStaticMeshComponent* Part, UStaticMesh* Mesh)
     {
-        if (!Part)
-        {
-            return;
-        }
+        if (!Part) return;
         Part->SetStaticMesh(Mesh);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Part->SetGenerateOverlapEvents(false);
@@ -36,6 +33,22 @@ AGTTFarmVanPawn::AGTTFarmVanPawn()
     ExitOffset = FVector(0.0f, 205.0f, 82.0f);
     LowConditionFaultChancePerSecond = 0.12f;
     CriticalEngineTemperatureC = 124.0f;
+
+    FGTTVehicleDynamicsProfile Dynamics;
+    Dynamics.WheelBaseCm = 286.0f;
+    Dynamics.TrackWidthCm = 176.0f;
+    Dynamics.SuspensionRestLengthCm = 52.0f;
+    Dynamics.WheelRadiusCm = 39.0f;
+    Dynamics.SpringStrength = 32.0f;
+    Dynamics.DamperStrength = 6.1f;
+    Dynamics.LateralGrip = 8.2f;
+    Dynamics.RollingResistance = 0.66f;
+    Dynamics.MaxDriveForce = 1950.0f;
+    Dynamics.MaxSteerTorque = 126.0f;
+    Dynamics.MaxSpeedKmh = 104.0f;
+    Dynamics.BrakeStrength = 4.6f;
+    Dynamics.ForwardGearTopSpeedsKmh = {22.0f, 45.0f, 72.0f, 104.0f};
+    ConfigureDynamics(Dynamics);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
