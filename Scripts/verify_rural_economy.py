@@ -6,9 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 required = {
     "Source/GTT/Public/Save/GTTRuralEconomySave.h": ["ContrabandUnits", "bInsuranceActive", "ImpoundedVehicleId", "SpeedingCitations"],
-    "Source/GTT/Public/World/GTTRuralEconomySubsystem.h": ["SellContraband", "BuyOrUseInsurance", "ReleaseImpoundedVehicle", "HandleArrestImpound"],
+    "Source/GTT/Public/World/GTTRuralEconomySubsystem.h": ["GTT_RuralEconomy_01", "SellContraband", "BuyOrUseInsurance", "ReleaseImpoundedVehicle", "HandleArrestImpound"],
     "Source/GTT/Private/World/GTTRuralEconomySubsystem.cpp": [
-        "GTT_RuralEconomy_01", "BACKLOT FENCE", "FARM MUTUAL", "COUNTY IMPOUND", "SPEEDING", "RECKLESS SPEED",
+        "BACKLOT FENCE", "FARM MUTUAL", "COUNTY IMPOUND", "SPEEDING", "RECKLESS SPEED",
         "GetSpeedLimitAtLocation", "RecallToTransform", "SaveGameToSlot"
     ],
     "Source/GTT/Private/Economy/GTTPlayerEconomyComponent.cpp": ["Reason.StartsWith(TEXT(\"ARRESTED\"))", "HandleArrestImpound"],
@@ -41,5 +41,7 @@ if not any(row[1] == "1" for row in node_rows) or not any(row[1] == "2" for row 
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
 if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap or "ROADMAP-PROGRESS:START" not in roadmap:
     raise SystemExit("[FAIL] SWIR roadmap dashboard standard missing")
+if "DONE-111%2F129" not in roadmap or "86.0%" not in roadmap:
+    raise SystemExit("[FAIL] roadmap dashboard values are stale for 111/129 completion")
 
 print("[OK] GTT 0.0.22 fence inventory, insurance, arrest impound and road-law metadata look structurally sane.")
