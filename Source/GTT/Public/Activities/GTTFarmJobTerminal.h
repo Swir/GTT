@@ -11,6 +11,7 @@ UENUM(BlueprintType)
 enum class EGTTFarmJobTerminalType : uint8
 {
     Start,
+    Pickup,
     Finish
 };
 
