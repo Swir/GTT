@@ -18,37 +18,40 @@ void AGTTGameHUD::DrawHUD()
     APawn* ControlledPawn = PlayerOwner->GetPawn();
     UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(ControlledPawn);
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn);
+    AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
+
     const int32 WantedLevel = Wanted ? Wanted->GetWantedLevel() : 0;
-    const FLinearColor WantedColor = WantedLevel > 0 ? FLinearColor(1.0f, 0.18f, 0.08f, 1.0f) : FLinearColor(0.72f, 0.72f, 0.72f, 1.0f);
+    const FLinearColor WantedColor = WantedLevel > 0 ? FLinearColor(1.0f,0.18f,0.08f,1.0f) : FLinearColor(0.72f,0.72f,0.72f,1.0f);
     DrawText(BuildWantedBar(WantedLevel), WantedColor, 36.0f, 34.0f, GEngine->GetSmallFont(), 1.35f, false);
 
     float Y = 64.0f;
+    if (GameMode)
+    {
+        FString WardenMarks;
+        const int32 RangerLevel = GameMode->GetWildlifeAlertLevel();
+        for (int32 Index=0; Index<3; ++Index) WardenMarks += Index < RangerLevel ? TEXT("!") : TEXT("-");
+        DrawText(FString::Printf(TEXT("WARDEN [%s]"), *WardenMarks), RangerLevel > 0 ? FLinearColor(1.0f,0.55f,0.12f,1.0f) : FLinearColor(0.55f,0.7f,0.55f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        Y += 28.0f;
+    }
+
     if (Economy)
     {
-        DrawText(FString::Printf(TEXT("CASH $%d  |  FISH %d  |  %.2f kg"), Economy->GetCash(), Economy->GetFishCount(), Economy->GetFishWeightKg()), FLinearColor(0.35f, 1.0f, 0.45f, 1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        DrawText(FString::Printf(TEXT("CASH $%d  |  FISH %d  |  %.2f kg"), Economy->GetCash(), Economy->GetFishCount(), Economy->GetFishWeightKg()), FLinearColor(0.35f,1.0f,0.45f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
 
-    if (const AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
+    if (GameMode)
     {
         const FString TimeText = GameMode->GetDayNightCycle() ? GameMode->GetDayNightCycle()->GetClockText() : TEXT("DAY ? --:--");
         const FString JobText = GameMode->IsFarmJobActive() ? TEXT("  |  LEGAL FARM JOB ACTIVE") : TEXT("");
         const FString GarageText = FString::Printf(TEXT("  |  GARAGE %d/%d"), GameMode->GetOwnedVehicleCount(), GameMode->GetGarageCapacity());
-        DrawText(TimeText + GarageText + JobText, FLinearColor(0.95f, 0.9f, 0.65f, 1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
+        DrawText(TimeText + GarageText + JobText, FLinearColor(0.95f,0.9f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
         Y += 30.0f;
     }
 
     if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn))
     {
-        const FString VehicleLine = FString::Printf(
-            TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  %.0f km/h%s%s"),
-            *Vehicle->GetVehicleDisplayName().ToString(),
-            Vehicle->GetConditionPercent()*100.0f,
-            Vehicle->GetFuelPercent()*100.0f,
-            Vehicle->GetFuelLiters(),
-            Vehicle->GetSpeedKmh(),
-            Vehicle->WasReportedStolen() && !Vehicle->IsOwnedByPlayer() ? TEXT("  |  STOLEN") : TEXT(""),
-            Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
+        const FString VehicleLine = FString::Printf(TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  %.0f km/h%s%s"), *Vehicle->GetVehicleDisplayName().ToString(), Vehicle->GetConditionPercent()*100.0f, Vehicle->GetFuelPercent()*100.0f, Vehicle->GetFuelLiters(), Vehicle->GetSpeedKmh(), Vehicle->WasReportedStolen() && !Vehicle->IsOwnedByPlayer() ? TEXT("  |  STOLEN") : TEXT(""), Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
         DrawText(VehicleLine, FLinearColor::White, 36.0f, Y, GEngine->GetSmallFont(), 1.05f, false);
         Y += 30.0f;
     }
@@ -56,12 +59,12 @@ void AGTTGameHUD::DrawHUD()
     const FString MissionText = BuildMissionText();
     if (!MissionText.IsEmpty())
     {
-        DrawText(MissionText, FLinearColor(1.0f, 0.82f, 0.18f, 1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        DrawText(MissionText, FLinearColor(1.0f,0.82f,0.18f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
     if (Economy && !Economy->GetActivityMessage().IsEmpty())
     {
-        DrawText(Economy->GetActivityMessage(), FLinearColor(0.35f, 0.88f, 1.0f, 1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        DrawText(Economy->GetActivityMessage(), FLinearColor(0.35f,0.88f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
     DrawText(TEXT("CONTROLS | WASD move/drive | E interact | F exit | F5 save | F9 load | Space jump"), FLinearColor(0.72f,0.82f,0.95f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.85f, false);

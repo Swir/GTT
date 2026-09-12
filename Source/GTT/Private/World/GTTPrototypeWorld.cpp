@@ -39,8 +39,8 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnBox(FVector(0,1800,-42),FVector(70,6,.08f),FRotator::ZeroRotator,false);
     SpawnBox(FVector(-3300,0,-42),FVector(36,6,.08f),FRotator(0,90,0),false);
     SpawnBox(FVector(3300,0,-42),FVector(36,6,.08f),FRotator(0,90,0),false);
+    SpawnLabel(TEXT("LIVE VILLAGE TRAFFIC LOOP"),FVector(0,-1800,170),FRotator(0,180,0),38.0f);
 
-    // Player farm and four-slot prototype garage.
     SpawnBox(FVector(-3000,-900,125),FVector(7,6,3.5f));
     SpawnLabel(TEXT("PLAYER FARM / 4-SLOT GARAGE"),FVector(-3000,-900,520));
     GetWorld()->SpawnActor<AGTTGarageTerminal>(FVector(-2350,-650,55),FRotator::ZeroRotator);
@@ -58,14 +58,12 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("BARN - MISSION GOAL"),FVector(-3500,300,420));
     GetWorld()->SpawnActor<AGTTMissionSafeZone>(FVector(-3500,250,140),FRotator::ZeroRotator);
 
-    // Mission tractor at neighbour farm.
     SpawnBox(FVector(2850,700,125),FVector(7,6,3.5f));
     SpawnBox(FVector(3650,1050,110),FVector(5,8,3));
     SpawnLabel(TEXT("NEIGHBOUR FARM"),FVector(3050,700,520));
     GetWorld()->SpawnActor<AGTTTractorPawn>(FVector(2500,250,160),FRotator(0,180,0));
     SpawnLabel(TEXT("RUSTY FIELDMASTER 60"),FVector(2500,250,440),FRotator(0,180,0),65.0f);
 
-    // Old compact car near the shop. Faster than the tractor but much more fragile.
     GetWorld()->SpawnActor<AGTTOldCarPawn>(FVector(1450,-2450,90),FRotator(0,90,0));
     SpawnLabel(TEXT("RATTLEBACK 82 - OLD CAR"),FVector(1450,-2450,300),FRotator(0,180,0),48.0f);
 
@@ -79,7 +77,6 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnBox(FVector(2400,2700,155),FVector(8,6,4.1f));
     SpawnLabel(TEXT("COMMUNITY HALL"),FVector(2400,2700,580));
 
-    // Workshop plus a heavier farm van target.
     SpawnBox(FVector(-400,2900,140),FVector(7,5,3.8f));
     SpawnLabel(TEXT("WORKSHOP"),FVector(-400,2900,550));
     if(AGTTServiceTerminal* Workshop=GetWorld()->SpawnActor<AGTTServiceTerminal>(FVector(-400,2400,55),FRotator::ZeroRotator)) Workshop->SetServiceType(EGTTServiceType::Workshop);
@@ -91,6 +88,10 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("PRIVATE LAKE - NO FISHING"),FVector(4700,-500,220));
     GetWorld()->SpawnActor<AGTTFishingSpot>(FVector(4050,-500,40),FRotator::ZeroRotator);
     SpawnLabel(TEXT("POACH FISH - E"),FVector(4050,-500,175),FRotator(0,180,0),52.0f);
+
+    SpawnBox(FVector(5050,700,115),FVector(5.5f,4.5f,3.2f));
+    SpawnLabel(TEXT("GAME WARDEN OUTPOST"),FVector(5050,700,470),FRotator(0,180,0),46.0f);
+    SpawnLabel(TEXT("POACHING TRIGGERS WARDEN ALERT 1-3"),FVector(4600,350,260),FRotator(0,180,0),38.0f);
 
     SpawnBox(FVector(5200,2550,20),FVector(20,12,.2f),FRotator::ZeroRotator,false);
     SpawnLabel(TEXT("FIELD DELIVERY / LEGAL JOB"),FVector(5200,2550,260));
@@ -104,7 +105,7 @@ void AGTTPrototypeWorld::BuildWorld()
     for(int32 I=0;I<9;++I) SpawnBox(FVector(-2200+I*520,-650,35),FVector(4.2f,.18f,.85f));
     for(int32 I=0;I<7;++I) SpawnBox(FVector(1450,-900+I*420,35),FVector(.18f,3.5f,.85f));
 
-    SpawnLabel(TEXT("GTT 0.0.6 | STEAL DIFFERENT RIDES - LOSE HEAT - BUILD A GARAGE"),FVector(-2500,-1250,380),FRotator(0,180,0),48.0f);
+    SpawnLabel(TEXT("GTT 0.0.7 | LIVE TRAFFIC + POLICE + GAME WARDEN"),FVector(-2500,-1250,380),FRotator(0,180,0),48.0f);
     if(APawn* PlayerPawn=UGameplayStatics::GetPlayerPawn(this,0)){ PlayerPawn->SetActorLocation(FVector(-2550,-1250,120)); PlayerPawn->SetActorRotation(FRotator(0,25,0)); }
 }
 

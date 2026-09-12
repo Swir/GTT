@@ -1,13 +1,14 @@
 #include "Activities/GTTFishingSpot.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Wanted/GTTWantedComponent.h"
 
 AGTTFishingSpot::AGTTFishingSpot()
 {
@@ -52,9 +53,9 @@ void AGTTFishingSpot::Interact_Implementation(AActor* Interactor)
 
     if (bRestrictedFishing)
     {
-        if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(Pawn))
+        if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
         {
-            Wanted->AddHeat(RestrictedFishingHeat);
+            GameMode->ReportWildlifeCrime(Pawn, RestrictedFishingHeat);
         }
     }
 
@@ -62,7 +63,7 @@ void AGTTFishingSpot::Interact_Implementation(AActor* Interactor)
     if (Roll < 0.22f)
     {
         Economy->PushMessage(bRestrictedFishing
-            ? TEXT("Illegal cast... and not even a bite.")
+            ? TEXT("Illegal cast... no bite, but the game warden noticed activity near the lake.")
             : TEXT("No bite this time."));
         return;
     }
