@@ -3,6 +3,7 @@
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
+#include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "Missions/GTTArc3Director.h"
 #include "NPC/GTTRuralFactionDirector.h"
