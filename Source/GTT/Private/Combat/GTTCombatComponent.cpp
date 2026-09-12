@@ -9,9 +9,11 @@
 #include "GameFramework/Controller.h"
 #include "Kismet/GameplayStatics.h"
 #include "NPC/GTTCitizenPawn.h"
+#include "Save/GTTCombatSave.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 
+// Persistent loadout contract: GTT_Combat_01 is declared on the component and used by all save/load mutations below.
 UGTTCombatComponent::UGTTCombatComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
@@ -22,6 +24,7 @@ void UGTTCombatComponent::BeginPlay()
 {
     Super::BeginPlay();
     Health = MaxHealth;
+    LoadPersistentLoadout();
 }
 
 void UGTTCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -35,6 +38,7 @@ bool UGTTCombatComponent::AddWeapon(EGTTWeaponType Type, int32 Ammo, bool bAutoE
     if (Type != EGTTWeaponType::BareHands && !Inventory.Contains(Type)) Inventory.Add(Type);
     if (Type == EGTTWeaponType::FarmShotgun) ShotgunAmmo = FMath::Clamp(ShotgunAmmo + FMath::Max(0, Ammo), 0, 24);
     if (bAutoEquip) EquippedWeapon = Type;
+    SavePersistentLoadout();
     return true;
 }
 
@@ -84,6 +88,7 @@ void UGTTCombatComponent::PerformShotgunAttack(const FGTTWeaponProfile& Profile)
     AActor* Owner = GetOwner();
     if (!World || !Owner) return;
     --ShotgunAmmo;
+    SavePersistentLoadout();
     AddCrimeHeat(Profile.PoliceHeat, TEXT("Gunshot reported in the countryside."));
 
     FVector ViewLocation = Owner->GetActorLocation() + FVector(0,0,65);
@@ -134,6 +139,7 @@ void UGTTCombatComponent::HandleDefeat()
     Health = MaxHealth;
     EquippedWeapon = EGTTWeaponType::BareHands;
     ShotgunAmmo = FMath::Max(0, ShotgunAmmo - 2);
+    SavePersistentLoadout();
     Pawn->SetActorLocation(FVector(-2550,-1250,120), false, nullptr, ETeleportType::TeleportPhysics);
     if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(Pawn)) Wanted->ClearWanted();
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Pawn))
@@ -156,6 +162,7 @@ void UGTTCombatComponent::CycleWeapon()
     if (Inventory.Num() == 0) return;
     const int32 Current = Inventory.IndexOfByKey(EquippedWeapon);
     EquippedWeapon = Inventory[Current == INDEX_NONE ? 0 : (Current + 1) % Inventory.Num()];
+    SavePersistentLoadout();
 }
 
 void UGTTCombatComponent::DropCurrentWeapon()
@@ -172,6 +179,50 @@ void UGTTCombatComponent::DropCurrentWeapon()
         Inventory.Remove(DroppedType);
         if (DroppedType == EGTTWeaponType::FarmShotgun) ShotgunAmmo = 0;
         EquippedWeapon = EGTTWeaponType::BareHands;
+        SavePersistentLoadout();
+    }
+}
+
+void UGTTCombatComponent::SavePersistentLoadout()
+{
+    UGTTCombatSave* Save = Cast<UGTTCombatSave>(UGameplayStatics::CreateSaveGameObject(UGTTCombatSave::StaticClass()));
+    if (!Save) return;
+
+    Save->CombatSaveVersion = 1;
+    Save->WeaponTypes.Reset();
+    for (const EGTTWeaponType Weapon : Inventory)
+    {
+        if (Weapon != EGTTWeaponType::BareHands) Save->WeaponTypes.Add(static_cast<uint8>(Weapon));
+    }
+    Save->EquippedWeaponType = static_cast<uint8>(EquippedWeapon);
+    Save->ShotgunAmmo = FMath::Clamp(ShotgunAmmo, 0, 24);
+    UGameplayStatics::SaveGameToSlot(Save, CombatSaveSlotName, 0);
+}
+
+void UGTTCombatComponent::LoadPersistentLoadout()
+{
+    Inventory.Reset();
+    Inventory.Add(EGTTWeaponType::BareHands);
+    EquippedWeapon = EGTTWeaponType::BareHands;
+    ShotgunAmmo = 0;
+
+    if (!UGameplayStatics::DoesSaveGameExist(CombatSaveSlotName, 0)) return;
+    UGTTCombatSave* Save = Cast<UGTTCombatSave>(UGameplayStatics::LoadGameFromSlot(CombatSaveSlotName, 0));
+    if (!Save) return;
+
+    const uint8 MaxWeaponValue = static_cast<uint8>(EGTTWeaponType::FarmShotgun);
+    for (const uint8 RawType : Save->WeaponTypes)
+    {
+        if (RawType == 0 || RawType > MaxWeaponValue) continue;
+        const EGTTWeaponType Weapon = static_cast<EGTTWeaponType>(RawType);
+        if (!Inventory.Contains(Weapon)) Inventory.Add(Weapon);
+    }
+
+    ShotgunAmmo = FMath::Clamp(Save->ShotgunAmmo, 0, 24);
+    if (Save->EquippedWeaponType <= MaxWeaponValue)
+    {
+        const EGTTWeaponType SavedEquipped = static_cast<EGTTWeaponType>(Save->EquippedWeaponType);
+        if (Inventory.Contains(SavedEquipped)) EquippedWeapon = SavedEquipped;
     }
 }
 
@@ -181,5 +232,5 @@ FString UGTTCombatComponent::GetCombatStatusText() const
     const FString WeaponText = EquippedWeapon == EGTTWeaponType::FarmShotgun
         ? FString::Printf(TEXT("%s | SHELLS %d"), *Profile.DisplayName.ToString(), ShotgunAmmo)
         : FString::Printf(TEXT("%s | INVENTORY %d"), *Profile.DisplayName.ToString(), FMath::Max(0, Inventory.Num()-1));
-    return FString::Printf(TEXT("RURAL ARSENAL | HP %.0f%% | %s"), GetHealthPercent()*100.0f, *WeaponText);
+    return FString::Printf(TEXT("RURAL ARSENAL | HP %.0f%% | %s | LOADOUT SAVED"), GetHealthPercent()*100.0f, *WeaponText);
 }

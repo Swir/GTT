@@ -25,3 +25,6 @@ jobs:
 
       - name: Verify combat milestone
         run: python Scripts/verify_combat.py
+
+      - name: Verify Arc 3 campaign milestone
+        run: python Scripts/verify_arc3.py

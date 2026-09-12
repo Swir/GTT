@@ -39,6 +39,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Timed roadside recovery contract tied to economy
 - [x] Rural improvised weapon pickup loop
 - [x] Assault / firearm-discharge hooks into wanted system
+- [x] Persistent Rural Arsenal loadout and shotgun ammunition
 
 ## 0.4 — Village Nights
 - [x] Village party window 18:30–02:30
@@ -82,6 +83,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Rural commuter traffic branches beyond the original village loop
 - [x] Explicit garage slot selection and recall service cost
 - [x] Main-story ranger escalation and clearance stage
+- [x] Main-story wanted escalation reused for Arc 3 evidence escape
 - [ ] Deeper vehicle ownership costs, insurance/impound fees and fines
 - [ ] Lane metadata, speed limits and authored junction priorities
 
@@ -95,6 +97,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Physical towing/recovery job
 - [x] Main Story Arc 2 uses forest, warden outpost and Hill Farm
 - [x] Farm/timber/recovery routes consume shared vehicle damage, tire and terrain dynamics
+- [x] West-side Red Barn / County Drop campaign expansion
 - [ ] Deeper poaching inventory / fence economy
 - [ ] Dedicated trailer/hitch work contracts
 - [ ] More shops/services
@@ -117,16 +120,19 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 ## 0.9 — Content & Polish
 - [x] Main Story Arc 1: County Ledger / Backroad Deal / Final Farm Meet
 - [x] Main Story Arc 2: Timber Ghosts / Warden / Forest Cache / Hill Farm evidence
-- [x] Persistent main-story stage across quit/relaunch with v1 -> Arc 2 progression compatibility
+- [x] Main Story Arc 3: Red Barn Reckoning / combat ambush / police escape / county evidence haul / fleet finale
+- [x] Persistent main-story stage across quit/relaunch with Arc 1 -> Arc 2 compatibility
+- [x] Persistent Arc 3 campaign stage
 - [x] Shared mission road-route guidance
 - [x] First side-story chain
 - [x] Police escalation variety: foot / pursuit cars / roadblocks
 - [x] Player health + defeat/economy consequence loop
 - [x] Eight-item Rural Arsenal foundation
-- [ ] Main Story Arc 3 and campaign finale
-- [ ] Persist combat inventory/ammo in sandbox SaveGame
+- [x] Persist combat inventory/ammo across quit/relaunch
+- [x] First campaign combat encounter with multiple hostile NPCs
 - [ ] More hostile NPC archetypes / faction encounters
 - [ ] Authored combat animations / weapon models / hit reactions
+- [ ] Consolidate combat/story slots into primary sandbox SaveGame
 - [ ] Performance passes
 - [ ] Accessibility/settings
 - [ ] Controller support

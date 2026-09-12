@@ -2,6 +2,30 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.19] - 2026-09-12
+
+### Added
+- **Main Story Arc 3 — Red Barn Reckoning**, a combat-driven campaign chapter unlocked after Timber Ghosts.
+- New west-side **Red Barn** compound and **County Evidence Drop** runtime locations, expanding the playable countryside beyond the previous road-graph footprint.
+- Four-hostile Red Barn ambush using the existing villager combat AI, player Rural Arsenal, knockout system and live HUD hostile counter.
+- Payoff-ledger evidence pickup that triggers a major real wanted response instead of a scripted fake chase; the player must clear police heat before continuing.
+- County evidence handoff gated by an owned **Mulebox 1200** parked nearby in at least 35% condition, connecting story progression to vehicle ownership, repair and driving.
+- Arc 3 rewards: `$900` for the county evidence delivery and `$1100` for closing the chapter with a three-vehicle farm fleet.
+- Persistent Arc 3 stage save and automatic hostile respawn/refresh when loading during the Red Barn fight.
+- Persistent Rural Arsenal loadout save: collected weapons, equipped weapon and shotgun shells now survive quit/relaunch.
+- Dedicated `verify_arc3.py` sanity suite added to CI; combat sanity now also verifies loadout persistence.
+
+### Changed
+- HUD now displays Arc 3 objectives, hostile count, escape state and completion alongside the existing main-story objective.
+- Arc 3 uses the shared road graph for route hints to the Red Barn, County Drop and final farm meeting.
+- Combat status explicitly reports that the loadout is persistent.
+
+### Limitations / Next
+- Combat persistence currently uses a dedicated combat save slot; consolidation into the primary sandbox SaveGame remains desirable.
+- Red Barn enemies reuse the current source-driven citizen combat body/behavior; authored faction meshes, animations and more specialized hostile archetypes remain outstanding.
+- Native Chaos wheel assets/configuration, articulated trailer/hitch work and a real UE 5.8 Win64 compile/package smoke runner remain outstanding.
+- Next major package: articulated farm trailers/heavy haul jobs, deeper hostile faction behaviors and countryside/road metadata expansion.
+
 ## [0.0.18] - 2026-09-12
 
 ### Added
