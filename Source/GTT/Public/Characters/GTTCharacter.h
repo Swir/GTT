@@ -10,6 +10,7 @@ class UStaticMeshComponent;
 class UGTTWantedComponent;
 class UGTTPlayerEconomyComponent;
 class UGTTRadioComponent;
+class UGTTCombatComponent;
 
 UCLASS()
 class GTT_API AGTTCharacter : public ACharacter
@@ -29,6 +30,9 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Radio")
     UGTTRadioComponent* GetRadioComponent() const { return RadioComponent; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Combat")
+    UGTTCombatComponent* GetCombatComponent() const { return CombatComponent; }
+
 protected:
     void MoveForward(float Value);
     void MoveRight(float Value);
@@ -38,6 +42,9 @@ protected:
     void QuickSave();
     void QuickLoad();
     void CycleRadio();
+    void Attack();
+    void CycleWeapon();
+    void DropWeapon();
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Character")
     TObjectPtr<UStaticMeshComponent> PlaceholderBody;
@@ -56,6 +63,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Radio")
     TObjectPtr<UGTTRadioComponent> RadioComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Combat")
+    TObjectPtr<UGTTCombatComponent> CombatComponent;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Interaction", meta=(ClampMin="50.0"))
     float InteractionDistance = 350.0f;
