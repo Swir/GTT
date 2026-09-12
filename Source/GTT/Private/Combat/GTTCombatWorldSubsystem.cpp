@@ -1,5 +1,7 @@
 #include "Combat/GTTCombatWorldSubsystem.h"
 
+#include "Activities/GTTBrawlDirector.h"
+#include "Activities/GTTBrawlTerminal.h"
 #include "Combat/GTTCombatTypes.h"
 #include "Combat/GTTWeaponPickup.h"
 #include "Engine/World.h"
@@ -16,6 +18,9 @@ void UGTTCombatWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     SpawnPickup(InWorld, FVector(5650,3050,80), (uint8)EGTTWeaponType::Shovel);
     SpawnPickup(InWorld, FVector(2700,850,80), (uint8)EGTTWeaponType::CowChain);
     SpawnPickup(InWorld, FVector(3650,1200,80), (uint8)EGTTWeaponType::FarmShotgun, 6);
+
+    InWorld.SpawnActor<AGTTBrawlDirector>();
+    InWorld.SpawnActor<AGTTBrawlTerminal>(FVector(1450,2380,65),FRotator::ZeroRotator);
 }
 
 void UGTTCombatWorldSubsystem::SpawnPickup(UWorld& World, const FVector& Location, uint8 WeaponTypeValue, int32 Ammo) const
