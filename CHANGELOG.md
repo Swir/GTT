@@ -2,6 +2,24 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.27] - 2026-09-13
+
+### Added
+- **Release Pipeline** milestone with a dedicated Windows/UE 5.8 GitHub Actions workflow for project-controlled self-hosted runners.
+- Post-package validation that requires a real `GTT.exe`, cooked `.pak`/`.utoc`/`.ucas` containers, expected runtime folders and a plausible package size.
+- Release metadata and integrity artifacts: `BUILD_INFO.json`, `PACKAGE_VALIDATION.json`, per-file `SHA256SUMS.txt`, compressed release ZIP and ZIP SHA-256 sidecar.
+- Dedicated `verify_release_pipeline.py`, `RELEASE_WINDOWS.md` and `PLAYTEST_0.0.27.md` covering repository, artifact-integrity and packaged-runtime acceptance gates.
+
+### Changed
+- `package_windows.ps1` now defaults to Shipping, enables IoStore/prerequisites, clears stale output, validates the result, records the exact Git SHA/build metadata and creates a compressed distributable artifact.
+- Project sanity now verifies that release automation remains wired, honest about its runner requirements and consistent with the SWIR roadmap dashboard.
+- Roadmap advances from `117/130 (90.0%)` to exactly `118/130 (90.8%)`; the 20-segment bar remains mathematically correct at 18/20 and preserves `SWIR-ROADMAP-STANDARD:v1`.
+
+### Limitations / Next
+- The release workflow requires a project-controlled `self-hosted, Windows, X64, unreal-5.8` runner. No such runner is claimed to have executed in this source-only milestone.
+- Therefore full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains open and no EXE verification is claimed.
+- Next major package should target native Chaos Vehicles or one of the remaining player-facing content gaps: interiors/dialogue, authored combat/vehicle visuals or cleared radio/audio assets.
+
 ## [0.0.26] - 2026-09-12
 
 ### Added
