@@ -14,6 +14,7 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Core/GTTGameMode.h", "Source/GTT/Public/Core/GTTGameplayStatics.h",
     "Source/GTT/Public/Economy/GTTPlayerEconomyComponent.h",
     "Source/GTT/Public/Radio/GTTRadioComponent.h",
+    "Source/GTT/Public/Combat/GTTCombatComponent.h", "Source/GTT/Public/Save/GTTCombatSave.h",
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h",
     "Source/GTT/Public/Vehicles/GTTVehicleDynamicsComponent.h",
     "Source/GTT/Private/Vehicles/GTTVehicleDynamicsComponent.cpp",
@@ -25,19 +26,23 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Activities/GTTRecoveryDirector.h", "Source/GTT/Public/Activities/GTTRecoveryTerminal.h",
     "Source/GTT/Public/Activities/GTTRecoveryTargetVehicle.h",
     "Source/GTT/Public/Missions/GTTMainStoryDirector.h", "Source/GTT/Public/Missions/GTTMainStoryTerminal.h",
+    "Source/GTT/Public/Missions/GTTArc3Director.h", "Source/GTT/Public/Missions/GTTArc3Terminal.h",
     "Source/GTT/Public/Missions/GTTNightFavorDirector.h", "Source/GTT/Public/Missions/GTTNightFavorTerminal.h",
     "Source/GTT/Public/World/GTTDayNightCycle.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
     "Source/GTT/Public/World/GTTVillageEventDirector.h", "Source/GTT/Public/World/GTTVillageEventMarker.h",
     "Source/GTT/Public/World/GTTMudZone.h", "Source/GTT/Public/World/GTTRecoveryWorldSubsystem.h",
-    "Source/GTT/Public/World/GTTMainStoryWorldSubsystem.h", "Source/GTT/Public/World/GTTRoadGraph.h",
-    "Source/GTT/Private/World/GTTRoadGraph.cpp",
+    "Source/GTT/Public/World/GTTMainStoryWorldSubsystem.h", "Source/GTT/Public/World/GTTArc3WorldSubsystem.h",
+    "Source/GTT/Public/World/GTTRoadGraph.h", "Source/GTT/Private/World/GTTRoadGraph.cpp",
     "Source/GTT/Public/World/GTTGarageTerminal.h", "Source/GTT/Public/World/GTTGarageSlotTerminal.h",
-    "Source/GTT/Public/Save/GTTSaveGame.h", "Source/GTT/Public/Save/GTTMainStorySave.h", "Scripts/package_windows.ps1",
+    "Source/GTT/Public/Save/GTTSaveGame.h", "Source/GTT/Public/Save/GTTMainStorySave.h", "Source/GTT/Public/Save/GTTArc3Save.h",
+    "Scripts/verify_combat.py", "Scripts/verify_arc3.py", "Scripts/package_windows.ps1",
 ]
 
 EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "OwnedVehicles"],
     "Source/GTT/Public/Save/GTTMainStorySave.h": ["StorySaveVersion", "StoryStage"],
+    "Source/GTT/Public/Save/GTTCombatSave.h": ["CombatSaveVersion", "WeaponTypes", "ShotgunAmmo"],
+    "Source/GTT/Public/Save/GTTArc3Save.h": ["Arc3SaveVersion", "Arc3Stage"],
     "Source/GTT/Public/Vehicles/GTTVehicleDynamicsComponent.h": [
         "WheelBaseCm", "SuspensionRestLengthCm", "SpringStrength", "DamperStrength", "ForwardGearTopSpeedsKmh", "OffroadGripBias"
     ],
@@ -95,19 +100,25 @@ EXPECTED_SOURCE_TOKENS = {
         "TryHillFarmEvidence", "HasUsableOwnedTractor", "FGTTRoadGraph::BuildRoute", "StorySaveVersion = 2",
         "SaveGameToSlot", "LoadGameFromSlot", "18.5f", "2.5f"
     ],
+    "Source/GTT/Private/Missions/GTTArc3Director.cpp": [
+        "RED BARN RECKONING", "RedBarnFight", "StartBrawlWith", "EvidenceRaidHeat", "Mulebox1200",
+        "GetOwnedVehicleCount() < 3", "EvidenceDeliveryReward", "Arc3CompletionReward", "FGTTRoadGraph::BuildRoute", "SaveGameToSlot"
+    ],
     "Source/GTT/Private/Missions/GTTMainStoryTerminal.cpp": [
         "FarmOffice", "NorthWood", "VillageShop", "Tavern", "EastRoad", "Workshop", "WardenOutpost", "ForestCache", "HillFarm"
     ],
     "Source/GTT/Private/World/GTTMainStoryWorldSubsystem.cpp": [
         "AGTTMainStoryDirector", "FarmOffice", "NorthWood", "VillageShop", "EastRoad", "Workshop", "WardenOutpost", "ForestCache", "HillFarm"
     ],
+    "Source/GTT/Private/World/GTTArc3WorldSubsystem.cpp": ["AGTTArc3Director", "RedBarn", "CountyDrop", "-5200.0f", "-4700.0f"],
     "Source/GTT/Private/Missions/GTTNightFavorDirector.cpp": [
         "18.5f", "2.5f", "CollectParts", "ReachNeighbor", "ReturnToTavern", "CompletionReward", "SaveProgress"
     ],
     "Source/GTT/Private/Missions/GTTNightFavorTerminal.cpp": ["Tavern", "Workshop", "Neighbor", "TryFinish"],
     "Source/GTT/Private/UI/GTTGameHUD.cpp": [
-        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "MainStory", "VEHICLE DYNAMICS", "GetDynamicsSummary", "NightFavor", "R radio"
+        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "MainStory", "AGTTArc3Director", "VEHICLE DYNAMICS", "GetDynamicsSummary", "NightFavor", "R radio"
     ],
+    "Source/GTT/Private/Combat/GTTCombatComponent.cpp": ["SavePersistentLoadout", "LoadPersistentLoadout", "GTT_Combat_01"],
     "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
         "AGTTRuralWorkDirector", "AGTTNightFavorDirector", "NORTH WOOD YARD", "MOWING CONTRACT", "FIELD GATE", "NIGHT SHIFT FAVOR"
     ],
@@ -173,6 +184,11 @@ def main() -> int:
         if token not in story_header:
             fail(f"Main story director header missing stage/save contract: {token}")
 
+    arc3_header = (ROOT / "Source/GTT/Public/Missions/GTTArc3Director.h").read_text(encoding="utf-8")
+    for token in ["RedBarnApproach", "RedBarnFight", "RedBarnEvidence", "EscapePolice", "CountyDrop", "FinalFarm", "Completed"]:
+        if token not in arc3_header:
+            fail(f"Arc 3 director header missing stage: {token}")
+
     road_graph_header = (ROOT / "Source/GTT/Public/World/GTTRoadGraph.h").read_text(encoding="utf-8")
     for token in ["FGTTRoadNode", "GetVillageLoop", "BuildRoute", "FindClosestNode", "GetNodeLabel"]:
         if token not in road_graph_header:
@@ -198,7 +214,7 @@ def main() -> int:
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.17 vehicle dynamics, four-point suspension, differentiated gearing, mud traction and existing sandbox/story hooks look structurally sane.")
+    print("[OK] GTT 0.0.19 campaign Arc 3, persistent Rural Arsenal, vehicle dynamics and existing sandbox systems look structurally sane.")
     return 0
 
 
