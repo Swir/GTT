@@ -74,7 +74,7 @@ EXPECTED_SOURCE_TOKENS = {
     ],
     "Source/GTT/Private/Missions/GTTNightFavorTerminal.cpp": ["Tavern", "Workshop", "Neighbor", "TryFinish"],
     "Source/GTT/Private/UI/GTTGameHUD.cpp": [
-        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "MainStory", "MAIN STORY", "NightFavor", "R radio"
+        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "MainStory", "GetObjectiveText", "NightFavor", "R radio"
     ],
     "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
         "AGTTRuralWorkDirector", "AGTTNightFavorDirector", "NORTH WOOD YARD", "MOWING CONTRACT", "FIELD GATE", "NIGHT SHIFT FAVOR", "GTT 0.0.12"
