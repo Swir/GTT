@@ -46,6 +46,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Tavern exterior / Bent Axle location
 - [x] Radio expansion foundation
 - [x] First nightlife side-mission chain: Night Shift Favor
+- [x] Main-story nighttime contact integrated with village clock
 - [ ] Tavern/community-hall interiors
 - [ ] NPC dialogue/social encounters
 - [ ] Village fight/combat encounter framework
@@ -78,6 +79,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Road-node-aware interception tactics
 - [x] Explicit garage slot-selection UI
 - [x] First recurring garage ownership/service cost (recall fee)
+- [x] Story progression that deliberately feeds into wanted/police escape gameplay
 - [ ] Deeper vehicle ownership costs, insurance/impound fees and fines
 - [ ] Shared authored road graph used by traffic, police and missions
 
@@ -93,6 +95,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [ ] Dedicated trailer/hitch work contracts
 - [ ] More shops/services
 - [x] First side-mission chain
+- [x] First multi-location main-story arc through countryside services
 - [ ] Larger connected road network and countryside
 
 ## 0.8 — Vehicle Damage & Tuning
@@ -110,8 +113,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [ ] Replacement body-panel economy
 
 ## 0.9 — Content & Polish
-- [ ] Main story mission chain
+- [x] Main Story Arc 1: County Ledger / Backroad Deal / Final Farm Meet
+- [x] Persistent main-story stage across quit/relaunch
 - [x] First side-story chain
+- [ ] Main Story Arc 2 and later campaign chapters
 - [ ] More NPC archetypes
 - [x] Police escalation variety: foot / pursuit cars / roadblocks
 - [ ] Performance passes
