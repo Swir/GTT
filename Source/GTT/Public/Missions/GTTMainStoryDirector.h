@@ -25,6 +25,7 @@ class GTT_API AGTTMainStoryDirector : public AActor
 
 public:
     AGTTMainStoryDirector();
+    virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
 
     UFUNCTION(BlueprintCallable, Category="GTT|Story") bool TryFarmContact(APawn* PlayerPawn);
@@ -46,12 +47,15 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category="GTT|Story|Rewards") int32 BackroadReward = 600;
     UPROPERTY(EditDefaultsOnly, Category="GTT|Story|Rewards") int32 ArcCompletionReward = 350;
     UPROPERTY(EditDefaultsOnly, Category="GTT|Story|Crime") float BackroadPickupHeat = 58.0f;
+    UPROPERTY(EditDefaultsOnly, Category="GTT|Story|Save") FString StorySaveSlotName = TEXT("GTT_MainStory_01");
 
 private:
     bool IsBorrowedTractorComplete() const;
     bool HasAuthorityAttention(APawn* PlayerPawn) const;
     bool IsNightWindow() const;
     void SetStage(EGTTMainStoryStage NewStage, APawn* PlayerPawn, const FString& Message);
+    void SaveStoryProgress();
+    void LoadStoryProgress();
     void Pay(APawn* PlayerPawn, int32 Amount, const FString& Reason);
     void PushMessage(APawn* PlayerPawn, const FString& Message, float Duration = 6.0f) const;
 
