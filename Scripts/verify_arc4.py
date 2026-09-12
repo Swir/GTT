@@ -7,7 +7,7 @@ required = {
     "Source/GTT/Public/Missions/GTTArc4Director.h": ["EGTTArc4Stage", "ProveGround", "PrepareContraband", "NorthPass", "EscapePolice", "RidgeExchange", "GTT_MainStory_Arc4_01"],
     "Source/GTT/Private/Missions/GTTArc4Director.cpp": ["GetFactionVictories", "GetContrabandUnits", "bContrabandPrepared", "NorthPassHeat", "AddHeat", "NEXT ROAD", "ARCS 1-4 COMPLETE"],
     "Source/GTT/Public/Save/GTTArc4Save.h": ["Arc4Stage", "StartingFactionVictories", "bContrabandPrepared"],
-    "Source/GTT/Private/World/GTTArc4WorldSubsystem.cpp": ["NORTH PASS", "RIDGE EXCHANGE", "SpawnActor<AGTTArc4Director>"],
+    "Source/GTT/Private/World/GTTArc4WorldSubsystem.cpp": ["EGTTArc4TerminalType::NorthPass", "EGTTArc4TerminalType::RidgeExchange", "SpawnActor<AGTTArc4Director>"],
     "Source/GTT/Private/World/GTTRoadGraph.cpp": ["NorthPassApproach", "NORTH PASS CHECKPOINT", "RiverFord", "RIDGE EXCHANGE", "QuarryNorth"],
     "Source/GTT/Private/UI/GTTGameHUD.cpp": ["GTTArc4Director.h", "AGTTArc4Director* Arc4", "Arc4->GetObjectiveText", "EGTTArc4Stage::Completed"],
 }
