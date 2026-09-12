@@ -3,6 +3,7 @@
 #include "Combat/GTTCombatComponent.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
+#include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "NPC/GTTCitizenPawn.h"
 #include "Wanted/GTTWantedComponent.h"
