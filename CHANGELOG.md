@@ -2,6 +2,30 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.14] - 2026-09-12
+
+### Added
+- Predictive police interception planner built around 15 named runtime road nodes covering the village loop, East Road, Hill Farm, forest, North Wood, Feed Depot, private lake and workshop approaches.
+- Wanted 4–5 roadblocks now score nodes against player heading, velocity prediction, lead distance and prior-node reuse instead of spawning at an arbitrary point ahead of the player.
+- High-tier pursuit cars can enter from scored interception nodes, making escalation converge on likely escape routes rather than only chasing from behind.
+- New `AGTTGarageSlotTerminal` selectors for explicit garage slots 1–4. Each physical selector resolves one stable owned vehicle and recalls that exact vehicle.
+- Live slot labels show the vehicle assigned to each slot or `EMPTY`, with deterministic Fieldmaster -> Rattleback -> Mulebox ordering for the current fleet.
+- Garage recall service cost of `$15`, adding a recurring vehicle-ownership/service expense while keeping registration at the main garage desk.
+- Garage recall is blocked while police or the game warden are actively looking for the player.
+
+### Changed
+- Main garage terminal is now registration-focused; fleet recall moved from opaque sequential cycling to explicit numbered selectors.
+- Police director exposes road-network/interception state for HUD/debug expansion and future traffic-shared route planning.
+- Structural sanity CI now verifies the road-node planner, predictive scoring hooks, named rural nodes, explicit slot selectors, deterministic fleet ordering and recall cost.
+
+### Next
+- Dedicated Chaos wheeled drivetrain/suspension for tractor, old car and van.
+- Shared authored road graph between civilian traffic, police interception and mission routing.
+- Main story mission chain beyond Borrowed Tractor.
+- Garage management screen for repair state, fuel, tuning and storage costs across all owned vehicles.
+- Larger connected countryside and additional story chapters.
+- Real Unreal-equipped Win64 compile/package smoke-test runner.
+
 ## [0.0.13] - 2026-09-12
 
 ### Added
