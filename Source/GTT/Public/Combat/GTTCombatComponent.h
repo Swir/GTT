@@ -25,6 +25,10 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Combat") float GetHealthPercent() const { return MaxHealth > 0.0f ? Health / MaxHealth : 0.0f; }
     UFUNCTION(BlueprintPure, Category="GTT|Combat") FString GetCombatStatusText() const;
     UFUNCTION(BlueprintPure, Category="GTT|Combat") bool HasWeapon(EGTTWeaponType Type) const { return Inventory.Contains(Type); }
+    UFUNCTION(BlueprintPure, Category="GTT|Combat|Save") int32 GetStoredWeaponCount() const { return FMath::Max(0, Inventory.Num() - 1); }
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Combat|Save") void SavePersistentLoadout();
+    UFUNCTION(BlueprintCallable, Category="GTT|Combat|Save") void LoadPersistentLoadout();
 
 private:
     void PerformMeleeAttack(const FGTTWeaponProfile& Profile);
@@ -39,4 +43,5 @@ private:
     float AttackCooldownRemaining = 0.0f;
     float MaxHealth = 100.0f;
     float Health = 100.0f;
+    FString CombatSaveSlotName = TEXT("GTT_Combat_01");
 };
