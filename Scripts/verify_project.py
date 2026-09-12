@@ -48,10 +48,10 @@ EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Private/Traffic/GTTTrafficDirector.cpp": ["ClockwiseRoute", "CounterClockwiseRoute", "Algo::Reverse"],
     "Source/GTT/Private/Economy/GTTPlayerEconomyComponent.cpp": ["AddFish", "SellAllFish", "ChargeFine", "ConfiscateAllFish", "RestoreState"],
     "Source/GTT/Private/NPC/GTTCitizenPawn.cpp": ["TryWitnessVehicleTheft", "GetScheduleCenter", "DayNightCycle", "called the police"],
-    "Source/GTT/Private/Activities/GTTFishingSpot.cpp": ["RegisterWildlifeCrime", "River Perch", "Village Carp", "Old Pike"],
+    "Source/GTT/Private/Activities/GTTFishingSpot.cpp": ["ReportWildlifeCrime", "River Perch", "Village Carp", "Old Pike"],
     "Source/GTT/Private/Activities/GTTFarmJobTerminal.cpp": ["StartFarmJob", "CompleteFarmJob"],
     "Source/GTT/Private/Ranger/GTTRangerDirector.cpp": ["GetWildlifeAlertLevel", "SpawnActor<AGTTRangerPawn>"],
-    "Source/GTT/Private/Ranger/GTTRangerAIController.cpp": ["TryWardenCitation", "MoveToActor"],
+    "Source/GTT/Private/Ranger/GTTRangerAIController.cpp": ["TryRangerCitation", "MoveToActor"],
     "Source/GTT/Private/World/GTTGarageTerminal.cpp": ["RegistrationCost", "TryRegisterVehicle", "VehicleSearchRadius"],
     "Source/GTT/Private/World/GTTDayNightCycle.cpp": ["RealSecondsPerGameDay", "RestoreTime", "UpdateLighting", "DAY %d"],
     "Source/GTT/Private/Police/GTTPoliceAIController.cpp": ["MoveToActor(", "TryArrestPlayer", "ArrestRadius"],
@@ -64,7 +64,7 @@ EXPECTED_SOURCE_TOKENS = {
     ],
     "Source/GTT/Private/Core/GTTGameMode.cpp": [
         "SaveGameToSlot", "LoadGameFromSlot", "OwnedVehicles", "TryRegisterVehicle", "GarageCapacity",
-        "RegisterWildlifeCrime", "TryWardenCitation", "GetWildlifeAlertLevel"
+        "ReportWildlifeCrime", "TryRangerCitation", "GetWildlifeAlertLevel"
     ],
     "Source/GTT/Private/Characters/GTTCharacter.cpp": ["QuickSave", "QuickLoad", "SaveProgress", "LoadProgress"],
 }
