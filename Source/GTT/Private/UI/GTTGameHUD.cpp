@@ -1,5 +1,6 @@
 #include "UI/GTTGameHUD.h"
 #include "Activities/GTTFarmJobDirector.h"
+#include "Activities/GTTRecoveryDirector.h"
 #include "Activities/GTTRuralWorkDirector.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
@@ -29,6 +30,7 @@ void AGTTGameHUD::DrawHUD()
     AGTTPoliceDirector* PoliceDirector = Cast<AGTTPoliceDirector>(UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()));
     AGTTFarmJobDirector* FarmJobDirector = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
     AGTTRuralWorkDirector* RuralWork = Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRuralWorkDirector::StaticClass()));
+    AGTTRecoveryDirector* Recovery = Cast<AGTTRecoveryDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRecoveryDirector::StaticClass()));
     AGTTNightFavorDirector* NightFavor = Cast<AGTTNightFavorDirector>(UGameplayStatics::GetActorOfClass(this, AGTTNightFavorDirector::StaticClass()));
     AGTTVillageEventDirector* NightDirector = Cast<AGTTVillageEventDirector>(UGameplayStatics::GetActorOfClass(this, AGTTVillageEventDirector::StaticClass()));
 
@@ -86,6 +88,11 @@ void AGTTGameHUD::DrawHUD()
         DrawText(RuralWork->GetObjectiveText(), FLinearColor(0.45f,0.95f,0.35f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
+    if (Recovery && Recovery->IsRecoveryActive())
+    {
+        DrawText(Recovery->GetObjectiveText(), FLinearColor(1.0f,0.62f,0.20f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        Y += 30.0f;
+    }
     if (NightFavor && NightFavor->IsActive())
     {
         DrawText(NightFavor->GetObjectiveText(), FLinearColor(0.95f,0.55f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
@@ -101,6 +108,20 @@ void AGTTGameHUD::DrawHUD()
             Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
         DrawText(VehicleLine, FLinearColor::White, 36.0f, Y, GEngine->GetSmallFont(), 1.05f, false);
         Y += 30.0f;
+
+        DrawText(FString::Printf(TEXT("CHASSIS | SURFACE %s | GRIP %.0f%% | CONTACT %d/4%s"),
+            *Vehicle->GetTerrainSurfaceName().ToString(), Vehicle->GetTerrainGripMultiplier()*100.0f, Vehicle->GetWheelContactCount(),
+            Vehicle->GetTowedVehicle() ? TEXT(" | TOW LOAD") : TEXT("")),
+            Vehicle->GetTerrainGripMultiplier() < 0.75f ? FLinearColor(1.0f,0.62f,0.22f,1.0f) : FLinearColor(0.65f,0.85f,1.0f,1.0f),
+            36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
+        Y += 28.0f;
+
+        if (const AGTTVehicleBase* Towed = Vehicle->GetTowedVehicle())
+        {
+            DrawText(FString::Printf(TEXT("TOW HITCH | %s | T releases hook"), *Towed->GetVehicleDisplayName().ToString()),
+                FLinearColor(1.0f,0.7f,0.25f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
+            Y += 28.0f;
+        }
 
         if (Radio)
         {
@@ -134,7 +155,7 @@ void AGTTGameHUD::DrawHUD()
         DrawText(Economy->GetActivityMessage(), FLinearColor(0.35f,0.88f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
-    DrawText(TEXT("CONTROLS | WASD move/drive | E interact | F exit | R radio | F5 save | F9 load | Space jump"), FLinearColor(0.72f,0.82f,0.95f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.85f, false);
+    DrawText(TEXT("CONTROLS | WASD move/drive | E interact | F exit | R radio | T tow hook | F5 save | F9 load | Space jump"), FLinearColor(0.72f,0.82f,0.95f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.85f, false);
 }
 
 FString AGTTGameHUD::BuildWantedBar(int32 WantedLevel) const
