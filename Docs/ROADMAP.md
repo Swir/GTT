@@ -6,20 +6,20 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 <!-- ROADMAP-PROGRESS:START -->
 <p align="center">
   <a href="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml"><img alt="CI" src="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml/badge.svg"></a>
-  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-90.8%25-2ea043?style=for-the-badge">
-  <img alt="Completed" src="https://img.shields.io/badge/DONE-118%2F130-1f6feb?style=for-the-badge">
+  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-92.3%25-2ea043?style=for-the-badge">
+  <img alt="Completed" src="https://img.shields.io/badge/DONE-120%2F130-1f6feb?style=for-the-badge">
   <img alt="Status" src="https://img.shields.io/badge/STATUS-IN%20PROGRESS-7c3aed?style=for-the-badge">
 </p>
 
 ## 📊 Overall progress
 
 ```text
-██████████████████░░ 90.8%
+██████████████████░░ 92.3%
 ```
 
 | ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |
 |---:|---:|---:|---:|
-| **118** | **12** | **130** | **90.8%** |
+| **120** | **10** | **130** | **92.3%** |
 
 > **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
@@ -75,8 +75,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Main-story nighttime contact integrated with village clock
 - [x] Village fight/combat encounter framework
 - [x] Bent Axle repeatable nighttime brawl activity
-- [ ] Tavern/community-hall interiors
-- [ ] NPC dialogue/social encounters
+- [x] Tavern/community-hall interiors
+- [x] NPC dialogue/social encounters
 - [ ] Original/royalty-cleared music and radio audio assets
 
 ## 0.5 — Vehicle Chaos
