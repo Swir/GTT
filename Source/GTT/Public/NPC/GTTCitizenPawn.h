@@ -15,8 +15,10 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     UFUNCTION(BlueprintCallable, Category="GTT|NPC|Crime") bool TryWitnessVehicleTheft(AGTTVehicleBase* Vehicle, APawn* Offender);
     UFUNCTION(BlueprintCallable, Category="GTT|NPC|Combat") void ApplyCombatHit(float Damage, const FVector& HitDirection, float Knockback, APawn* Attacker);
+    UFUNCTION(BlueprintCallable, Category="GTT|NPC|Combat") void StartBrawlWith(APawn* Opponent);
     UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") float GetHealthPercent() const { return MaxHealth > 0.0f ? Health / MaxHealth : 0.0f; }
     UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") bool IsKnockedOut() const { return bKnockedOut; }
+    UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") bool IsBrawlParticipant() const { return bBrawlParticipant; }
 protected:
     void ChooseNewWanderTarget();
     FVector GetScheduleCenter() const;
@@ -44,4 +46,5 @@ private:
     float CombatCooldown = 0.0f;
     float KnockoutTimeRemaining = 0.0f;
     bool bKnockedOut = false;
+    bool bBrawlParticipant = false;
 };
