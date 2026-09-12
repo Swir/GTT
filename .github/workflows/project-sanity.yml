@@ -31,3 +31,6 @@ jobs:
 
       - name: Verify heavy haul milestone
         run: python Scripts/verify_heavy_haul.py
+
+      - name: Verify rural factions milestone
+        run: python Scripts/verify_factions.py

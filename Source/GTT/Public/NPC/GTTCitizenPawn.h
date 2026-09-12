@@ -5,6 +5,17 @@
 class AGTTVehicleBase;
 class AGTTDayNightCycle;
 class UStaticMeshComponent;
+
+UENUM(BlueprintType)
+enum class EGTTHostileArchetype : uint8
+{
+    Civilian,
+    Scrapper,
+    Runner,
+    Bruiser,
+    Enforcer
+};
+
 UCLASS()
 class GTT_API AGTTCitizenPawn : public ACharacter
 {
@@ -16,9 +27,13 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|NPC|Crime") bool TryWitnessVehicleTheft(AGTTVehicleBase* Vehicle, APawn* Offender);
     UFUNCTION(BlueprintCallable, Category="GTT|NPC|Combat") void ApplyCombatHit(float Damage, const FVector& HitDirection, float Knockback, APawn* Attacker);
     UFUNCTION(BlueprintCallable, Category="GTT|NPC|Combat") void StartBrawlWith(APawn* Opponent);
+    UFUNCTION(BlueprintCallable, Category="GTT|NPC|Combat") void ConfigureHostileArchetype(EGTTHostileArchetype NewArchetype, APawn* Target);
     UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") float GetHealthPercent() const { return MaxHealth > 0.0f ? Health / MaxHealth : 0.0f; }
     UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") bool IsKnockedOut() const { return bKnockedOut; }
     UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") bool IsBrawlParticipant() const { return bBrawlParticipant; }
+    UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") bool IsFactionHostile() const { return HostileArchetype != EGTTHostileArchetype::Civilian; }
+    UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") EGTTHostileArchetype GetHostileArchetype() const { return HostileArchetype; }
+    UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") FString GetArchetypeLabel() const;
 protected:
     void ChooseNewWanderTarget();
     FVector GetScheduleCenter() const;
@@ -47,4 +62,5 @@ private:
     float KnockoutTimeRemaining = 0.0f;
     bool bKnockedOut = false;
     bool bBrawlParticipant = false;
+    EGTTHostileArchetype HostileArchetype = EGTTHostileArchetype::Civilian;
 };

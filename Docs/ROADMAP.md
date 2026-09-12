@@ -27,6 +27,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Basic radio framework
 - [x] Four fictional stations + track rotation
 - [x] Civilian combat reactions: retaliate / chase / flee / knockout / recover
+- [x] Four differentiated hostile combat archetypes: Scrapper / Runner / Bruiser / Enforcer
 
 ## 0.3 — Rural Crime & Jobs
 - [x] Fishing + fish inventory/sales
@@ -41,6 +42,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Assault / firearm-discharge hooks into wanted system
 - [x] Persistent Rural Arsenal loadout and shotgun ammunition
 - [x] Heavy articulated trailer contract with condition-sensitive payout
+- [x] Repeatable hostile-territory ambush encounters tied to combat economy
 
 ## 0.4 — Village Nights
 - [x] Village party window 18:30–02:30
@@ -87,6 +89,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Explicit garage slot selection and recall service cost
 - [x] Main-story ranger escalation and clearance stage
 - [x] Main-story wanted escalation reused for Arc 3 evidence escape
+- [x] Road graph extended to Scrap Yard, Old Quarry and Marsh Camp hostile territories
 - [ ] Deeper vehicle ownership costs, insurance/impound fees and fines
 - [ ] Lane metadata, speed limits and authored junction priorities
 
@@ -103,6 +106,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] West-side Red Barn / County Drop campaign expansion
 - [x] Dedicated articulated-trailer heavy timber work contract
 - [x] Heavy-haul reward tied to cargo, trailer and tractor condition
+- [x] Three new hostile countryside territories with automatic proximity encounters
 - [ ] Deeper poaching inventory / fence economy
 - [ ] More shops/services
 - [ ] Larger connected countryside beyond current road graph
@@ -135,9 +139,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Eight-item Rural Arsenal foundation
 - [x] Persist combat inventory/ammo across quit/relaunch
 - [x] First campaign combat encounter with multiple hostile NPCs
-- [ ] More hostile NPC archetypes / faction encounters
+- [x] Persistent rural faction notoriety and per-faction victory counters
+- [x] Escalating repeatable faction encounters with larger groups and rising payouts
 - [ ] Authored combat animations / weapon models / hit reactions
-- [ ] Consolidate combat/story slots into primary sandbox SaveGame
+- [ ] Consolidate combat/story/faction slots into primary sandbox SaveGame
 - [ ] Performance passes
 - [ ] Accessibility/settings
 - [ ] Controller support
@@ -145,4 +150,4 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [ ] Full Win64 CI/build runner
 
 ## 1.0 — First Complete Release
-A stable Windows build with a complete core story loop, countryside sandbox, vehicles, wanted + ranger systems, combat, side activities, saving, settings, audio and optimized packaged build.
+A stable Windows build with a complete core story loop, countryside sandbox, vehicles, wanted + ranger systems, combat, hostile factions, side activities, saving, settings, audio and optimized packaged build.

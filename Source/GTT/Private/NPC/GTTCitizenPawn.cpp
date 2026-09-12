@@ -72,6 +72,47 @@ void AGTTCitizenPawn::StartBrawlWith(APawn* Opponent)
     GetCharacterMovement()->MaxWalkSpeed=235.0f;
 }
 
+void AGTTCitizenPawn::ConfigureHostileArchetype(EGTTHostileArchetype NewArchetype, APawn* Target)
+{
+    HostileArchetype=NewArchetype;
+    bBrawlParticipant=true;
+    switch(NewArchetype)
+    {
+        case EGTTHostileArchetype::Runner:
+            MaxHealth=72.0f; RetaliationDamage=5.0f; RetaliationDistance=150.0f; GetCharacterMovement()->MaxWalkSpeed=365.0f;
+            if(BodyMesh) BodyMesh->SetRelativeScale3D(FVector(.23f,.23f,.78f));
+            break;
+        case EGTTHostileArchetype::Bruiser:
+            MaxHealth=165.0f; RetaliationDamage=13.0f; RetaliationDistance=205.0f; GetCharacterMovement()->MaxWalkSpeed=190.0f;
+            if(BodyMesh) BodyMesh->SetRelativeScale3D(FVector(.38f,.38f,.95f));
+            break;
+        case EGTTHostileArchetype::Enforcer:
+            MaxHealth=125.0f; RetaliationDamage=10.0f; RetaliationDistance=250.0f; GetCharacterMovement()->MaxWalkSpeed=255.0f;
+            if(BodyMesh) BodyMesh->SetRelativeScale3D(FVector(.31f,.31f,.9f));
+            break;
+        case EGTTHostileArchetype::Scrapper:
+            MaxHealth=100.0f; RetaliationDamage=8.5f; RetaliationDistance=180.0f; GetCharacterMovement()->MaxWalkSpeed=245.0f;
+            break;
+        default:
+            HostileArchetype=EGTTHostileArchetype::Civilian;
+            break;
+    }
+    Health=MaxHealth;
+    if(Target) CombatTarget=Target;
+}
+
+FString AGTTCitizenPawn::GetArchetypeLabel() const
+{
+    switch(HostileArchetype)
+    {
+        case EGTTHostileArchetype::Runner: return TEXT("RUNNER");
+        case EGTTHostileArchetype::Bruiser: return TEXT("BRUISER");
+        case EGTTHostileArchetype::Enforcer: return TEXT("ENFORCER");
+        case EGTTHostileArchetype::Scrapper: return TEXT("SCRAPPER");
+        default: return TEXT("CIVILIAN");
+    }
+}
+
 void AGTTCitizenPawn::ApplyCombatHit(float Damage, const FVector& HitDirection, float Knockback, APawn* Attacker)
 {
     if(bKnockedOut||Damage<=0.0f) return;
@@ -83,7 +124,7 @@ void AGTTCitizenPawn::ApplyCombatHit(float Damage, const FVector& HitDirection, 
         bKnockedOut=true; KnockoutTimeRemaining=22.0f; CombatTarget.Reset(); GetCharacterMovement()->DisableMovement(); SetActorEnableCollision(false); SetActorHiddenInGame(true);
         return;
     }
-    GetCharacterMovement()->MaxWalkSpeed = Health < MaxHealth*.30f ? 310.0f : 225.0f;
+    if(HostileArchetype==EGTTHostileArchetype::Civilian) GetCharacterMovement()->MaxWalkSpeed = Health < MaxHealth*.30f ? 310.0f : 225.0f;
 }
 
 void AGTTCitizenPawn::UpdateCombatBehavior(float DeltaSeconds)
@@ -92,13 +133,16 @@ void AGTTCitizenPawn::UpdateCombatBehavior(float DeltaSeconds)
     if(!Target){ CombatTarget.Reset(); return; }
     FVector ToTarget=Target->GetActorLocation()-GetActorLocation(); ToTarget.Z=0;
     const float Distance=ToTarget.Size2D();
-    if(Distance>2600.0f){ CombatTarget.Reset(); bBrawlParticipant=false; GetCharacterMovement()->MaxWalkSpeed=WanderSpeed; ChooseNewWanderTarget(); return; }
+    const float ChaseLimit=HostileArchetype==EGTTHostileArchetype::Civilian?2600.0f:4200.0f;
+    if(Distance>ChaseLimit){ CombatTarget.Reset(); bBrawlParticipant=false; GetCharacterMovement()->MaxWalkSpeed=WanderSpeed; ChooseNewWanderTarget(); return; }
     if(Health < MaxHealth*.30f && !bBrawlParticipant){ AddMovementInput((-ToTarget).GetSafeNormal2D(),1.0f); return; }
     if(Distance>RetaliationDistance) AddMovementInput(ToTarget.GetSafeNormal2D(),1.0f);
     else if(CombatCooldown<=0.0f)
     {
-        CombatCooldown=FMath::FRandRange(.85f,1.25f);
-        if(UGTTCombatComponent* Combat=Target->FindComponentByClass<UGTTCombatComponent>()) Combat->ApplyIncomingDamage(RetaliationDamage, bBrawlParticipant?TEXT("Bent Axle brawler hit"):TEXT("Villager retaliation"));
+        const float MinCooldown=HostileArchetype==EGTTHostileArchetype::Runner?.55f:.78f;
+        const float MaxCooldown=HostileArchetype==EGTTHostileArchetype::Bruiser?1.35f:1.05f;
+        CombatCooldown=FMath::FRandRange(MinCooldown,MaxCooldown);
+        if(UGTTCombatComponent* Combat=Target->FindComponentByClass<UGTTCombatComponent>()) Combat->ApplyIncomingDamage(RetaliationDamage, bBrawlParticipant?FString::Printf(TEXT("%s hit"),*GetArchetypeLabel()):TEXT("Villager retaliation"));
     }
 }
 
