@@ -24,6 +24,15 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Police")
     int32 GetActiveRoadblockCount() const { return ActiveRoadblocks.Num(); }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Police|Interception")
+    bool IsRoadNodeInterceptionActive() const { return LastInterceptionNodeIndex != INDEX_NONE && GetPlayerWantedLevel() >= RoadblockEscalationWantedLevel; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Police|Interception")
+    FString GetLastInterceptionNodeLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Police|Interception")
+    int32 GetRoadNodeCount() const { return RoadNodes.Num(); }
+
 protected:
     virtual void BeginPlay() override;
 
@@ -72,6 +81,12 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police", meta=(ClampMin="0.25"))
     float EvaluationInterval = 1.25f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police|Interception", meta=(ClampMin="0.5", ClampMax="8.0"))
+    float InterceptPredictionSeconds = 3.25f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police|Interception", meta=(ClampMin="300.0"))
+    float MinimumInterceptLeadDistance = 850.0f;
+
 private:
     void SpawnPoliceUnit();
     void SpawnPursuitVehicle(int32 WantedLevel);
@@ -79,8 +94,12 @@ private:
     int32 GetPlayerWantedLevel() const;
     void RemoveInvalidUnits();
     void DespawnExcessUnits(int32 DesiredUnits, int32 DesiredVehicles, int32 DesiredRoadblocks);
+    void BuildRuntimeRoadNetwork();
+    int32 SelectInterceptionRoadNode(const APawn* PlayerPawn, bool bPreferFartherNode) const;
+    FTransform MakeRoadNodeTransform(int32 NodeIndex, const APawn* PlayerPawn) const;
     FTransform SelectSpawnTransform(float DistanceScale = 1.0f) const;
-    FTransform SelectRoadblockTransform(int32 WantedLevel) const;
+    FTransform SelectPursuitInterceptTransform(int32 WantedLevel) const;
+    FTransform SelectRoadblockTransform(int32 WantedLevel);
 
     UPROPERTY()
     TArray<TObjectPtr<APawn>> ActivePoliceUnits;
@@ -91,6 +110,9 @@ private:
     UPROPERTY()
     TArray<TObjectPtr<AGTTRoadblock>> ActiveRoadblocks;
 
+    TArray<FVector> RoadNodes;
+    TArray<FString> RoadNodeLabels;
     FTimerHandle EvaluationTimer;
     int32 LastResponseLevel = INDEX_NONE;
+    int32 LastInterceptionNodeIndex = INDEX_NONE;
 };

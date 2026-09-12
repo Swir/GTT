@@ -1,6 +1,6 @@
 # GTT Prototype Playtest
 
-This document describes the current source-driven prototype loop for **GTT 0.0.13**.
+This document describes the current source-driven prototype loop for **GTT 0.0.14**.
 
 ## Requirements
 - Unreal Engine 5.8
@@ -24,6 +24,26 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 - `R` — cycle radio
 - `F5` — quick-save
 - `F9` — quick-load
+
+## 0.0.14 road-node police interception
+1. Build wanted to level 3 and verify pursuit cars still join normally.
+2. Raise wanted to level 4 while driving around the village loop or East Road.
+3. Verify newly spawned roadblocks appear on recognizable road approaches rather than arbitrary nearby terrain.
+4. Change direction before a new roadblock is requested and verify the planner favors a different node aligned with the new escape direction.
+5. Reach wanted level 5 and verify two roadblocks can use different interception nodes instead of stacking on the same location.
+6. Verify high-tier pursuit cars can also enter from a predicted route node rather than always spawning radially behind/around the player.
+7. Clear wanted and verify roadblocks/pursuit units despawn through the existing response cleanup.
+
+## 0.0.14 explicit garage slots
+1. Own/register at least the Rusty Fieldmaster, Rattleback and Mulebox.
+2. Visit Player Farm and verify four numbered physical garage selectors exist near the four bays.
+3. Verify slot labels resolve the current fleet deterministically: Fieldmaster first, Rattleback second, Mulebox third and unused slots show `EMPTY`.
+4. Interact with slot 2 and verify the Rattleback is recalled directly rather than cycling another owned vehicle first.
+5. Verify a successful recall costs `$15` and the economy message records the garage service charge.
+6. Try recalling an occupied vehicle and verify the request is rejected without charging the fee.
+7. Try recalling while police wanted or game-warden alert is active and verify garage recall is locked.
+8. Use the original large garage desk with a nearby unowned persistent vehicle and verify vehicle registration still works separately from recall.
+9. Save/load and repeat recalls to confirm slot resolution remains stable from persistent vehicle IDs.
 
 ## 0.0.13 roadside recovery
 1. Go to the workshop and interact with **RECOVERY DESK / DROP BAY** with zero police wanted.
@@ -91,12 +111,13 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 
 ## Current limitations
 - Player, traffic and pursuit vehicles still use the source-only physics fallback; dedicated Chaos wheel/suspension drivetrain tuning is not yet implemented.
+- Police interception currently uses a fixed source-defined road-node graph matched to the runtime greybox world; it is not yet a shared authored road graph/nav asset.
+- Garage slot selection is physical world UI rather than a full UMG fleet-management screen.
 - 0.0.13 towing uses a real Unreal physics constraint between primitive vehicle roots, but not yet authored hitch sockets, trailer skeletal rigs or dedicated Chaos Vehicle suspension.
 - Mud is represented as authored gameplay volumes with drag/tire wear rather than landscape physical-material sampling or deformable terrain.
 - Rural cargo is gameplay state rather than visible strapped log/pallet assets.
 - Mowing gates model route completion; visible cut-grass deformation is not yet implemented.
 - Night Shift Favor is session mission-state; its resulting cash is saved, but the side-mission stage itself is not yet in SaveGame.
-- Police roadblocks are not yet positioned by an authored road-node interception planner.
 - Vehicles/world remain primitive-mesh prototypes rather than final art.
 - Repository CI is structural sanity checking, not a full Unreal Win64 compile/package smoke test.
 

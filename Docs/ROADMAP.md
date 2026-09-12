@@ -22,6 +22,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Arrest fines
 - [x] Multi-vehicle garage + save/load
 - [x] Garage sequential vehicle recall
+- [x] Explicit numbered garage slot recall
 - [x] Day/night + NPC schedules
 - [x] Basic radio framework
 - [x] Four fictional stations + track rotation
@@ -74,9 +75,11 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Police roadblock escalation at wanted 4–5
 - [x] Spike-strip tire damage prototype
 - [x] Garage vehicle recall
-- [ ] Road-node-aware interception tactics
-- [ ] Explicit garage slot-selection UI
-- [ ] More vehicle ownership costs and fines
+- [x] Road-node-aware interception tactics
+- [x] Explicit garage slot-selection UI
+- [x] First recurring garage ownership/service cost (recall fee)
+- [ ] Deeper vehicle ownership costs, insurance/impound fees and fines
+- [ ] Shared authored road graph used by traffic, police and missions
 
 ## 0.7 — Jobs & Countryside Expansion
 - [x] First east-side forest expansion
