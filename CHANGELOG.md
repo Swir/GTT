@@ -2,77 +2,77 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.10] - 2026-09-12
+
+### Added
+- Police pursuit-vehicle escalation starting at wanted level 3.
+- `AGTTPolicePursuitVehicle`, a physics-driven patrol interceptor that actively steers, accelerates, brakes and attempts arrests.
+- Wanted-scaled pursuit tiers and up to three simultaneous police vehicles at maximum escalation.
+- HUD police-response diagnostics showing foot units, pursuit cars and vehicle escalation state.
+- New staged legal farm contract driven by `AGTTFarmJobDirector`.
+- Farm contract stages: accept contract -> reach feed depot -> load cargo -> timed cross-map delivery to Hill Farm.
+- Cargo integrity simulation tied to vehicle damage while transporting the load.
+- Reward scaling based on cargo integrity plus a fast-delivery bonus.
+- New Feed Depot and Hill Farm delivery points integrated into the runtime world.
+- Structural CI coverage for pursuit vehicles, wanted escalation, job stages, timer, cargo integrity and reward hooks.
+
+### Changed
+- Legal farm work is no longer a direct start/finish interaction; it now requires a vehicle, pickup checkpoint and timed delivery.
+- Police response now mixes foot officers with pursuit cars instead of only increasing pedestrian police count.
+- Runtime village signage and HUD now expose the new response/job states.
+
+### Next
+- Dedicated Chaos wheeled movement/suspension for player and police vehicles.
+- Police roadblocks and interception tactics.
+- Additional farm contracts: hay, timber, towing and field-work variants.
+- Explicit garage slot-selection UI.
+- Story/side-mission chain connecting farms, ranger and police systems.
+- Full Unreal-equipped Win64 compile/smoke-test runner.
+
 ## [0.0.9] - 2026-09-12
 
 ### Added
-- Garage recall flow: when no persistent vehicle is parked by the terminal, repeated interactions cycle through owned vehicles and teleport the next available one into the recall bay.
-- Persistent vehicle tuning saved in SaveGame v3.
-- Three engine upgrade levels with additional power, better fuel efficiency, lower operating temperature and improved low-condition reliability.
-- Three tire upgrade levels with better steering grip and impact resistance.
-- Tire integrity simulation that degrades after significant collisions and directly affects acceleration/steering.
-- `FLAT TIRE` fault state and tire-health diagnostics on the HUD.
-- Tuning/service terminal near the workshop with progressive engine/tire costs and tire repair.
-- First east-side forest expansion using runtime greybox trees.
-- Illegal forest-poaching interaction tied to the existing three-level game-warden alert.
-- Three prototype poaching outcomes: forest hare, wild boar and red deer with risk-scaled black-market rewards.
-- Structural CI coverage for save v3, garage recall, tuning, tire degradation and forest poaching.
-
-### Changed
-- Save format advances from v2 to v3 while keeping v2 and legacy tractor-save migration paths.
-- Vehicle persistence now stores engine tune level, tire tune level and tire integrity per owned vehicle.
-- Garage terminal now doubles as a fleet recall terminal instead of being registration/save only.
-- HUD exposes tuning level and tire health while driving.
-- Workshop district now contains a dedicated tuning terminal.
-
-### Next
-- Dedicated Chaos wheeled vehicle movement and suspension.
-- Garage UI/explicit slot selection instead of sequential recall.
-- Replacement body-panel economy and visual upgrades.
-- Expanded forest work, legal timber jobs and a deeper poaching loop.
-- Police vehicle pursuit escalation.
-- Full Unreal-equipped Win64 compile/smoke-test runner.
+- Garage recall flow with sequential owned-vehicle recall.
+- Persistent SaveGame v3 tuning.
+- Three engine and tire upgrade levels.
+- Tire integrity, grip loss and `FLAT TIRE` state.
+- Workshop tuning terminal.
+- East-side forest and illegal poaching tied to the game-warden alert.
 
 ## [0.0.8] - 2026-09-12
 
 ### Added
-- Shared staged vehicle-damage framework in `AGTTVehicleBase`.
-- Breakable vehicle parts that physically detach, collide and tumble after condition thresholds are crossed.
-- Repair integration that reattaches staged breakable parts after a sufficiently strong/full repair.
-- Source-only visible damage smoke made from animated primitive-mesh puffs.
-- Engine-temperature simulation, overheating, power loss and low-condition engine stalls.
-- Vehicle HUD diagnostics for engine temperature, active fault state and detached-part count.
-- Rattleback 82, Mulebox 1200 and Rusty Fieldmaster staged damage profiles.
-- Traffic obstacle probe, visible `BEEP!`, stuck recovery and bidirectional six-car flow.
+- Shared staged vehicle-damage framework.
+- Breakable vehicle parts, damage smoke, engine temperature/overheating and mechanical stalls.
+- Smarter bidirectional traffic with obstacle probes, horn feedback and stuck recovery.
 
 ## [0.0.7] - 2026-09-12
 
 ### Added
 - Autonomous village traffic prototype.
-- Separate game-warden authority system for wildlife crime.
-- Three-level `WARDEN` alert, ranger pursuit, citation and fish confiscation.
+- Separate game-warden authority system with ranger pursuit/citations.
 
 ## [0.0.6] - 2026-09-12
 
 ### Added
-- Version-2 multi-vehicle save format and migration from the earlier tractor-only save.
-- Four-slot garage and persistent Rattleback 82 / Mulebox 1200 ownership.
+- Version-2 multi-vehicle save format and four-slot garage.
+- Rattleback 82 and Mulebox 1200 ownership.
 
 ## [0.0.5] - 2026-09-12
 
 ### Added
 - Persistent SaveGame model, quick-save/load and autosaves.
-- Player garage and vehicle ownership.
-- Police arrest flow, day/night cycle, NPC schedules and first legal farm job.
+- Player garage, police arrest, day/night, NPC schedules and first legal farm job.
 
 ## [0.0.4] - 2026-09-12
 
 ### Added
-- Economy, fishing inventory, fuel, workshop, fish buyer and civilian crime witnesses.
+- Economy, fishing, fuel, workshop, fish buyer and civilian witnesses.
 
 ## [0.0.3] - 2026-09-12
 
 ### Added
-- Rusty Fieldmaster 60 and complete Borrowed Tractor gameplay loop.
+- Rusty Fieldmaster 60 and Borrowed Tractor gameplay loop.
 - Runtime-generated greybox countryside and Windows packaging helper.
 
 ## [0.0.2] - 2026-09-12
