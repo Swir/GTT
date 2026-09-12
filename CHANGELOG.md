@@ -41,7 +41,7 @@ All notable development steps for GTT are tracked here.
 - Next major package should focus on accessibility/settings + controller support or continue toward native Chaos Vehicles once an Unreal-capable runner is available.
 
 ## [0.0.24] - 2026-09-12
-- Added Unified World State / SaveGame v4 with non-destructive legacy migration, compatibility mirrors and change-aware synchronization.
+- Added **Unified World State** using the primary sandbox SaveGame `GTT_Prototype_01`, with non-destructive legacy migration, compatibility mirrors and change-aware synchronization.
 
 ## [0.0.23] - 2026-09-12
 - Added Main Story Arc 4 — North Pass Run, faction/contraband/police integration and North Pass countryside expansion.
