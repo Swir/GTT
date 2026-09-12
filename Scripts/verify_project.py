@@ -61,7 +61,7 @@ EXPECTED_SOURCE_TOKENS = {
     ],
     "Source/GTT/Private/Missions/GTTMainStoryDirector.cpp": [
         "COUNTY LEDGER", "BACKROAD DEAL", "BackroadPickupHeat", "EscapePolice", "GetOwnedVehicleCount() < 2",
-        "GTT_MainStory_01", "SaveGameToSlot", "LoadGameFromSlot", "18.5f", "2.5f"
+        "SaveGameToSlot", "LoadGameFromSlot", "18.5f", "2.5f"
     ],
     "Source/GTT/Private/Missions/GTTMainStoryTerminal.cpp": [
         "FarmOffice", "NorthWood", "VillageShop", "Tavern", "EastRoad", "Workshop"
@@ -124,9 +124,9 @@ def main() -> int:
             fail(f"{relative} is missing expected gameplay hooks: {absent}")
 
     story_header = (ROOT / "Source/GTT/Public/Missions/GTTMainStoryDirector.h").read_text(encoding="utf-8")
-    for token in ["NorthWoodPickup", "ShopDelivery", "TavernMeet", "EastRoadPickup", "EscapePolice", "WorkshopDelivery", "FinalFarmMeet", "Completed"]:
+    for token in ["NorthWoodPickup", "ShopDelivery", "TavernMeet", "EastRoadPickup", "EscapePolice", "WorkshopDelivery", "FinalFarmMeet", "Completed", "GTT_MainStory_01"]:
         if token not in story_header:
-            fail(f"Main story director header missing stage: {token}")
+            fail(f"Main story director header missing stage/save contract: {token}")
 
     police_header = (ROOT / "Source/GTT/Public/Police/GTTPoliceDirector.h").read_text(encoding="utf-8")
     for token in ["GetRoadNodeCount", "GetLastInterceptionNodeLabel", "MinimumInterceptLeadDistance", "SelectPursuitInterceptTransform"]:
