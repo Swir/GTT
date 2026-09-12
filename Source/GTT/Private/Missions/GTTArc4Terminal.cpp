@@ -2,6 +2,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
+#include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "Missions/GTTArc4Director.h"
 #include "UObject/ConstructorHelpers.h"
