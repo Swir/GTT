@@ -29,6 +29,12 @@ CHECKS = {
         "EGTTHeavyHaulTerminalType::Hitch", "EGTTHeavyHaulTerminalType::Load",
         "EGTTHeavyHaulTerminalType::Deliver"
     ],
+    "Source/GTT/Private/UI/GTTGameHUD.cpp": [
+        "GTTHeavyHaulDirector", "HeavyHaul->IsActive()", "HeavyHaul->GetObjectiveText()"
+    ],
+    "Docs/PLAYTEST_0.0.20.md": [
+        "HEAVY HAUL CONTRACT", "TRAILER HITCH", "980 kg", "1680 kg", "cargo integrity"
+    ],
 }
 
 
@@ -57,7 +63,16 @@ def main() -> int:
     if "CargoFactor" not in director or "TrailerFactor" not in director or "VehicleFactor" not in director:
         fail("Payout must depend on cargo, trailer and tow-vehicle condition")
 
-    print("[OK] GTT 0.0.20 articulated trailer, hitch failure, heavy cargo stress and economy payout hooks look structurally sane.")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
+    for token in ["## [0.0.20]", "Heavy Timber Haul", "articulated"]:
+        if token not in changelog:
+            fail(f"CHANGELOG missing 0.0.20 milestone token: {token}")
+    for token in ["Articulated rigid-body farm trailer", "Dedicated articulated-trailer heavy timber work contract"]:
+        if token not in roadmap:
+            fail(f"ROADMAP missing completed heavy-haul item: {token}")
+
+    print("[OK] GTT 0.0.20 articulated trailer, hitch failure, heavy cargo stress, HUD, docs and economy payout hooks look structurally sane.")
     return 0
 
 
