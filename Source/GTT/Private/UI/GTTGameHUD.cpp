@@ -1,6 +1,7 @@
 #include "UI/GTTGameHUD.h"
 #include "Activities/GTTBrawlDirector.h"
 #include "Activities/GTTFarmJobDirector.h"
+#include "Activities/GTTHeavyHaulDirector.h"
 #include "Activities/GTTRuralWorkDirector.h"
 #include "Combat/GTTCombatComponent.h"
 #include "Core/GTTGameMode.h"
@@ -33,6 +34,7 @@ void AGTTGameHUD::DrawHUD()
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
     AGTTPoliceDirector* PoliceDirector = Cast<AGTTPoliceDirector>(UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()));
     AGTTFarmJobDirector* FarmJobDirector = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
+    AGTTHeavyHaulDirector* HeavyHaul = Cast<AGTTHeavyHaulDirector>(UGameplayStatics::GetActorOfClass(this, AGTTHeavyHaulDirector::StaticClass()));
     AGTTRuralWorkDirector* RuralWork = Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRuralWorkDirector::StaticClass()));
     AGTTBrawlDirector* Brawl = Cast<AGTTBrawlDirector>(UGameplayStatics::GetActorOfClass(this, AGTTBrawlDirector::StaticClass()));
     AGTTMainStoryDirector* MainStory = Cast<AGTTMainStoryDirector>(UGameplayStatics::GetActorOfClass(this, AGTTMainStoryDirector::StaticClass()));
@@ -111,6 +113,11 @@ void AGTTGameHUD::DrawHUD()
     if (FarmJobDirector && FarmJobDirector->IsJobActive())
     {
         DrawText(FarmJobDirector->GetObjectiveText(), FLinearColor(0.35f,1.0f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        Y += 30.0f;
+    }
+    if (HeavyHaul && HeavyHaul->IsActive())
+    {
+        DrawText(HeavyHaul->GetObjectiveText(), FLinearColor(1.0f,0.72f,0.18f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
     if (RuralWork && RuralWork->IsWorkActive())
