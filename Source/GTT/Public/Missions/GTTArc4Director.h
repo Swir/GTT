@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "GTTArc4Director.generated.h"
 
+class APawn;
+
 UENUM(BlueprintType)
 enum class EGTTArc4Stage : uint8
 {
