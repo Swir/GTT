@@ -25,14 +25,17 @@ node_rows = re.findall(r'\{TEXT\("[^"]+"\), TEXT\("[^"]+"\), FVector\([^\)]+\),\
 if len(node_rows) < 28:
     raise SystemExit(f"[FAIL] expected >=28 shared road nodes after North Pass expansion, found {len(node_rows)}")
 
+# Arc 4 remains required, but later milestones are allowed to advance the same roadmap.
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
 if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap or "ROADMAP-PROGRESS:START" not in roadmap:
     raise SystemExit("[FAIL] roadmap style lock/dashboard marker missing")
 checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M)
 done = sum(1 for x in checks if x == 'x')
 total = len(checks)
-if (done, total) != (113, 130):
-    raise SystemExit(f"[FAIL] roadmap checkbox count expected 113/130, got {done}/{total}")
-if "DONE-113%2F130" not in roadmap or "86.9%" not in roadmap or "█████████████████░░░ 86.9%" not in roadmap:
-    raise SystemExit("[FAIL] roadmap dashboard does not match 113/130 = 86.9%")
-print("[OK] GTT 0.0.23 Arc 4, HUD, faction/fence/police integration and North Pass countryside look structurally sane.")
+if total < 130 or done < 113:
+    raise SystemExit(f"[FAIL] roadmap regressed below Arc 4 baseline 113/130; got {done}/{total}")
+percent = round(done * 100.0 / total, 1)
+if f"DONE-{done}%2F{total}" not in roadmap or f"{percent:.1f}%" not in roadmap:
+    raise SystemExit(f"[FAIL] live roadmap dashboard is inconsistent with checklist {done}/{total} = {percent:.1f}%")
+
+print(f"[OK] GTT Arc 4/North Pass regression sane; live roadmap has advanced to {done}/{total} = {percent:.1f}%.")
