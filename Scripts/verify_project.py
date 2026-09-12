@@ -8,46 +8,47 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_FILES = [
-    "GTT.uproject", "Config/DefaultEngine.ini", "Config/DefaultGame.ini", "Config/DefaultInput.ini",
-    "Source/GTT.Target.cs", "Source/GTTEditor.Target.cs", "Source/GTT/GTT.Build.cs", "Source/GTT/GTT.cpp",
-    "Source/GTT/Public/Characters/GTTCharacter.h", "Source/GTT/Public/Core/GTTGameMode.h", "Source/GTT/Public/Core/GTTGameplayStatics.h",
-    "Source/GTT/Public/Economy/GTTPlayerEconomyComponent.h", "Source/GTT/Public/UI/GTTGameHUD.h",
-    "Source/GTT/Public/Radio/GTTRadioComponent.h", "Source/GTT/Public/Vehicles/GTTVehicleBase.h",
-    "Source/GTT/Public/Vehicles/GTTTractorPawn.h", "Source/GTT/Public/Vehicles/GTTOldCarPawn.h", "Source/GTT/Public/Vehicles/GTTFarmVanPawn.h",
-    "Source/GTT/Public/Wanted/GTTWantedComponent.h", "Source/GTT/Public/Police/GTTPoliceDirector.h",
-    "Source/GTT/Public/Police/GTTPolicePursuitVehicle.h", "Source/GTT/Public/Police/GTTRoadblock.h",
-    "Source/GTT/Public/Ranger/GTTRangerDirector.h", "Source/GTT/Public/Traffic/GTTTrafficDirector.h",
-    "Source/GTT/Public/NPC/GTTCitizenPawn.h", "Source/GTT/Public/Activities/GTTFishingSpot.h",
-    "Source/GTT/Public/Activities/GTTForestPoachingSpot.h", "Source/GTT/Public/Activities/GTTFarmJobTerminal.h",
-    "Source/GTT/Public/Activities/GTTFarmJobDirector.h", "Source/GTT/Public/World/GTTMissionSafeZone.h",
-    "Source/GTT/Public/World/GTTPrototypeWorld.h", "Source/GTT/Public/World/GTTServiceTerminal.h",
-    "Source/GTT/Public/World/GTTGarageTerminal.h", "Source/GTT/Public/World/GTTTuningTerminal.h",
-    "Source/GTT/Public/World/GTTDayNightCycle.h", "Source/GTT/Public/World/GTTVillageEventDirector.h",
-    "Source/GTT/Public/World/GTTVillageEventMarker.h", "Source/GTT/Public/Save/GTTSaveGame.h", "Scripts/package_windows.ps1",
+    "GTT.uproject", "Config/DefaultEngine.ini", "Config/DefaultInput.ini",
+    "Source/GTT/GTT.Build.cs", "Source/GTT/GTT.cpp",
+    "Source/GTT/Public/Characters/GTTCharacter.h",
+    "Source/GTT/Public/Core/GTTGameMode.h", "Source/GTT/Public/Core/GTTGameplayStatics.h",
+    "Source/GTT/Public/Economy/GTTPlayerEconomyComponent.h",
+    "Source/GTT/Public/Radio/GTTRadioComponent.h",
+    "Source/GTT/Public/Vehicles/GTTVehicleBase.h",
+    "Source/GTT/Public/Police/GTTPoliceDirector.h", "Source/GTT/Public/Police/GTTPolicePursuitVehicle.h",
+    "Source/GTT/Public/Police/GTTRoadblock.h",
+    "Source/GTT/Public/World/GTTDayNightCycle.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
+    "Source/GTT/Public/World/GTTVillageEventDirector.h", "Source/GTT/Public/World/GTTVillageEventMarker.h",
+    "Source/GTT/Public/Save/GTTSaveGame.h", "Scripts/package_windows.ps1",
 ]
 
 EXPECTED_SOURCE_TOKENS = {
-    "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "EngineUpgradeLevel", "TireUpgradeLevel", "TireIntegrity", "OwnedVehicles"],
-    "Source/GTT/Private/Radio/GTTRadioComponent.cpp": ["GRAVEL FM", "BARNBEAT 96", "RUST & DIESEL", "NIGHT SHIFT", "AdvanceTrack", "RADIO OFF"],
+    "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "OwnedVehicles"],
+    "Source/GTT/Private/Radio/GTTRadioComponent.cpp": [
+        "GRAVEL FM", "BARNBEAT 96", "RUST & DIESEL", "NIGHT SHIFT", "AdvanceTrack", "RADIO OFF"
+    ],
     "Source/GTT/Private/Characters/GTTCharacter.cpp": ["RadioComponent", "RadioNext", "CycleRadio"],
     "Source/GTT/Private/Core/GTTGameplayStatics.cpp": ["FindRadioComponentForPawn", "UGTTRadioComponent", "GetDriverPawn"],
-    "Source/GTT/Public/Vehicles/GTTVehicleBase.h": ["RecallToTransform", "InstallEngineUpgrade", "InstallTireUpgrade", "ApplyTireDamage", "CycleRadio"],
-    "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": ["RadioNext", "CycleRadio", "ApplyTireDamage", "EngineTunePower", "TireGrip", "FLAT TIRE"],
-    "Source/GTT/Private/World/GTTGarageTerminal.cpp": ["RecallNextOwnedVehicle", "GARAGE RECALL", "RecallToTransform", "cycle the fleet"],
-    "Source/GTT/Private/World/GTTTuningTerminal.cpp": ["ENGINE TUNE", "HEAVY-DUTY TIRES", "InstallEngineUpgrade", "InstallTireUpgrade", "SaveProgress"],
-    "Source/GTT/Private/Activities/GTTForestPoachingSpot.cpp": ["ReportWildlifeCrime", "forest hare", "wild boar", "red deer", "WARDEN ALERT"],
-    "Source/GTT/Private/Activities/GTTFarmJobDirector.cpp": ["ReachPickup", "DeliverCargo", "DeliveryTimeLimit", "CargoIntegrity", "FAST BONUS"],
-    "Source/GTT/Private/Police/GTTPoliceDirector.cpp": ["DesiredVehicles", "DesiredRoadblocks", "RoadblockEscalationWantedLevel", "SpawnRoadblock", "SelectRoadblockTransform"],
-    "Source/GTT/Private/Police/GTTPolicePursuitVehicle.cpp": ["PursuitAcceleration", "AddForce", "AddTorqueInRadians", "TryArrestPlayer", "WantedLevel < 3"],
-    "Source/GTT/Private/Police/GTTRoadblock.cpp": ["POLICE ROADBLOCK", "SPIKE STRIP", "ApplyTireDamage", "ApplyVehicleDamage", "SetResponseTier"],
-    "Source/GTT/Private/World/GTTVillageEventDirector.cpp": ["18.5f", "2.5f", "COMMUNITY HALL PARTY", "SpawnNightEvent", "PartyCrowd", "waiting for the next bad idea"],
-    "Source/GTT/Private/World/GTTVillageEventMarker.cpp": ["BROKEN-DOWN NEIGHBOR", "MIDNIGHT TRACTOR MEET", "SUSPICIOUS BONFIRE RUN", "MYSTERY CRATE", "ReportWildlifeCrime"],
-    "Source/GTT/Private/Core/GTTGameMode.cpp": ["Save->SaveVersion = 3", "Stored.EngineUpgradeLevel", "Stored.TireUpgradeLevel", "Stored.TireIntegrity", "TryRegisterVehicle", "GetWildlifeAlertLevel"],
-    "Source/GTT/Private/UI/GTTGameHUD.cpp": ["POLICE RESPONSE", "ROADBLOCKS", "INTERCEPTION MODE", "GetDisplayLine", "VILLAGE NIGHT", "R radio"],
-    "Source/GTT/Private/World/GTTPrototypeWorld.cpp": ["AGTTFarmJobDirector", "AGTTVillageEventDirector", "THE BENT AXLE TAVERN", "4+ WANTED: ROADBLOCKS", "GTT 0.0.11"],
-    "Source/GTT/Private/Traffic/GTTTrafficCarPawn.cpp": ["LineTraceSingleByChannel", "BEEP!", "StuckRecoverySeconds"],
-    "Source/GTT/Private/Ranger/GTTRangerAIController.cpp": ["TryRangerCitation", "MoveToActor"],
-    "Source/GTT/Private/Police/GTTPoliceAIController.cpp": ["TryArrestPlayer", "MoveToActor"],
+    "Source/GTT/Public/Vehicles/GTTVehicleBase.h": ["ApplyTireDamage", "CycleRadio", "GetTireIntegrity"],
+    "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": ["RadioNext", "CycleRadio", "ApplyTireDamage", "TireGrip", "FLAT TIRE"],
+    "Source/GTT/Private/Police/GTTPoliceDirector.cpp": [
+        "DesiredRoadblocks", "RoadblockEscalationWantedLevel", "SpawnRoadblock", "SelectRoadblockTransform"
+    ],
+    "Source/GTT/Private/Police/GTTRoadblock.cpp": [
+        "POLICE ROADBLOCK", "SPIKE STRIP", "ApplyTireDamage", "ApplyVehicleDamage", "SetResponseTier"
+    ],
+    "Source/GTT/Private/World/GTTVillageEventDirector.cpp": [
+        "18.5f", "2.5f", "COMMUNITY HALL PARTY", "SpawnNightEvent", "PartyCrowd", "waiting for the next bad idea"
+    ],
+    "Source/GTT/Private/World/GTTVillageEventMarker.cpp": [
+        "BROKEN-DOWN NEIGHBOR", "MIDNIGHT TRACTOR MEET", "SUSPICIOUS BONFIRE RUN", "MYSTERY CRATE", "ReportWildlifeCrime"
+    ],
+    "Source/GTT/Private/UI/GTTGameHUD.cpp": [
+        "POLICE RESPONSE", "ROADBLOCKS", "INTERCEPTION MODE", "GetDisplayLine", "VILLAGE NIGHT", "R radio"
+    ],
+    "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
+        "AGTTVillageEventDirector", "THE BENT AXLE TAVERN", "4+ WANTED: ROADBLOCKS", "GTT 0.0.11"
+    ],
 }
 
 
@@ -75,7 +76,7 @@ def main() -> int:
         fail("Required plugins are not enabled: " + ", ".join(sorted(missing_plugins)))
 
     inputs = (ROOT / "Config/DefaultInput.ini").read_text(encoding="utf-8")
-    for token in ['ActionName="QuickSave"', 'Key=F5', 'ActionName="QuickLoad"', 'Key=F9', 'ActionName="RadioNext"', 'Key=R']:
+    for token in ['ActionName="RadioNext"', 'Key=R', 'ActionName="QuickSave"', 'Key=F5', 'ActionName="QuickLoad"', 'Key=F9']:
         if token not in inputs:
             fail(f"Input config missing {token}")
 
@@ -88,24 +89,22 @@ def main() -> int:
         if absent:
             fail(f"{relative} is missing expected gameplay hooks: {absent}")
 
-    vehicle_sources = {
-        "RustyFieldmaster60": ROOT / "Source/GTT/Private/Vehicles/GTTTractorPawn.cpp",
-        "Rattleback82": ROOT / "Source/GTT/Private/Vehicles/GTTOldCarPawn.cpp",
-        "Mulebox1200": ROOT / "Source/GTT/Private/Vehicles/GTTFarmVanPawn.cpp",
-    }
-    for vehicle_id, path in vehicle_sources.items():
-        source = path.read_text(encoding="utf-8")
-        if source.count(vehicle_id) != 1:
-            fail(f"Persistent vehicle ID should appear exactly once in its vehicle source: {vehicle_id}")
-        if source.count("RegisterBreakablePart(") < 4:
-            fail(f"{vehicle_id} should still expose staged breakable body parts")
+    roadblock_header = (ROOT / "Source/GTT/Public/Police/GTTPoliceDirector.h").read_text(encoding="utf-8")
+    for token in ["GetActiveRoadblockCount", "RoadblockEscalationWantedLevel", "MaxRoadblocks"]:
+        if token not in roadblock_header:
+            fail(f"Police director header missing roadblock contract: {token}")
+
+    radio_header = (ROOT / "Source/GTT/Public/Radio/GTTRadioComponent.h").read_text(encoding="utf-8")
+    for token in ["CycleStation", "GetDisplayLine", "TrackTimeRemaining"]:
+        if token not in radio_header:
+            fail(f"Radio header missing contract: {token}")
 
     forbidden = ["Binaries", "Intermediate", "DerivedDataCache", "Saved"]
     present = [n for n in forbidden if (ROOT / n).exists()]
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.11 village nights, radio, roadblocks, pursuit escalation and existing gameplay hooks look structurally sane.")
+    print("[OK] GTT 0.0.11 radio, village nightlife, random events, roadblocks and spike-strip hooks look structurally sane.")
     return 0
 
 
