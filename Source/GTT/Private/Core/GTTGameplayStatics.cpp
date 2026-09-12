@@ -3,6 +3,7 @@
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "Radio/GTTRadioComponent.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 
@@ -46,6 +47,29 @@ UGTTPlayerEconomyComponent* UGTTGameplayStatics::FindEconomyComponentForPawn(APa
         if (APawn* Driver = Vehicle->GetDriverPawn())
         {
             return Driver->FindComponentByClass<UGTTPlayerEconomyComponent>();
+        }
+    }
+
+    return nullptr;
+}
+
+UGTTRadioComponent* UGTTGameplayStatics::FindRadioComponentForPawn(APawn* Pawn)
+{
+    if (!Pawn)
+    {
+        return nullptr;
+    }
+
+    if (UGTTRadioComponent* Radio = Pawn->FindComponentByClass<UGTTRadioComponent>())
+    {
+        return Radio;
+    }
+
+    if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(Pawn))
+    {
+        if (APawn* Driver = Vehicle->GetDriverPawn())
+        {
+            return Driver->FindComponentByClass<UGTTRadioComponent>();
         }
     }
 

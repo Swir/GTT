@@ -23,6 +23,7 @@
 #include "World/GTTMissionSafeZone.h"
 #include "World/GTTServiceTerminal.h"
 #include "World/GTTTuningTerminal.h"
+#include "World/GTTVillageEventDirector.h"
 
 AGTTPrototypeWorld::AGTTPrototypeWorld(){ PrimaryActorTick.bCanEverTick=false; }
 void AGTTPrototypeWorld::BeginPlay(){ Super::BeginPlay(); BuildWorld(); }
@@ -45,6 +46,7 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("LIVE VILLAGE TRAFFIC LOOP"),FVector(0,-1800,170),FRotator(0,180,0),38.0f);
 
     GetWorld()->SpawnActor<AGTTFarmJobDirector>();
+    GetWorld()->SpawnActor<AGTTVillageEventDirector>();
 
     SpawnBox(FVector(-3000,-900,125),FVector(7,6,3.5f));
     SpawnLabel(TEXT("PLAYER FARM / 4-SLOT GARAGE"),FVector(-3000,-900,520));
@@ -79,9 +81,13 @@ void AGTTPrototypeWorld::BuildWorld()
 
     SpawnBox(FVector(2700,-2600,165),FVector(7,5,4.3f));
     SpawnLabel(TEXT("POLICE / ARREST RELEASE"),FVector(2700,-2600,590));
-    SpawnLabel(TEXT("3+ WANTED: PATROL CARS JOIN PURSUIT"),FVector(2700,-2150,330),FRotator(0,180,0),36.0f);
+    SpawnLabel(TEXT("3+ WANTED: PATROL CARS | 4+ WANTED: ROADBLOCKS"),FVector(2700,-2150,330),FRotator(0,180,0),34.0f);
+
     SpawnBox(FVector(2400,2700,155),FVector(8,6,4.1f));
-    SpawnLabel(TEXT("COMMUNITY HALL"),FVector(2400,2700,580));
+    SpawnLabel(TEXT("COMMUNITY HALL / NIGHT PARTY 18:30-02:30"),FVector(2400,2700,580),FRotator(0,180,0),42.0f);
+    SpawnBox(FVector(1450,2700,135),FVector(5.5f,4.5f,3.5f));
+    SpawnLabel(TEXT("THE BENT AXLE TAVERN"),FVector(1450,2700,520),FRotator(0,180,0),44.0f);
+    SpawnLabel(TEXT("RANDOM NIGHT EVENTS AROUND HALL / TAVERN / SHOP / FOREST"),FVector(1950,2150,300),FRotator(0,180,0),32.0f);
 
     SpawnBox(FVector(-400,2900,140),FVector(7,5,3.8f));
     SpawnLabel(TEXT("WORKSHOP + TUNING"),FVector(-400,2900,550));
@@ -92,7 +98,6 @@ void AGTTPrototypeWorld::BuildWorld()
     GetWorld()->SpawnActor<AGTTFarmVanPawn>(FVector(450,2850,110),FRotator(0,-90,0));
     SpawnLabel(TEXT("MULEBOX 1200 - FARM VAN"),FVector(450,2850,340),FRotator(0,180,0),48.0f);
 
-    // Cargo pickup creates a real midpoint instead of a start->finish button job.
     SpawnBox(FVector(1850,3900,120),FVector(6,5,3.2f));
     SpawnLabel(TEXT("FEED DEPOT / CARGO PICKUP"),FVector(1850,3900,510),FRotator(0,180,0),44.0f);
     if(AGTTFarmJobTerminal* Pickup=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(1850,3400,55),FRotator::ZeroRotator)) Pickup->SetTerminalType(EGTTFarmJobTerminalType::Pickup);
@@ -118,7 +123,6 @@ void AGTTPrototypeWorld::BuildWorld()
     GetWorld()->SpawnActor<AGTTForestPoachingSpot>(FVector(7050,-950,55),FRotator::ZeroRotator);
     SpawnLabel(TEXT("ILLEGAL FOREST POACHING - E"),FVector(7050,-950,210),FRotator(0,180,0),44.0f);
 
-    // Hill farm is now the timed cargo destination; the longer cross-map route rewards intact, fast driving.
     SpawnBox(FVector(5850,3100,145),FVector(8,7,3.8f));
     SpawnLabel(TEXT("HILL FARM / CARGO DELIVERY"),FVector(5850,3100,560),FRotator(0,180,0),46.0f);
     SpawnBox(FVector(5200,2550,20),FVector(20,12,.2f),FRotator::ZeroRotator,false);
@@ -132,7 +136,7 @@ void AGTTPrototypeWorld::BuildWorld()
     for(int32 I=0;I<9;++I) SpawnBox(FVector(-2200+I*520,-650,35),FVector(4.2f,.18f,.85f));
     for(int32 I=0;I<7;++I) SpawnBox(FVector(1450,-900+I*420,35),FVector(.18f,3.5f,.85f));
 
-    SpawnLabel(TEXT("GTT 0.0.10 | POLICE VEHICLE ESCALATION + CARGO JOBS"),FVector(-2500,-1250,380),FRotator(0,180,0),44.0f);
+    SpawnLabel(TEXT("GTT 0.0.11 | VILLAGE NIGHTS + RADIO + ROADBLOCKS"),FVector(-2500,-1250,380),FRotator(0,180,0),44.0f);
     if(APawn* PlayerPawn=UGameplayStatics::GetPlayerPawn(this,0)){ PlayerPawn->SetActorLocation(FVector(-2550,-1250,120)); PlayerPawn->SetActorRotation(FRotator(0,25,0)); }
 }
 
