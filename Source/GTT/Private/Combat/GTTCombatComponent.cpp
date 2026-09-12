@@ -16,6 +16,12 @@ UGTTCombatComponent::UGTTCombatComponent()
     Inventory.Add(EGTTWeaponType::BareHands);
 }
 
+void UGTTCombatComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    Health = MaxHealth;
+}
+
 void UGTTCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -44,10 +50,7 @@ void UGTTCombatComponent::Attack()
         }
         PerformShotgunAttack(Profile);
     }
-    else
-    {
-        PerformMeleeAttack(Profile);
-    }
+    else PerformMeleeAttack(Profile);
     AttackCooldownRemaining = Profile.Cooldown;
 }
 
@@ -56,7 +59,6 @@ void UGTTCombatComponent::PerformMeleeAttack(const FGTTWeaponProfile& Profile)
     UWorld* World = GetWorld();
     AActor* Owner = GetOwner();
     if (!World || !Owner) return;
-
     const FVector Forward = Owner->GetActorForwardVector();
     const FVector Start = Owner->GetActorLocation() + FVector(0, 0, 55) + Forward * 45.0f;
     const FVector End = Start + Forward * Profile.Range;
@@ -64,7 +66,6 @@ void UGTTCombatComponent::PerformMeleeAttack(const FGTTWeaponProfile& Profile)
     FCollisionQueryParams Params(SCENE_QUERY_STAT(GTTMelee), false, Owner);
     const FCollisionShape Shape = FCollisionShape::MakeSphere(52.0f);
     if (!World->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn, Shape, Params)) return;
-
     TSet<TObjectPtr<AActor>> Damaged;
     for (const FHitResult& Hit : Hits)
     {
@@ -85,10 +86,7 @@ void UGTTCombatComponent::PerformShotgunAttack(const FGTTWeaponProfile& Profile)
 
     FVector ViewLocation = Owner->GetActorLocation() + FVector(0,0,65);
     FRotator ViewRotation = Owner->GetActorRotation();
-    if (APawn* Pawn = Cast<APawn>(Owner))
-    {
-        if (AController* Controller = Pawn->GetController()) ViewRotation = Controller->GetControlRotation();
-    }
+    if (APawn* Pawn = Cast<APawn>(Owner)) if (AController* Controller = Pawn->GetController()) ViewRotation = Controller->GetControlRotation();
 
     TSet<TObjectPtr<AActor>> HitActors;
     for (int32 Ray=0; Ray<5; ++Ray)
@@ -98,14 +96,7 @@ void UGTTCombatComponent::PerformShotgunAttack(const FGTTWeaponProfile& Profile)
         FCollisionQueryParams Params(SCENE_QUERY_STAT(GTTShotgun), false, Owner);
         if (World->LineTraceSingleByChannel(Hit, ViewLocation, ViewLocation + Direction * Profile.Range, ECC_Visibility, Params))
         {
-            if (AActor* Target = Hit.GetActor())
-            {
-                if (!HitActors.Contains(Target))
-                {
-                    HitActors.Add(Target);
-                    ApplyHit(Target, Direction, Profile);
-                }
-            }
+            if (AActor* Target = Hit.GetActor()) if (!HitActors.Contains(Target)) { HitActors.Add(Target); ApplyHit(Target, Direction, Profile); }
         }
     }
 }
@@ -125,6 +116,31 @@ void UGTTCombatComponent::ApplyHit(AActor* Target, const FVector& HitDirection, 
     }
 }
 
+void UGTTCombatComponent::ApplyIncomingDamage(float Damage, const FString& SourceLabel)
+{
+    if (Damage <= 0.0f || Health <= 0.0f) return;
+    Health = FMath::Max(0.0f, Health - Damage);
+    if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Cast<APawn>(GetOwner())))
+        Economy->PushMessage(FString::Printf(TEXT("%s | HEALTH %.0f%%"), *SourceLabel, GetHealthPercent()*100.0f), 2.0f);
+    if (Health <= 0.0f) HandleDefeat();
+}
+
+void UGTTCombatComponent::HandleDefeat()
+{
+    APawn* Pawn = Cast<APawn>(GetOwner());
+    if (!Pawn) return;
+    Health = MaxHealth;
+    EquippedWeapon = EGTTWeaponType::BareHands;
+    ShotgunAmmo = FMath::Max(0, ShotgunAmmo - 2);
+    Pawn->SetActorLocation(FVector(-2550,-1250,120), false, nullptr, ETeleportType::TeleportPhysics);
+    if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(Pawn)) Wanted->ClearWanted();
+    if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Pawn))
+    {
+        Economy->ChargeFine(85, TEXT("KNOCKED OUT - clinic and cleanup: $85."));
+        Economy->PushMessage(TEXT("You wake up back at Player Farm. Wanted cleared, weapon holstered."), 5.0f);
+    }
+}
+
 void UGTTCombatComponent::AddCrimeHeat(float Amount, const FString& Message)
 {
     APawn* OwnerPawn = Cast<APawn>(GetOwner());
@@ -137,8 +153,7 @@ void UGTTCombatComponent::CycleWeapon()
 {
     if (Inventory.Num() == 0) return;
     const int32 Current = Inventory.IndexOfByKey(EquippedWeapon);
-    const int32 Next = Current == INDEX_NONE ? 0 : (Current + 1) % Inventory.Num();
-    EquippedWeapon = Inventory[Next];
+    EquippedWeapon = Inventory[Current == INDEX_NONE ? 0 : (Current + 1) % Inventory.Num()];
 }
 
 void UGTTCombatComponent::DropCurrentWeapon()
@@ -151,7 +166,8 @@ void UGTTCombatComponent::DropCurrentWeapon()
 FString UGTTCombatComponent::GetCombatStatusText() const
 {
     const FGTTWeaponProfile Profile = FGTTWeaponProfile::Make(EquippedWeapon);
-    return EquippedWeapon == EGTTWeaponType::FarmShotgun
-        ? FString::Printf(TEXT("RURAL ARSENAL | %s | SHELLS %d"), *Profile.DisplayName.ToString(), ShotgunAmmo)
-        : FString::Printf(TEXT("RURAL ARSENAL | %s | INVENTORY %d"), *Profile.DisplayName.ToString(), FMath::Max(0, Inventory.Num()-1));
+    const FString WeaponText = EquippedWeapon == EGTTWeaponType::FarmShotgun
+        ? FString::Printf(TEXT("%s | SHELLS %d"), *Profile.DisplayName.ToString(), ShotgunAmmo)
+        : FString::Printf(TEXT("%s | INVENTORY %d"), *Profile.DisplayName.ToString(), FMath::Max(0, Inventory.Num()-1));
+    return FString::Printf(TEXT("RURAL ARSENAL | HP %.0f%% | %s"), GetHealthPercent()*100.0f, *WeaponText);
 }
