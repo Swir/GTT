@@ -2,6 +2,25 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.28] - 2026-09-13
+
+### Added
+- **Village Social Life** milestone with playable Bent Axle Tavern and Community Hall interiors built as physical runtime spaces with bidirectional interactive doors.
+- Four social NPC roles — bartender, hall organizer, local mechanic and hill farmer — with repeatable contextual conversations instead of static scenery.
+- Time-aware dialogue tied directly to the existing `AGTTDayNightCycle`, including the real 18:30–02:30 village-party window.
+- Vehicle-aware mechanic dialogue that reads the nearest owned vehicle's real display name, condition, fuel percentage and tire integrity, so damage/repair/refuel/tire systems feed social feedback.
+- Dedicated `verify_social_venues.py` regression coverage and `PLAYTEST_0.0.28.md` for interiors, dialogue, vehicle-state advice, controller interaction and existing nightlife regression.
+
+### Changed
+- Village nightlife now has enterable destinations and social interactions connected to the existing day/night, vehicle, workshop, controller and activity loops rather than exterior-only landmarks.
+- The 0.0.27 release regression check now validates its completed packaging milestone without freezing the whole roadmap at an old exact count, preventing legitimate later milestones from failing CI.
+- Roadmap advances from `118/130 (90.8%)` to exactly `120/130 (92.3%)`; 10 tasks remain and the mathematically rounded 20-segment bar remains 18/20 while preserving `SWIR-ROADMAP-STANDARD:v1`.
+
+### Limitations / Next
+- Interiors and social characters intentionally use original runtime greybox primitives; this milestone does not claim final authored environment art, character models, animation or voice acting.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation is still unavailable on repository CI; no packaged EXE verification is claimed.
+- Next major package should target native Chaos Vehicles and/or authored vehicle/combat assets, with cleared original radio/audio also remaining before the first complete release.
+
 ## [0.0.27] - 2026-09-13
 
 ### Added
