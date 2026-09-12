@@ -54,7 +54,12 @@ void FGTTRoadGraph::BuildGraph(TArray<FGTTRoadNode>& OutNodes)
         {TEXT("LakeEast"), TEXT("LAKE EAST"), FVector(6100,-500,100), 55.0f, 2, false, {}},
         {TEXT("ScrapYardRoad"), TEXT("RUST DOGS SCRAP YARD ROAD"), FVector(-5050,-450,100), 45.0f, 1, false, {}},
         {TEXT("OldQuarryRoad"), TEXT("STONE CROWS OLD QUARRY ROAD"), FVector(8600,2850,100), 50.0f, 1, false, {}},
-        {TEXT("MarshCampRoad"), TEXT("MUD JACKALS MARSH CAMP ROAD"), FVector(6900,-3300,100), 35.0f, 1, false, {}}
+        {TEXT("MarshCampRoad"), TEXT("MUD JACKALS MARSH CAMP ROAD"), FVector(6900,-3300,100), 35.0f, 1, false, {}},
+        {TEXT("NorthPassApproach"), TEXT("NORTH PASS APPROACH"), FVector(9300,2550,100), 60.0f, 2, true, {}},
+        {TEXT("NorthPass"), TEXT("NORTH PASS CHECKPOINT"), FVector(10150,2550,100), 45.0f, 2, true, {}},
+        {TEXT("RiverFord"), TEXT("RIVER FORD"), FVector(9600,1200,100), 30.0f, 1, false, {}},
+        {TEXT("RidgeExchange"), TEXT("RIDGE EXCHANGE"), FVector(11200,800,100), 50.0f, 2, false, {}},
+        {TEXT("QuarryNorth"), TEXT("QUARRY NORTH CUT"), FVector(9800,3350,100), 40.0f, 1, false, {}}
     };
 
     Link(OutNodes,0,1); Link(OutNodes,1,2); Link(OutNodes,2,3); Link(OutNodes,3,4);
@@ -63,6 +68,7 @@ void FGTTRoadGraph::BuildGraph(TArray<FGTTRoadNode>& OutNodes)
     Link(OutNodes,3,12); Link(OutNodes,12,19); Link(OutNodes,19,16); Link(OutNodes,16,10); Link(OutNodes,10,17);
     Link(OutNodes,17,11); Link(OutNodes,11,18); Link(OutNodes,18,15); Link(OutNodes,5,14); Link(OutNodes,14,6);
     Link(OutNodes,7,20); Link(OutNodes,11,21); Link(OutNodes,16,22); Link(OutNodes,19,22);
+    Link(OutNodes,21,23); Link(OutNodes,23,24); Link(OutNodes,24,27); Link(OutNodes,24,25); Link(OutNodes,25,26); Link(OutNodes,26,27);
 }
 
 int32 FGTTRoadGraph::FindClosestNode(const FVector& Location)
