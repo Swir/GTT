@@ -53,28 +53,25 @@ void AGTTGameHUD::DrawHUD()
     {
         const FString VehicleLine = FString::Printf(
             TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  TEMP %.0fC  |  %.0f km/h%s%s"),
-            *Vehicle->GetVehicleDisplayName().ToString(),
-            Vehicle->GetConditionPercent()*100.0f,
-            Vehicle->GetFuelPercent()*100.0f,
-            Vehicle->GetFuelLiters(),
-            Vehicle->GetEngineTemperatureC(),
-            Vehicle->GetSpeedKmh(),
+            *Vehicle->GetVehicleDisplayName().ToString(), Vehicle->GetConditionPercent()*100.0f, Vehicle->GetFuelPercent()*100.0f,
+            Vehicle->GetFuelLiters(), Vehicle->GetEngineTemperatureC(), Vehicle->GetSpeedKmh(),
             Vehicle->WasReportedStolen() && !Vehicle->IsOwnedByPlayer() ? TEXT("  |  STOLEN") : TEXT(""),
             Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
         DrawText(VehicleLine, FLinearColor::White, 36.0f, Y, GEngine->GetSmallFont(), 1.05f, false);
         Y += 30.0f;
 
+        DrawText(
+            FString::Printf(TEXT("TUNING | ENGINE L%d/3 | TIRES L%d/3 | TIRE HEALTH %.0f%%"),
+                Vehicle->GetEngineUpgradeLevel(), Vehicle->GetTireUpgradeLevel(), Vehicle->GetTireIntegrity()*100.0f),
+            Vehicle->GetTireIntegrity() < 0.25f ? FLinearColor(1.0f,0.25f,0.12f,1.0f) : FLinearColor(0.55f,0.85f,1.0f,1.0f),
+            36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
+        Y += 28.0f;
+
         const FString FaultText = Vehicle->GetFaultStatusText();
         if (!FaultText.IsEmpty())
         {
-            DrawText(
-                FString::Printf(TEXT("VEHICLE DAMAGE  |  %s  |  DETACHED PARTS %d"), *FaultText, Vehicle->GetDetachedPartCount()),
-                FLinearColor(1.0f,0.34f,0.12f,1.0f),
-                36.0f,
-                Y,
-                GEngine->GetSmallFont(),
-                0.95f,
-                false);
+            DrawText(FString::Printf(TEXT("VEHICLE DAMAGE  |  %s  |  DETACHED PARTS %d"), *FaultText, Vehicle->GetDetachedPartCount()),
+                FLinearColor(1.0f,0.34f,0.12f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
             Y += 28.0f;
         }
     }

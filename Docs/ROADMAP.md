@@ -21,6 +21,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Fuel, cash and mission rewards
 - [x] Arrest fines
 - [x] Multi-vehicle garage + save/load
+- [x] Garage sequential vehicle recall
 - [x] Day/night + NPC schedules
 - [ ] Basic radio framework
 
@@ -28,7 +29,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Fishing + fish inventory/sales
 - [x] Separate ranger/game-warden response for illegal fishing
 - [x] Ranger pursuit, citation and fish confiscation
-- [ ] Forest / poaching gameplay
+- [x] First forest / poaching gameplay
 - [x] First legal farm-job loop
 - [ ] Farm-job checkpoints, cargo and timed variants
 - [ ] More mission archetypes
@@ -47,29 +48,30 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Breakable body parts
 - [x] Damage smoke and random mechanical faults
 - [x] Engine temperature / overheating
-- [x] Repair/refuel service reattaches major damage stages
-- [ ] Proper tire puncture / grip-loss simulation
-- [ ] Full tuning system
+- [x] Tire integrity and grip-loss simulation
+- [x] Repair/refuel service
+- [x] First persistent performance tuning
 - [ ] Mud/off-road handling
 - [ ] Dedicated Chaos drivetrain/suspension
 
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Traffic route network
 - [x] Civilian road-driving AI prototype
-- [x] Game-warden/ranger AI for illegal fishing
-- [x] Traffic obstacle avoidance
-- [x] Traffic horn feedback
-- [x] Traffic stuck recovery
+- [x] Game-warden/ranger AI
+- [x] Traffic obstacle avoidance / horn / stuck recovery
 - [ ] Traffic respawn/despawn streaming rules
 - [ ] Police vehicle pursuit escalation
-- [ ] Garage slot selection / vehicle recall
+- [x] Garage vehicle recall
+- [ ] Explicit garage slot-selection UI
 - [ ] More vehicle ownership costs and fines
 
 ## 0.7 — Jobs & Countryside Expansion
+- [x] First east-side forest expansion
 - [ ] Larger connected road network and countryside
 - [ ] Plowing/mowing/cargo farm jobs
 - [ ] Forest work and legal timber transport
-- [ ] Illegal poaching loop feeding the ranger system
+- [x] Illegal poaching loop feeding the ranger system
+- [ ] Deeper poaching inventory / fence economy
 - [ ] More shops/services
 - [ ] Side-mission chain
 
@@ -77,10 +79,11 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Detachable doors/fenders/body panels
 - [x] Visual damage smoke and engine-failure states
 - [x] First detachable wheel damage stage
-- [ ] Tire-specific grip loss / punctures
-- [ ] Upgrade/tuning garage
+- [x] Tire-specific grip loss / collision degradation
+- [x] Upgrade/tuning garage foundation
+- [x] Persistent engine/tire upgrade levels
 - [ ] Tractor visual upgrades
-- [ ] Old-car performance upgrades
+- [ ] Old-car visual/performance upgrade variants
 - [ ] Replacement body-panel economy
 
 ## 0.9 — Content & Polish

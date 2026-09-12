@@ -63,6 +63,7 @@ void AGTTVehicleBase::BeginPlay()
     Super::BeginPlay();
     CurrentFuelLiters = FMath::Clamp(StartingFuelLiters, 0.0f, FuelCapacityLiters);
     EngineTemperatureC = NormalEngineTemperatureC;
+    TireIntegrity = FMath::Clamp(TireIntegrity, 0.0f, 1.0f);
     UpdateBreakableParts();
 }
 
@@ -81,11 +82,13 @@ void AGTTVehicleBase::Tick(float DeltaSeconds)
 
     const float ConditionAlpha = GetConditionPercent();
     const float ThrottleAlpha = FMath::Clamp(FMath::Abs(LastThrottleInput), 0.0f, 1.0f);
-    const float BurnRate = FMath::Lerp(IdleFuelBurnPerSecond, FullThrottleFuelBurnPerSecond, ThrottleAlpha);
+    const float EfficiencyBonus = 1.0f - EngineUpgradeLevel * 0.035f;
+    const float BurnRate = FMath::Lerp(IdleFuelBurnPerSecond, FullThrottleFuelBurnPerSecond, ThrottleAlpha) * EfficiencyBonus;
     CurrentFuelLiters = FMath::Max(0.0f, CurrentFuelLiters - BurnRate * DeltaSeconds);
 
     const float DamageHeat = (1.0f - ConditionAlpha) * 42.0f;
-    const float TargetTemperature = NormalEngineTemperatureC + ThrottleAlpha * 31.0f + DamageHeat;
+    const float UpgradeCooling = EngineUpgradeLevel * 3.0f;
+    const float TargetTemperature = NormalEngineTemperatureC + ThrottleAlpha * 31.0f + DamageHeat - UpgradeCooling;
     const float HeatInterpSpeed = TargetTemperature > EngineTemperatureC ? 0.34f : 0.16f;
     EngineTemperatureC = FMath::FInterpTo(EngineTemperatureC, TargetTemperature, DeltaSeconds, HeatInterpSpeed);
 
@@ -109,7 +112,8 @@ void AGTTVehicleBase::Tick(float DeltaSeconds)
     if (ConditionAlpha < 0.50f && ThrottleAlpha > 0.25f && FaultRestartTimeRemaining <= 0.0f)
     {
         const float DamageSeverity = 1.0f - FMath::Clamp(ConditionAlpha / 0.50f, 0.0f, 1.0f);
-        const float StallChance = LowConditionFaultChancePerSecond * DamageSeverity * (0.35f + 0.65f * ThrottleAlpha) * DeltaSeconds;
+        const float UpgradeReliability = 1.0f - EngineUpgradeLevel * 0.16f;
+        const float StallChance = LowConditionFaultChancePerSecond * UpgradeReliability * DamageSeverity * (0.35f + 0.65f * ThrottleAlpha) * DeltaSeconds;
         if (FMath::FRand() < StallChance)
         {
             TriggerMechanicalStall(TEXT("ENGINE STALL"));
@@ -175,23 +179,14 @@ void AGTTVehicleBase::Interact_Implementation(AActor* Interactor)
 
 FText AGTTVehicleBase::GetInteractionText_Implementation() const
 {
-    if (bOccupied)
-    {
-        return NSLOCTEXT("GTT", "VehicleOccupied", "Occupied");
-    }
-    if (Condition <= 0.0f)
-    {
-        return NSLOCTEXT("GTT", "VehicleBroken", "Broken down");
-    }
+    if (bOccupied) return NSLOCTEXT("GTT", "VehicleOccupied", "Occupied");
+    if (Condition <= 0.0f) return NSLOCTEXT("GTT", "VehicleBroken", "Broken down");
     if (CurrentFuelLiters <= KINDA_SMALL_NUMBER)
     {
         return FText::Format(NSLOCTEXT("GTT", "EnterEmptyVehicle", "Enter {0} (empty tank)"), VehicleDisplayName);
     }
-
     return FText::Format(
-        bOwnedByPlayer
-            ? NSLOCTEXT("GTT", "EnterOwnedVehicle", "Enter your {0}")
-            : NSLOCTEXT("GTT", "EnterNamedVehicle", "Enter {0}"),
+        bOwnedByPlayer ? NSLOCTEXT("GTT", "EnterOwnedVehicle", "Enter your {0}") : NSLOCTEXT("GTT", "EnterNamedVehicle", "Enter {0}"),
         VehicleDisplayName);
 }
 
@@ -199,20 +194,15 @@ void AGTTVehicleBase::ExitVehicle()
 {
     AController* VehicleController = GetController();
     APawn* PawnToRestore = PreviousPawn.Get();
-    if (!VehicleController || !PawnToRestore)
-    {
-        return;
-    }
+    if (!VehicleController || !PawnToRestore) return;
 
     LastThrottleInput = 0.0f;
     SetEngineRunning(false);
-
     PawnToRestore->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
     PawnToRestore->SetActorLocation(GetActorTransform().TransformPosition(ExitOffset));
     PawnToRestore->SetActorRotation(FRotator(0.0f, GetActorRotation().Yaw, 0.0f));
     PawnToRestore->SetActorHiddenInGame(false);
     PawnToRestore->SetActorEnableCollision(true);
-
     VehicleController->Possess(PawnToRestore);
     OnDriverExited.Broadcast(PawnToRestore);
     PreviousPawn.Reset();
@@ -221,10 +211,7 @@ void AGTTVehicleBase::ExitVehicle()
 
 void AGTTVehicleBase::ApplyVehicleDamage(float DamageAmount)
 {
-    if (DamageAmount <= 0.0f || Condition <= 0.0f)
-    {
-        return;
-    }
+    if (DamageAmount <= 0.0f || Condition <= 0.0f) return;
 
     const float OldCondition = Condition;
     Condition = FMath::Clamp(Condition - DamageAmount, 0.0f, MaxCondition);
@@ -242,35 +229,19 @@ void AGTTVehicleBase::ApplyVehicleDamage(float DamageAmount)
 
 void AGTTVehicleBase::RepairVehicle(float RepairAmount)
 {
-    if (RepairAmount <= 0.0f)
-    {
-        return;
-    }
+    if (RepairAmount <= 0.0f) return;
 
     Condition = FMath::Clamp(Condition + RepairAmount, 0.0f, MaxCondition);
     EngineTemperatureC = FMath::Min(EngineTemperatureC, NormalEngineTemperatureC + 5.0f);
     ActiveFaultStatus.Empty();
-
-    if (GetConditionPercent() >= 0.88f)
-    {
-        RestoreBreakableParts();
-    }
-    else
-    {
-        UpdateBreakableParts();
-    }
+    if (GetConditionPercent() >= 0.88f) RestoreBreakableParts(); else UpdateBreakableParts();
 }
 
 void AGTTVehicleBase::RefuelVehicle(float Liters)
 {
-    if (Liters > 0.0f)
-    {
-        CurrentFuelLiters = FMath::Clamp(CurrentFuelLiters + Liters, 0.0f, FuelCapacityLiters);
-        if (CurrentFuelLiters > KINDA_SMALL_NUMBER && ActiveFaultStatus == TEXT("OUT OF FUEL"))
-        {
-            ActiveFaultStatus.Empty();
-        }
-    }
+    if (Liters <= 0.0f) return;
+    CurrentFuelLiters = FMath::Clamp(CurrentFuelLiters + Liters, 0.0f, FuelCapacityLiters);
+    if (CurrentFuelLiters > KINDA_SMALL_NUMBER && ActiveFaultStatus == TEXT("OUT OF FUEL")) ActiveFaultStatus.Empty();
 }
 
 void AGTTVehicleBase::MarkOwnedByPlayer()
@@ -280,17 +251,18 @@ void AGTTVehicleBase::MarkOwnedByPlayer()
     bTheftReported = false;
 }
 
-void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, float ConditionPercent, float FuelLiters, bool bOwned)
+void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, float ConditionPercent, float FuelLiters, bool bOwned,
+    int32 InEngineUpgradeLevel, int32 InTireUpgradeLevel, float InTireIntegrity)
 {
-    if (bOccupied)
-    {
-        ExitVehicle();
-    }
+    if (bOccupied) ExitVehicle();
 
     SetEngineRunning(false);
     SetActorTransform(InTransform, false, nullptr, ETeleportType::TeleportPhysics);
     Condition = FMath::Clamp(ConditionPercent, 0.0f, 1.0f) * MaxCondition;
     CurrentFuelLiters = FMath::Clamp(FuelLiters, 0.0f, FuelCapacityLiters);
+    EngineUpgradeLevel = FMath::Clamp(InEngineUpgradeLevel, 0, 3);
+    TireUpgradeLevel = FMath::Clamp(InTireUpgradeLevel, 0, 3);
+    TireIntegrity = FMath::Clamp(InTireIntegrity, 0.0f, 1.0f);
     EngineTemperatureC = NormalEngineTemperatureC;
     ActiveFaultStatus.Empty();
     bOwnedByPlayer = bOwned;
@@ -299,9 +271,39 @@ void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, floa
         bIllegalToTake = false;
         bTheftReported = false;
     }
-
     RestoreBreakableParts();
     UpdateBreakableParts();
+}
+
+bool AGTTVehicleBase::RecallToTransform(const FTransform& Destination)
+{
+    if (bOccupied || !bOwnedByPlayer || !VehicleMesh) return false;
+    SetEngineRunning(false);
+    VehicleMesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    VehicleMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    SetActorTransform(Destination, false, nullptr, ETeleportType::TeleportPhysics);
+    return true;
+}
+
+bool AGTTVehicleBase::InstallEngineUpgrade()
+{
+    if (!bOwnedByPlayer || EngineUpgradeLevel >= 3) return false;
+    ++EngineUpgradeLevel;
+    EngineTemperatureC = FMath::Min(EngineTemperatureC, NormalEngineTemperatureC);
+    return true;
+}
+
+bool AGTTVehicleBase::InstallTireUpgrade()
+{
+    if (!bOwnedByPlayer || TireUpgradeLevel >= 3) return false;
+    ++TireUpgradeLevel;
+    TireIntegrity = 1.0f;
+    return true;
+}
+
+void AGTTVehicleBase::RepairTires()
+{
+    TireIntegrity = 1.0f;
 }
 
 float AGTTVehicleBase::GetConditionPercent() const
@@ -319,28 +321,19 @@ float AGTTVehicleBase::GetFuelPercent() const
     return FuelCapacityLiters > 0.0f ? CurrentFuelLiters / FuelCapacityLiters : 0.0f;
 }
 
+FString AGTTVehicleBase::GetTuningSummary() const
+{
+    return FString::Printf(TEXT("ENGINE L%d/3 | TIRES L%d/3 | TIRE %.0f%%"), EngineUpgradeLevel, TireUpgradeLevel, TireIntegrity * 100.0f);
+}
+
 FString AGTTVehicleBase::GetFaultStatusText() const
 {
-    if (Condition <= 0.0f)
-    {
-        return TEXT("BROKEN DOWN");
-    }
-    if (!ActiveFaultStatus.IsEmpty())
-    {
-        return ActiveFaultStatus;
-    }
-    if (EngineTemperatureC >= OverheatStartTemperatureC)
-    {
-        return TEXT("OVERHEATING");
-    }
-    if (DetachedPartCount > 0)
-    {
-        return FString::Printf(TEXT("BODY PARTS LOST: %d"), DetachedPartCount);
-    }
-    if (GetConditionPercent() < 0.35f)
-    {
-        return TEXT("ROUGH ENGINE");
-    }
+    if (Condition <= 0.0f) return TEXT("BROKEN DOWN");
+    if (TireIntegrity <= 0.08f) return TEXT("FLAT TIRE");
+    if (!ActiveFaultStatus.IsEmpty()) return ActiveFaultStatus;
+    if (EngineTemperatureC >= OverheatStartTemperatureC) return TEXT("OVERHEATING");
+    if (DetachedPartCount > 0) return FString::Printf(TEXT("BODY PARTS LOST: %d"), DetachedPartCount);
+    if (GetConditionPercent() < 0.35f) return TEXT("ROUGH ENGINE");
     return FString();
 }
 
@@ -357,8 +350,10 @@ void AGTTVehicleBase::HandleThrottle(float Value)
 
     const float ConditionPower = FMath::Lerp(0.35f, 1.0f, GetConditionPercent());
     const float TemperaturePower = EngineTemperatureC >= OverheatStartTemperatureC ? 0.72f : 1.0f;
+    const float EngineTunePower = 1.0f + EngineUpgradeLevel * 0.12f;
+    const float TireGrip = FMath::Lerp(0.38f, 1.0f, TireIntegrity) * (1.0f + TireUpgradeLevel * 0.04f);
     const float EffectiveValue = bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f
-        ? Value * ConditionPower * TemperaturePower
+        ? Value * ConditionPower * TemperaturePower * EngineTunePower * TireGrip
         : 0.0f;
 
     if (!FMath::IsNearlyZero(EffectiveValue) && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
@@ -373,7 +368,8 @@ void AGTTVehicleBase::HandleSteering(float Value)
     if (bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
     {
         const float SpeedFactor = FMath::Clamp(GetVelocity().Size2D() / 500.0f, 0.18f, 1.0f);
-        VehicleMesh->AddTorqueInRadians(FVector::UpVector * Value * SteeringAcceleration * SpeedFactor, NAME_None, true);
+        const float TireGrip = FMath::Lerp(0.28f, 1.0f, TireIntegrity) * (1.0f + TireUpgradeLevel * 0.08f);
+        VehicleMesh->AddTorqueInRadians(FVector::UpVector * Value * SteeringAcceleration * SpeedFactor * TireGrip, NAME_None, true);
     }
     OnSteeringInput(Value);
 }
@@ -381,20 +377,22 @@ void AGTTVehicleBase::HandleSteering(float Value)
 void AGTTVehicleBase::HandleVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
     const float ExcessImpulse = NormalImpulse.Size() - MinDamagingImpulse;
-    if (ExcessImpulse <= 0.0f)
+    if (ExcessImpulse <= 0.0f) return;
+
+    const float Damage = FMath::Clamp(ExcessImpulse / ImpulsePerDamagePoint, 0.0f, 35.0f);
+    ApplyVehicleDamage(Damage);
+
+    if (Damage >= 5.0f)
     {
-        return;
+        const float Reinforcement = 1.0f + TireUpgradeLevel * 0.35f;
+        const float TireLoss = FMath::Clamp((Damage / 100.0f) / Reinforcement, 0.015f, 0.18f);
+        TireIntegrity = FMath::Clamp(TireIntegrity - TireLoss, 0.0f, 1.0f);
     }
-    ApplyVehicleDamage(FMath::Clamp(ExcessImpulse / ImpulsePerDamagePoint, 0.0f, 35.0f));
 }
 
 void AGTTVehicleBase::RegisterBreakablePart(UStaticMeshComponent* Part, float DetachAtConditionPercent, FName PartName)
 {
-    if (!Part)
-    {
-        return;
-    }
-
+    if (!Part) return;
     FBreakablePartRuntime Runtime;
     Runtime.Component = Part;
     Runtime.OriginalRelativeTransform = Part->GetRelativeTransform();
@@ -409,10 +407,7 @@ void AGTTVehicleBase::UpdateBreakableParts()
     for (FBreakablePartRuntime& Runtime : BreakableParts)
     {
         UStaticMeshComponent* Part = Runtime.Component.Get();
-        if (!Part || Runtime.bDetached || ConditionPercent > Runtime.DetachThreshold)
-        {
-            continue;
-        }
+        if (!Part || Runtime.bDetached || ConditionPercent > Runtime.DetachThreshold) continue;
 
         Part->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
         Part->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -433,11 +428,7 @@ void AGTTVehicleBase::RestoreBreakableParts()
     for (FBreakablePartRuntime& Runtime : BreakableParts)
     {
         UStaticMeshComponent* Part = Runtime.Component.Get();
-        if (!Part)
-        {
-            continue;
-        }
-
+        if (!Part) continue;
         Part->SetSimulatePhysics(false);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Part->AttachToComponent(VehicleMesh, FAttachmentTransformRules::KeepRelativeTransform);
@@ -452,21 +443,14 @@ void AGTTVehicleBase::UpdateDamageSmoke(float DeltaSeconds)
     const float ConditionPercent = GetConditionPercent();
     const bool bShowSmoke = ConditionPercent < 0.62f;
     const float Severity = FMath::Clamp((0.62f - ConditionPercent) / 0.62f, 0.0f, 1.0f);
-
     UStaticMeshComponent* Puffs[] = {DamageSmokePuffA.Get(), DamageSmokePuffB.Get(), DamageSmokePuffC.Get()};
+
     for (int32 Index = 0; Index < 3; ++Index)
     {
         UStaticMeshComponent* Puff = Puffs[Index];
-        if (!Puff)
-        {
-            continue;
-        }
-
+        if (!Puff) continue;
         Puff->SetVisibility(bShowSmoke, true);
-        if (!bShowSmoke)
-        {
-            continue;
-        }
+        if (!bShowSmoke) continue;
 
         const float Phase = FMath::Fmod(DamageFxClock * (0.55f + Severity * 0.75f) + Index * 0.33f, 1.0f);
         const float Drift = FMath::Sin((DamageFxClock + Index) * 2.1f) * 18.0f;
@@ -478,11 +462,7 @@ void AGTTVehicleBase::UpdateDamageSmoke(float DeltaSeconds)
 
 void AGTTVehicleBase::TriggerMechanicalStall(const TCHAR* Reason)
 {
-    if (!bEngineRunning)
-    {
-        return;
-    }
-
+    if (!bEngineRunning) return;
     LastThrottleInput = 0.0f;
     ActiveFaultStatus = Reason;
     FaultRestartTimeRemaining = FaultRestartDelaySeconds;
@@ -492,12 +472,8 @@ void AGTTVehicleBase::TriggerMechanicalStall(const TCHAR* Reason)
 
 void AGTTVehicleBase::SetEngineRunning(bool bNewRunning)
 {
-    const bool bCanRun = bNewRunning && Condition > 0.0f && CurrentFuelLiters > KINDA_SMALL_NUMBER &&
-        EngineTemperatureC < CriticalEngineTemperatureC;
-    if (bEngineRunning == bCanRun)
-    {
-        return;
-    }
+    const bool bCanRun = bNewRunning && Condition > 0.0f && CurrentFuelLiters > KINDA_SMALL_NUMBER && EngineTemperatureC < CriticalEngineTemperatureC;
+    if (bEngineRunning == bCanRun) return;
     bEngineRunning = bCanRun;
     OnEngineStateChanged(bEngineRunning);
 }

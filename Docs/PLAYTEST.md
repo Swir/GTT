@@ -1,126 +1,94 @@
 # GTT Prototype Playtest
 
-This document describes the current source-driven prototype loop for **GTT 0.0.8**.
+This document describes the current source-driven prototype loop for **GTT 0.0.9**.
 
 ## Requirements
-
 - Unreal Engine 5.8
 - Visual Studio 2022 with **Game development with C++**
 - Windows 10/11 x64
 
 ## Launch in editor
-
 1. Clone the repository.
-2. Right-click `GTT.uproject` and generate Visual Studio project files if Windows offers that option.
-3. Build the `GTTEditor` target in Visual Studio.
-4. Open `GTT.uproject`.
-5. Press **Play**.
+2. Generate Visual Studio project files for `GTT.uproject`.
+3. Build the `GTTEditor` target.
+4. Open `GTT.uproject` and press **Play**.
 
-The project boots from Unreal's built-in Entry map. `AGTTPrototypeWorld` creates the current greybox countryside at runtime.
+The project boots from Unreal's built-in Entry map and creates the greybox countryside at runtime.
 
 ## Controls
-
 - `WASD` — walk / drive
 - Mouse — camera
 - `Space` — jump
-- `E` — interact / enter vehicle / fish / shop / garage / job terminal
+- `E` — interact / enter / fish / poach / garage / tuning / jobs
 - `F` — exit vehicle
 - `F5` — quick-save
 - `F9` — quick-load
 
-## Main gameplay loops
+## Core loop
+Complete **Borrowed Tractor**, earn the Rusty Fieldmaster, build a four-vehicle garage, do legal farm work, fish/poach for risky income, repair/tune vehicles and deal with police or the separate game-warden alert.
 
-### Borrowed Tractor
-1. Start at **PLAYER FARM / 4-SLOT GARAGE**.
-2. Steal the **RUSTY FIELDMASTER 60** at the neighbour farm.
-3. Witnesses can add police heat.
-4. Lose wanted and return the tractor to **BARN - MISSION GOAL**.
-5. Earn **$300** and permanent ownership of the tractor.
+## 0.0.9 garage recall test
+1. Own at least two persistent vehicles.
+2. Move them away from the garage terminal so no vehicle is inside the terminal search radius.
+3. Interact with **GARAGE: REGISTER / RECALL NEXT**.
+4. The next owned unoccupied vehicle should teleport into the recall bay and stop with zero linear/angular velocity.
+5. Move it away and use the terminal again; the fleet cursor should advance to the next owned vehicle.
+6. Occupied vehicles must refuse recall.
 
-### Garage and vehicles
-Persistent vehicles currently include:
-- **Rusty Fieldmaster 60** — heavy, durable tractor.
-- **Rattleback 82** — quick but fragile old compact.
-- **Mulebox 1200** — heavier farm van.
+## 0.0.9 tuning and tire test
+1. Park an owned vehicle beside **TUNING / TIRES** near the workshop.
+2. Use the terminal repeatedly.
+3. Engine tune advances from L0 to L3. Price rises by level; each level adds power, slightly reduces fuel burn/temperature and reduces low-condition stall chance.
+4. Once engine tuning is maxed, tire tuning advances from L0 to L3 and improves grip/impact resistance.
+5. Crash hard enough to reduce tire integrity. HUD should show **TIRE HEALTH** falling.
+6. Low tire health reduces acceleration and steering authority. At extremely low integrity the fault row should show `FLAT TIRE`.
+7. If tire integrity is below 80%, the tuning terminal prioritizes a tire service before further upgrades.
+8. Save with `F5`, change/move the vehicle, then load with `F9`. Save v3 should restore engine level, tire level and tire integrity for each owned vehicle.
+9. Loading an older v2 garage save should still work; missing tuning fields default to stock engine/tires and full tire integrity.
 
-Bring an unowned parked vehicle to the player garage, lose all active police/warden attention, pay the registration fee and save it into the four-slot garage roster. Save format v2 restores each owned vehicle independently by persistent ID.
+## 0.0.9 forest / poaching test
+1. Travel east past the private lake to **WARDEN FOREST / NO HUNTING**.
+2. Interact with **ILLEGAL FOREST POACHING**.
+3. Every attempt adds wildlife heat to the separate `WARDEN` alert.
+4. Successful attempts can return a forest hare, wild boar or red deer and an immediate black-market cash reward.
+5. Failed attempts still create ranger risk.
+6. Repeat attempts are cooldown-limited.
+7. Verify the ranger can still pursue/cite independently from police wanted.
 
-### Police vs game warden
-- Vehicle theft and witnessed ordinary crime feed **WANTED**.
-- Restricted fishing feeds the separate **WARDEN** alert.
-- Police can arrest and fine the player.
-- The game warden can chase the player, issue a separate citation and confiscate carried fish.
-- Both systems can be active at the same time.
+## Existing systems to regression-test
+- Borrowed Tractor mission completion and $300 reward.
+- Police wanted, witness reports, chase and arrest/fines.
+- Separate ranger/game-warden chase and fish confiscation.
+- Fishing and fish buyer.
+- Farm delivery job.
+- Day/night and citizen schedules.
+- Six-car bidirectional traffic, obstacle probes, BEEP placeholder and stuck recovery.
+- Vehicle damage smoke, breakable parts, overheating and random engine stalls.
+- Workshop repair/refuel and body-part restoration.
 
-### Legal work and economy
-- Complete the farm delivery job for legal cash.
-- Poach fish for risky income and sell fish at the village buyer.
-- Use the workshop for repair/refuel.
-- Use earnings to register more vehicles.
-
-## 0.0.8 vehicle-damage test
-
-This milestone adds visible and mechanical damage stages. The easiest test is to repeatedly crash a player-controlled vehicle into solid greybox buildings/fences at speed.
-
-Verify the following:
-
-1. **HUD temperature:** while driving hard, the vehicle HUD shows `TEMP` in Celsius.
-2. **Condition power loss:** damaged vehicles accelerate more weakly.
-3. **Smoke:** once condition falls below roughly 62%, animated grey primitive-mesh smoke puffs appear above the damaged vehicle.
-4. **Breakable parts:** body pieces detach at staged condition thresholds and become physics objects.
-5. **Rattleback 82:** can progressively lose bumper/doors/trunk and, at extreme damage, a rear wheel.
-6. **Mulebox 1200:** can lose front bumper, sliding cargo door, rear doors and a rear wheel.
-7. **Rusty Fieldmaster 60:** can lose fenders, exhaust stack and hood.
-8. **Mechanical faults:** badly damaged engines can randomly stall under throttle.
-9. **Restart delay:** after an engine stall, wait briefly and apply throttle to attempt an automatic restart.
-10. **Overheating:** hard driving with severe damage raises engine temperature; overheating reduces power and critical temperature can force a shutdown and apply more damage.
-11. **HUD fault row:** faults such as `ROUGH ENGINE`, `OVERHEATING`, `ENGINE STALL`, `ENGINE OVERHEAT` or detached-part count appear below the vehicle line.
-12. **Workshop repair:** a strong/full workshop repair restores condition and reattaches staged body parts.
-13. **Save/load:** saved condition reconstructs the matching damage stage after load.
-
-## 0.0.8 traffic test
-
-Ambient traffic now has more life:
-
-1. Six traffic cars are spawned by default.
-2. Cars are split between clockwise and counter-clockwise flows.
-3. A forward line trace checks for obstacles.
-4. When blocked, traffic brakes/reverses slightly and steers away.
-5. A blocked car briefly displays **BEEP!** above itself as placeholder horn feedback.
-6. A vehicle that remains stuck without a detected obstacle advances its route and receives a small recovery impulse.
-7. Traffic cars can also accumulate visible collision damage because they inherit the shared vehicle-damage system.
-
-## Persistence to verify
-
-Saved state currently includes cash, fish, player transform, first mission completion, day/time and each owned vehicle's persistent ID, transform, condition and fuel. Because detached body state is derived from condition, a loaded damaged vehicle should reconstruct the correct breakable-part stage.
+## Persistence
+Save v3 stores cash, fish, player transform, mission completion, day/time and every owned vehicle's ID, transform, condition, fuel, engine tune level, tire tune level and tire integrity. Older v2 and tractor-only saves retain migration paths.
 
 ## Current prototype limitations
-
-- Vehicle motion still uses the source-only physics fallback rather than tuned Chaos wheel/suspension movement.
-- Smoke and horn are source-only visual placeholders; final particle/audio assets are not present yet.
-- Detached wheels are currently a visual/physics damage stage; tire-specific grip and wheel-movement simulation still need dedicated work.
-- Traffic uses route-point physics steering rather than a production road graph/nav system.
-- Vehicles remain primitive-mesh prototypes rather than final art assets.
-- The four garage bays do not yet have a slot-selection/recall UI.
-- Fishing remains interaction-driven without a rod minigame.
-- Repository CI is a structural sanity check, not a full Unreal Win64 compile.
+- Vehicle movement still uses the source-only physics fallback rather than tuned Chaos wheel/suspension movement.
+- Garage recall is sequential; there is not yet a graphical slot-selection menu.
+- Forest hunting is an interaction prototype rather than a full tracking/hunting minigame.
+- Poaching currently pays immediately rather than carrying a separate game inventory to a fence.
+- Smoke and horn feedback are source-only placeholders.
+- Vehicles and world remain primitive-mesh prototypes rather than final art.
+- Repository CI is structural sanity checking, not a full Unreal Win64 compile.
 
 ## Build a Windows package
-
-From PowerShell at the repository root:
-
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Scripts\package_windows.ps1
 ```
 
-If Unreal Engine is installed somewhere else:
-
+Custom engine location:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Scripts\package_windows.ps1 -EngineRoot "D:\Epic Games\UE_5.8"
 ```
 
-For a Shipping build:
-
+Shipping:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Scripts\package_windows.ps1 -Configuration Shipping
 ```
