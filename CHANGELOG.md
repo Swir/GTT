@@ -2,6 +2,33 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.12] - 2026-09-12
+
+### Added
+- New `AGTTRuralWorkDirector` for legal countryside contracts beyond the original feed-delivery job.
+- **Legal Timber Haul** contract: accept at North Wood Yard, load logs with a nearby working vehicle, timed delivery to the workshop, cargo-integrity payout scaling and a fast-delivery bonus.
+- **Field Mowing** contract: requires a tractor near Hill Farm, then tracks five ordered drive-through field gates and pays an efficiency bonus for a quick route.
+- `AGTTFieldCheckpoint` overlap gates that detect the actual driven tractor and advance field work without requiring the player to leave the cab at every pass.
+- New North Wood Yard, expanded Hill Farm field, five mowing gates and workshop timber-unload point in the runtime countryside.
+- First multi-stage side mission, **Night Shift Favor**: start at The Bent Axle during 18:30–02:30, collect an emergency alternator crate at the workshop, help a stranded neighbor on East Road, then return to the tavern for payment.
+- Dedicated HUD objective rows for rural work and the Night Shift Favor side mission.
+
+### Changed
+- Feed-cargo loading and unloading now accept a working vehicle parked near the terminal, fixing the old possession-flow limitation where interacting on foot could not satisfy a vehicle-required checkpoint.
+- Legal-work eligibility consistently rejects contracts while police wanted or ranger alert is active.
+- Timber cargo condition reacts to both vehicle body condition and tire integrity, connecting tuning/repair choices to contract income.
+- Prototype world version/signage updated for the new work and story loops.
+- Structural CI now verifies rural-work archetypes, tractor field checkpoints, side-mission stages, nearby-vehicle cargo handling and new world/HUD hooks.
+
+### Next
+- Dedicated Chaos wheeled drivetrain/suspension implementation for tractor, old car and van.
+- Road-node-aware police interception and authored roadblock positions.
+- Explicit garage slot-selection UI and per-vehicle ownership costs.
+- Towing/recovery jobs with a physical hitch/trailer system.
+- Larger connected countryside and additional mission chain chapters.
+- Deeper social dialogue/combat encounters around village nights.
+- Real Unreal-equipped Win64 compile/package smoke-test runner.
+
 ## [0.0.11] - 2026-09-12
 
 ### Added
@@ -25,15 +52,6 @@ All notable development steps for GTT are tracked here.
 - Tire damage is exposed as a shared vehicle function so collisions and police spike strips use the same upgrade-aware tire durability model.
 - Prototype world signage now advertises nightlife, radio-era content and 4+ wanted roadblocks.
 - Structural CI now verifies radio controls/state, nightlife events/crowd, spike strips and roadblock escalation.
-
-### Next
-- Add a second story/side-mission chain built around village nights.
-- Add tavern/community-hall interiors and more social encounters.
-- Add police interception tactics that position roadblocks on authored road nodes.
-- Add actual original/royalty-cleared audio assets and volume/station settings.
-- Add plowing/mowing/timber/towing jobs and countryside expansion.
-- Start dedicated Chaos wheeled drivetrain/suspension implementation.
-- Add a real Unreal-equipped Win64 build/smoke-test runner.
 
 ## [0.0.10] - 2026-09-12
 

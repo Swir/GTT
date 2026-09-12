@@ -1,5 +1,6 @@
 #include "UI/GTTGameHUD.h"
 #include "Activities/GTTFarmJobDirector.h"
+#include "Activities/GTTRuralWorkDirector.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -7,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Missions/GTTMissionComponent.h"
+#include "Missions/GTTNightFavorDirector.h"
 #include "Police/GTTPoliceDirector.h"
 #include "Radio/GTTRadioComponent.h"
 #include "Vehicles/GTTVehicleBase.h"
@@ -26,6 +28,8 @@ void AGTTGameHUD::DrawHUD()
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
     AGTTPoliceDirector* PoliceDirector = Cast<AGTTPoliceDirector>(UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()));
     AGTTFarmJobDirector* FarmJobDirector = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
+    AGTTRuralWorkDirector* RuralWork = Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRuralWorkDirector::StaticClass()));
+    AGTTNightFavorDirector* NightFavor = Cast<AGTTNightFavorDirector>(UGameplayStatics::GetActorOfClass(this, AGTTNightFavorDirector::StaticClass()));
     AGTTVillageEventDirector* NightDirector = Cast<AGTTVillageEventDirector>(UGameplayStatics::GetActorOfClass(this, AGTTVillageEventDirector::StaticClass()));
 
     const int32 WantedLevel = Wanted ? Wanted->GetWantedLevel() : 0;
@@ -35,12 +39,9 @@ void AGTTGameHUD::DrawHUD()
     float Y = 64.0f;
     if (PoliceDirector && WantedLevel > 0)
     {
-        DrawText(
-            FString::Printf(TEXT("POLICE RESPONSE | FOOT %d | PURSUIT CARS %d | ROADBLOCKS %d%s"),
-                PoliceDirector->GetActiveFootUnitCount(),
-                PoliceDirector->GetActivePursuitVehicleCount(),
-                PoliceDirector->GetActiveRoadblockCount(),
-                WantedLevel >= 4 ? TEXT(" | INTERCEPTION MODE") : (WantedLevel >= 3 ? TEXT(" | VEHICLE ESCALATION") : TEXT(""))),
+        DrawText(FString::Printf(TEXT("POLICE RESPONSE | FOOT %d | PURSUIT CARS %d | ROADBLOCKS %d%s"),
+            PoliceDirector->GetActiveFootUnitCount(), PoliceDirector->GetActivePursuitVehicleCount(), PoliceDirector->GetActiveRoadblockCount(),
+            WantedLevel >= 4 ? TEXT(" | INTERCEPTION MODE") : (WantedLevel >= 3 ? TEXT(" | VEHICLE ESCALATION") : TEXT(""))),
             WantedLevel >= 4 ? FLinearColor(1.0f,0.18f,0.08f,1.0f) : FLinearColor(0.9f,0.72f,0.32f,1.0f),
             36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
         Y += 28.0f;
@@ -77,15 +78,23 @@ void AGTTGameHUD::DrawHUD()
 
     if (FarmJobDirector && FarmJobDirector->IsJobActive())
     {
-        const FString Objective = FarmJobDirector->GetObjectiveText();
-        DrawText(Objective, FLinearColor(0.35f,1.0f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        DrawText(FarmJobDirector->GetObjectiveText(), FLinearColor(0.35f,1.0f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        Y += 30.0f;
+    }
+    if (RuralWork && RuralWork->IsWorkActive())
+    {
+        DrawText(RuralWork->GetObjectiveText(), FLinearColor(0.45f,0.95f,0.35f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
+        Y += 30.0f;
+    }
+    if (NightFavor && NightFavor->IsActive())
+    {
+        DrawText(NightFavor->GetObjectiveText(), FLinearColor(0.95f,0.55f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
 
     if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn))
     {
-        const FString VehicleLine = FString::Printf(
-            TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  TEMP %.0fC  |  %.0f km/h%s%s"),
+        const FString VehicleLine = FString::Printf(TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  TEMP %.0fC  |  %.0f km/h%s%s"),
             *Vehicle->GetVehicleDisplayName().ToString(), Vehicle->GetConditionPercent()*100.0f, Vehicle->GetFuelPercent()*100.0f,
             Vehicle->GetFuelLiters(), Vehicle->GetEngineTemperatureC(), Vehicle->GetSpeedKmh(),
             Vehicle->WasReportedStolen() && !Vehicle->IsOwnedByPlayer() ? TEXT("  |  STOLEN") : TEXT(""),
@@ -95,14 +104,12 @@ void AGTTGameHUD::DrawHUD()
 
         if (Radio)
         {
-            DrawText(Radio->GetDisplayLine(), Radio->IsRadioOn() ? FLinearColor(0.48f,0.88f,1.0f,1.0f) : FLinearColor(0.55f,0.6f,0.65f,1.0f),
-                36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
+            DrawText(Radio->GetDisplayLine(), Radio->IsRadioOn() ? FLinearColor(0.48f,0.88f,1.0f,1.0f) : FLinearColor(0.55f,0.6f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
             Y += 28.0f;
         }
 
-        DrawText(
-            FString::Printf(TEXT("TUNING | ENGINE L%d/3 | TIRES L%d/3 | TIRE HEALTH %.0f%%"),
-                Vehicle->GetEngineUpgradeLevel(), Vehicle->GetTireUpgradeLevel(), Vehicle->GetTireIntegrity()*100.0f),
+        DrawText(FString::Printf(TEXT("TUNING | ENGINE L%d/3 | TIRES L%d/3 | TIRE HEALTH %.0f%%"),
+            Vehicle->GetEngineUpgradeLevel(), Vehicle->GetTireUpgradeLevel(), Vehicle->GetTireIntegrity()*100.0f),
             Vehicle->GetTireIntegrity() < 0.25f ? FLinearColor(1.0f,0.25f,0.12f,1.0f) : FLinearColor(0.55f,0.85f,1.0f,1.0f),
             36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
         Y += 28.0f;

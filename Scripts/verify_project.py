@@ -17,6 +17,10 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h",
     "Source/GTT/Public/Police/GTTPoliceDirector.h", "Source/GTT/Public/Police/GTTPolicePursuitVehicle.h",
     "Source/GTT/Public/Police/GTTRoadblock.h",
+    "Source/GTT/Public/Activities/GTTFarmJobDirector.h", "Source/GTT/Public/Activities/GTTFarmJobTerminal.h",
+    "Source/GTT/Public/Activities/GTTRuralWorkDirector.h", "Source/GTT/Public/Activities/GTTRuralWorkTerminal.h",
+    "Source/GTT/Public/Activities/GTTFieldCheckpoint.h",
+    "Source/GTT/Public/Missions/GTTNightFavorDirector.h", "Source/GTT/Public/Missions/GTTNightFavorTerminal.h",
     "Source/GTT/Public/World/GTTDayNightCycle.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
     "Source/GTT/Public/World/GTTVillageEventDirector.h", "Source/GTT/Public/World/GTTVillageEventMarker.h",
     "Source/GTT/Public/Save/GTTSaveGame.h", "Scripts/package_windows.ps1",
@@ -24,30 +28,24 @@ REQUIRED_FILES = [
 
 EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "OwnedVehicles"],
-    "Source/GTT/Private/Radio/GTTRadioComponent.cpp": [
-        "GRAVEL FM", "BARNBEAT 96", "RUST & DIESEL", "NIGHT SHIFT", "AdvanceTrack", "RADIO OFF"
+    "Source/GTT/Private/Radio/GTTRadioComponent.cpp": ["GRAVEL FM", "BARNBEAT 96", "RUST & DIESEL", "NIGHT SHIFT"],
+    "Source/GTT/Private/Police/GTTPoliceDirector.cpp": ["DesiredRoadblocks", "RoadblockEscalationWantedLevel", "SpawnRoadblock"],
+    "Source/GTT/Private/Police/GTTRoadblock.cpp": ["SPIKE STRIP", "ApplyTireDamage"],
+    "Source/GTT/Private/World/GTTVillageEventDirector.cpp": ["18.5f", "2.5f", "COMMUNITY HALL PARTY", "SpawnNightEvent"],
+    "Source/GTT/Private/Activities/GTTFarmJobDirector.cpp": ["FindNearbyWorkVehicle", "Park a working vehicle", "DeliveryTimeLimit", "CargoIntegrity"],
+    "Source/GTT/Private/Activities/GTTRuralWorkDirector.cpp": [
+        "TryStartTimber", "TryPickupTimber", "TryDeliverTimber", "TimberFastBonus", "TryStartMowing", "TryMowingPass", "RequiredMowingPasses", "AGTTTractorPawn"
     ],
-    "Source/GTT/Private/Characters/GTTCharacter.cpp": ["RadioComponent", "RadioNext", "CycleRadio"],
-    "Source/GTT/Private/Core/GTTGameplayStatics.cpp": ["FindRadioComponentForPawn", "UGTTRadioComponent", "GetDriverPawn"],
-    "Source/GTT/Public/Vehicles/GTTVehicleBase.h": ["ApplyTireDamage", "CycleRadio", "GetTireIntegrity"],
-    "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": ["RadioNext", "CycleRadio", "ApplyTireDamage", "TireGrip", "FLAT TIRE"],
-    "Source/GTT/Private/Police/GTTPoliceDirector.cpp": [
-        "DesiredRoadblocks", "RoadblockEscalationWantedLevel", "SpawnRoadblock", "SelectRoadblockTransform"
+    "Source/GTT/Private/Activities/GTTFieldCheckpoint.cpp": ["OnComponentBeginOverlap", "AGTTTractorPawn", "TryMowingPass"],
+    "Source/GTT/Private/Missions/GTTNightFavorDirector.cpp": [
+        "18.5f", "2.5f", "CollectParts", "ReachNeighbor", "ReturnToTavern", "CompletionReward", "SaveProgress"
     ],
-    "Source/GTT/Private/Police/GTTRoadblock.cpp": [
-        "POLICE ROADBLOCK", "SPIKE STRIP", "ApplyTireDamage", "ApplyVehicleDamage", "SetResponseTier"
-    ],
-    "Source/GTT/Private/World/GTTVillageEventDirector.cpp": [
-        "18.5f", "2.5f", "COMMUNITY HALL PARTY", "VILLAGE NIGHT", "SpawnNightEvent", "PartyCrowd", "waiting for the next bad idea"
-    ],
-    "Source/GTT/Private/World/GTTVillageEventMarker.cpp": [
-        "BROKEN-DOWN NEIGHBOR", "MIDNIGHT TRACTOR MEET", "SUSPICIOUS BONFIRE RUN", "MYSTERY CRATE", "ReportWildlifeCrime"
-    ],
+    "Source/GTT/Private/Missions/GTTNightFavorTerminal.cpp": ["Tavern", "Workshop", "Neighbor", "TryFinish"],
     "Source/GTT/Private/UI/GTTGameHUD.cpp": [
-        "POLICE RESPONSE", "ROADBLOCKS", "INTERCEPTION MODE", "GetDisplayLine", "NightDirector", "R radio"
+        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "GetObjectiveText", "NightFavor", "R radio"
     ],
     "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
-        "AGTTVillageEventDirector", "THE BENT AXLE TAVERN", "4+ WANTED: ROADBLOCKS", "GTT 0.0.11"
+        "AGTTRuralWorkDirector", "AGTTNightFavorDirector", "NORTH WOOD YARD", "MOWING CONTRACT", "FIELD GATE", "NIGHT SHIFT FAVOR", "GTT 0.0.12"
     ],
 }
 
@@ -89,22 +87,22 @@ def main() -> int:
         if absent:
             fail(f"{relative} is missing expected gameplay hooks: {absent}")
 
-    roadblock_header = (ROOT / "Source/GTT/Public/Police/GTTPoliceDirector.h").read_text(encoding="utf-8")
-    for token in ["GetActiveRoadblockCount", "RoadblockEscalationWantedLevel", "MaxRoadblocks"]:
-        if token not in roadblock_header:
-            fail(f"Police director header missing roadblock contract: {token}")
+    rural_header = (ROOT / "Source/GTT/Public/Activities/GTTRuralWorkDirector.h").read_text(encoding="utf-8")
+    for token in ["TimberHaul", "FieldMowing", "ReachTimberPickup", "DeliverTimber", "MowingField"]:
+        if token not in rural_header:
+            fail(f"Rural work director header missing contract: {token}")
 
-    radio_header = (ROOT / "Source/GTT/Public/Radio/GTTRadioComponent.h").read_text(encoding="utf-8")
-    for token in ["CycleStation", "GetDisplayLine", "TrackTimeRemaining"]:
-        if token not in radio_header:
-            fail(f"Radio header missing contract: {token}")
+    favor_header = (ROOT / "Source/GTT/Public/Missions/GTTNightFavorDirector.h").read_text(encoding="utf-8")
+    for token in ["CollectParts", "ReachNeighbor", "ReturnToTavern", "Completed"]:
+        if token not in favor_header:
+            fail(f"Night favor header missing stage: {token}")
 
     forbidden = ["Binaries", "Intermediate", "DerivedDataCache", "Saved"]
     present = [n for n in forbidden if (ROOT / n).exists()]
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.11 radio, village nightlife, random events, roadblocks and spike-strip hooks look structurally sane.")
+    print("[OK] GTT 0.0.12 rural contracts, tractor field route, night side mission and existing escalation hooks look structurally sane.")
     return 0
 
 

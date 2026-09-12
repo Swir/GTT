@@ -2,10 +2,40 @@
 
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
+#include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "Core/GTTGameMode.h"
+
+namespace
+{
+AGTTVehicleBase* FindNearbyWorkVehicle(const UObject* WorldContextObject, APawn* PlayerPawn, float Radius)
+{
+    if (!WorldContextObject || !PlayerPawn) return nullptr;
+    if (AGTTVehicleBase* Controlled = Cast<AGTTVehicleBase>(UGameplayStatics::GetPlayerPawn(WorldContextObject, 0)))
+    {
+        if (Controlled->GetConditionPercent() > 0.0f) return Controlled;
+    }
+
+    UWorld* World = WorldContextObject->GetWorld();
+    if (!World) return nullptr;
+    AGTTVehicleBase* Best = nullptr;
+    float BestDistSq = FMath::Square(Radius);
+    for (TActorIterator<AGTTVehicleBase> It(World); It; ++It)
+    {
+        AGTTVehicleBase* Vehicle = *It;
+        if (!Vehicle || Vehicle->GetConditionPercent() <= 0.0f) continue;
+        const float DistSq = FVector::DistSquared2D(PlayerPawn->GetActorLocation(), Vehicle->GetActorLocation());
+        if (DistSq <= BestDistSq)
+        {
+            BestDistSq = DistSq;
+            Best = Vehicle;
+        }
+    }
+    return Best;
+}
+}
 
 AGTTFarmJobDirector::AGTTFarmJobDirector()
 {
@@ -28,7 +58,9 @@ void AGTTFarmJobDirector::Tick(float DeltaSeconds)
         return;
     }
 
-    if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn))
+    AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn);
+    if (!Vehicle) Vehicle = FindNearbyWorkVehicle(this, PlayerPawn, 800.0f);
+    if (Vehicle)
     {
         const float DamageSeverity = 1.0f - Vehicle->GetConditionPercent();
         if (DamageSeverity > 0.35f)
@@ -74,10 +106,10 @@ bool AGTTFarmJobDirector::TryPickupCargo(APawn* PlayerPawn)
 {
     if (!PlayerPawn || Stage != EGTTFarmJobStage::ReachPickup) return false;
 
-    APawn* ControlledPawn = UGameplayStatics::GetPlayerPawn(this, 0);
-    if (!Cast<AGTTVehicleBase>(ControlledPawn))
+    AGTTVehicleBase* Vehicle = FindNearbyWorkVehicle(this, PlayerPawn, 700.0f);
+    if (!Vehicle)
     {
-        PushMessage(PlayerPawn, TEXT("Bring a vehicle to load the feed pallets."));
+        PushMessage(PlayerPawn, TEXT("Park a working vehicle beside the feed depot, then load the pallets."));
         return false;
     }
 
@@ -92,10 +124,9 @@ bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
 {
     if (!PlayerPawn || Stage != EGTTFarmJobStage::DeliverCargo) return false;
 
-    APawn* ControlledPawn = UGameplayStatics::GetPlayerPawn(this, 0);
-    if (!Cast<AGTTVehicleBase>(ControlledPawn))
+    if (!FindNearbyWorkVehicle(this, PlayerPawn, 750.0f))
     {
-        PushMessage(PlayerPawn, TEXT("Delivery requires the cargo vehicle inside the drop zone."));
+        PushMessage(PlayerPawn, TEXT("Park the cargo vehicle inside the delivery yard before unloading."));
         return false;
     }
 
