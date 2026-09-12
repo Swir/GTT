@@ -11,15 +11,19 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 - [x] Interaction interface
 - [x] Enter/exit vehicle framework
 - [x] Vehicle condition/damage foundation
+- [x] Prototype physics driving fallback
+- [x] Vehicle theft -> wanted heat integration
 - [x] Wanted heat and 0–5 wanted levels
 - [x] Police response director foundation
+- [x] Police AI chase behaviour
+- [x] Native HUD with wanted + vehicle diagnostics
 - [x] Mission runtime component foundation
-- [ ] Chaos tractor driving implementation
-- [ ] Placeholder tractor Blueprint and mesh
-- [ ] Greybox village map
-- [ ] Police AI chase behaviour
-- [ ] HUD interaction prompt + wanted stars
-- [ ] First mission: **Borrowed Tractor**
+- [x] Borrowed Tractor mission start + theft stage transition
+- [ ] Dedicated Chaos wheeled tractor implementation
+- [ ] Placeholder tractor visual setup
+- [ ] Mission safe-zone / completion trigger
+- [ ] Greybox village map and road loop
+- [ ] First fully playable **Borrowed Tractor** mission
 
 ## 0.2 — Living Village
 

@@ -33,13 +33,21 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police", meta=(ClampMin="1"))
     int32 MaxPoliceUnits = 10;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police", meta=(ClampMin="100.0"))
+    float MinFallbackSpawnDistance = 1200.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police", meta=(ClampMin="100.0"))
+    float MaxFallbackSpawnDistance = 2200.0f;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police", meta=(ClampMin="0.25"))
-    float EvaluationInterval = 2.0f;
+    float EvaluationInterval = 1.25f;
 
 private:
     void SpawnPoliceUnit();
     int32 GetPlayerWantedLevel() const;
     void RemoveInvalidUnits();
+    void DespawnExcessUnits(int32 DesiredUnits);
+    FTransform SelectSpawnTransform() const;
 
     UPROPERTY()
     TArray<TObjectPtr<APawn>> ActivePoliceUnits;

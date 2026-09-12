@@ -19,9 +19,32 @@ REQUIRED_FILES = [
     "Source/GTT/GTT.Build.cs",
     "Source/GTT/GTT.cpp",
     "Source/GTT/Public/Characters/GTTCharacter.h",
+    "Source/GTT/Public/Core/GTTGameplayStatics.h",
+    "Source/GTT/Public/UI/GTTGameHUD.h",
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h",
     "Source/GTT/Public/Wanted/GTTWantedComponent.h",
+    "Source/GTT/Public/Police/GTTPoliceDirector.h",
+    "Source/GTT/Public/Police/GTTPoliceAIController.h",
+    "Source/GTT/Public/Police/GTTPolicePawn.h",
 ]
+
+EXPECTED_SOURCE_TOKENS = {
+    "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": [
+        "AddForce(",
+        "AddTorqueInRadians(",
+        "NotifyVehicleStolen",
+        "Wanted->AddHeat",
+    ],
+    "Source/GTT/Private/Police/GTTPoliceAIController.cpp": [
+        "MoveToActor(",
+        "GetPlayerWantedLevel",
+    ],
+    "Source/GTT/Private/UI/GTTGameHUD.cpp": [
+        "WANTED [",
+        "GetConditionPercent",
+        "BuildMissionText",
+    ],
+}
 
 
 def fail(message: str) -> None:
@@ -53,12 +76,21 @@ def main() -> int:
     if missing_plugins:
         fail("Required plugins are not enabled: " + ", ".join(sorted(missing_plugins)))
 
+    for relative_path, tokens in EXPECTED_SOURCE_TOKENS.items():
+        path = ROOT / relative_path
+        if not path.is_file():
+            fail(f"Missing gameplay source: {relative_path}")
+        text = path.read_text(encoding="utf-8")
+        missing_tokens = [token for token in tokens if token not in text]
+        if missing_tokens:
+            fail(f"{relative_path} is missing expected gameplay hooks: {missing_tokens}")
+
     forbidden = ["Binaries", "Intermediate", "DerivedDataCache", "Saved"]
     present_forbidden = [name for name in forbidden if (ROOT / name).exists()]
     if present_forbidden:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present_forbidden))
 
-    print("[OK] GTT repository structure and project descriptor look sane.")
+    print("[OK] GTT repository structure and gameplay hooks look sane.")
     return 0
 
 

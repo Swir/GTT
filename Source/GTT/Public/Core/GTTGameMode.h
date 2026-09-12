@@ -4,6 +4,9 @@
 #include "GameFramework/GameModeBase.h"
 #include "GTTGameMode.generated.h"
 
+class AGTTVehicleBase;
+class UGTTMissionComponent;
+
 UCLASS()
 class GTT_API AGTTGameMode : public AGameModeBase
 {
@@ -11,4 +14,16 @@ class GTT_API AGTTGameMode : public AGameModeBase
 
 public:
     AGTTGameMode();
+
+    virtual void BeginPlay() override;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Mission")
+    UGTTMissionComponent* GetMissionComponent() const { return MissionComponent; }
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Mission")
+    void NotifyVehicleStolen(AGTTVehicleBase* Vehicle);
+
+protected:
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Mission")
+    TObjectPtr<UGTTMissionComponent> MissionComponent;
 };
