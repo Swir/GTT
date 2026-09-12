@@ -5,12 +5,19 @@
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Missions/GTTMissionComponent.h"
+#include "Save/GTTMainStorySave.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTDayNightCycle.h"
 
 AGTTMainStoryDirector::AGTTMainStoryDirector()
 {
     PrimaryActorTick.bCanEverTick = true;
+}
+
+void AGTTMainStoryDirector::BeginPlay()
+{
+    Super::BeginPlay();
+    LoadStoryProgress();
 }
 
 void AGTTMainStoryDirector::Tick(float DeltaSeconds)
@@ -137,6 +144,7 @@ bool AGTTMainStoryDirector::TryEastRoadPickup(APawn* PlayerPawn)
     Stage = EGTTMainStoryStage::EscapePolice;
     bEscapeMessageShown = false;
     PushMessage(PlayerPawn, TEXT("BACKROAD CRATE ACQUIRED: a patrol spotted the handoff. ESCAPE THE POLICE."), 8.0f);
+    SaveStoryProgress();
     if (AGTTGameMode* GM = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GM->SaveProgress();
     return true;
 }
@@ -178,6 +186,24 @@ void AGTTMainStoryDirector::RestoreStoryProgress(int32 SavedStage)
     bEscapeMessageShown = false;
 }
 
+void AGTTMainStoryDirector::SaveStoryProgress()
+{
+    UGTTMainStorySave* Save = Cast<UGTTMainStorySave>(UGameplayStatics::CreateSaveGameObject(UGTTMainStorySave::StaticClass()));
+    if (!Save) return;
+    Save->StorySaveVersion = 1;
+    Save->StoryStage = static_cast<int32>(Stage);
+    UGameplayStatics::SaveGameToSlot(Save, StorySaveSlotName, 0);
+}
+
+void AGTTMainStoryDirector::LoadStoryProgress()
+{
+    if (!UGameplayStatics::DoesSaveGameExist(StorySaveSlotName, 0)) return;
+    if (UGTTMainStorySave* Save = Cast<UGTTMainStorySave>(UGameplayStatics::LoadGameFromSlot(StorySaveSlotName, 0)))
+    {
+        RestoreStoryProgress(Save->StoryStage);
+    }
+}
+
 bool AGTTMainStoryDirector::IsBorrowedTractorComplete() const
 {
     const AGTTGameMode* GM = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
@@ -204,6 +230,7 @@ bool AGTTMainStoryDirector::IsNightWindow() const
 void AGTTMainStoryDirector::SetStage(EGTTMainStoryStage NewStage, APawn* PlayerPawn, const FString& Message)
 {
     Stage = NewStage;
+    SaveStoryProgress();
     PushMessage(PlayerPawn, Message, 7.0f);
     if (AGTTGameMode* GM = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GM->SaveProgress();
 }
