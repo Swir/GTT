@@ -68,7 +68,7 @@ assert "verify_release_pipeline.py" in sanity_workflow, "project sanity does not
 assert "0.0.27" in changelog, "0.0.27 changelog entry missing"
 assert "Release Pipeline" in changelog, "release milestone not documented"
 assert "Win64" in playtest and "SHA256" in playtest, "release playtest is incomplete"
-assert "self-hosted" in release_doc and "UE 5.8" in release_doc, "release runner boundary is undocumented"
+assert "self-hosted" in release_doc and "Unreal Engine 5.8" in release_doc, "release runner boundary is undocumented"
 
 # SWIR roadmap lock and exact progress arithmetic.
 assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
