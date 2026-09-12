@@ -19,10 +19,7 @@ void UGTTVehicleDynamicsComponent::BeginPlay()
 void UGTTVehicleDynamicsComponent::ConfigureProfile(const FGTTVehicleDynamicsProfile& InProfile)
 {
     Profile = InProfile;
-    if (Profile.ForwardGearTopSpeedsKmh.Num() == 0)
-    {
-        Profile.ForwardGearTopSpeedsKmh = {Profile.MaxSpeedKmh};
-    }
+    if (Profile.ForwardGearTopSpeedsKmh.Num() == 0) Profile.ForwardGearTopSpeedsKmh = {Profile.MaxSpeedKmh};
 }
 
 void UGTTVehicleDynamicsComponent::SetDriverInputs(float Throttle, float Steering)
@@ -39,25 +36,23 @@ void UGTTVehicleDynamicsComponent::SetPowerMultipliers(float EnginePower, float 
 
 void UGTTVehicleDynamicsComponent::ApplyTerrainModifier(float GripMultiplier, float InExtraRollingResistance, float DurationSeconds)
 {
-    SurfaceGripMultiplier = FMath::Min(SurfaceGripMultiplier, FMath::Clamp(GripMultiplier, 0.1f, 1.0f));
-    ExtraRollingResistance = FMath::Max(ExtraRollingResistance, FMath::Max(0.0f, InExtraRollingResistance));
+    const float RawGrip = FMath::Clamp(GripMultiplier, 0.1f, 1.0f);
+    const float ProfileAdjustedGrip = FMath::Lerp(RawGrip, 1.0f, FMath::Clamp(Profile.OffroadGripBias, 0.0f, 0.8f));
+    SurfaceGripMultiplier = FMath::Min(SurfaceGripMultiplier, ProfileAdjustedGrip);
+    ExtraRollingResistance = FMath::Max(ExtraRollingResistance, FMath::Max(0.0f, InExtraRollingResistance) * (1.0f - Profile.OffroadGripBias * 0.45f));
     TerrainModifierTimeRemaining = FMath::Max(TerrainModifierTimeRemaining, FMath::Max(0.05f, DurationSeconds));
 }
 
 void UGTTVehicleDynamicsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
     if (!Chassis || !Chassis->IsSimulatingPhysics())
     {
         ResolveChassis();
         return;
     }
 
-    if (TerrainModifierTimeRemaining > 0.0f)
-    {
-        TerrainModifierTimeRemaining = FMath::Max(0.0f, TerrainModifierTimeRemaining - DeltaTime);
-    }
+    if (TerrainModifierTimeRemaining > 0.0f) TerrainModifierTimeRemaining = FMath::Max(0.0f, TerrainModifierTimeRemaining - DeltaTime);
     else
     {
         SurfaceGripMultiplier = FMath::FInterpTo(SurfaceGripMultiplier, 1.0f, DeltaTime, 7.0f);
@@ -82,10 +77,7 @@ void UGTTVehicleDynamicsComponent::UpdateGear(float SpeedKmh)
     for (int32 Index = 0; Index < Profile.ForwardGearTopSpeedsKmh.Num(); ++Index)
     {
         CurrentGear = Index + 1;
-        if (ForwardSpeed <= Profile.ForwardGearTopSpeedsKmh[Index])
-        {
-            break;
-        }
+        if (ForwardSpeed <= Profile.ForwardGearTopSpeedsKmh[Index]) break;
     }
 }
 
@@ -95,7 +87,6 @@ void UGTTVehicleDynamicsComponent::ApplySuspensionAndGrip(float DeltaTime)
 
     GroundContactCount = 0;
     AverageSuspensionCompression = 0.0f;
-
     const FVector Forward = GetOwner()->GetActorForwardVector();
     const FVector Right = GetOwner()->GetActorRightVector();
     const FVector Up = GetOwner()->GetActorUpVector();
@@ -119,10 +110,7 @@ void UGTTVehicleDynamicsComponent::ApplySuspensionAndGrip(float DeltaTime)
         const FVector Start = Origin + Offset + Up * 12.0f;
         const FVector End = Start - Up * TraceLength;
         FHitResult Hit;
-        if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
-        {
-            continue;
-        }
+        if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params)) continue;
 
         ++GroundContactCount;
         const float SuspensionDistance = FMath::Max(0.0f, Hit.Distance - Profile.WheelRadiusCm);
@@ -136,14 +124,10 @@ void UGTTVehicleDynamicsComponent::ApplySuspensionAndGrip(float DeltaTime)
         Chassis->AddForceAtLocation(Up * FMath::Max(0.0f, SpringForce + DamperForce), Hit.ImpactPoint);
 
         const float LateralSpeed = FVector::DotProduct(PointVelocity, Right);
-        const FVector LateralForce = -Right * LateralSpeed * Grip * Mass * 0.11f;
-        Chassis->AddForceAtLocation(LateralForce, Hit.ImpactPoint);
+        Chassis->AddForceAtLocation(-Right * LateralSpeed * Grip * Mass * 0.11f, Hit.ImpactPoint);
     }
 
-    if (GroundContactCount > 0)
-    {
-        AverageSuspensionCompression /= static_cast<float>(GroundContactCount);
-    }
+    if (GroundContactCount > 0) AverageSuspensionCompression /= static_cast<float>(GroundContactCount);
 }
 
 void UGTTVehicleDynamicsComponent::ApplyDrivetrain(float DeltaTime)
@@ -160,10 +144,7 @@ void UGTTVehicleDynamicsComponent::ApplyDrivetrain(float DeltaTime)
     const float GroundRatio = FMath::Clamp(static_cast<float>(GroundContactCount) / 4.0f, 0.25f, 1.0f);
 
     float DriveScale = FMath::Clamp(1.0f - FMath::Square(FMath::Min(SpeedRatio, 1.0f)), 0.05f, 1.0f);
-    if (ThrottleInput < 0.0f && FVector::DotProduct(Velocity, Forward) > 80.0f)
-    {
-        DriveScale *= Profile.BrakeStrength;
-    }
+    if (ThrottleInput < 0.0f && FVector::DotProduct(Velocity, Forward) > 80.0f) DriveScale *= Profile.BrakeStrength;
 
     const float DriveForce = ThrottleInput * Profile.MaxDriveForce * EnginePowerMultiplier * GearRatio * DriveScale * GroundRatio;
     Chassis->AddForce(Forward * DriveForce, NAME_None, true);
@@ -175,8 +156,7 @@ void UGTTVehicleDynamicsComponent::ApplyDrivetrain(float DeltaTime)
     const float Rolling = Profile.RollingResistance + ExtraRollingResistance;
     if (Rolling > 0.0f && !Velocity.IsNearlyZero(4.0f))
     {
-        const FVector Resistance = -Velocity.GetSafeNormal() * Velocity.Size() * Rolling * Chassis->GetMass() * 0.012f;
-        Chassis->AddForce(Resistance);
+        Chassis->AddForce(-Velocity.GetSafeNormal() * Velocity.Size() * Rolling * Chassis->GetMass() * 0.012f);
     }
 }
 
