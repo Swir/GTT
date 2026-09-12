@@ -1,5 +1,6 @@
 #include "Core/GTTGameplayStatics.h"
 
+#include "Economy/GTTPlayerEconomyComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "Vehicles/GTTVehicleBase.h"
@@ -22,6 +23,29 @@ UGTTWantedComponent* UGTTGameplayStatics::FindWantedComponentForPawn(APawn* Pawn
         if (APawn* Driver = Vehicle->GetDriverPawn())
         {
             return Driver->FindComponentByClass<UGTTWantedComponent>();
+        }
+    }
+
+    return nullptr;
+}
+
+UGTTPlayerEconomyComponent* UGTTGameplayStatics::FindEconomyComponentForPawn(APawn* Pawn)
+{
+    if (!Pawn)
+    {
+        return nullptr;
+    }
+
+    if (UGTTPlayerEconomyComponent* Economy = Pawn->FindComponentByClass<UGTTPlayerEconomyComponent>())
+    {
+        return Economy;
+    }
+
+    if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(Pawn))
+    {
+        if (APawn* Driver = Vehicle->GetDriverPawn())
+        {
+            return Driver->FindComponentByClass<UGTTPlayerEconomyComponent>();
         }
     }
 

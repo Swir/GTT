@@ -2,9 +2,12 @@
 
 #include "Characters/GTTCharacter.h"
 #include "Core/GTTGameplayStatics.h"
+#include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Missions/GTTMissionComponent.h"
+#include "NPC/GTTCitizenPawn.h"
 #include "Police/GTTPoliceDirector.h"
 #include "UI/GTTGameHUD.h"
 #include "Vehicles/GTTVehicleBase.h"
@@ -39,9 +42,34 @@ void AGTTGameMode::BeginPlay()
     }
 }
 
-void AGTTGameMode::NotifyVehicleStolen(AGTTVehicleBase* Vehicle)
+void AGTTGameMode::NotifyVehicleStolen(AGTTVehicleBase* Vehicle, APawn* Offender)
 {
-    if (!MissionComponent || !Vehicle)
+    if (!Vehicle || !Offender)
+    {
+        return;
+    }
+
+    int32 WitnessCount = 0;
+    if (GetWorld())
+    {
+        for (TActorIterator<AGTTCitizenPawn> It(GetWorld()); It; ++It)
+        {
+            if (AGTTCitizenPawn* Citizen = *It)
+            {
+                WitnessCount += Citizen->TryWitnessVehicleTheft(Vehicle, Offender) ? 1 : 0;
+            }
+        }
+    }
+
+    if (WitnessCount == 0)
+    {
+        if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Offender))
+        {
+            Economy->PushMessage(TEXT("Theft went unnoticed... for now."), 3.0f);
+        }
+    }
+
+    if (!MissionComponent)
     {
         return;
     }
@@ -76,5 +104,13 @@ bool AGTTGameMode::TryCompleteBorrowedTractor(AGTTVehicleBase* Vehicle)
 
     MissionComponent->CompleteMission();
     Vehicle->RepairVehicle(25.0f);
+
+    if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Vehicle))
+    {
+        Economy->AddCash(
+            BorrowedTractorCashReward,
+            FString::Printf(TEXT("Borrowed Tractor reward: $%d"), BorrowedTractorCashReward));
+    }
+
     return true;
 }

@@ -21,6 +21,8 @@ class GTT_API AGTTVehicleBase : public APawn, public IGTTInteractable
 public:
     AGTTVehicleBase();
 
+    virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
     virtual void Interact_Implementation(AActor* Interactor) override;
@@ -35,11 +37,23 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle")
     void RepairVehicle(float RepairAmount);
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Fuel")
+    void RefuelVehicle(float Liters);
+
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     float GetConditionPercent() const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     float GetSpeedKmh() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Fuel")
+    float GetFuelPercent() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Fuel")
+    float GetFuelLiters() const { return CurrentFuelLiters; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Fuel")
+    float GetFuelCapacity() const { return FuelCapacityLiters; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     bool IsOccupied() const { return bOccupied; }
@@ -64,6 +78,9 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category="GTT|Vehicle")
     FGTTVehicleEvent OnVehicleStolen;
+
+    UPROPERTY(BlueprintAssignable, Category="GTT|Vehicle|Fuel")
+    FGTTVehicleEvent OnOutOfFuel;
 
 protected:
     void HandleThrottle(float Value);
@@ -113,6 +130,21 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Driving", meta=(ClampMin="0.0"))
     float SteeringAcceleration = 75.0f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="1.0"))
+    float FuelCapacityLiters = 45.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="0.0"))
+    float StartingFuelLiters = 22.0f;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel")
+    float CurrentFuelLiters = 0.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="0.0"))
+    float IdleFuelBurnPerSecond = 0.025f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="0.0"))
+    float FullThrottleFuelBurnPerSecond = 0.11f;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Crime")
     bool bIllegalToTake = true;
 
@@ -135,4 +167,5 @@ private:
     bool bOccupied = false;
     bool bEngineRunning = false;
     bool bTheftReported = false;
+    float LastThrottleInput = 0.0f;
 };

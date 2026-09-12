@@ -32,6 +32,11 @@ AGTTTractorPawn::AGTTTractorPawn()
     ImpulsePerDamagePoint = 60000.0f;
     ExitOffset = FVector(0.0f, 220.0f, 90.0f);
 
+    FuelCapacityLiters = 55.0f;
+    StartingFuelLiters = 18.0f;
+    IdleFuelBurnPerSecond = 0.035f;
+    FullThrottleFuelBurnPerSecond = 0.16f;
+
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 

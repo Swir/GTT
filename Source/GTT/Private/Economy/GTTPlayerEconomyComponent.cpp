@@ -1,0 +1,104 @@
+#include "Economy/GTTPlayerEconomyComponent.h"
+
+UGTTPlayerEconomyComponent::UGTTPlayerEconomyComponent()
+{
+    PrimaryComponentTick.bCanEverTick = true;
+}
+
+void UGTTPlayerEconomyComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    Cash = FMath::Max(0, StartingCash);
+    BroadcastEconomy();
+}
+
+void UGTTPlayerEconomyComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+    if (ActivityMessageTimeRemaining > 0.0f)
+    {
+        ActivityMessageTimeRemaining -= DeltaTime;
+        if (ActivityMessageTimeRemaining <= 0.0f)
+        {
+            ActivityMessage.Empty();
+            ActivityMessageTimeRemaining = 0.0f;
+        }
+    }
+}
+
+void UGTTPlayerEconomyComponent::AddCash(int32 Amount, const FString& Reason)
+{
+    if (Amount <= 0)
+    {
+        return;
+    }
+
+    Cash += Amount;
+    PushMessage(Reason.IsEmpty() ? FString::Printf(TEXT("Received $%d"), Amount) : Reason);
+    BroadcastEconomy();
+}
+
+bool UGTTPlayerEconomyComponent::SpendCash(int32 Amount, const FString& Reason)
+{
+    if (Amount <= 0)
+    {
+        return true;
+    }
+
+    if (Cash < Amount)
+    {
+        PushMessage(FString::Printf(TEXT("Not enough cash. Need $%d, have $%d."), Amount, Cash));
+        return false;
+    }
+
+    Cash -= Amount;
+    PushMessage(Reason.IsEmpty() ? FString::Printf(TEXT("Spent $%d"), Amount) : Reason);
+    BroadcastEconomy();
+    return true;
+}
+
+void UGTTPlayerEconomyComponent::AddFish(float WeightKg, const FString& Species)
+{
+    if (WeightKg <= 0.0f)
+    {
+        return;
+    }
+
+    ++FishCount;
+    FishWeightKg += WeightKg;
+    PushMessage(FString::Printf(TEXT("Caught %s - %.2f kg"), *Species, WeightKg));
+    BroadcastEconomy();
+}
+
+int32 UGTTPlayerEconomyComponent::SellAllFish(float PricePerKg)
+{
+    if (FishCount <= 0 || FishWeightKg <= 0.0f || PricePerKg <= 0.0f)
+    {
+        PushMessage(TEXT("No fish to sell."));
+        return 0;
+    }
+
+    const int32 SaleValue = FMath::Max(1, FMath::RoundToInt(FishWeightKg * PricePerKg));
+    const int32 SoldCount = FishCount;
+    const float SoldWeight = FishWeightKg;
+
+    FishCount = 0;
+    FishWeightKg = 0.0f;
+    Cash += SaleValue;
+
+    PushMessage(FString::Printf(TEXT("Sold %d fish (%.2f kg) for $%d"), SoldCount, SoldWeight, SaleValue));
+    BroadcastEconomy();
+    return SaleValue;
+}
+
+void UGTTPlayerEconomyComponent::PushMessage(const FString& Message, float Duration)
+{
+    ActivityMessage = Message;
+    ActivityMessageTimeRemaining = FMath::Max(0.25f, Duration);
+}
+
+void UGTTPlayerEconomyComponent::BroadcastEconomy()
+{
+    OnEconomyChanged.Broadcast(Cash, FishCount, FishWeightKg);
+}

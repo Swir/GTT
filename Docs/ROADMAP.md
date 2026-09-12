@@ -30,24 +30,29 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 
 ## 0.2 — Living Village
 
-- [ ] Civilian NPC placeholders and reactions
-- [ ] Witness system for vehicle theft and crimes
+- [x] Civilian NPC placeholders and basic wandering
+- [x] Witness system for vehicle theft and crimes
 - [ ] Traffic on village roads
-- [ ] Shops, workshop and fuel
-- [ ] Basic cash/economy
-- [ ] Mission rewards and fines
-- [ ] Player garage
+- [x] Shop fish buyer and workshop services
+- [x] Vehicle fuel consumption and refuelling
+- [x] Basic cash/economy
+- [x] Mission cash rewards
+- [ ] Fines and arrest cash penalties
+- [ ] Player garage / vehicle ownership
 - [ ] Save/load
 - [ ] Day/night cycle
+- [ ] NPC schedules tied to time of day
 - [ ] Basic radio framework
 
 ## 0.3 — Rural Crime & Jobs
 
-- [ ] Fishing at the prototype lake
-- [ ] Illegal fishing zones / ranger response
+- [x] Fishing at the prototype lake
+- [x] Illegal fishing zone adding wanted heat
+- [x] Fish inventory by count and weight
+- [x] Fish sale loop for cash
+- [ ] Ranger / game-warden response distinct from police
 - [ ] Forest / poaching gameplay
 - [ ] Farm work and legal side jobs
-- [ ] Fines/arrests
 - [ ] More mission archetypes
 
 ## 0.4 — Village Nights
@@ -62,10 +67,12 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 
 - [ ] Multiple tractor classes
 - [ ] Old cars/vans
-- [ ] Fuel system
+- [x] Fuel system
+- [x] Condition affects available power
 - [ ] Breakable body parts
-- [ ] Degradation, smoke and breakdowns
-- [ ] Repair/tuning system
+- [ ] Degradation smoke and random mechanical faults
+- [x] Basic paid repair/refuel service
+- [ ] Full repair/tuning system
 - [ ] Mud and off-road handling
 
 ## 0.6–0.9 — Content & Polish

@@ -20,6 +20,7 @@ REQUIRED_FILES = [
     "Source/GTT/GTT.cpp",
     "Source/GTT/Public/Characters/GTTCharacter.h",
     "Source/GTT/Public/Core/GTTGameplayStatics.h",
+    "Source/GTT/Public/Economy/GTTPlayerEconomyComponent.h",
     "Source/GTT/Public/UI/GTTGameHUD.h",
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h",
     "Source/GTT/Public/Vehicles/GTTTractorPawn.h",
@@ -27,8 +28,11 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Police/GTTPoliceDirector.h",
     "Source/GTT/Public/Police/GTTPoliceAIController.h",
     "Source/GTT/Public/Police/GTTPolicePawn.h",
+    "Source/GTT/Public/NPC/GTTCitizenPawn.h",
+    "Source/GTT/Public/Activities/GTTFishingSpot.h",
     "Source/GTT/Public/World/GTTMissionSafeZone.h",
     "Source/GTT/Public/World/GTTPrototypeWorld.h",
+    "Source/GTT/Public/World/GTTServiceTerminal.h",
     "Scripts/package_windows.ps1",
 ]
 
@@ -36,14 +40,44 @@ EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": [
         "AddForce(",
         "AddTorqueInRadians(",
-        "NotifyVehicleStolen",
-        "Wanted->AddHeat",
+        "NotifyVehicleStolen(this, InteractingPawn)",
+        "CurrentFuelLiters",
+        "FullThrottleFuelBurnPerSecond",
+        "RefuelVehicle",
     ],
     "Source/GTT/Private/Vehicles/GTTTractorPawn.cpp": [
         "Rusty Fieldmaster 60",
         "SetMassOverrideInKg",
+        "FuelCapacityLiters = 55.0f",
+        "StartingFuelLiters = 18.0f",
         "LeftRearWheel",
         "RightRearWheel",
+    ],
+    "Source/GTT/Private/Economy/GTTPlayerEconomyComponent.cpp": [
+        "StartingCash",
+        "AddFish",
+        "SellAllFish",
+        "SpendCash",
+        "PushMessage",
+    ],
+    "Source/GTT/Private/NPC/GTTCitizenPawn.cpp": [
+        "TryWitnessVehicleTheft",
+        "LineTraceSingleByChannel",
+        "WitnessHeat",
+        "called the police",
+    ],
+    "Source/GTT/Private/Activities/GTTFishingSpot.cpp": [
+        "RestrictedFishingHeat",
+        "River Perch",
+        "Village Carp",
+        "Old Pike",
+        "Economy->AddFish",
+    ],
+    "Source/GTT/Private/World/GTTServiceTerminal.cpp": [
+        "SellAllFish",
+        "WorkshopServiceCost",
+        "RepairVehicle",
+        "RefuelVehicle",
     ],
     "Source/GTT/Private/Police/GTTPoliceAIController.cpp": [
         "MoveToActor(",
@@ -51,7 +85,8 @@ EXPECTED_SOURCE_TOKENS = {
     ],
     "Source/GTT/Private/UI/GTTGameHUD.cpp": [
         "WANTED [",
-        "GetConditionPercent",
+        "CASH $",
+        "FUEL %.0f%%",
         "MISSION COMPLETE: BORROWED TRACTOR",
     ],
     "Source/GTT/Private/World/GTTMissionSafeZone.cpp": [
@@ -62,12 +97,22 @@ EXPECTED_SOURCE_TOKENS = {
         "NEIGHBOUR FARM",
         "BARN - MISSION GOAL",
         "SpawnActor<AGTTTractorPawn>",
-        "SpawnActor<AGTTMissionSafeZone>",
+        "SpawnActor<AGTTCitizenPawn>",
+        "SpawnActor<AGTTFishingSpot>",
+        "SpawnActor<AGTTServiceTerminal>",
+        "PRIVATE LAKE - NO FISHING",
     ],
     "Source/GTT/Private/Core/GTTGameMode.cpp": [
         "SpawnActor<AGTTPrototypeWorld>",
         "TryCompleteBorrowedTractor",
+        "BorrowedTractorCashReward",
+        "TActorIterator<AGTTCitizenPawn>",
         "MissionComponent->CompleteMission",
+    ],
+    "Source/GTT/Private/Core/GTTGameplayStatics.cpp": [
+        "FindEconomyComponentForPawn",
+        "FindWantedComponentForPawn",
+        "GetDriverPawn",
     ],
 }
 
@@ -119,7 +164,7 @@ def main() -> int:
     if present_forbidden:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present_forbidden))
 
-    print("[OK] GTT repository, prototype world and mission loop look structurally sane.")
+    print("[OK] GTT living-village gameplay loop looks structurally sane.")
     return 0
 
 

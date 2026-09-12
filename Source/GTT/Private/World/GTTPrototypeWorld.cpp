@@ -1,5 +1,6 @@
 #include "World/GTTPrototypeWorld.h"
 
+#include "Activities/GTTFishingSpot.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -12,8 +13,10 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "NPC/GTTCitizenPawn.h"
 #include "Vehicles/GTTTractorPawn.h"
 #include "World/GTTMissionSafeZone.h"
+#include "World/GTTServiceTerminal.h"
 
 AGTTPrototypeWorld::AGTTPrototypeWorld()
 {
@@ -81,9 +84,15 @@ void AGTTPrototypeWorld::BuildWorld()
         FRotator(0.0f, 180.0f, 0.0f));
     SpawnLabel(TEXT("RUSTY FIELDMASTER 60"), FVector(2500.0f, 250.0f, 440.0f), FRotator(0.0f, 180.0f, 0.0f), 65.0f);
 
-    // Village landmarks.
+    // Village shop doubles as the prototype fish buyer.
     SpawnBox(FVector(900.0f, -2700.0f, 150.0f), FVector(6.0f, 5.0f, 4.0f));
-    SpawnLabel(TEXT("VILLAGE SHOP"), FVector(900.0f, -2700.0f, 560.0f));
+    SpawnLabel(TEXT("VILLAGE SHOP / FISH BUYER"), FVector(900.0f, -2700.0f, 560.0f));
+    if (AGTTServiceTerminal* FishBuyer = GetWorld()->SpawnActor<AGTTServiceTerminal>(
+        FVector(900.0f, -2200.0f, 55.0f), FRotator::ZeroRotator))
+    {
+        FishBuyer->SetServiceType(EGTTServiceType::FishBuyer);
+    }
+    SpawnLabel(TEXT("SELL FISH - E"), FVector(900.0f, -2200.0f, 190.0f), FRotator(0.0f, 180.0f, 0.0f), 50.0f);
 
     SpawnBox(FVector(2700.0f, -2600.0f, 165.0f), FVector(7.0f, 5.0f, 4.3f));
     SpawnLabel(TEXT("POLICE"), FVector(2700.0f, -2600.0f, 590.0f));
@@ -91,12 +100,39 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnBox(FVector(2400.0f, 2700.0f, 155.0f), FVector(8.0f, 6.0f, 4.1f));
     SpawnLabel(TEXT("COMMUNITY HALL"), FVector(2400.0f, 2700.0f, 580.0f));
 
+    // Workshop terminal repairs and refuels the nearest parked vehicle.
     SpawnBox(FVector(-400.0f, 2900.0f, 140.0f), FVector(7.0f, 5.0f, 3.8f));
     SpawnLabel(TEXT("WORKSHOP"), FVector(-400.0f, 2900.0f, 550.0f));
+    if (AGTTServiceTerminal* Workshop = GetWorld()->SpawnActor<AGTTServiceTerminal>(
+        FVector(-400.0f, 2400.0f, 55.0f), FRotator::ZeroRotator))
+    {
+        Workshop->SetServiceType(EGTTServiceType::Workshop);
+    }
+    SpawnLabel(TEXT("REPAIR + REFUEL $75 - E"), FVector(-400.0f, 2400.0f, 190.0f), FRotator(0.0f, 180.0f, 0.0f), 48.0f);
 
-    // Lake placeholder: collision-free flat area for a future fishing system.
+    // Lake and illegal fishing interaction.
     SpawnBox(FVector(4700.0f, -500.0f, -35.0f), FVector(20.0f, 28.0f, 0.12f), FRotator::ZeroRotator, false);
-    SpawnLabel(TEXT("LAKE / FUTURE FISHING"), FVector(4700.0f, -500.0f, 220.0f));
+    SpawnLabel(TEXT("PRIVATE LAKE - NO FISHING"), FVector(4700.0f, -500.0f, 220.0f));
+    GetWorld()->SpawnActor<AGTTFishingSpot>(FVector(4050.0f, -500.0f, 40.0f), FRotator::ZeroRotator);
+    SpawnLabel(TEXT("POACH FISH - E"), FVector(4050.0f, -500.0f, 175.0f), FRotator(0.0f, 180.0f, 0.0f), 52.0f);
+
+    // Citizens: simple wandering prototype NPCs. Their location matters because they can witness theft.
+    const TArray<FVector> CitizenSpawns = {
+        FVector(2200.0f, 450.0f, 120.0f),
+        FVector(3150.0f, 350.0f, 120.0f),
+        FVector(850.0f, -2150.0f, 120.0f),
+        FVector(1650.0f, -1650.0f, 120.0f),
+        FVector(-250.0f, 2150.0f, 120.0f),
+        FVector(2100.0f, 2200.0f, 120.0f),
+        FVector(-1900.0f, -900.0f, 120.0f),
+        FVector(3400.0f, -1500.0f, 120.0f)
+    };
+
+    for (const FVector& SpawnLocation : CitizenSpawns)
+    {
+        GetWorld()->SpawnActor<AGTTCitizenPawn>(SpawnLocation, FRotator::ZeroRotator);
+    }
+    SpawnLabel(TEXT("VILLAGERS CAN WITNESS CRIME"), FVector(1450.0f, -1350.0f, 320.0f), FRotator(0.0f, 180.0f, 0.0f), 48.0f);
 
     // A few fence / obstacle lines to create shortcuts and crash opportunities.
     for (int32 Index = 0; Index < 9; ++Index)
@@ -112,10 +148,10 @@ void AGTTPrototypeWorld::BuildWorld()
     }
 
     SpawnLabel(
-        TEXT("GTT PROTOTYPE  |  WASD MOVE/DRIVE  |  E ENTER  |  F EXIT"),
+        TEXT("GTT 0.0.4  |  STEAL - ESCAPE - FISH - SELL - REPAIR - REPEAT"),
         FVector(-2500.0f, -1250.0f, 380.0f),
         FRotator(0.0f, 180.0f, 0.0f),
-        58.0f);
+        54.0f);
 
     if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0))
     {

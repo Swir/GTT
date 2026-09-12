@@ -3,6 +3,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -44,6 +45,7 @@ AGTTCharacter::AGTTCharacter()
     FollowCamera->bUsePawnControlRotation = false;
 
     WantedComponent = CreateDefaultSubobject<UGTTWantedComponent>(TEXT("WantedComponent"));
+    EconomyComponent = CreateDefaultSubobject<UGTTPlayerEconomyComponent>(TEXT("EconomyComponent"));
 }
 
 void AGTTCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

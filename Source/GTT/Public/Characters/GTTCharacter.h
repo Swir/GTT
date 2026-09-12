@@ -8,6 +8,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
 class UGTTWantedComponent;
+class UGTTPlayerEconomyComponent;
 
 UCLASS()
 class GTT_API AGTTCharacter : public ACharacter
@@ -21,6 +22,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Wanted")
     UGTTWantedComponent* GetWantedComponent() const { return WantedComponent; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Economy")
+    UGTTPlayerEconomyComponent* GetEconomyComponent() const { return EconomyComponent; }
 
 protected:
     void MoveForward(float Value);
@@ -40,6 +44,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Wanted")
     TObjectPtr<UGTTWantedComponent> WantedComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Economy")
+    TObjectPtr<UGTTPlayerEconomyComponent> EconomyComponent;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Interaction", meta=(ClampMin="50.0"))
     float InteractionDistance = 350.0f;

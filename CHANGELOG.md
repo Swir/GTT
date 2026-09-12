@@ -2,6 +2,43 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.4] - 2026-09-12
+
+### Added
+- Player economy component with starting cash, spending, rewards and short gameplay messages.
+- Fish inventory tracking by count and total weight.
+- Mission cash reward for completing `Borrowed Tractor`.
+- Vehicle fuel capacity, starting fuel, idle/full-throttle consumption and out-of-fuel shutdown.
+- Low-condition power loss layered on top of existing collision damage/breakdown behaviour.
+- Tractor-specific 55 L fuel tank and deliberately low starting fuel.
+- Workshop terminal that repairs and fully refuels the nearest parked vehicle for cash.
+- Village fish buyer that converts the entire carried catch into cash by weight.
+- Illegal fishing interaction at the private prototype lake.
+- Three prototype catches with different weight ranges: River Perch, Village Carp and Old Pike.
+- Wanted heat for illegal fishing attempts.
+- Wandering civilian prototype NPCs built from Unreal primitive meshes.
+- Crime witness system using distance and line-of-sight checks.
+- Extra wanted heat when villagers actually witness a vehicle theft.
+- Eight runtime-spawned villagers positioned around the prototype village.
+- HUD economy row showing cash, fish count and total catch weight.
+- HUD vehicle row showing fuel percent and litres.
+- Runtime activity messages for catches, sales, witness reports and services.
+
+### Improved
+- The first mission now pays $300, creating a bridge from story gameplay into free-roam economy.
+- Vehicle theft outcome depends on nearby witnesses instead of always being identical.
+- The prototype village now contains a repeatable free-roam loop: fish -> risk police -> sell catch -> service vehicle -> keep exploring.
+- Economy and wanted components remain discoverable while the player possesses a vehicle.
+- Repository sanity checks now validate economy, fuel, fishing, witnesses and service gameplay hooks.
+
+### Next
+- Add save/load for money, fish, player position and owned vehicles.
+- Add a player garage and vehicle ownership state.
+- Add fines/arrest flow and cash penalties.
+- Add day/night progression and simple NPC schedules.
+- Add a legal farm job to balance criminal activities.
+- Continue toward dedicated Chaos wheeled tractor suspension/drivetrain.
+
 ## [0.0.3] - 2026-09-12
 
 ### Added
@@ -25,14 +62,6 @@ All notable development steps for GTT are tracked here.
 - First mission now forms a coherent gameplay loop: walk to neighbour farm -> steal tractor -> gain wanted -> escape police -> lose heat -> return tractor to barn goal.
 - Prototype can be assembled almost entirely from source code without committing third-party art assets.
 - Packaging settings now explicitly include the bootstrap map and `.pak` output.
-
-### Next
-- Replace the physics fallback with a dedicated Chaos wheeled tractor movement implementation.
-- Add vehicle fuel, breakdown probability and repair interaction.
-- Add cash/economy and mission reward values.
-- Add civilian NPC placeholders and witnesses.
-- Add first fishing activity at the lake.
-- Add save/load and garage ownership.
 
 ## [0.0.2] - 2026-09-12
 

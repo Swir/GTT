@@ -2,6 +2,7 @@
 
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
+#include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -20,6 +21,7 @@ void AGTTGameHUD::DrawHUD()
 
     APawn* ControlledPawn = PlayerOwner->GetPawn();
     UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(ControlledPawn);
+    UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn);
     const int32 WantedLevel = Wanted ? Wanted->GetWantedLevel() : 0;
 
     const FLinearColor WantedColor = WantedLevel > 0
@@ -28,29 +30,57 @@ void AGTTGameHUD::DrawHUD()
 
     DrawText(BuildWantedBar(WantedLevel), WantedColor, 36.0f, 34.0f, GEngine->GetSmallFont(), 1.35f, false);
 
+    if (Economy)
+    {
+        const FString EconomyLine = FString::Printf(
+            TEXT("CASH $%d  |  FISH %d  |  %.2f kg"),
+            Economy->GetCash(),
+            Economy->GetFishCount(),
+            Economy->GetFishWeightKg());
+        DrawText(EconomyLine, FLinearColor(0.35f, 1.0f, 0.45f, 1.0f), 36.0f, 64.0f, GEngine->GetSmallFont(), 1.0f, false);
+    }
+
+    float VehicleLineY = 94.0f;
     if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn))
     {
         const FString VehicleLine = FString::Printf(
-            TEXT("%s  |  CONDITION %.0f%%  |  %.0f km/h%s"),
+            TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  %.0f km/h%s"),
             *Vehicle->GetVehicleDisplayName().ToString(),
             Vehicle->GetConditionPercent() * 100.0f,
+            Vehicle->GetFuelPercent() * 100.0f,
+            Vehicle->GetFuelLiters(),
             Vehicle->GetSpeedKmh(),
             Vehicle->WasReportedStolen() ? TEXT("  |  STOLEN") : TEXT(""));
 
-        DrawText(VehicleLine, FLinearColor::White, 36.0f, 64.0f, GEngine->GetSmallFont(), 1.05f, false);
+        DrawText(VehicleLine, FLinearColor::White, 36.0f, VehicleLineY, GEngine->GetSmallFont(), 1.05f, false);
+        VehicleLineY += 30.0f;
     }
 
     const FString MissionText = BuildMissionText();
     if (!MissionText.IsEmpty())
     {
-        DrawText(MissionText, FLinearColor(1.0f, 0.82f, 0.18f, 1.0f), 36.0f, 98.0f, GEngine->GetSmallFont(), 1.0f, false);
+        DrawText(MissionText, FLinearColor(1.0f, 0.82f, 0.18f, 1.0f), 36.0f, VehicleLineY, GEngine->GetSmallFont(), 1.0f, false);
+        VehicleLineY += 30.0f;
+    }
+
+    if (Economy && !Economy->GetActivityMessage().IsEmpty())
+    {
+        DrawText(
+            Economy->GetActivityMessage(),
+            FLinearColor(0.35f, 0.88f, 1.0f, 1.0f),
+            36.0f,
+            VehicleLineY,
+            GEngine->GetSmallFont(),
+            1.0f,
+            false);
+        VehicleLineY += 30.0f;
     }
 
     DrawText(
-        TEXT("CONTROLS  |  WASD move/drive  |  Mouse look  |  E enter/interact  |  F exit vehicle  |  Space jump"),
+        TEXT("CONTROLS  |  WASD move/drive  |  Mouse look  |  E enter/interact/fish/shop  |  F exit  |  Space jump"),
         FLinearColor(0.72f, 0.82f, 0.95f, 1.0f),
         36.0f,
-        132.0f,
+        VehicleLineY,
         GEngine->GetSmallFont(),
         0.85f,
         false);
@@ -80,7 +110,7 @@ FString AGTTGameHUD::BuildMissionText() const
     {
         if (Mission->GetMissionState() == EGTTMissionState::Completed)
         {
-            return TEXT("MISSION COMPLETE: BORROWED TRACTOR  |  Tractor delivered. Somehow.");
+            return TEXT("MISSION COMPLETE: BORROWED TRACTOR  |  $300 earned. Free roam unlocked.");
         }
 
         if (Mission->GetMissionState() == EGTTMissionState::Failed)

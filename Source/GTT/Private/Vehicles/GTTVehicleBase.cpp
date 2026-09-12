@@ -12,7 +12,7 @@
 
 AGTTVehicleBase::AGTTVehicleBase()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
 
     VehicleMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VehicleMesh"));
     SetRootComponent(VehicleMesh);
@@ -32,6 +32,34 @@ AGTTVehicleBase::AGTTVehicleBase()
     VehicleCamera->bUsePawnControlRotation = false;
 
     VehicleDisplayName = NSLOCTEXT("GTT", "DefaultVehicleName", "Old vehicle");
+}
+
+void AGTTVehicleBase::BeginPlay()
+{
+    Super::BeginPlay();
+    CurrentFuelLiters = FMath::Clamp(StartingFuelLiters, 0.0f, FuelCapacityLiters);
+}
+
+void AGTTVehicleBase::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (!bEngineRunning || !bOccupied || CurrentFuelLiters <= 0.0f)
+    {
+        return;
+    }
+
+    const float ThrottleAlpha = FMath::Clamp(FMath::Abs(LastThrottleInput), 0.0f, 1.0f);
+    const float BurnRate = FMath::Lerp(IdleFuelBurnPerSecond, FullThrottleFuelBurnPerSecond, ThrottleAlpha);
+    CurrentFuelLiters = FMath::Max(0.0f, CurrentFuelLiters - BurnRate * DeltaSeconds);
+
+    if (CurrentFuelLiters <= KINDA_SMALL_NUMBER)
+    {
+        CurrentFuelLiters = 0.0f;
+        LastThrottleInput = 0.0f;
+        SetEngineRunning(false);
+        OnOutOfFuel.Broadcast();
+    }
 }
 
 void AGTTVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -75,7 +103,7 @@ void AGTTVehicleBase::Interact_Implementation(AActor* Interactor)
 
         if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
         {
-            GameMode->NotifyVehicleStolen(this);
+            GameMode->NotifyVehicleStolen(this, InteractingPawn);
         }
     }
 
@@ -102,6 +130,13 @@ FText AGTTVehicleBase::GetInteractionText_Implementation() const
         return NSLOCTEXT("GTT", "VehicleBroken", "Broken down");
     }
 
+    if (CurrentFuelLiters <= KINDA_SMALL_NUMBER)
+    {
+        return FText::Format(
+            NSLOCTEXT("GTT", "EnterEmptyVehicle", "Enter {0} (empty tank)"),
+            VehicleDisplayName);
+    }
+
     return FText::Format(
         NSLOCTEXT("GTT", "EnterNamedVehicle", "Enter {0}"),
         VehicleDisplayName);
@@ -117,6 +152,7 @@ void AGTTVehicleBase::ExitVehicle()
         return;
     }
 
+    LastThrottleInput = 0.0f;
     SetEngineRunning(false);
 
     PawnToRestore->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
@@ -143,6 +179,7 @@ void AGTTVehicleBase::ApplyVehicleDamage(float DamageAmount)
 
     if (OldCondition > 0.0f && Condition <= 0.0f)
     {
+        LastThrottleInput = 0.0f;
         SetEngineRunning(false);
         UE_LOG(LogGTT, Warning, TEXT("Vehicle %s broke down."), *GetName());
         OnVehicleBrokenDown();
@@ -157,6 +194,14 @@ void AGTTVehicleBase::RepairVehicle(float RepairAmount)
     }
 }
 
+void AGTTVehicleBase::RefuelVehicle(float Liters)
+{
+    if (Liters > 0.0f)
+    {
+        CurrentFuelLiters = FMath::Clamp(CurrentFuelLiters + Liters, 0.0f, FuelCapacityLiters);
+    }
+}
+
 float AGTTVehicleBase::GetConditionPercent() const
 {
     return MaxCondition > 0.0f ? Condition / MaxCondition : 0.0f;
@@ -167,9 +212,19 @@ float AGTTVehicleBase::GetSpeedKmh() const
     return GetVelocity().Size() * 0.036f;
 }
 
+float AGTTVehicleBase::GetFuelPercent() const
+{
+    return FuelCapacityLiters > 0.0f ? CurrentFuelLiters / FuelCapacityLiters : 0.0f;
+}
+
 void AGTTVehicleBase::HandleThrottle(float Value)
 {
-    const float EffectiveValue = bEngineRunning && Condition > 0.0f ? Value : 0.0f;
+    LastThrottleInput = Value;
+
+    const float ConditionPower = FMath::Lerp(0.35f, 1.0f, GetConditionPercent());
+    const float EffectiveValue = bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f
+        ? Value * ConditionPower
+        : 0.0f;
 
     if (!FMath::IsNearlyZero(EffectiveValue) && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
     {
@@ -181,7 +236,7 @@ void AGTTVehicleBase::HandleThrottle(float Value)
 
 void AGTTVehicleBase::HandleSteering(float Value)
 {
-    if (bEngineRunning && Condition > 0.0f && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
+    if (bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
     {
         const float SpeedFactor = FMath::Clamp(GetVelocity().Size2D() / 500.0f, 0.18f, 1.0f);
         VehicleMesh->AddTorqueInRadians(
@@ -212,7 +267,7 @@ void AGTTVehicleBase::HandleVehicleHit(
 
 void AGTTVehicleBase::SetEngineRunning(bool bNewRunning)
 {
-    const bool bCanRun = bNewRunning && Condition > 0.0f;
+    const bool bCanRun = bNewRunning && Condition > 0.0f && CurrentFuelLiters > KINDA_SMALL_NUMBER;
     if (bEngineRunning == bCanRun)
     {
         return;

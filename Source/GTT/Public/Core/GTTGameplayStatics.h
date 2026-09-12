@@ -6,6 +6,7 @@
 
 class APawn;
 class UGTTWantedComponent;
+class UGTTPlayerEconomyComponent;
 
 UCLASS()
 class GTT_API UGTTGameplayStatics : public UBlueprintFunctionLibrary
@@ -15,6 +16,9 @@ class GTT_API UGTTGameplayStatics : public UBlueprintFunctionLibrary
 public:
     UFUNCTION(BlueprintPure, Category="GTT|Wanted")
     static UGTTWantedComponent* FindWantedComponentForPawn(APawn* Pawn);
+
+    UFUNCTION(BlueprintPure, Category="GTT|Economy")
+    static UGTTPlayerEconomyComponent* FindEconomyComponentForPawn(APawn* Pawn);
 
     UFUNCTION(BlueprintPure, Category="GTT|Wanted", meta=(WorldContext="WorldContextObject"))
     static int32 GetPlayerWantedLevel(const UObject* WorldContextObject, int32 PlayerIndex = 0);
