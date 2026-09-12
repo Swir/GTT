@@ -1,6 +1,6 @@
 # GTT Prototype Playtest
 
-This document describes the current source-driven prototype loop for **GTT 0.0.14**.
+This document describes the current source-driven prototype loop for **GTT 0.0.15**.
 
 ## Requirements
 - Unreal Engine 5.8
@@ -19,11 +19,24 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 - `WASD` — walk / drive
 - Mouse — camera
 - `Space` — jump
-- `E` — interact / enter / jobs / services
+- `E` — interact / enter / jobs / services / story contacts
 - `F` — exit vehicle
 - `R` — cycle radio
 - `F5` — quick-save
 - `F9` — quick-load
+
+## 0.0.15 main story arc — County Ledger / Backroad Deal
+1. Complete **BORROWED TRACTOR** so the Rusty Fieldmaster becomes owned.
+2. Go to the **PLAYER FARM office** and start the main story. Starting before Borrowed Tractor is complete must be rejected.
+3. Follow the HUD to **NORTH WOOD YARD**, collect the sealed county ledger, then deliver it to **VILLAGE SHOP**.
+4. Verify the County Ledger chapter pays `$250` and advances the persistent story to the Bent Axle contact.
+5. Visit **THE BENT AXLE** outside 18:30–02:30 and verify the contact refuses to appear; return during the night window and continue.
+6. Travel to **EAST ROAD** and take the unmarked crate. This must inject wanted heat and switch the HUD objective to **ESCAPE POLICE**.
+7. Lose the police using normal pursuit/roadblock gameplay. The story should automatically advance to workshop delivery only after wanted reaches zero.
+8. Deliver the crate to the **WORKSHOP** and verify the Backroad Deal chapter pays `$600`.
+9. Return to Player Farm with only one owned vehicle and verify the finale refuses to close. Register/own a second vehicle, return, and verify the arc pays another `$350` and becomes `ARC 1 COMPLETE`.
+10. Quit/relaunch at multiple points in the chain. Verify the dedicated `GTT_MainStory_01` story save restores the current stage rather than resetting the campaign.
+11. Verify police/ranger attention blocks legal story contacts where appropriate, while the East Road criminal handoff deliberately creates wanted heat.
 
 ## 0.0.14 road-node police interception
 1. Build wanted to level 3 and verify pursuit cars still join normally.
@@ -111,6 +124,8 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 
 ## Current limitations
 - Player, traffic and pursuit vehicles still use the source-only physics fallback; dedicated Chaos wheel/suspension drivetrain tuning is not yet implemented.
+- Main Story Arc 1 now persists its stage, but it is still source-driven and uses world interaction terminals rather than cinematic/dialogue UI.
+- Story persistence currently uses a dedicated story SaveGame slot alongside the existing sandbox save slot; a later save-schema consolidation should unify them.
 - Police interception currently uses a fixed source-defined road-node graph matched to the runtime greybox world; it is not yet a shared authored road graph/nav asset.
 - Garage slot selection is physical world UI rather than a full UMG fleet-management screen.
 - 0.0.13 towing uses a real Unreal physics constraint between primitive vehicle roots, but not yet authored hitch sockets, trailer skeletal rigs or dedicated Chaos Vehicle suspension.

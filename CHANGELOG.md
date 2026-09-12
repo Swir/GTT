@@ -2,6 +2,31 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.15] - 2026-09-12
+
+### Added
+- First persistent main-story arc beyond **Borrowed Tractor**, implemented as eight gameplay stages across Player Farm, North Wood Yard, Village Shop, The Bent Axle, East Road and the workshop.
+- **County Ledger** chapter: requires Borrowed Tractor completion and at least one owned vehicle, sends the player through a legal rural delivery route and pays `$250`.
+- **Backroad Deal** chapter: requires the 18:30–02:30 nightlife window, creates real wanted heat during an East Road handoff, requires the player to escape normal police escalation, then pays `$600` at the workshop.
+- Final farm chapter gate requiring a two-vehicle owned garage before the first story arc can close, tying campaign progression to the existing vehicle-registration economy.
+- `$350` final arc reward and persistent `ARC 1 COMPLETE` state.
+- Dedicated story HUD objective line that updates through legal, nighttime, wanted-escape and garage-growth phases.
+- `UGTTMainStoryWorldSubsystem` automatically places the director and six story interaction points in the runtime countryside.
+- Dedicated `UGTTMainStorySave` slot so story stage survives quit/relaunch instead of resetting each session.
+
+### Changed
+- Borrowed Tractor completion HUD now points the player toward the Player Farm office and the newly unlocked campaign.
+- Story contacts consistently respect police/ranger attention except for the deliberate criminal handoff that creates wanted heat.
+- Structural sanity CI now verifies every campaign stage, night gating, wanted injection, police escape handoff, two-vehicle finale, world bootstrap, HUD objective and story persistence.
+
+### Next
+- Shared authored road graph used simultaneously by traffic, police interception and mission routing.
+- Dedicated Chaos wheeled drivetrain/suspension for tractor, old car and van.
+- Main Story Arc 2 with ranger/poaching consequences and heavier vehicle work.
+- Consolidate story stage into the primary sandbox SaveGame schema.
+- Garage management screen for repair state, fuel, tuning and storage costs.
+- Real Unreal-equipped Win64 compile/package smoke-test runner.
+
 ## [0.0.14] - 2026-09-12
 
 ### Added
