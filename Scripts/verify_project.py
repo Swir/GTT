@@ -26,14 +26,22 @@ REQUIRED_FILES = [
     "Source/GTT/Public/World/GTTDayNightCycle.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
     "Source/GTT/Public/World/GTTVillageEventDirector.h", "Source/GTT/Public/World/GTTVillageEventMarker.h",
     "Source/GTT/Public/World/GTTMudZone.h", "Source/GTT/Public/World/GTTRecoveryWorldSubsystem.h",
+    "Source/GTT/Public/World/GTTGarageTerminal.h", "Source/GTT/Public/World/GTTGarageSlotTerminal.h",
     "Source/GTT/Public/Save/GTTSaveGame.h", "Scripts/package_windows.ps1",
 ]
 
 EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "OwnedVehicles"],
     "Source/GTT/Private/Radio/GTTRadioComponent.cpp": ["GRAVEL FM", "BARNBEAT 96", "RUST & DIESEL", "NIGHT SHIFT"],
-    "Source/GTT/Private/Police/GTTPoliceDirector.cpp": ["DesiredRoadblocks", "RoadblockEscalationWantedLevel", "SpawnRoadblock"],
+    "Source/GTT/Private/Police/GTTPoliceDirector.cpp": [
+        "DesiredRoadblocks", "RoadblockEscalationWantedLevel", "SpawnRoadblock", "BuildRuntimeRoadNetwork",
+        "SelectInterceptionRoadNode", "InterceptPredictionSeconds", "NORTH WOOD TURN", "LastInterceptionNodeIndex"
+    ],
     "Source/GTT/Private/Police/GTTRoadblock.cpp": ["SPIKE STRIP", "ApplyTireDamage"],
+    "Source/GTT/Private/World/GTTGarageTerminal.cpp": ["FleetSlotCount", "AGTTGarageSlotTerminal", "Use GARAGE SLOT 1-4"],
+    "Source/GTT/Private/World/GTTGarageSlotTerminal.cpp": [
+        "ResolveSlotVehicle", "RustyFieldmaster60", "Rattleback82", "Mulebox1200", "RecallServiceCost", "RecallToTransform"
+    ],
     "Source/GTT/Private/World/GTTVillageEventDirector.cpp": ["18.5f", "2.5f", "COMMUNITY HALL PARTY", "SpawnNightEvent"],
     "Source/GTT/Private/Activities/GTTFarmJobDirector.cpp": ["FindNearbyWorkVehicle", "Park a working vehicle", "DeliveryTimeLimit", "CargoIntegrity"],
     "Source/GTT/Private/Activities/GTTRuralWorkDirector.cpp": [
@@ -102,6 +110,16 @@ def main() -> int:
         if absent:
             fail(f"{relative} is missing expected gameplay hooks: {absent}")
 
+    police_header = (ROOT / "Source/GTT/Public/Police/GTTPoliceDirector.h").read_text(encoding="utf-8")
+    for token in ["GetRoadNodeCount", "GetLastInterceptionNodeLabel", "MinimumInterceptLeadDistance", "SelectPursuitInterceptTransform"]:
+        if token not in police_header:
+            fail(f"Police director header missing road interception API: {token}")
+
+    garage_slot_header = (ROOT / "Source/GTT/Public/World/GTTGarageSlotTerminal.h").read_text(encoding="utf-8")
+    for token in ["SetSlotIndex", "GetSlotIndex", "RecallServiceCost"]:
+        if token not in garage_slot_header:
+            fail(f"Garage slot selector missing API: {token}")
+
     rural_header = (ROOT / "Source/GTT/Public/Activities/GTTRuralWorkDirector.h").read_text(encoding="utf-8")
     for token in ["TimberHaul", "FieldMowing", "ReachTimberPickup", "DeliverTimber", "MowingField"]:
         if token not in rural_header:
@@ -122,7 +140,7 @@ def main() -> int:
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.13 recovery towing, mud traction, rural contracts, story and escalation hooks look structurally sane.")
+    print("[OK] GTT 0.0.14 road-node police interception, explicit garage slots, recovery, rural work and existing systems look structurally sane.")
     return 0
 
 
