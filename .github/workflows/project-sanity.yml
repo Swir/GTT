@@ -34,3 +34,6 @@ jobs:
 
       - name: Verify rural factions milestone
         run: python Scripts/verify_factions.py
+
+      - name: Verify rural economy and road law milestone
+        run: python Scripts/verify_rural_economy.py

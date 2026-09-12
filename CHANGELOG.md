@@ -2,6 +2,30 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.22] - 2026-09-12
+
+### Added
+- Persistent **rural law/economy subsystem** with dedicated `GTT_RuralEconomy_01` state for contraband, vehicle insurance, impound status, fence revenue and speeding citations.
+- **Backlot Fence** service: successful forest poaching now creates persistent contraband instead of instant cash; the player must clear police/ranger attention and physically reach the fence to convert the stash into money.
+- **Farm Mutual insurance** service: `$260` vehicle policy, 60% reduction on future impound-release fees and `$55` repair claims for nearby owned vehicles.
+- **County Impound** loop tied directly into existing police arrest fines. When arrested after being forced out of a nearby owned vehicle, that vehicle is seized and moved to the impound lot until the release fee is paid.
+- Road-law metadata on every shared road node: authored speed limit, lane count and priority-road flag.
+- Active speeding enforcement: sustained speeding over the local limit produces cash citations; extreme speeding additionally adds police heat.
+- Three automatic service terminals for fence, insurance and impound interactions.
+- Dedicated `verify_rural_economy.py` sanity suite and GitHub Actions step.
+
+### Changed
+- Forest poaching now has a risk/reward delivery loop instead of paying immediately at the crime scene.
+- Arrest consequences now extend beyond the existing fine to owned-vehicle access and recovery cost.
+- The shared road graph is now useful for traffic law as well as routing, police interception and mission guidance.
+- Roadmap advanced from `107/129 (82.9%)` to the mathematically recalculated `111/129 (86.0%)` while preserving the SWIR roadmap dashboard standard.
+
+### Limitations / Next
+- Road-law enforcement currently samples the nearest authored road node rather than a full spline/lane-segment model.
+- Insurance and rural-law state still live in a dedicated save slot; consolidation into the primary sandbox SaveGame remains outstanding.
+- Native Chaos wheeled movement and a real UE 5.8 Win64 compile/package smoke runner remain outstanding.
+- Next major package: larger connected countryside plus Main Story Arc 4 using hostile factions/contraband, then save consolidation/performance and final native Chaos migration when a UE-equipped runner is available.
+
 ## [0.0.21] - 2026-09-12
 
 ### Added

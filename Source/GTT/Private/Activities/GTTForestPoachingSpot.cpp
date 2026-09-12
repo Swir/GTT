@@ -9,6 +9,7 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
+#include "World/GTTRuralEconomySubsystem.h"
 
 AGTTForestPoachingSpot::AGTTForestPoachingSpot()
 {
@@ -31,7 +32,8 @@ void AGTTForestPoachingSpot::Interact_Implementation(AActor* Interactor)
 
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Pawn);
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
-    if (!Economy || !GameMode) return;
+    UGTTRuralEconomySubsystem* RuralEconomy = GetWorld()->GetSubsystem<UGTTRuralEconomySubsystem>();
+    if (!Economy || !GameMode || !RuralEconomy) return;
 
     const double Now = GetWorld()->GetTimeSeconds();
     if (Now < NextAllowedAttemptTime)
@@ -50,27 +52,31 @@ void AGTTForestPoachingSpot::Interact_Implementation(AActor* Interactor)
     }
 
     FString Species;
-    int32 Reward = 0;
+    int32 EstimatedValue = 0;
+    int32 Units = 1;
     if (Roll < 0.67f)
     {
         Species = TEXT("forest hare");
-        Reward = FMath::RandRange(45, 80);
+        EstimatedValue = FMath::RandRange(45, 80);
     }
     else if (Roll < 0.92f)
     {
         Species = TEXT("wild boar");
-        Reward = FMath::RandRange(110, 190);
+        EstimatedValue = FMath::RandRange(110, 190);
+        Units = 2;
     }
     else
     {
         Species = TEXT("red deer");
-        Reward = FMath::RandRange(220, 340);
+        EstimatedValue = FMath::RandRange(220, 340);
+        Units = 3;
     }
 
-    Economy->AddCash(Reward, FString::Printf(TEXT("Black-market buyer paid $%d for %s."), Reward, *Species));
+    RuralEconomy->AddContraband(Pawn, Units, EstimatedValue, Species);
     Economy->PushMessage(
-        FString::Printf(TEXT("POACHING SUCCESS: %s | +$%d | WARDEN ALERT %d/3"), *Species, Reward, GameMode->GetWildlifeAlertLevel()),
-        5.0f);
+        FString::Printf(TEXT("POACHING SUCCESS: %s stashed | fence value ~$%d | WARDEN ALERT %d/3"),
+            *Species, EstimatedValue, GameMode->GetWildlifeAlertLevel()),
+        6.0f);
 }
 
 FText AGTTForestPoachingSpot::GetInteractionText_Implementation() const

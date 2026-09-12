@@ -6,20 +6,20 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 <!-- ROADMAP-PROGRESS:START -->
 <p align="center">
   <a href="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml"><img alt="CI" src="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml/badge.svg"></a>
-  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-82.9%25-2ea043?style=for-the-badge">
-  <img alt="Completed" src="https://img.shields.io/badge/DONE-107%2F129-1f6feb?style=for-the-badge">
+  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-86.0%25-2ea043?style=for-the-badge">
+  <img alt="Completed" src="https://img.shields.io/badge/DONE-111%2F129-1f6feb?style=for-the-badge">
   <img alt="Status" src="https://img.shields.io/badge/STATUS-IN%20PROGRESS-7c3aed?style=for-the-badge">
 </p>
 
 ## 📊 Overall progress
 
 ```text
-█████████████████░░░ 82.9%
+█████████████████░░░ 86.0%
 ```
 
 | ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |
 |---:|---:|---:|---:|
-| **107** | **22** | **129** | **82.9%** |
+| **111** | **18** | **129** | **86.0%** |
 
 > **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
@@ -112,8 +112,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Main-story ranger escalation and clearance stage
 - [x] Main-story wanted escalation reused for Arc 3 evidence escape
 - [x] Road graph extended to Scrap Yard, Old Quarry and Marsh Camp hostile territories
-- [ ] Deeper vehicle ownership costs, insurance/impound fees and fines
-- [ ] Lane metadata, speed limits and authored junction priorities
+- [x] Deeper vehicle ownership costs, insurance/impound fees and fines
+- [x] Lane metadata, speed limits and authored junction priorities
 
 ## 0.7 — Jobs & Countryside Expansion
 - [x] East-side forest expansion
@@ -129,8 +129,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Dedicated articulated-trailer heavy timber work contract
 - [x] Heavy-haul reward tied to cargo, trailer and tractor condition
 - [x] Three new hostile countryside territories with automatic proximity encounters
-- [ ] Deeper poaching inventory / fence economy
-- [ ] More shops/services
+- [x] Deeper poaching inventory / fence economy
+- [x] More shops/services
 - [ ] Larger connected countryside beyond current road graph
 
 ## 0.8 — Vehicle Damage & Tuning
