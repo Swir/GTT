@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Structural verification for GTT 0.0.18 combat / rural arsenal milestone."""
+"""Structural verification for GTT combat / rural arsenal milestone."""
 from pathlib import Path
 import sys
 
@@ -14,6 +14,7 @@ REQUIRED = [
     "Source/GTT/Private/Combat/GTTWeaponPickup.cpp",
     "Source/GTT/Public/Combat/GTTCombatWorldSubsystem.h",
     "Source/GTT/Private/Combat/GTTCombatWorldSubsystem.cpp",
+    "Source/GTT/Public/Save/GTTCombatSave.h",
     "Source/GTT/Public/Activities/GTTBrawlDirector.h",
     "Source/GTT/Private/Activities/GTTBrawlDirector.cpp",
     "Source/GTT/Public/Activities/GTTBrawlTerminal.h",
@@ -24,9 +25,10 @@ TOKENS = {
     "Source/GTT/Public/Combat/GTTCombatTypes.h": [
         "Pitchfork", "Axe", "Branch", "Rake", "CowChain", "Shovel", "WorkshopWrench", "FarmShotgun"
     ],
+    "Source/GTT/Public/Save/GTTCombatSave.h": ["CombatSaveVersion", "WeaponTypes", "EquippedWeaponType", "ShotgunAmmo"],
     "Source/GTT/Private/Combat/GTTCombatComponent.cpp": [
         "SweepMultiByChannel", "VRandCone", "AddCrimeHeat", "ApplyIncomingDamage", "HandleDefeat", "IsBrawlParticipant",
-        "ApplyVehicleDamage", "ShotgunAmmo"
+        "ApplyVehicleDamage", "SavePersistentLoadout", "LoadPersistentLoadout", "GTT_Combat_01", "WeaponTypes", "ShotgunAmmo"
     ],
     "Source/GTT/Private/Combat/GTTWeaponPickup.cpp": ["AddWeapon", "Pick up", "Destroy"],
     "Source/GTT/Private/Combat/GTTCombatWorldSubsystem.cpp": [
@@ -68,7 +70,7 @@ def main() -> int:
         if token not in inputs:
             fail(f"Combat input missing {token}")
 
-    print("[OK] GTT 0.0.18 rural arsenal, player health, civilian reactions, wanted integration and Bent Axle brawl hooks look structurally sane.")
+    print("[OK] GTT 0.0.19 rural arsenal, persistent loadout/ammo, player health, civilian reactions and brawl hooks look structurally sane.")
     return 0
 
 
