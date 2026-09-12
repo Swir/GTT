@@ -61,6 +61,15 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Fuel")
     float GetFuelCapacity() const { return FuelCapacityLiters; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage")
+    float GetEngineTemperatureC() const { return EngineTemperatureC; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage")
+    int32 GetDetachedPartCount() const { return DetachedPartCount; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage")
+    FString GetFaultStatusText() const;
+
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Ownership")
     bool IsOwnedByPlayer() const { return bOwnedByPlayer; }
 
@@ -98,6 +107,8 @@ protected:
     void HandleThrottle(float Value);
     void HandleSteering(float Value);
 
+    void RegisterBreakablePart(UStaticMeshComponent* Part, float DetachAtConditionPercent, FName PartName);
+
     UFUNCTION()
     void HandleVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
@@ -121,6 +132,15 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera")
     TObjectPtr<UCameraComponent> VehicleCamera;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage")
+    TObjectPtr<UStaticMeshComponent> DamageSmokePuffA;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage")
+    TObjectPtr<UStaticMeshComponent> DamageSmokePuffB;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage")
+    TObjectPtr<UStaticMeshComponent> DamageSmokePuffC;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle")
     FText VehicleDisplayName;
@@ -155,6 +175,21 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="0.0"))
     float FullThrottleFuelBurnPerSecond = 0.11f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="0.0"))
+    float NormalEngineTemperatureC = 72.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="70.0"))
+    float OverheatStartTemperatureC = 105.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="90.0"))
+    float CriticalEngineTemperatureC = 120.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="0.0"))
+    float LowConditionFaultChancePerSecond = 0.16f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="0.1"))
+    float FaultRestartDelaySeconds = 2.5f;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Crime")
     bool bIllegalToTake = true;
 
@@ -171,12 +206,31 @@ protected:
     FVector ExitOffset = FVector(0.0f, 180.0f, 70.0f);
 
 private:
+    struct FBreakablePartRuntime
+    {
+        TWeakObjectPtr<UStaticMeshComponent> Component;
+        FTransform OriginalRelativeTransform;
+        float DetachThreshold = 0.5f;
+        FName PartName = NAME_None;
+        bool bDetached = false;
+    };
+
     void SetEngineRunning(bool bNewRunning);
+    void UpdateBreakableParts();
+    void RestoreBreakableParts();
+    void UpdateDamageSmoke(float DeltaSeconds);
+    void TriggerMechanicalStall(const TCHAR* Reason);
 
     TWeakObjectPtr<APawn> PreviousPawn;
+    TArray<FBreakablePartRuntime> BreakableParts;
     bool bOccupied = false;
     bool bEngineRunning = false;
     bool bTheftReported = false;
     bool bOwnedByPlayer = false;
     float LastThrottleInput = 0.0f;
+    float EngineTemperatureC = 72.0f;
+    float FaultRestartTimeRemaining = 0.0f;
+    float DamageFxClock = 0.0f;
+    int32 DetachedPartCount = 0;
+    FString ActiveFaultStatus;
 };

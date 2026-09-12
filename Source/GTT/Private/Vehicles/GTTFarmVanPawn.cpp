@@ -34,6 +34,8 @@ AGTTFarmVanPawn::AGTTFarmVanPawn()
     MinDamagingImpulse = 145000.0f;
     ImpulsePerDamagePoint = 52000.0f;
     ExitOffset = FVector(0.0f, 205.0f, 82.0f);
+    LowConditionFaultChancePerSecond = 0.12f;
+    CriticalEngineTemperatureC = 124.0f;
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
@@ -59,6 +61,30 @@ AGTTFarmVanPawn::AGTTFarmVanPawn()
     ConfigureVanPart(CargoMesh, CubeMesh);
     CargoMesh->SetRelativeLocation(FVector(-65.0f, 0.0f, 118.0f));
     CargoMesh->SetRelativeScale3D(FVector(1.05f, 1.0f, 1.05f));
+
+    UStaticMeshComponent* SlidingDoorMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SlidingDoorMesh"));
+    SlidingDoorMesh->SetupAttachment(VehicleMesh);
+    ConfigureVanPart(SlidingDoorMesh, CubeMesh);
+    SlidingDoorMesh->SetRelativeLocation(FVector(-35.0f, 104.0f, 100.0f));
+    SlidingDoorMesh->SetRelativeScale3D(FVector(0.78f, 0.08f, 0.72f));
+
+    UStaticMeshComponent* RearDoorLeftMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RearDoorLeftMesh"));
+    RearDoorLeftMesh->SetupAttachment(VehicleMesh);
+    ConfigureVanPart(RearDoorLeftMesh, CubeMesh);
+    RearDoorLeftMesh->SetRelativeLocation(FVector(-157.0f, -48.0f, 105.0f));
+    RearDoorLeftMesh->SetRelativeScale3D(FVector(0.08f, 0.45f, 0.78f));
+
+    UStaticMeshComponent* RearDoorRightMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RearDoorRightMesh"));
+    RearDoorRightMesh->SetupAttachment(VehicleMesh);
+    ConfigureVanPart(RearDoorRightMesh, CubeMesh);
+    RearDoorRightMesh->SetRelativeLocation(FVector(-157.0f, 48.0f, 105.0f));
+    RearDoorRightMesh->SetRelativeScale3D(FVector(0.08f, 0.45f, 0.78f));
+
+    UStaticMeshComponent* FrontBumperMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VanFrontBumperMesh"));
+    FrontBumperMesh->SetupAttachment(VehicleMesh);
+    ConfigureVanPart(FrontBumperMesh, CubeMesh);
+    FrontBumperMesh->SetRelativeLocation(FVector(162.0f, 0.0f, 0.0f));
+    FrontBumperMesh->SetRelativeScale3D(FVector(0.12f, 1.08f, 0.14f));
 
     LeftFrontWheel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftFrontWheel"));
     LeftFrontWheel->SetupAttachment(VehicleMesh);
@@ -87,4 +113,10 @@ AGTTFarmVanPawn::AGTTFarmVanPawn()
     RightRearWheel->SetRelativeLocation(FVector(-92.0f, 88.0f, -20.0f));
     RightRearWheel->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
     RightRearWheel->SetRelativeScale3D(FVector(0.39f, 0.39f, 0.25f));
+
+    RegisterBreakablePart(FrontBumperMesh, 0.70f, TEXT("front bumper"));
+    RegisterBreakablePart(SlidingDoorMesh, 0.52f, TEXT("sliding door"));
+    RegisterBreakablePart(RearDoorLeftMesh, 0.34f, TEXT("left rear door"));
+    RegisterBreakablePart(RearDoorRightMesh, 0.24f, TEXT("right rear door"));
+    RegisterBreakablePart(LeftRearWheel, 0.12f, TEXT("left rear wheel"));
 }
