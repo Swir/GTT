@@ -5,6 +5,7 @@
 #include "GTTPoliceDirector.generated.h"
 
 class AGTTPolicePursuitVehicle;
+class AGTTRoadblock;
 
 UCLASS(Blueprintable)
 class GTT_API AGTTPoliceDirector : public AActor
@@ -19,6 +20,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Police")
     int32 GetActivePursuitVehicleCount() const { return ActivePursuitVehicles.Num(); }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Police")
+    int32 GetActiveRoadblockCount() const { return ActiveRoadblocks.Num(); }
 
 protected:
     virtual void BeginPlay() override;
@@ -35,6 +39,9 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="GTT|Police")
     TSubclassOf<AGTTPolicePursuitVehicle> PursuitVehicleClass;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="GTT|Police")
+    TSubclassOf<AGTTRoadblock> RoadblockClass;
+
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="GTT|Police")
     TArray<TObjectPtr<AActor>> SpawnPoints;
 
@@ -50,6 +57,12 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police", meta=(ClampMin="1", ClampMax="5"))
     int32 VehicleEscalationWantedLevel = 3;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police|Roadblock", meta=(ClampMin="1", ClampMax="5"))
+    int32 RoadblockEscalationWantedLevel = 4;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police|Roadblock", meta=(ClampMin="1", ClampMax="4"))
+    int32 MaxRoadblocks = 2;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Police", meta=(ClampMin="100.0"))
     float MinFallbackSpawnDistance = 1200.0f;
 
@@ -62,16 +75,21 @@ protected:
 private:
     void SpawnPoliceUnit();
     void SpawnPursuitVehicle(int32 WantedLevel);
+    void SpawnRoadblock(int32 WantedLevel);
     int32 GetPlayerWantedLevel() const;
     void RemoveInvalidUnits();
-    void DespawnExcessUnits(int32 DesiredUnits, int32 DesiredVehicles);
+    void DespawnExcessUnits(int32 DesiredUnits, int32 DesiredVehicles, int32 DesiredRoadblocks);
     FTransform SelectSpawnTransform(float DistanceScale = 1.0f) const;
+    FTransform SelectRoadblockTransform(int32 WantedLevel) const;
 
     UPROPERTY()
     TArray<TObjectPtr<APawn>> ActivePoliceUnits;
 
     UPROPERTY()
     TArray<TObjectPtr<AGTTPolicePursuitVehicle>> ActivePursuitVehicles;
+
+    UPROPERTY()
+    TArray<TObjectPtr<AGTTRoadblock>> ActiveRoadblocks;
 
     FTimerHandle EvaluationTimer;
     int32 LastResponseLevel = INDEX_NONE;

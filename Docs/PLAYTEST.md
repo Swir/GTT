@@ -1,6 +1,6 @@
 # GTT Prototype Playtest
 
-This document describes the current source-driven prototype loop for **GTT 0.0.10**.
+This document describes the current source-driven prototype loop for **GTT 0.0.11**.
 
 ## Requirements
 - Unreal Engine 5.8
@@ -19,64 +19,73 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 - `WASD` — walk / drive
 - Mouse — camera
 - `Space` — jump
-- `E` — interact / enter / fish / poach / garage / tuning / jobs
+- `E` — interact / enter / fish / poach / garage / tuning / jobs / night events
 - `F` — exit vehicle
+- `R` — cycle radio station (also works while driving)
 - `F5` — quick-save
 - `F9` — quick-load
 
 ## Core loop
-Complete **Borrowed Tractor**, earn the Rusty Fieldmaster, build a garage, take staged legal cargo contracts, fish/poach for risky income, repair/tune vehicles and deal with police or the separate game-warden alert.
+Complete **Borrowed Tractor**, earn the Rusty Fieldmaster, build a garage, take staged cargo contracts, tune vehicles, fish/poach, join absurd night events and deal with escalating police or the separate game-warden system.
 
-## 0.0.10 police pursuit escalation test
-1. Commit a vehicle theft or witnessed crime until wanted reaches level 1–2.
-2. Verify pedestrian police respond as before and HUD shows `POLICE RESPONSE`.
-3. Raise wanted to level 3. HUD should show `VEHICLE ESCALATION` and at least one `PURSUIT CARS` slot after the director evaluates response.
-4. A **County Patrol Interceptor** should spawn away from the player and physically accelerate/steer toward the controlled pawn.
-5. At wanted 4–5 additional pursuit vehicles should be allowed, up to three at maximum response.
-6. Pursuit cars should brake when close instead of endlessly full-throttling through the player.
-7. If a pursuit car closes within arrest range while moving slowly enough, it can invoke the existing arrest/fine flow.
-8. Clear wanted/arrest the player and verify excess pursuit cars despawn through the director.
+## 0.0.11 radio test
+1. Press `R` while on foot. The radio cycles through **Gravel FM**, **BarnBeat 96**, **Rust & Diesel**, **Night Shift**, then back to **RADIO OFF**.
+2. Enter any controllable vehicle while a station is active.
+3. HUD should show `RADIO | station | NOW: track` while driving.
+4. Press `R` while the vehicle is possessed. The station should still cycle because the vehicle forwards radio input to the hidden driver pawn.
+5. Stay on a station long enough to verify the fictional placeholder track title rotates automatically.
+6. No copyrighted audio is bundled in this milestone; the framework is ready for original/royalty-cleared audio later.
 
-## 0.0.10 staged farm cargo job test
-1. Start at **PLAYER FARM** and interact with **FARM CARGO CONTRACT**.
-2. The HUD objective should direct you to **FEED DEPOT / CARGO PICKUP**.
-3. Reach the depot and interact without a vehicle: cargo loading must refuse.
-4. Bring a vehicle and interact again. Cargo loads, a 165-second timer starts and the objective switches to **HILL FARM**.
-5. Drive across the map to **HILL FARM / CARGO DELIVERY**.
-6. Damage the vehicle significantly while carrying cargo. HUD cargo integrity should decline while the damaged vehicle remains in use.
-7. Deliver with high cargo integrity for most of the base reward.
-8. Deliver quickly enough to receive the `FAST BONUS`.
-9. Let the timer expire in another run and verify the job fails without paying a reward.
-10. Destroy cargo integrity by transporting it in a severely damaged vehicle and verify the contract fails.
-11. Complete a delivery and verify progress is saved through the existing SaveGame flow.
+## 0.0.11 village-night test
+1. Let the game clock reach **18:30**. Nightlife remains active until approximately **02:30**.
+2. Verify extra villagers appear around **COMMUNITY HALL** as a temporary party crowd.
+3. HUD should show a magenta `VILLAGE NIGHT` row.
+4. A random interactive encounter should appear after a short prototype delay at the hall/tavern/shop/forest-edge event points.
+5. Possible events:
+   - **Broken-down Neighbor** — help for cash.
+   - **Midnight Tractor Meet** — pay an entry fee and roll for a larger prize.
+   - **Suspicious Bonfire Run** — earns cash but increases WARDEN alert.
+   - **Mystery Crate** — return it for a small reward and absolutely no explanation.
+6. Resolve an event with `E`; the marker should disappear and another can appear later.
+7. After 02:30, party crowd and unresolved random event should be removed.
+8. Confirm the new **THE BENT AXLE TAVERN** greybox building is visible beside the community hall.
 
-## 0.0.9 systems to regression-test
-- Sequential garage recall of owned vehicles.
-- Persistent SaveGame v3 engine/tire tuning and tire integrity.
-- Tuning terminal, tire repair and `FLAT TIRE` state.
-- East forest poaching and separate ranger/game-warden alert.
+## 0.0.11 police-roadblock test
+1. Raise wanted to 3 and confirm pursuit cars work as in 0.0.10.
+2. Raise wanted to **4**. HUD should switch to `INTERCEPTION MODE` and show `ROADBLOCKS 1` after response evaluation.
+3. A physical roadblock should appear ahead of the current movement direction with two barriers and a visible `POLICE ROADBLOCK / SPIKE STRIP` sign.
+4. Hit the spike strip in a player vehicle and verify tire integrity drops through the same upgrade-aware tire system used by collision damage.
+5. At wanted **5**, the director may maintain up to two roadblocks and up to three pursuit vehicles.
+6. Clear wanted or get arrested; roadblocks should despawn as response requirements fall.
+7. Tire upgrades should reduce effective spike-strip tire loss because `ApplyTireDamage` respects tire reinforcement.
+
+## 0.0.10 systems to regression-test
+- Physics-driven police pursuit cars at wanted 3+.
+- Staged farm cargo contract: feed depot pickup, timer, cargo integrity, Hill Farm delivery and fast bonus.
 
 ## Existing systems to regression-test
-- Borrowed Tractor mission completion and $300 reward.
-- Police wanted, witnesses, pedestrian chase and arrest/fines.
-- Separate ranger/game-warden chase and fish confiscation.
-- Fishing and fish buyer.
-- Day/night and citizen schedules.
-- Six-car bidirectional traffic, obstacle probes, BEEP placeholder and stuck recovery.
-- Vehicle damage smoke, breakable parts, overheating and random engine stalls.
-- Workshop repair/refuel and body-part restoration.
+- Borrowed Tractor mission and permanent tractor ownership.
+- Multi-vehicle garage, sequential recall and SaveGame v3.
+- Engine/tire tuning and tire integrity.
+- Police foot pursuit, pursuit cars, arrest/fines and now roadblocks.
+- Separate ranger/game-warden pursuit, citations and confiscation.
+- Fishing, fish buyer and forest poaching.
+- Day/night and ordinary citizen schedules.
+- Six-car bidirectional ambient traffic.
+- Vehicle breakable parts, smoke, overheating and engine stalls.
+- Workshop repair/refuel.
 
 ## Persistence
-Save v3 stores cash, fish, player transform, mission completion, day/time and every owned vehicle's ID, transform, condition, fuel, engine tune level, tire tune level and tire integrity. Older v2 and tractor-only saves retain migration paths. Active farm-contract timer/cargo state is intentionally session-only in 0.0.10; completing a contract saves the resulting economy state.
+Save v3 stores cash, fish, player transform, mission completion, day/time and every owned vehicle's ID, transform, condition, fuel, engine tune level, tire tune level and tire integrity. Radio station, active random-night event, party crowd, police roadblocks and an active cargo contract are session state in 0.0.11.
 
 ## Current prototype limitations
 - Player, traffic and police vehicles still use the source-only physics fallback rather than tuned Chaos wheel/suspension movement.
-- Pursuit cars use direct physics steering rather than a production road graph/interception planner.
-- Police roadblocks and coordinated intercept tactics are not implemented yet.
-- Garage recall is sequential; there is not yet a graphical slot-selection menu.
-- Forest hunting remains an interaction prototype rather than a tracking/hunting minigame.
-- Cargo is gameplay state rather than a visible strapped pallet asset.
-- Vehicles/world remain primitive-mesh prototypes rather than final art.
+- Roadblocks are spawned dynamically ahead of the player, not yet snapped to an authored road-node/intersection graph.
+- Radio contains framework + fictional metadata only; no final music/audio assets are bundled.
+- Night events are interaction-driven prototypes without dialogue trees/animations.
+- Community hall and Bent Axle Tavern remain exterior greybox locations with no authored interiors yet.
+- Garage recall remains sequential rather than a graphical slot-selection UI.
+- World/vehicles remain primitive-mesh prototypes rather than final art.
 - Repository CI is structural sanity checking, not a full Unreal Win64 compile.
 
 ## Build a Windows package

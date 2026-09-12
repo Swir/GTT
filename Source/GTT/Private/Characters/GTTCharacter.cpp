@@ -1,4 +1,5 @@
 #include "Characters/GTTCharacter.h"
+
 #include "Camera/CameraComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -10,6 +11,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Interaction/GTTInteractable.h"
 #include "Kismet/GameplayStatics.h"
+#include "Radio/GTTRadioComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Wanted/GTTWantedComponent.h"
 
@@ -28,18 +30,23 @@ AGTTCharacter::AGTTCharacter()
     PlaceholderBody->SetRelativeLocation(FVector(0.0f, 0.0f, -10.0f));
     PlaceholderBody->SetRelativeScale3D(FVector(0.35f, 0.35f, 1.45f));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> BodyMeshFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    if (BodyMeshFinder.Succeeded()) PlaceholderBody->SetStaticMesh(BodyMeshFinder.Object);
+    if (BodyMeshFinder.Succeeded())
+    {
+        PlaceholderBody->SetStaticMesh(BodyMeshFinder.Object);
+    }
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(RootComponent);
     CameraBoom->TargetArmLength = 420.0f;
     CameraBoom->bUsePawnControlRotation = true;
+
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
     FollowCamera->bUsePawnControlRotation = false;
 
     WantedComponent = CreateDefaultSubobject<UGTTWantedComponent>(TEXT("WantedComponent"));
     EconomyComponent = CreateDefaultSubobject<UGTTPlayerEconomyComponent>(TEXT("EconomyComponent"));
+    RadioComponent = CreateDefaultSubobject<UGTTRadioComponent>(TEXT("RadioComponent"));
 }
 
 void AGTTCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -55,6 +62,7 @@ void AGTTCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
     PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &AGTTCharacter::TryInteract);
     PlayerInputComponent->BindAction(TEXT("QuickSave"), IE_Pressed, this, &AGTTCharacter::QuickSave);
     PlayerInputComponent->BindAction(TEXT("QuickLoad"), IE_Pressed, this, &AGTTCharacter::QuickLoad);
+    PlayerInputComponent->BindAction(TEXT("RadioNext"), IE_Pressed, this, &AGTTCharacter::CycleRadio);
 }
 
 void AGTTCharacter::MoveForward(float Value)
@@ -93,10 +101,24 @@ void AGTTCharacter::TryInteract()
 
 void AGTTCharacter::QuickSave()
 {
-    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
+    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
+    {
+        GameMode->SaveProgress();
+    }
 }
 
 void AGTTCharacter::QuickLoad()
 {
-    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->LoadProgress();
+    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
+    {
+        GameMode->LoadProgress();
+    }
+}
+
+void AGTTCharacter::CycleRadio()
+{
+    if (RadioComponent)
+    {
+        RadioComponent->CycleStation();
+    }
 }

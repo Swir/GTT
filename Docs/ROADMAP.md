@@ -23,7 +23,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Multi-vehicle garage + save/load
 - [x] Garage sequential vehicle recall
 - [x] Day/night + NPC schedules
-- [ ] Basic radio framework
+- [x] Basic radio framework
+- [x] Four fictional stations + track rotation
 
 ## 0.3 — Rural Crime & Jobs
 - [x] Fishing + fish inventory/sales
@@ -34,11 +35,16 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [ ] More mission archetypes
 
 ## 0.4 — Village Nights
-- [ ] Village parties and events
+- [x] Village party window 18:30–02:30
+- [x] Temporary nightlife NPC crowd
+- [x] Interactive comedy random events
+- [x] Community hall nightlife gameplay foundation
+- [x] Tavern exterior / Bent Axle location
+- [x] Radio expansion foundation
 - [ ] Tavern/community-hall interiors
-- [ ] NPC social encounters
-- [ ] Music/radio expansion
-- [ ] Comedy random events
+- [ ] NPC dialogue/social encounters
+- [ ] Village fight/combat encounter framework
+- [ ] Original/royalty-cleared music and radio audio assets
 
 ## 0.5 — Vehicle Chaos
 - [x] Tractor + first old car + first farm van
@@ -59,8 +65,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Game-warden/ranger AI
 - [x] Traffic obstacle avoidance / horn / stuck recovery
 - [x] Police pursuit-vehicle escalation at high wanted
-- [ ] Police roadblocks / interception tactics
+- [x] Police roadblock escalation at wanted 4–5
+- [x] Spike-strip tire damage prototype
 - [x] Garage vehicle recall
+- [ ] Road-node-aware interception tactics
 - [ ] Explicit garage slot-selection UI
 - [ ] More vehicle ownership costs and fines
 
@@ -72,6 +80,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [ ] Forest work and legal timber transport
 - [x] Illegal poaching loop feeding the ranger system
 - [ ] Deeper poaching inventory / fence economy
+- [ ] Towing/recovery jobs
 - [ ] More shops/services
 - [ ] Side-mission chain
 
@@ -82,6 +91,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Tire-specific grip loss / collision degradation
 - [x] Upgrade/tuning garage foundation
 - [x] Persistent engine/tire upgrade levels
+- [x] Police spike strips use the same tire-durability model
 - [ ] Tractor visual upgrades
 - [ ] Old-car visual/performance upgrade variants
 - [ ] Replacement body-panel economy
@@ -89,7 +99,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 ## 0.9 — Content & Polish
 - [ ] Story mission chain
 - [ ] More NPC archetypes
-- [x] First police escalation variety
+- [x] Police escalation variety: foot / pursuit cars / roadblocks
 - [ ] Performance passes
 - [ ] Accessibility/settings
 - [ ] Controller support

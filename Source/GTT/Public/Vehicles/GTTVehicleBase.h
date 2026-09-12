@@ -59,6 +59,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Tuning")
     void RepairTires();
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Tuning")
+    void ApplyTireDamage(float Amount);
+
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     float GetConditionPercent() const;
 
@@ -131,6 +134,7 @@ public:
 protected:
     void HandleThrottle(float Value);
     void HandleSteering(float Value);
+    void CycleRadio();
     void RegisterBreakablePart(UStaticMeshComponent* Part, float DetachAtConditionPercent, FName PartName);
 
     UFUNCTION()

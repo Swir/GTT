@@ -8,6 +8,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Radio/GTTRadioComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "GTT.h"
@@ -128,6 +129,7 @@ void AGTTVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAxis(TEXT("VehicleThrottle"), this, &AGTTVehicleBase::HandleThrottle);
     PlayerInputComponent->BindAxis(TEXT("VehicleSteer"), this, &AGTTVehicleBase::HandleSteering);
     PlayerInputComponent->BindAction(TEXT("ExitVehicle"), IE_Pressed, this, &AGTTVehicleBase::ExitVehicle);
+    PlayerInputComponent->BindAction(TEXT("RadioNext"), IE_Pressed, this, &AGTTVehicleBase::CycleRadio);
 }
 
 void AGTTVehicleBase::Interact_Implementation(AActor* Interactor)
@@ -306,6 +308,16 @@ void AGTTVehicleBase::RepairTires()
     TireIntegrity = 1.0f;
 }
 
+void AGTTVehicleBase::ApplyTireDamage(float Amount)
+{
+    if (Amount <= 0.0f)
+    {
+        return;
+    }
+    const float Reinforcement = 1.0f + TireUpgradeLevel * 0.35f;
+    TireIntegrity = FMath::Clamp(TireIntegrity - Amount / Reinforcement, 0.0f, 1.0f);
+}
+
 float AGTTVehicleBase::GetConditionPercent() const
 {
     return MaxCondition > 0.0f ? Condition / MaxCondition : 0.0f;
@@ -374,6 +386,17 @@ void AGTTVehicleBase::HandleSteering(float Value)
     OnSteeringInput(Value);
 }
 
+void AGTTVehicleBase::CycleRadio()
+{
+    if (APawn* Driver = PreviousPawn.Get())
+    {
+        if (UGTTRadioComponent* Radio = Driver->FindComponentByClass<UGTTRadioComponent>())
+        {
+            Radio->CycleStation();
+        }
+    }
+}
+
 void AGTTVehicleBase::HandleVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
     const float ExcessImpulse = NormalImpulse.Size() - MinDamagingImpulse;
@@ -384,9 +407,8 @@ void AGTTVehicleBase::HandleVehicleHit(UPrimitiveComponent* HitComponent, AActor
 
     if (Damage >= 5.0f)
     {
-        const float Reinforcement = 1.0f + TireUpgradeLevel * 0.35f;
-        const float TireLoss = FMath::Clamp((Damage / 100.0f) / Reinforcement, 0.015f, 0.18f);
-        TireIntegrity = FMath::Clamp(TireIntegrity - TireLoss, 0.0f, 1.0f);
+        const float TireLoss = FMath::Clamp(Damage / 100.0f, 0.015f, 0.18f);
+        ApplyTireDamage(TireLoss);
     }
 }
 

@@ -8,9 +8,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "Missions/GTTMissionComponent.h"
 #include "Police/GTTPoliceDirector.h"
+#include "Radio/GTTRadioComponent.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTDayNightCycle.h"
+#include "World/GTTVillageEventDirector.h"
 
 void AGTTGameHUD::DrawHUD()
 {
@@ -20,9 +22,11 @@ void AGTTGameHUD::DrawHUD()
     APawn* ControlledPawn = PlayerOwner->GetPawn();
     UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(ControlledPawn);
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn);
+    UGTTRadioComponent* Radio = UGTTGameplayStatics::FindRadioComponentForPawn(ControlledPawn);
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
     AGTTPoliceDirector* PoliceDirector = Cast<AGTTPoliceDirector>(UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()));
     AGTTFarmJobDirector* FarmJobDirector = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
+    AGTTVillageEventDirector* NightDirector = Cast<AGTTVillageEventDirector>(UGameplayStatics::GetActorOfClass(this, AGTTVillageEventDirector::StaticClass()));
 
     const int32 WantedLevel = Wanted ? Wanted->GetWantedLevel() : 0;
     const FLinearColor WantedColor = WantedLevel > 0 ? FLinearColor(1.0f,0.18f,0.08f,1.0f) : FLinearColor(0.72f,0.72f,0.72f,1.0f);
@@ -32,11 +36,12 @@ void AGTTGameHUD::DrawHUD()
     if (PoliceDirector && WantedLevel > 0)
     {
         DrawText(
-            FString::Printf(TEXT("POLICE RESPONSE | FOOT %d | PURSUIT CARS %d%s"),
+            FString::Printf(TEXT("POLICE RESPONSE | FOOT %d | PURSUIT CARS %d | ROADBLOCKS %d%s"),
                 PoliceDirector->GetActiveFootUnitCount(),
                 PoliceDirector->GetActivePursuitVehicleCount(),
-                WantedLevel >= 3 ? TEXT(" | VEHICLE ESCALATION") : TEXT("")),
-            WantedLevel >= 3 ? FLinearColor(1.0f,0.35f,0.18f,1.0f) : FLinearColor(0.9f,0.72f,0.32f,1.0f),
+                PoliceDirector->GetActiveRoadblockCount(),
+                WantedLevel >= 4 ? TEXT(" | INTERCEPTION MODE") : (WantedLevel >= 3 ? TEXT(" | VEHICLE ESCALATION") : TEXT(""))),
+            WantedLevel >= 4 ? FLinearColor(1.0f,0.18f,0.08f,1.0f) : FLinearColor(0.9f,0.72f,0.32f,1.0f),
             36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
         Y += 28.0f;
     }
@@ -64,6 +69,12 @@ void AGTTGameHUD::DrawHUD()
         Y += 30.0f;
     }
 
+    if (NightDirector && NightDirector->IsNightlifeOpen())
+    {
+        DrawText(NightDirector->GetNightlifeSummary(), FLinearColor(1.0f,0.45f,0.9f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.94f, false);
+        Y += 28.0f;
+    }
+
     if (FarmJobDirector && FarmJobDirector->IsJobActive())
     {
         const FString Objective = FarmJobDirector->GetObjectiveText();
@@ -81,6 +92,13 @@ void AGTTGameHUD::DrawHUD()
             Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
         DrawText(VehicleLine, FLinearColor::White, 36.0f, Y, GEngine->GetSmallFont(), 1.05f, false);
         Y += 30.0f;
+
+        if (Radio)
+        {
+            DrawText(Radio->GetDisplayLine(), Radio->IsRadioOn() ? FLinearColor(0.48f,0.88f,1.0f,1.0f) : FLinearColor(0.55f,0.6f,0.65f,1.0f),
+                36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
+            Y += 28.0f;
+        }
 
         DrawText(
             FString::Printf(TEXT("TUNING | ENGINE L%d/3 | TIRES L%d/3 | TIRE HEALTH %.0f%%"),
@@ -109,7 +127,7 @@ void AGTTGameHUD::DrawHUD()
         DrawText(Economy->GetActivityMessage(), FLinearColor(0.35f,0.88f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
-    DrawText(TEXT("CONTROLS | WASD move/drive | E interact | F exit | F5 save | F9 load | Space jump"), FLinearColor(0.72f,0.82f,0.95f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.85f, false);
+    DrawText(TEXT("CONTROLS | WASD move/drive | E interact | F exit | R radio | F5 save | F9 load | Space jump"), FLinearColor(0.72f,0.82f,0.95f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.85f, false);
 }
 
 FString AGTTGameHUD::BuildWantedBar(int32 WantedLevel) const
