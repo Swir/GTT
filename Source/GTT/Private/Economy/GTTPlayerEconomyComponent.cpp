@@ -58,6 +58,23 @@ bool UGTTPlayerEconomyComponent::SpendCash(int32 Amount, const FString& Reason)
     return true;
 }
 
+int32 UGTTPlayerEconomyComponent::ChargeFine(int32 Amount, const FString& Reason)
+{
+    if (Amount <= 0)
+    {
+        return 0;
+    }
+
+    const int32 Charged = FMath::Min(Cash, Amount);
+    Cash -= Charged;
+    PushMessage(Reason.IsEmpty()
+        ? FString::Printf(TEXT("Fine paid: $%d"), Charged)
+        : FString::Printf(TEXT("%s  Paid: $%d"), *Reason, Charged),
+        5.0f);
+    BroadcastEconomy();
+    return Charged;
+}
+
 void UGTTPlayerEconomyComponent::AddFish(float WeightKg, const FString& Species)
 {
     if (WeightKg <= 0.0f)
@@ -90,6 +107,14 @@ int32 UGTTPlayerEconomyComponent::SellAllFish(float PricePerKg)
     PushMessage(FString::Printf(TEXT("Sold %d fish (%.2f kg) for $%d"), SoldCount, SoldWeight, SaleValue));
     BroadcastEconomy();
     return SaleValue;
+}
+
+void UGTTPlayerEconomyComponent::RestoreState(int32 InCash, int32 InFishCount, float InFishWeightKg)
+{
+    Cash = FMath::Max(0, InCash);
+    FishCount = FMath::Max(0, InFishCount);
+    FishWeightKg = FMath::Max(0.0f, InFishWeightKg);
+    BroadcastEconomy();
 }
 
 void UGTTPlayerEconomyComponent::PushMessage(const FString& Message, float Duration)

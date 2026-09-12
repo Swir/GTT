@@ -65,7 +65,6 @@ void AGTTVehicleBase::Tick(float DeltaSeconds)
 void AGTTVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
-
     check(PlayerInputComponent);
     PlayerInputComponent->BindAxis(TEXT("VehicleThrottle"), this, &AGTTVehicleBase::HandleThrottle);
     PlayerInputComponent->BindAxis(TEXT("VehicleSteer"), this, &AGTTVehicleBase::HandleSteering);
@@ -91,7 +90,7 @@ void AGTTVehicleBase::Interact_Implementation(AActor* Interactor)
         return;
     }
 
-    if (bIllegalToTake && !bTheftReported)
+    if (bIllegalToTake && !bOwnedByPlayer && !bTheftReported)
     {
         if (UGTTWantedComponent* Wanted = InteractingPawn->FindComponentByClass<UGTTWantedComponent>())
         {
@@ -124,21 +123,19 @@ FText AGTTVehicleBase::GetInteractionText_Implementation() const
     {
         return NSLOCTEXT("GTT", "VehicleOccupied", "Occupied");
     }
-
     if (Condition <= 0.0f)
     {
         return NSLOCTEXT("GTT", "VehicleBroken", "Broken down");
     }
-
     if (CurrentFuelLiters <= KINDA_SMALL_NUMBER)
     {
-        return FText::Format(
-            NSLOCTEXT("GTT", "EnterEmptyVehicle", "Enter {0} (empty tank)"),
-            VehicleDisplayName);
+        return FText::Format(NSLOCTEXT("GTT", "EnterEmptyVehicle", "Enter {0} (empty tank)"), VehicleDisplayName);
     }
 
     return FText::Format(
-        NSLOCTEXT("GTT", "EnterNamedVehicle", "Enter {0}"),
+        bOwnedByPlayer
+            ? NSLOCTEXT("GTT", "EnterOwnedVehicle", "Enter your {0}")
+            : NSLOCTEXT("GTT", "EnterNamedVehicle", "Enter {0}"),
         VehicleDisplayName);
 }
 
@@ -146,7 +143,6 @@ void AGTTVehicleBase::ExitVehicle()
 {
     AController* VehicleController = GetController();
     APawn* PawnToRestore = PreviousPawn.Get();
-
     if (!VehicleController || !PawnToRestore)
     {
         return;
@@ -176,7 +172,6 @@ void AGTTVehicleBase::ApplyVehicleDamage(float DamageAmount)
 
     const float OldCondition = Condition;
     Condition = FMath::Clamp(Condition - DamageAmount, 0.0f, MaxCondition);
-
     if (OldCondition > 0.0f && Condition <= 0.0f)
     {
         LastThrottleInput = 0.0f;
@@ -202,6 +197,30 @@ void AGTTVehicleBase::RefuelVehicle(float Liters)
     }
 }
 
+void AGTTVehicleBase::MarkOwnedByPlayer()
+{
+    bOwnedByPlayer = true;
+    bIllegalToTake = false;
+}
+
+void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, float ConditionPercent, float FuelLiters, bool bOwned)
+{
+    if (bOccupied)
+    {
+        ExitVehicle();
+    }
+
+    SetEngineRunning(false);
+    SetActorTransform(InTransform, false, nullptr, ETeleportType::TeleportPhysics);
+    Condition = FMath::Clamp(ConditionPercent, 0.0f, 1.0f) * MaxCondition;
+    CurrentFuelLiters = FMath::Clamp(FuelLiters, 0.0f, FuelCapacityLiters);
+    bOwnedByPlayer = bOwned;
+    if (bOwnedByPlayer)
+    {
+        bIllegalToTake = false;
+    }
+}
+
 float AGTTVehicleBase::GetConditionPercent() const
 {
     return MaxCondition > 0.0f ? Condition / MaxCondition : 0.0f;
@@ -220,17 +239,13 @@ float AGTTVehicleBase::GetFuelPercent() const
 void AGTTVehicleBase::HandleThrottle(float Value)
 {
     LastThrottleInput = Value;
-
     const float ConditionPower = FMath::Lerp(0.35f, 1.0f, GetConditionPercent());
-    const float EffectiveValue = bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f
-        ? Value * ConditionPower
-        : 0.0f;
+    const float EffectiveValue = bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f ? Value * ConditionPower : 0.0f;
 
     if (!FMath::IsNearlyZero(EffectiveValue) && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
     {
         VehicleMesh->AddForce(GetActorForwardVector() * EffectiveValue * DriveAcceleration, NAME_None, true);
     }
-
     OnThrottleInput(EffectiveValue);
 }
 
@@ -239,30 +254,19 @@ void AGTTVehicleBase::HandleSteering(float Value)
     if (bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
     {
         const float SpeedFactor = FMath::Clamp(GetVelocity().Size2D() / 500.0f, 0.18f, 1.0f);
-        VehicleMesh->AddTorqueInRadians(
-            FVector::UpVector * Value * SteeringAcceleration * SpeedFactor,
-            NAME_None,
-            true);
+        VehicleMesh->AddTorqueInRadians(FVector::UpVector * Value * SteeringAcceleration * SpeedFactor, NAME_None, true);
     }
-
     OnSteeringInput(Value);
 }
 
-void AGTTVehicleBase::HandleVehicleHit(
-    UPrimitiveComponent* HitComponent,
-    AActor* OtherActor,
-    UPrimitiveComponent* OtherComp,
-    FVector NormalImpulse,
-    const FHitResult& Hit)
+void AGTTVehicleBase::HandleVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
     const float ExcessImpulse = NormalImpulse.Size() - MinDamagingImpulse;
     if (ExcessImpulse <= 0.0f)
     {
         return;
     }
-
-    const float Damage = FMath::Clamp(ExcessImpulse / ImpulsePerDamagePoint, 0.0f, 35.0f);
-    ApplyVehicleDamage(Damage);
+    ApplyVehicleDamage(FMath::Clamp(ExcessImpulse / ImpulsePerDamagePoint, 0.0f, 35.0f));
 }
 
 void AGTTVehicleBase::SetEngineRunning(bool bNewRunning)
@@ -272,7 +276,6 @@ void AGTTVehicleBase::SetEngineRunning(bool bNewRunning)
     {
         return;
     }
-
     bEngineRunning = bCanRun;
     OnEngineStateChanged(bEngineRunning);
 }

@@ -24,10 +24,16 @@ public:
     bool SpendCash(int32 Amount, const FString& Reason);
 
     UFUNCTION(BlueprintCallable, Category="GTT|Economy")
+    int32 ChargeFine(int32 Amount, const FString& Reason);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Economy")
     void AddFish(float WeightKg, const FString& Species);
 
     UFUNCTION(BlueprintCallable, Category="GTT|Economy")
     int32 SellAllFish(float PricePerKg);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Economy|Save")
+    void RestoreState(int32 InCash, int32 InFishCount, float InFishWeightKg);
 
     UFUNCTION(BlueprintCallable, Category="GTT|Economy")
     void PushMessage(const FString& Message, float Duration = 4.0f);

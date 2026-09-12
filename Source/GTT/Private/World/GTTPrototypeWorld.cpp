@@ -1,5 +1,5 @@
 #include "World/GTTPrototypeWorld.h"
-
+#include "Activities/GTTFarmJobTerminal.h"
 #include "Activities/GTTFishingSpot.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/SkyLightComponent.h"
@@ -15,204 +15,98 @@
 #include "Kismet/GameplayStatics.h"
 #include "NPC/GTTCitizenPawn.h"
 #include "Vehicles/GTTTractorPawn.h"
+#include "World/GTTGarageTerminal.h"
 #include "World/GTTMissionSafeZone.h"
 #include "World/GTTServiceTerminal.h"
 
-AGTTPrototypeWorld::AGTTPrototypeWorld()
-{
-    PrimaryActorTick.bCanEverTick = false;
-}
-
-void AGTTPrototypeWorld::BeginPlay()
-{
-    Super::BeginPlay();
-    BuildWorld();
-}
+AGTTPrototypeWorld::AGTTPrototypeWorld(){ PrimaryActorTick.bCanEverTick=false; }
+void AGTTPrototypeWorld::BeginPlay(){ Super::BeginPlay(); BuildWorld(); }
 
 void AGTTPrototypeWorld::BuildWorld()
 {
-    if (bWorldBuilt || !GetWorld())
-    {
-        return;
-    }
+    if (bWorldBuilt || !GetWorld()) return;
+    bWorldBuilt=true;
 
-    bWorldBuilt = true;
+    ADirectionalLight* Sun=GetWorld()->SpawnActor<ADirectionalLight>(FVector::ZeroVector,FRotator(-48.0f,-35.0f,0.0f));
+    if(Sun&&Sun->GetLightComponent()) Sun->GetLightComponent()->SetIntensity(7.5f);
+    ASkyLight* Sky=GetWorld()->SpawnActor<ASkyLight>();
+    if(Sky&&Sky->GetLightComponent()){ Sky->GetLightComponent()->SetIntensity(1.25f); Sky->GetLightComponent()->SetRealTimeCapture(true); }
 
-    ADirectionalLight* Sun = GetWorld()->SpawnActor<ADirectionalLight>(FVector::ZeroVector, FRotator(-48.0f, -35.0f, 0.0f));
-    if (Sun && Sun->GetLightComponent())
-    {
-        Sun->GetLightComponent()->SetIntensity(7.5f);
-    }
+    SpawnBox(FVector(0,0,-100),FVector(200,200,1));
+    SpawnBox(FVector(0,-1800,-42),FVector(70,6,.08f),FRotator::ZeroRotator,false);
+    SpawnBox(FVector(0,1800,-42),FVector(70,6,.08f),FRotator::ZeroRotator,false);
+    SpawnBox(FVector(-3300,0,-42),FVector(36,6,.08f),FRotator(0,90,0),false);
+    SpawnBox(FVector(3300,0,-42),FVector(36,6,.08f),FRotator(0,90,0),false);
 
-    ASkyLight* Sky = GetWorld()->SpawnActor<ASkyLight>();
-    if (Sky && Sky->GetLightComponent())
-    {
-        Sky->GetLightComponent()->SetIntensity(1.25f);
-        Sky->GetLightComponent()->SetRealTimeCapture(true);
-    }
+    SpawnBox(FVector(-3000,-900,125),FVector(7,6,3.5f));
+    SpawnLabel(TEXT("PLAYER FARM / GARAGE"),FVector(-3000,-900,520));
+    GetWorld()->SpawnActor<AGTTGarageTerminal>(FVector(-2350,-650,55),FRotator::ZeroRotator);
+    SpawnLabel(TEXT("GARAGE REGISTER / SAVE - E"),FVector(-2350,-650,200),FRotator(0,180,0),46.0f);
 
-    // Ground and a simple road loop.
-    SpawnBox(FVector(0.0f, 0.0f, -100.0f), FVector(200.0f, 200.0f, 1.0f));
-    SpawnBox(FVector(0.0f, -1800.0f, -42.0f), FVector(70.0f, 6.0f, 0.08f), FRotator::ZeroRotator, false);
-    SpawnBox(FVector(0.0f, 1800.0f, -42.0f), FVector(70.0f, 6.0f, 0.08f), FRotator::ZeroRotator, false);
-    SpawnBox(FVector(-3300.0f, 0.0f, -42.0f), FVector(36.0f, 6.0f, 0.08f), FRotator(0.0f, 90.0f, 0.0f), false);
-    SpawnBox(FVector(3300.0f, 0.0f, -42.0f), FVector(36.0f, 6.0f, 0.08f), FRotator(0.0f, 90.0f, 0.0f), false);
+    if(AGTTFarmJobTerminal* JobStart=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(-2450,-1150,55),FRotator::ZeroRotator)) JobStart->SetTerminalType(EGTTFarmJobTerminalType::Start);
+    SpawnLabel(TEXT("LEGAL FARM JOB START - E"),FVector(-2450,-1150,200),FRotator(0,180,0),46.0f);
 
-    // Player farm / starting area.
-    SpawnBox(FVector(-3000.0f, -900.0f, 125.0f), FVector(7.0f, 6.0f, 3.5f));
-    SpawnLabel(TEXT("PLAYER FARM"), FVector(-3000.0f, -900.0f, 520.0f));
+    SpawnBox(FVector(-3600,900,180),FVector(8,7,4.5f));
+    SpawnLabel(TEXT("BARN - MISSION GOAL"),FVector(-3500,300,420));
+    GetWorld()->SpawnActor<AGTTMissionSafeZone>(FVector(-3500,250,140),FRotator::ZeroRotator);
 
-    // Barn and mission return zone.
-    SpawnBox(FVector(-3600.0f, 900.0f, 180.0f), FVector(8.0f, 7.0f, 4.5f));
-    SpawnLabel(TEXT("BARN - MISSION GOAL"), FVector(-3500.0f, 300.0f, 420.0f));
+    SpawnBox(FVector(2850,700,125),FVector(7,6,3.5f));
+    SpawnBox(FVector(3650,1050,110),FVector(5,8,3));
+    SpawnLabel(TEXT("NEIGHBOUR FARM"),FVector(3050,700,520));
+    GetWorld()->SpawnActor<AGTTTractorPawn>(FVector(2500,250,160),FRotator(0,180,0));
+    SpawnLabel(TEXT("RUSTY FIELDMASTER 60"),FVector(2500,250,440),FRotator(0,180,0),65.0f);
 
-    AGTTMissionSafeZone* SafeZone = GetWorld()->SpawnActor<AGTTMissionSafeZone>(
-        FVector(-3500.0f, 250.0f, 140.0f),
-        FRotator::ZeroRotator);
-    if (SafeZone)
-    {
-        SafeZone->SetActorScale3D(FVector(1.0f));
-    }
+    SpawnBox(FVector(900,-2700,150),FVector(6,5,4));
+    SpawnLabel(TEXT("VILLAGE SHOP / FISH BUYER"),FVector(900,-2700,560));
+    if(AGTTServiceTerminal* Buyer=GetWorld()->SpawnActor<AGTTServiceTerminal>(FVector(900,-2200,55),FRotator::ZeroRotator)) Buyer->SetServiceType(EGTTServiceType::FishBuyer);
+    SpawnLabel(TEXT("SELL FISH - E"),FVector(900,-2200,190),FRotator(0,180,0),50.0f);
 
-    // Neighbour farm where the first stolen tractor waits.
-    SpawnBox(FVector(2850.0f, 700.0f, 125.0f), FVector(7.0f, 6.0f, 3.5f));
-    SpawnBox(FVector(3650.0f, 1050.0f, 110.0f), FVector(5.0f, 8.0f, 3.0f));
-    SpawnLabel(TEXT("NEIGHBOUR FARM"), FVector(3050.0f, 700.0f, 520.0f));
+    SpawnBox(FVector(2700,-2600,165),FVector(7,5,4.3f));
+    SpawnLabel(TEXT("POLICE / ARREST RELEASE"),FVector(2700,-2600,590));
+    SpawnBox(FVector(2400,2700,155),FVector(8,6,4.1f));
+    SpawnLabel(TEXT("COMMUNITY HALL"),FVector(2400,2700,580));
 
-    GetWorld()->SpawnActor<AGTTTractorPawn>(
-        FVector(2500.0f, 250.0f, 160.0f),
-        FRotator(0.0f, 180.0f, 0.0f));
-    SpawnLabel(TEXT("RUSTY FIELDMASTER 60"), FVector(2500.0f, 250.0f, 440.0f), FRotator(0.0f, 180.0f, 0.0f), 65.0f);
+    SpawnBox(FVector(-400,2900,140),FVector(7,5,3.8f));
+    SpawnLabel(TEXT("WORKSHOP"),FVector(-400,2900,550));
+    if(AGTTServiceTerminal* Workshop=GetWorld()->SpawnActor<AGTTServiceTerminal>(FVector(-400,2400,55),FRotator::ZeroRotator)) Workshop->SetServiceType(EGTTServiceType::Workshop);
+    SpawnLabel(TEXT("REPAIR + REFUEL $75 - E"),FVector(-400,2400,190),FRotator(0,180,0),48.0f);
 
-    // Village shop doubles as the prototype fish buyer.
-    SpawnBox(FVector(900.0f, -2700.0f, 150.0f), FVector(6.0f, 5.0f, 4.0f));
-    SpawnLabel(TEXT("VILLAGE SHOP / FISH BUYER"), FVector(900.0f, -2700.0f, 560.0f));
-    if (AGTTServiceTerminal* FishBuyer = GetWorld()->SpawnActor<AGTTServiceTerminal>(
-        FVector(900.0f, -2200.0f, 55.0f), FRotator::ZeroRotator))
-    {
-        FishBuyer->SetServiceType(EGTTServiceType::FishBuyer);
-    }
-    SpawnLabel(TEXT("SELL FISH - E"), FVector(900.0f, -2200.0f, 190.0f), FRotator(0.0f, 180.0f, 0.0f), 50.0f);
+    SpawnBox(FVector(4700,-500,-35),FVector(20,28,.12f),FRotator::ZeroRotator,false);
+    SpawnLabel(TEXT("PRIVATE LAKE - NO FISHING"),FVector(4700,-500,220));
+    GetWorld()->SpawnActor<AGTTFishingSpot>(FVector(4050,-500,40),FRotator::ZeroRotator);
+    SpawnLabel(TEXT("POACH FISH - E"),FVector(4050,-500,175),FRotator(0,180,0),52.0f);
 
-    SpawnBox(FVector(2700.0f, -2600.0f, 165.0f), FVector(7.0f, 5.0f, 4.3f));
-    SpawnLabel(TEXT("POLICE"), FVector(2700.0f, -2600.0f, 590.0f));
+    SpawnBox(FVector(5200,2550,20),FVector(20,12,.2f),FRotator::ZeroRotator,false);
+    SpawnLabel(TEXT("FIELD DELIVERY / LEGAL JOB"),FVector(5200,2550,260));
+    if(AGTTFarmJobTerminal* JobFinish=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(4850,2550,55),FRotator::ZeroRotator)) JobFinish->SetTerminalType(EGTTFarmJobTerminalType::Finish);
+    SpawnLabel(TEXT("FINISH FARM JOB - E"),FVector(4850,2550,200),FRotator(0,180,0),48.0f);
 
-    SpawnBox(FVector(2400.0f, 2700.0f, 155.0f), FVector(8.0f, 6.0f, 4.1f));
-    SpawnLabel(TEXT("COMMUNITY HALL"), FVector(2400.0f, 2700.0f, 580.0f));
+    const TArray<FVector> CitizenSpawns={FVector(2200,450,120),FVector(3150,350,120),FVector(850,-2150,120),FVector(1650,-1650,120),FVector(-250,2150,120),FVector(2100,2200,120),FVector(-1900,-900,120),FVector(3400,-1500,120)};
+    for(const FVector& P:CitizenSpawns) GetWorld()->SpawnActor<AGTTCitizenPawn>(P,FRotator::ZeroRotator);
+    SpawnLabel(TEXT("VILLAGERS: WORK DAY / SOCIAL EVENING / HOME NIGHT"),FVector(1450,-1350,320),FRotator(0,180,0),44.0f);
 
-    // Workshop terminal repairs and refuels the nearest parked vehicle.
-    SpawnBox(FVector(-400.0f, 2900.0f, 140.0f), FVector(7.0f, 5.0f, 3.8f));
-    SpawnLabel(TEXT("WORKSHOP"), FVector(-400.0f, 2900.0f, 550.0f));
-    if (AGTTServiceTerminal* Workshop = GetWorld()->SpawnActor<AGTTServiceTerminal>(
-        FVector(-400.0f, 2400.0f, 55.0f), FRotator::ZeroRotator))
-    {
-        Workshop->SetServiceType(EGTTServiceType::Workshop);
-    }
-    SpawnLabel(TEXT("REPAIR + REFUEL $75 - E"), FVector(-400.0f, 2400.0f, 190.0f), FRotator(0.0f, 180.0f, 0.0f), 48.0f);
+    for(int32 I=0;I<9;++I) SpawnBox(FVector(-2200+I*520,-650,35),FVector(4.2f,.18f,.85f));
+    for(int32 I=0;I<7;++I) SpawnBox(FVector(1450,-900+I*420,35),FVector(.18f,3.5f,.85f));
 
-    // Lake and illegal fishing interaction.
-    SpawnBox(FVector(4700.0f, -500.0f, -35.0f), FVector(20.0f, 28.0f, 0.12f), FRotator::ZeroRotator, false);
-    SpawnLabel(TEXT("PRIVATE LAKE - NO FISHING"), FVector(4700.0f, -500.0f, 220.0f));
-    GetWorld()->SpawnActor<AGTTFishingSpot>(FVector(4050.0f, -500.0f, 40.0f), FRotator::ZeroRotator);
-    SpawnLabel(TEXT("POACH FISH - E"), FVector(4050.0f, -500.0f, 175.0f), FRotator(0.0f, 180.0f, 0.0f), 52.0f);
-
-    // Citizens: simple wandering prototype NPCs. Their location matters because they can witness theft.
-    const TArray<FVector> CitizenSpawns = {
-        FVector(2200.0f, 450.0f, 120.0f),
-        FVector(3150.0f, 350.0f, 120.0f),
-        FVector(850.0f, -2150.0f, 120.0f),
-        FVector(1650.0f, -1650.0f, 120.0f),
-        FVector(-250.0f, 2150.0f, 120.0f),
-        FVector(2100.0f, 2200.0f, 120.0f),
-        FVector(-1900.0f, -900.0f, 120.0f),
-        FVector(3400.0f, -1500.0f, 120.0f)
-    };
-
-    for (const FVector& SpawnLocation : CitizenSpawns)
-    {
-        GetWorld()->SpawnActor<AGTTCitizenPawn>(SpawnLocation, FRotator::ZeroRotator);
-    }
-    SpawnLabel(TEXT("VILLAGERS CAN WITNESS CRIME"), FVector(1450.0f, -1350.0f, 320.0f), FRotator(0.0f, 180.0f, 0.0f), 48.0f);
-
-    // A few fence / obstacle lines to create shortcuts and crash opportunities.
-    for (int32 Index = 0; Index < 9; ++Index)
-    {
-        const float X = -2200.0f + Index * 520.0f;
-        SpawnBox(FVector(X, -650.0f, 35.0f), FVector(4.2f, 0.18f, 0.85f));
-    }
-
-    for (int32 Index = 0; Index < 7; ++Index)
-    {
-        const float Y = -900.0f + Index * 420.0f;
-        SpawnBox(FVector(1450.0f, Y, 35.0f), FVector(0.18f, 3.5f, 0.85f));
-    }
-
-    SpawnLabel(
-        TEXT("GTT 0.0.4  |  STEAL - ESCAPE - FISH - SELL - REPAIR - REPEAT"),
-        FVector(-2500.0f, -1250.0f, 380.0f),
-        FRotator(0.0f, 180.0f, 0.0f),
-        54.0f);
-
-    if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0))
-    {
-        PlayerPawn->SetActorLocation(FVector(-2550.0f, -1250.0f, 120.0f));
-        PlayerPawn->SetActorRotation(FRotator(0.0f, 25.0f, 0.0f));
-    }
+    SpawnLabel(TEXT("GTT 0.0.5 | SAVE - OWN - WORK - GET ARRESTED - LIVE ANOTHER DAY"),FVector(-2500,-1250,380),FRotator(0,180,0),50.0f);
+    if(APawn* PlayerPawn=UGameplayStatics::GetPlayerPawn(this,0)){ PlayerPawn->SetActorLocation(FVector(-2550,-1250,120)); PlayerPawn->SetActorRotation(FRotator(0,25,0)); }
 }
 
-AStaticMeshActor* AGTTPrototypeWorld::SpawnBox(
-    const FVector& Location,
-    const FVector& Scale,
-    const FRotator& Rotation,
-    bool bCollision)
+AStaticMeshActor* AGTTPrototypeWorld::SpawnBox(const FVector& Location,const FVector& Scale,const FRotator& Rotation,bool bCollision)
 {
-    if (!GetWorld())
-    {
-        return nullptr;
-    }
-
-    UStaticMesh* CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-    if (!CubeMesh)
-    {
-        return nullptr;
-    }
-
-    AStaticMeshActor* Prop = GetWorld()->SpawnActor<AStaticMeshActor>(Location, Rotation);
-    if (!Prop)
-    {
-        return nullptr;
-    }
-
-    UStaticMeshComponent* MeshComponent = Prop->GetStaticMeshComponent();
-    MeshComponent->SetMobility(EComponentMobility::Movable);
-    MeshComponent->SetStaticMesh(CubeMesh);
-    MeshComponent->SetCollisionEnabled(bCollision ? ECollisionEnabled::QueryAndPhysics : ECollisionEnabled::NoCollision);
-    Prop->SetActorScale3D(Scale);
-    return Prop;
+    if(!GetWorld()) return nullptr;
+    UStaticMesh* CubeMesh=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube"));
+    if(!CubeMesh) return nullptr;
+    AStaticMeshActor* Prop=GetWorld()->SpawnActor<AStaticMeshActor>(Location,Rotation);
+    if(!Prop) return nullptr;
+    UStaticMeshComponent* Mesh=Prop->GetStaticMeshComponent();
+    Mesh->SetMobility(EComponentMobility::Movable); Mesh->SetStaticMesh(CubeMesh); Mesh->SetCollisionEnabled(bCollision?ECollisionEnabled::QueryAndPhysics:ECollisionEnabled::NoCollision); Prop->SetActorScale3D(Scale); return Prop;
 }
 
-ATextRenderActor* AGTTPrototypeWorld::SpawnLabel(
-    const FString& Text,
-    const FVector& Location,
-    const FRotator& Rotation,
-    float WorldSize)
+ATextRenderActor* AGTTPrototypeWorld::SpawnLabel(const FString& Text,const FVector& Location,const FRotator& Rotation,float WorldSize)
 {
-    if (!GetWorld())
-    {
-        return nullptr;
-    }
-
-    ATextRenderActor* Label = GetWorld()->SpawnActor<ATextRenderActor>(Location, Rotation);
-    if (!Label || !Label->GetTextRender())
-    {
-        return Label;
-    }
-
-    UTextRenderComponent* TextComponent = Label->GetTextRender();
-    TextComponent->SetText(FText::FromString(Text));
-    TextComponent->SetWorldSize(WorldSize);
-    TextComponent->SetHorizontalAlignment(EHTA_Center);
-    TextComponent->SetTextRenderColor(FColor(255, 220, 80));
-    TextComponent->SetCastShadow(true);
-    return Label;
+    if(!GetWorld()) return nullptr;
+    ATextRenderActor* Label=GetWorld()->SpawnActor<ATextRenderActor>(Location,Rotation);
+    if(!Label||!Label->GetTextRender()) return Label;
+    UTextRenderComponent* T=Label->GetTextRender(); T->SetText(FText::FromString(Text)); T->SetWorldSize(WorldSize); T->SetHorizontalAlignment(EHTA_Center); T->SetTextRenderColor(FColor(255,220,80)); T->SetCastShadow(true); return Label;
 }

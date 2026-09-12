@@ -12,7 +12,6 @@ namespace
         {
             return;
         }
-
         Part->SetStaticMesh(Mesh);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Part->SetGenerateOverlapEvents(false);
@@ -23,23 +22,22 @@ namespace
 AGTTTractorPawn::AGTTTractorPawn()
 {
     VehicleDisplayName = NSLOCTEXT("GTT", "PrototypeTractorName", "Rusty Fieldmaster 60");
+    PersistentVehicleId = TEXT("RustyFieldmaster60");
     MaxCondition = 150.0f;
     Condition = MaxCondition;
     DriveAcceleration = 1450.0f;
     SteeringAcceleration = 105.0f;
+    FuelCapacityLiters = 55.0f;
+    StartingFuelLiters = 18.0f;
+    IdleFuelBurnPerSecond = 0.035f;
+    FullThrottleFuelBurnPerSecond = 0.16f;
     TheftHeat = 42.0f;
     MinDamagingImpulse = 160000.0f;
     ImpulsePerDamagePoint = 60000.0f;
     ExitOffset = FVector(0.0f, 220.0f, 90.0f);
 
-    FuelCapacityLiters = 55.0f;
-    StartingFuelLiters = 18.0f;
-    IdleFuelBurnPerSecond = 0.035f;
-    FullThrottleFuelBurnPerSecond = 0.16f;
-
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-
     UStaticMesh* CubeMesh = CubeFinder.Succeeded() ? CubeFinder.Object : nullptr;
     UStaticMesh* CylinderMesh = CylinderFinder.Succeeded() ? CylinderFinder.Object : nullptr;
 

@@ -40,6 +40,12 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Fuel")
     void RefuelVehicle(float Liters);
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Ownership")
+    void MarkOwnedByPlayer();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Save")
+    void RestorePersistentState(const FTransform& InTransform, float ConditionPercent, float FuelLiters, bool bOwned);
+
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     float GetConditionPercent() const;
 
@@ -54,6 +60,12 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Fuel")
     float GetFuelCapacity() const { return FuelCapacityLiters; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Ownership")
+    bool IsOwnedByPlayer() const { return bOwnedByPlayer; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Save")
+    FName GetPersistentVehicleId() const { return PersistentVehicleId; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     bool IsOccupied() const { return bOccupied; }
@@ -87,12 +99,7 @@ protected:
     void HandleSteering(float Value);
 
     UFUNCTION()
-    void HandleVehicleHit(
-        UPrimitiveComponent* HitComponent,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
-        FVector NormalImpulse,
-        const FHitResult& Hit);
+    void HandleVehicleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
     UFUNCTION(BlueprintImplementableEvent, Category="GTT|Vehicle", meta=(DisplayName="Throttle Input"))
     void OnThrottleInput(float Value);
@@ -117,6 +124,9 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle")
     FText VehicleDisplayName;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Save")
+    FName PersistentVehicleId = TEXT("Vehicle");
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle", meta=(ClampMin="1.0"))
     float MaxCondition = 100.0f;
@@ -167,5 +177,6 @@ private:
     bool bOccupied = false;
     bool bEngineRunning = false;
     bool bTheftReported = false;
+    bool bOwnedByPlayer = false;
     float LastThrottleInput = 0.0f;
 };
