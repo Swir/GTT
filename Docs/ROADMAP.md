@@ -2,6 +2,16 @@
 
 The roadmap is ordered around playable slices. Every phase should leave something testable.
 
+<!-- ROADMAP-PROGRESS:START -->
+## Overall progress
+
+**107 / 129 roadmap items complete — 82.9%**
+
+`█████████████████░░░ 82.9%`
+
+Progress is calculated only from the task checkboxes in this roadmap: checked `[x]` items divided by all `[x]` + `[ ]` items. Whenever a roadmap task changes state, recalculate this block so it always reflects the real checklist state.
+<!-- ROADMAP-PROGRESS:END -->
+
 ## 0.1 — Tractor Theft Prototype
 - [x] Unreal C++ project/module skeleton
 - [x] Third-person character + interaction
