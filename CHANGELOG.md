@@ -2,6 +2,29 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.20] - 2026-09-12
+
+### Added
+- New articulated **farm trailer** actor using rigid-body simulation plus `UPhysicsConstraintComponent` hitch articulation instead of teleport-following.
+- Breakable hitch behavior with live hitch-load calculation; excessive separation damages the trailer and uncouples it, forcing a real re-hitch.
+- Loaded/unloaded trailer mass states: 980 kg empty and 1680 kg with heavy timber cargo.
+- Trailer cargo-stability simulation: excessive speed, roll and pitch progressively damage cargo integrity and trailer integrity.
+- New **Heavy Timber Haul** legal contract: Player Farm trailer yard -> North Wood Yard heavy loading -> Hill Farm heavy-haul bay.
+- Contract requires the player's owned Rusty Fieldmaster 60 at 40%+ condition, directly connecting vehicle ownership/repair to job eligibility.
+- Heavy-haul payout scales from cargo integrity, trailer integrity and tractor condition, with an additional fast-delivery bonus.
+- Automatic `UGTTHeavyHaulWorldSubsystem` bootstrap and four dedicated interaction terminals for contract, hitch/re-hitch, load and delivery stages.
+- Dedicated `verify_heavy_haul.py` sanity suite and CI step.
+- Dedicated 0.0.20 playtest document covering hitch breakage, physical mass changes, cargo stress and payout regression.
+
+### Changed
+- Roadside recovery remains a separate lightweight tow-line job, while heavy haul now supplies the first true articulated trailer work loop.
+- Roadmap now marks physical trailer articulation and a dedicated trailer work contract complete while keeping native Chaos wheel assets/final skeletal trailer work explicitly outstanding.
+
+### Limitations / Next
+- The trailer is real rigid-body/constraint gameplay but still uses primitive greybox geometry; final skeletal trailer wheel assets and authored hitch sockets are outstanding.
+- Native Chaos wheeled movement and a real UE 5.8 Win64 compile/package smoke runner remain outstanding.
+- Next major package: deeper hostile/faction archetypes, more countryside services/shops and larger connected road/mission expansion, followed by final Chaos wheel migration when a UE-equipped runner is available.
+
 ## [0.0.19] - 2026-09-12
 
 ### Added

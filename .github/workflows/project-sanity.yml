@@ -28,3 +28,6 @@ jobs:
 
       - name: Verify Arc 3 campaign milestone
         run: python Scripts/verify_arc3.py
+
+      - name: Verify heavy haul milestone
+        run: python Scripts/verify_heavy_haul.py
