@@ -49,3 +49,6 @@ jobs:
 
       - name: Verify player experience milestone
         run: python Scripts/verify_player_experience.py
+
+      - name: Verify release pipeline milestone
+        run: python Scripts/verify_release_pipeline.py
