@@ -35,6 +35,8 @@ AGTTTractorPawn::AGTTTractorPawn()
     MinDamagingImpulse = 160000.0f;
     ImpulsePerDamagePoint = 60000.0f;
     ExitOffset = FVector(0.0f, 220.0f, 90.0f);
+    LowConditionFaultChancePerSecond = 0.09f;
+    CriticalEngineTemperatureC = 128.0f;
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
@@ -67,6 +69,18 @@ AGTTTractorPawn::AGTTTractorPawn()
     ExhaustMesh->SetRelativeLocation(FVector(32.0f, 44.0f, 165.0f));
     ExhaustMesh->SetRelativeScale3D(FVector(0.12f, 0.12f, 1.25f));
 
+    UStaticMeshComponent* LeftFenderMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftFenderMesh"));
+    LeftFenderMesh->SetupAttachment(VehicleMesh);
+    ConfigureVisualPart(LeftFenderMesh, CubeMesh);
+    LeftFenderMesh->SetRelativeLocation(FVector(-45.0f, -104.0f, 55.0f));
+    LeftFenderMesh->SetRelativeScale3D(FVector(0.9f, 0.12f, 0.18f));
+
+    UStaticMeshComponent* RightFenderMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RightFenderMesh"));
+    RightFenderMesh->SetupAttachment(VehicleMesh);
+    ConfigureVisualPart(RightFenderMesh, CubeMesh);
+    RightFenderMesh->SetRelativeLocation(FVector(-45.0f, 104.0f, 55.0f));
+    RightFenderMesh->SetRelativeScale3D(FVector(0.9f, 0.12f, 0.18f));
+
     LeftFrontWheel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftFrontWheel"));
     LeftFrontWheel->SetupAttachment(VehicleMesh);
     ConfigureVisualPart(LeftFrontWheel, CylinderMesh);
@@ -94,4 +108,9 @@ AGTTTractorPawn::AGTTTractorPawn()
     RightRearWheel->SetRelativeLocation(FVector(-57.0f, 86.0f, 4.0f));
     RightRearWheel->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
     RightRearWheel->SetRelativeScale3D(FVector(0.72f, 0.72f, 0.36f));
+
+    RegisterBreakablePart(LeftFenderMesh, 0.60f, TEXT("left fender"));
+    RegisterBreakablePart(RightFenderMesh, 0.44f, TEXT("right fender"));
+    RegisterBreakablePart(ExhaustMesh, 0.28f, TEXT("exhaust stack"));
+    RegisterBreakablePart(HoodMesh, 0.16f, TEXT("hood"));
 }

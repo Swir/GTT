@@ -44,9 +44,11 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Tractor + first old car + first farm van
 - [x] Different handling/fuel/durability profiles
 - [x] Fuel and condition power loss
-- [ ] Breakable body parts
-- [ ] Smoke and random mechanical faults
-- [x] Repair/refuel service
+- [x] Breakable body parts
+- [x] Damage smoke and random mechanical faults
+- [x] Engine temperature / overheating
+- [x] Repair/refuel service reattaches major damage stages
+- [ ] Proper tire puncture / grip-loss simulation
 - [ ] Full tuning system
 - [ ] Mud/off-road handling
 - [ ] Dedicated Chaos drivetrain/suspension
@@ -55,7 +57,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Traffic route network
 - [x] Civilian road-driving AI prototype
 - [x] Game-warden/ranger AI for illegal fishing
-- [ ] Traffic obstacle avoidance / honking / respawn rules
+- [x] Traffic obstacle avoidance
+- [x] Traffic horn feedback
+- [x] Traffic stuck recovery
+- [ ] Traffic respawn/despawn streaming rules
 - [ ] Police vehicle pursuit escalation
 - [ ] Garage slot selection / vehicle recall
 - [ ] More vehicle ownership costs and fines
@@ -69,12 +74,14 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [ ] Side-mission chain
 
 ## 0.8 — Vehicle Damage & Tuning
-- [ ] Detachable doors/fenders/body panels
-- [ ] Visual smoke and engine-failure states
-- [ ] Tires/wheel damage
+- [x] Detachable doors/fenders/body panels
+- [x] Visual damage smoke and engine-failure states
+- [x] First detachable wheel damage stage
+- [ ] Tire-specific grip loss / punctures
 - [ ] Upgrade/tuning garage
 - [ ] Tractor visual upgrades
 - [ ] Old-car performance upgrades
+- [ ] Replacement body-panel economy
 
 ## 0.9 — Content & Polish
 - [ ] Story mission chain

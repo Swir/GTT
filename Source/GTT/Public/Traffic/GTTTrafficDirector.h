@@ -17,7 +17,7 @@ public:
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category="GTT|Traffic", meta=(ClampMin="1", ClampMax="12"))
-    int32 TrafficCarCount = 4;
+    int32 TrafficCarCount = 6;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|Traffic")
     TSubclassOf<AGTTTrafficCarPawn> TrafficCarClass;
