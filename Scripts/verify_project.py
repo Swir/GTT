@@ -15,9 +15,10 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h", "Source/GTT/Public/Vehicles/GTTTractorPawn.h",
     "Source/GTT/Public/Vehicles/GTTOldCarPawn.h", "Source/GTT/Public/Vehicles/GTTFarmVanPawn.h",
     "Source/GTT/Public/Wanted/GTTWantedComponent.h", "Source/GTT/Public/Police/GTTPoliceDirector.h",
-    "Source/GTT/Public/Ranger/GTTRangerDirector.h", "Source/GTT/Public/Traffic/GTTTrafficDirector.h",
-    "Source/GTT/Public/NPC/GTTCitizenPawn.h", "Source/GTT/Public/Activities/GTTFishingSpot.h",
-    "Source/GTT/Public/Activities/GTTForestPoachingSpot.h", "Source/GTT/Public/Activities/GTTFarmJobTerminal.h",
+    "Source/GTT/Public/Police/GTTPolicePursuitVehicle.h", "Source/GTT/Public/Ranger/GTTRangerDirector.h",
+    "Source/GTT/Public/Traffic/GTTTrafficDirector.h", "Source/GTT/Public/NPC/GTTCitizenPawn.h",
+    "Source/GTT/Public/Activities/GTTFishingSpot.h", "Source/GTT/Public/Activities/GTTForestPoachingSpot.h",
+    "Source/GTT/Public/Activities/GTTFarmJobTerminal.h", "Source/GTT/Public/Activities/GTTFarmJobDirector.h",
     "Source/GTT/Public/World/GTTMissionSafeZone.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
     "Source/GTT/Public/World/GTTServiceTerminal.h", "Source/GTT/Public/World/GTTGarageTerminal.h",
     "Source/GTT/Public/World/GTTTuningTerminal.h", "Source/GTT/Public/World/GTTDayNightCycle.h",
@@ -25,34 +26,19 @@ REQUIRED_FILES = [
 ]
 
 EXPECTED_SOURCE_TOKENS = {
-    "Source/GTT/Public/Save/GTTSaveGame.h": [
-        "SaveVersion = 3", "EngineUpgradeLevel", "TireUpgradeLevel", "TireIntegrity", "OwnedVehicles"
-    ],
-    "Source/GTT/Public/Vehicles/GTTVehicleBase.h": [
-        "RecallToTransform", "InstallEngineUpgrade", "InstallTireUpgrade", "RepairTires", "GetTuningSummary", "GetTireIntegrity"
-    ],
-    "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": [
-        "EngineTunePower", "TireGrip", "TireLoss", "SetPhysicsLinearVelocity", "ENGINE OVERHEAT", "FLAT TIRE"
-    ],
-    "Source/GTT/Private/World/GTTGarageTerminal.cpp": [
-        "RecallNextOwnedVehicle", "GARAGE RECALL", "RecallToTransform", "cycle the fleet"
-    ],
-    "Source/GTT/Private/World/GTTTuningTerminal.cpp": [
-        "ENGINE TUNE", "HEAVY-DUTY TIRES", "InstallEngineUpgrade", "InstallTireUpgrade", "SaveProgress"
-    ],
-    "Source/GTT/Private/Activities/GTTForestPoachingSpot.cpp": [
-        "ReportWildlifeCrime", "forest hare", "wild boar", "red deer", "WARDEN ALERT"
-    ],
-    "Source/GTT/Private/Core/GTTGameMode.cpp": [
-        "Save->SaveVersion = 3", "Stored.EngineUpgradeLevel", "Stored.TireUpgradeLevel", "Stored.TireIntegrity",
-        "Save->SaveVersion >= 3", "TryRegisterVehicle", "GetWildlifeAlertLevel"
-    ],
-    "Source/GTT/Private/UI/GTTGameHUD.cpp": [
-        "TUNING | ENGINE L%d/3", "TIRES L%d/3", "TIRE HEALTH", "WARDEN [", "DETACHED PARTS"
-    ],
-    "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
-        "AGTTTuningTerminal", "AGTTForestPoachingSpot", "WARDEN FOREST / NO HUNTING", "GARAGE: REGISTER / RECALL NEXT", "GTT 0.0.9"
-    ],
+    "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "EngineUpgradeLevel", "TireUpgradeLevel", "TireIntegrity", "OwnedVehicles"],
+    "Source/GTT/Public/Vehicles/GTTVehicleBase.h": ["RecallToTransform", "InstallEngineUpgrade", "InstallTireUpgrade", "RepairTires", "GetTuningSummary", "GetTireIntegrity"],
+    "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": ["EngineTunePower", "TireGrip", "TireLoss", "SetPhysicsLinearVelocity", "ENGINE OVERHEAT", "FLAT TIRE"],
+    "Source/GTT/Private/World/GTTGarageTerminal.cpp": ["RecallNextOwnedVehicle", "GARAGE RECALL", "RecallToTransform", "cycle the fleet"],
+    "Source/GTT/Private/World/GTTTuningTerminal.cpp": ["ENGINE TUNE", "HEAVY-DUTY TIRES", "InstallEngineUpgrade", "InstallTireUpgrade", "SaveProgress"],
+    "Source/GTT/Private/Activities/GTTForestPoachingSpot.cpp": ["ReportWildlifeCrime", "forest hare", "wild boar", "red deer", "WARDEN ALERT"],
+    "Source/GTT/Private/Activities/GTTFarmJobDirector.cpp": ["ReachPickup", "DeliverCargo", "DeliveryTimeLimit", "CargoIntegrity", "FAST BONUS", "CargoIntegrity = FMath::Max"],
+    "Source/GTT/Private/Activities/GTTFarmJobTerminal.cpp": ["TryStartJob", "TryPickupCargo", "TryCompleteJob"],
+    "Source/GTT/Private/Police/GTTPoliceDirector.cpp": ["DesiredVehicles", "VehicleEscalationWantedLevel", "SpawnPursuitVehicle", "SetResponseTier"],
+    "Source/GTT/Private/Police/GTTPolicePursuitVehicle.cpp": ["PursuitAcceleration", "AddForce", "AddTorqueInRadians", "TryArrestPlayer", "WantedLevel < 3"],
+    "Source/GTT/Private/Core/GTTGameMode.cpp": ["Save->SaveVersion = 3", "Stored.EngineUpgradeLevel", "Stored.TireUpgradeLevel", "Stored.TireIntegrity", "Save->SaveVersion >= 3", "TryRegisterVehicle", "GetWildlifeAlertLevel"],
+    "Source/GTT/Private/UI/GTTGameHUD.cpp": ["POLICE RESPONSE", "PURSUIT CARS", "GetObjectiveText", "TUNING | ENGINE L%d/3", "WARDEN ["],
+    "Source/GTT/Private/World/GTTPrototypeWorld.cpp": ["AGTTFarmJobDirector", "FEED DEPOT / CARGO PICKUP", "HILL FARM / CARGO DELIVERY", "3+ WANTED: PATROL CARS JOIN PURSUIT", "GTT 0.0.10"],
     "Source/GTT/Private/Traffic/GTTTrafficCarPawn.cpp": ["LineTraceSingleByChannel", "BEEP!", "StuckRecoverySeconds"],
     "Source/GTT/Private/Ranger/GTTRangerAIController.cpp": ["TryRangerCitation", "MoveToActor"],
     "Source/GTT/Private/Police/GTTPoliceAIController.cpp": ["TryArrestPlayer", "MoveToActor"],
@@ -113,7 +99,7 @@ def main() -> int:
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.9 garage recall, persistent tuning, tire degradation and forest poaching hooks look structurally sane.")
+    print("[OK] GTT 0.0.10 police pursuit escalation and staged cargo-job hooks look structurally sane.")
     return 0
 
 
