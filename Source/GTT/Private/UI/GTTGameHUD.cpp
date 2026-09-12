@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Missions/GTTMainStoryDirector.h"
 #include "Missions/GTTMissionComponent.h"
 #include "Missions/GTTNightFavorDirector.h"
 #include "Police/GTTPoliceDirector.h"
@@ -29,6 +30,7 @@ void AGTTGameHUD::DrawHUD()
     AGTTPoliceDirector* PoliceDirector = Cast<AGTTPoliceDirector>(UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()));
     AGTTFarmJobDirector* FarmJobDirector = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
     AGTTRuralWorkDirector* RuralWork = Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRuralWorkDirector::StaticClass()));
+    AGTTMainStoryDirector* MainStory = Cast<AGTTMainStoryDirector>(UGameplayStatics::GetActorOfClass(this, AGTTMainStoryDirector::StaticClass()));
     AGTTNightFavorDirector* NightFavor = Cast<AGTTNightFavorDirector>(UGameplayStatics::GetActorOfClass(this, AGTTNightFavorDirector::StaticClass()));
     AGTTVillageEventDirector* NightDirector = Cast<AGTTVillageEventDirector>(UGameplayStatics::GetActorOfClass(this, AGTTVillageEventDirector::StaticClass()));
 
@@ -67,6 +69,13 @@ void AGTTGameHUD::DrawHUD()
         const FString TimeText = GameMode->GetDayNightCycle() ? GameMode->GetDayNightCycle()->GetClockText() : TEXT("DAY ? --:--");
         const FString GarageText = FString::Printf(TEXT("  |  GARAGE %d/%d"), GameMode->GetOwnedVehicleCount(), GameMode->GetGarageCapacity());
         DrawText(TimeText + GarageText, FLinearColor(0.95f,0.9f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
+        Y += 30.0f;
+    }
+
+    if (MainStory)
+    {
+        DrawText(MainStory->GetObjectiveText(), MainStory->GetStage() == EGTTMainStoryStage::Completed ? FLinearColor(0.35f,1.0f,0.5f,1.0f) : FLinearColor(1.0f,0.78f,0.18f,1.0f),
+            36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
         Y += 30.0f;
     }
 
@@ -151,7 +160,7 @@ FString AGTTGameHUD::BuildMissionText() const
     if (!Mission) return FString();
     if (Mission->GetActiveMissionId() == FName(TEXT("BorrowedTractor")))
     {
-        if (Mission->GetMissionState() == EGTTMissionState::Completed) return TEXT("MISSION COMPLETE: BORROWED TRACTOR | tractor owned | $300 earned | build your garage");
+        if (Mission->GetMissionState() == EGTTMissionState::Completed) return TEXT("MISSION COMPLETE: BORROWED TRACTOR | tractor owned | $300 earned | main story unlocked at farm office");
         if (Mission->GetMissionState() == EGTTMissionState::Failed) return TEXT("MISSION FAILED: BORROWED TRACTOR");
         if (Mission->GetMissionState() == EGTTMissionState::Active)
         {
