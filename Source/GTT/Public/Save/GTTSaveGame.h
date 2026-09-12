@@ -20,6 +20,15 @@ struct FGTTStoredVehicleData
 
     UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle")
     float FuelLiters = 0.0f;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle")
+    int32 EngineUpgradeLevel = 0;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle")
+    int32 TireUpgradeLevel = 0;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle")
+    float TireIntegrity = 1.0f;
 };
 
 UCLASS()
@@ -29,7 +38,7 @@ class GTT_API UGTTSaveGame : public USaveGame
 
 public:
     UPROPERTY(VisibleAnywhere, Category="GTT|Save")
-    int32 SaveVersion = 2;
+    int32 SaveVersion = 3;
 
     UPROPERTY(VisibleAnywhere, Category="GTT|Save")
     int32 Cash = 120;

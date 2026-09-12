@@ -14,7 +14,6 @@ class GTT_API AGTTGarageTerminal : public AActor, public IGTTInteractable
 
 public:
     AGTTGarageTerminal();
-
     virtual void Interact_Implementation(AActor* Interactor) override;
     virtual FText GetInteractionText_Implementation() const override;
 
@@ -27,4 +26,8 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Garage", meta=(ClampMin="100.0"))
     float VehicleSearchRadius = 1000.0f;
+
+private:
+    bool RecallNextOwnedVehicle(APawn* Pawn);
+    int32 RecallCursor = 0;
 };

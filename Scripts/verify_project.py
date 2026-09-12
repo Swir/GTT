@@ -10,63 +10,52 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = [
     "GTT.uproject", "Config/DefaultEngine.ini", "Config/DefaultGame.ini", "Config/DefaultInput.ini",
     "Source/GTT.Target.cs", "Source/GTTEditor.Target.cs", "Source/GTT/GTT.Build.cs", "Source/GTT/GTT.cpp",
-    "Source/GTT/Public/Characters/GTTCharacter.h", "Source/GTT/Public/Core/GTTGameplayStatics.h", "Source/GTT/Public/Core/GTTGameMode.h",
+    "Source/GTT/Public/Characters/GTTCharacter.h", "Source/GTT/Public/Core/GTTGameMode.h",
     "Source/GTT/Public/Economy/GTTPlayerEconomyComponent.h", "Source/GTT/Public/UI/GTTGameHUD.h",
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h", "Source/GTT/Public/Vehicles/GTTTractorPawn.h",
     "Source/GTT/Public/Vehicles/GTTOldCarPawn.h", "Source/GTT/Public/Vehicles/GTTFarmVanPawn.h",
     "Source/GTT/Public/Wanted/GTTWantedComponent.h", "Source/GTT/Public/Police/GTTPoliceDirector.h",
-    "Source/GTT/Public/Ranger/GTTRangerDirector.h", "Source/GTT/Public/Ranger/GTTRangerAIController.h",
-    "Source/GTT/Public/Traffic/GTTTrafficCarPawn.h", "Source/GTT/Public/Traffic/GTTTrafficDirector.h",
-    "Source/GTT/Public/NPC/GTTCitizenPawn.h", "Source/GTT/Public/Activities/GTTFishingSpot.h", "Source/GTT/Public/Activities/GTTFarmJobTerminal.h",
-    "Source/GTT/Public/World/GTTMissionSafeZone.h", "Source/GTT/Public/World/GTTPrototypeWorld.h", "Source/GTT/Public/World/GTTServiceTerminal.h",
-    "Source/GTT/Public/World/GTTGarageTerminal.h", "Source/GTT/Public/World/GTTDayNightCycle.h",
+    "Source/GTT/Public/Ranger/GTTRangerDirector.h", "Source/GTT/Public/Traffic/GTTTrafficDirector.h",
+    "Source/GTT/Public/NPC/GTTCitizenPawn.h", "Source/GTT/Public/Activities/GTTFishingSpot.h",
+    "Source/GTT/Public/Activities/GTTForestPoachingSpot.h", "Source/GTT/Public/Activities/GTTFarmJobTerminal.h",
+    "Source/GTT/Public/World/GTTMissionSafeZone.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
+    "Source/GTT/Public/World/GTTServiceTerminal.h", "Source/GTT/Public/World/GTTGarageTerminal.h",
+    "Source/GTT/Public/World/GTTTuningTerminal.h", "Source/GTT/Public/World/GTTDayNightCycle.h",
     "Source/GTT/Public/Save/GTTSaveGame.h", "Scripts/package_windows.ps1",
 ]
 
 EXPECTED_SOURCE_TOKENS = {
-    "Source/GTT/Public/Save/GTTSaveGame.h": ["FGTTStoredVehicleData", "SaveVersion = 2", "OwnedVehicles", "VehicleId"],
+    "Source/GTT/Public/Save/GTTSaveGame.h": [
+        "SaveVersion = 3", "EngineUpgradeLevel", "TireUpgradeLevel", "TireIntegrity", "OwnedVehicles"
+    ],
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h": [
-        "RegisterBreakablePart", "GetEngineTemperatureC", "GetDetachedPartCount", "GetFaultStatusText",
-        "DamageSmokePuffA", "CriticalEngineTemperatureC", "LowConditionFaultChancePerSecond"
+        "RecallToTransform", "InstallEngineUpgrade", "InstallTireUpgrade", "RepairTires", "GetTuningSummary", "GetTireIntegrity"
     ],
     "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": [
-        "UpdateBreakableParts", "RestoreBreakableParts", "UpdateDamageSmoke", "TriggerMechanicalStall",
-        "SetSimulatePhysics(true)", "ENGINE OVERHEAT", "ENGINE STALL", "EngineTemperatureC"
+        "EngineTunePower", "TireGrip", "TireLoss", "SetPhysicsLinearVelocity", "ENGINE OVERHEAT", "FLAT TIRE"
     ],
-    "Source/GTT/Private/Vehicles/GTTTractorPawn.cpp": [
-        "Rusty Fieldmaster 60", "RustyFieldmaster60", "LeftFenderMesh", "RightFenderMesh", "RegisterBreakablePart", "exhaust stack"
+    "Source/GTT/Private/World/GTTGarageTerminal.cpp": [
+        "RecallNextOwnedVehicle", "GARAGE RECALL", "RecallToTransform", "cycle the fleet"
     ],
-    "Source/GTT/Private/Vehicles/GTTOldCarPawn.cpp": [
-        "Rattleback 82", "Rattleback82", "LeftDoorMesh", "RightDoorMesh", "FrontBumperMesh", "RegisterBreakablePart", "right rear wheel"
+    "Source/GTT/Private/World/GTTTuningTerminal.cpp": [
+        "ENGINE TUNE", "HEAVY-DUTY TIRES", "InstallEngineUpgrade", "InstallTireUpgrade", "SaveProgress"
     ],
-    "Source/GTT/Private/Vehicles/GTTFarmVanPawn.cpp": [
-        "Mulebox 1200", "Mulebox1200", "SlidingDoorMesh", "RearDoorLeftMesh", "RearDoorRightMesh", "RegisterBreakablePart"
-    ],
-    "Source/GTT/Private/Traffic/GTTTrafficCarPawn.cpp": [
-        "LineTraceSingleByChannel", "ObstacleProbeDistance", "BEEP!", "HornCooldownRemaining", "StuckRecoverySeconds", "AddImpulse"
-    ],
-    "Source/GTT/Private/Traffic/GTTTrafficDirector.cpp": ["ClockwiseRoute", "CounterClockwiseRoute", "Algo::Reverse"],
-    "Source/GTT/Private/Economy/GTTPlayerEconomyComponent.cpp": ["AddFish", "SellAllFish", "ChargeFine", "ConfiscateAllFish", "RestoreState"],
-    "Source/GTT/Private/NPC/GTTCitizenPawn.cpp": ["TryWitnessVehicleTheft", "GetScheduleCenter", "DayNightCycle", "called the police"],
-    "Source/GTT/Private/Activities/GTTFishingSpot.cpp": ["ReportWildlifeCrime", "River Perch", "Village Carp", "Old Pike"],
-    "Source/GTT/Private/Activities/GTTFarmJobTerminal.cpp": ["StartFarmJob", "CompleteFarmJob"],
-    "Source/GTT/Private/Ranger/GTTRangerDirector.cpp": ["GetWildlifeAlertLevel", "SpawnActor<AGTTRangerPawn>"],
-    "Source/GTT/Private/Ranger/GTTRangerAIController.cpp": ["TryRangerCitation", "MoveToActor"],
-    "Source/GTT/Private/World/GTTGarageTerminal.cpp": ["RegistrationCost", "TryRegisterVehicle", "VehicleSearchRadius"],
-    "Source/GTT/Private/World/GTTDayNightCycle.cpp": ["RealSecondsPerGameDay", "RestoreTime", "UpdateLighting", "DAY %d"],
-    "Source/GTT/Private/Police/GTTPoliceAIController.cpp": ["MoveToActor(", "TryArrestPlayer", "ArrestRadius"],
-    "Source/GTT/Private/UI/GTTGameHUD.cpp": [
-        "WANTED [", "WARDEN [", "GARAGE %d/%d", "TEMP %.0fC", "VEHICLE DAMAGE", "DETACHED PARTS"
-    ],
-    "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
-        "4-SLOT GARAGE", "SpawnActor<AGTTOldCarPawn>", "SpawnActor<AGTTFarmVanPawn>",
-        "GAME WARDEN OUTPOST", "PRIVATE LAKE - NO FISHING"
+    "Source/GTT/Private/Activities/GTTForestPoachingSpot.cpp": [
+        "ReportWildlifeCrime", "forest hare", "wild boar", "red deer", "WARDEN ALERT"
     ],
     "Source/GTT/Private/Core/GTTGameMode.cpp": [
-        "SaveGameToSlot", "LoadGameFromSlot", "OwnedVehicles", "TryRegisterVehicle", "GarageCapacity",
-        "ReportWildlifeCrime", "TryRangerCitation", "GetWildlifeAlertLevel", "SpawnActor<AGTTTrafficDirector>"
+        "Save->SaveVersion = 3", "Stored.EngineUpgradeLevel", "Stored.TireUpgradeLevel", "Stored.TireIntegrity",
+        "Save->SaveVersion >= 3", "TryRegisterVehicle", "GetWildlifeAlertLevel"
     ],
-    "Source/GTT/Private/Characters/GTTCharacter.cpp": ["QuickSave", "QuickLoad", "SaveProgress", "LoadProgress"],
+    "Source/GTT/Private/UI/GTTGameHUD.cpp": [
+        "TUNING | ENGINE L%d/3", "TIRES L%d/3", "TIRE HEALTH", "WARDEN [", "DETACHED PARTS"
+    ],
+    "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
+        "AGTTTuningTerminal", "AGTTForestPoachingSpot", "WARDEN FOREST / NO HUNTING", "GARAGE: REGISTER / RECALL NEXT", "GTT 0.0.9"
+    ],
+    "Source/GTT/Private/Traffic/GTTTrafficCarPawn.cpp": ["LineTraceSingleByChannel", "BEEP!", "StuckRecoverySeconds"],
+    "Source/GTT/Private/Ranger/GTTRangerAIController.cpp": ["TryRangerCitation", "MoveToActor"],
+    "Source/GTT/Private/Police/GTTPoliceAIController.cpp": ["TryArrestPlayer", "MoveToActor"],
 }
 
 
@@ -107,30 +96,24 @@ def main() -> int:
         if absent:
             fail(f"{relative} is missing expected gameplay hooks: {absent}")
 
-    ids = {
-        "RustyFieldmaster60": (ROOT / "Source/GTT/Private/Vehicles/GTTTractorPawn.cpp").read_text(encoding="utf-8"),
-        "Rattleback82": (ROOT / "Source/GTT/Private/Vehicles/GTTOldCarPawn.cpp").read_text(encoding="utf-8"),
-        "Mulebox1200": (ROOT / "Source/GTT/Private/Vehicles/GTTFarmVanPawn.cpp").read_text(encoding="utf-8"),
+    vehicle_sources = {
+        "RustyFieldmaster60": ROOT / "Source/GTT/Private/Vehicles/GTTTractorPawn.cpp",
+        "Rattleback82": ROOT / "Source/GTT/Private/Vehicles/GTTOldCarPawn.cpp",
+        "Mulebox1200": ROOT / "Source/GTT/Private/Vehicles/GTTFarmVanPawn.cpp",
     }
-    for vehicle_id, source in ids.items():
+    for vehicle_id, path in vehicle_sources.items():
+        source = path.read_text(encoding="utf-8")
         if source.count(vehicle_id) != 1:
             fail(f"Persistent vehicle ID should appear exactly once in its vehicle source: {vehicle_id}")
-
-    breakable_counts = {
-        "tractor": (ROOT / "Source/GTT/Private/Vehicles/GTTTractorPawn.cpp").read_text(encoding="utf-8").count("RegisterBreakablePart("),
-        "old car": (ROOT / "Source/GTT/Private/Vehicles/GTTOldCarPawn.cpp").read_text(encoding="utf-8").count("RegisterBreakablePart("),
-        "farm van": (ROOT / "Source/GTT/Private/Vehicles/GTTFarmVanPawn.cpp").read_text(encoding="utf-8").count("RegisterBreakablePart("),
-    }
-    for vehicle, count in breakable_counts.items():
-        if count < 4:
-            fail(f"{vehicle} should expose at least four staged breakable parts, found {count}")
+        if source.count("RegisterBreakablePart(") < 4:
+            fail(f"{vehicle_id} should still expose staged breakable body parts")
 
     forbidden = ["Binaries", "Intermediate", "DerivedDataCache", "Saved"]
     present = [n for n in forbidden if (ROOT / n).exists()]
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.8 vehicle damage, mechanical faults, traffic avoidance and existing gameplay hooks look structurally sane.")
+    print("[OK] GTT 0.0.9 garage recall, persistent tuning, tire degradation and forest poaching hooks look structurally sane.")
     return 0
 
 

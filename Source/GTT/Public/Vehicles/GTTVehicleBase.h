@@ -44,7 +44,20 @@ public:
     void MarkOwnedByPlayer();
 
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Save")
-    void RestorePersistentState(const FTransform& InTransform, float ConditionPercent, float FuelLiters, bool bOwned);
+    void RestorePersistentState(const FTransform& InTransform, float ConditionPercent, float FuelLiters, bool bOwned,
+        int32 InEngineUpgradeLevel = 0, int32 InTireUpgradeLevel = 0, float InTireIntegrity = 1.0f);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Garage")
+    bool RecallToTransform(const FTransform& Destination);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Tuning")
+    bool InstallEngineUpgrade();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Tuning")
+    bool InstallTireUpgrade();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Tuning")
+    void RepairTires();
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     float GetConditionPercent() const;
@@ -69,6 +82,18 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage")
     FString GetFaultStatusText() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Tuning")
+    int32 GetEngineUpgradeLevel() const { return EngineUpgradeLevel; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Tuning")
+    int32 GetTireUpgradeLevel() const { return TireUpgradeLevel; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Tuning")
+    float GetTireIntegrity() const { return TireIntegrity; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Tuning")
+    FString GetTuningSummary() const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Ownership")
     bool IsOwnedByPlayer() const { return bOwnedByPlayer; }
@@ -106,7 +131,6 @@ public:
 protected:
     void HandleThrottle(float Value);
     void HandleSteering(float Value);
-
     void RegisterBreakablePart(UStaticMeshComponent* Part, float DetachAtConditionPercent, FName PartName);
 
     UFUNCTION()
@@ -135,10 +159,8 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage")
     TObjectPtr<UStaticMeshComponent> DamageSmokePuffA;
-
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage")
     TObjectPtr<UStaticMeshComponent> DamageSmokePuffB;
-
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage")
     TObjectPtr<UStaticMeshComponent> DamageSmokePuffC;
 
@@ -150,55 +172,43 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle", meta=(ClampMin="1.0"))
     float MaxCondition = 100.0f;
-
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="GTT|Vehicle")
     float Condition = 100.0f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Driving", meta=(ClampMin="0.0"))
     float DriveAcceleration = 950.0f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Driving", meta=(ClampMin="0.0"))
     float SteeringAcceleration = 75.0f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="1.0"))
     float FuelCapacityLiters = 45.0f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="0.0"))
     float StartingFuelLiters = 22.0f;
-
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel")
     float CurrentFuelLiters = 0.0f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="0.0"))
     float IdleFuelBurnPerSecond = 0.025f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="0.0"))
     float FullThrottleFuelBurnPerSecond = 0.11f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="0.0"))
     float NormalEngineTemperatureC = 72.0f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="70.0"))
     float OverheatStartTemperatureC = 105.0f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="90.0"))
     float CriticalEngineTemperatureC = 120.0f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="0.0"))
     float LowConditionFaultChancePerSecond = 0.16f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="0.1"))
     float FaultRestartDelaySeconds = 2.5f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Crime")
     bool bIllegalToTake = true;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Crime", meta=(ClampMin="0.0"))
     float TheftHeat = 28.0f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="0.0"))
     float MinDamagingImpulse = 120000.0f;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Damage", meta=(ClampMin="1.0"))
     float ImpulsePerDamagePoint = 45000.0f;
 
@@ -233,4 +243,8 @@ private:
     float DamageFxClock = 0.0f;
     int32 DetachedPartCount = 0;
     FString ActiveFaultStatus;
+
+    int32 EngineUpgradeLevel = 0;
+    int32 TireUpgradeLevel = 0;
+    float TireIntegrity = 1.0f;
 };

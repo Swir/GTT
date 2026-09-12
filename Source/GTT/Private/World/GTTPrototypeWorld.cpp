@@ -1,6 +1,7 @@
 #include "World/GTTPrototypeWorld.h"
 #include "Activities/GTTFarmJobTerminal.h"
 #include "Activities/GTTFishingSpot.h"
+#include "Activities/GTTForestPoachingSpot.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -20,6 +21,7 @@
 #include "World/GTTGarageTerminal.h"
 #include "World/GTTMissionSafeZone.h"
 #include "World/GTTServiceTerminal.h"
+#include "World/GTTTuningTerminal.h"
 
 AGTTPrototypeWorld::AGTTPrototypeWorld(){ PrimaryActorTick.bCanEverTick=false; }
 void AGTTPrototypeWorld::BeginPlay(){ Super::BeginPlay(); BuildWorld(); }
@@ -44,7 +46,7 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnBox(FVector(-3000,-900,125),FVector(7,6,3.5f));
     SpawnLabel(TEXT("PLAYER FARM / 4-SLOT GARAGE"),FVector(-3000,-900,520));
     GetWorld()->SpawnActor<AGTTGarageTerminal>(FVector(-2350,-650,55),FRotator::ZeroRotator);
-    SpawnLabel(TEXT("GARAGE REGISTER / SAVE - E"),FVector(-2350,-650,200),FRotator(0,180,0),46.0f);
+    SpawnLabel(TEXT("GARAGE: REGISTER / RECALL NEXT - E"),FVector(-2350,-650,200),FRotator(0,180,0),42.0f);
     for(int32 Slot=0; Slot<4; ++Slot)
     {
         SpawnBox(FVector(-3650.0f + Slot*420.0f,-1500.0f,-35.0f),FVector(3.6f,1.8f,.05f),FRotator::ZeroRotator,false);
@@ -78,9 +80,11 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("COMMUNITY HALL"),FVector(2400,2700,580));
 
     SpawnBox(FVector(-400,2900,140),FVector(7,5,3.8f));
-    SpawnLabel(TEXT("WORKSHOP"),FVector(-400,2900,550));
-    if(AGTTServiceTerminal* Workshop=GetWorld()->SpawnActor<AGTTServiceTerminal>(FVector(-400,2400,55),FRotator::ZeroRotator)) Workshop->SetServiceType(EGTTServiceType::Workshop);
-    SpawnLabel(TEXT("REPAIR + REFUEL $75 - E"),FVector(-400,2400,190),FRotator(0,180,0),48.0f);
+    SpawnLabel(TEXT("WORKSHOP + TUNING"),FVector(-400,2900,550));
+    if(AGTTServiceTerminal* Workshop=GetWorld()->SpawnActor<AGTTServiceTerminal>(FVector(-650,2400,55),FRotator::ZeroRotator)) Workshop->SetServiceType(EGTTServiceType::Workshop);
+    SpawnLabel(TEXT("REPAIR + REFUEL $75 - E"),FVector(-650,2400,190),FRotator(0,180,0),42.0f);
+    GetWorld()->SpawnActor<AGTTTuningTerminal>(FVector(-150,2400,55),FRotator::ZeroRotator);
+    SpawnLabel(TEXT("TUNING / TIRES - E"),FVector(-150,2400,190),FRotator(0,180,0),44.0f);
     GetWorld()->SpawnActor<AGTTFarmVanPawn>(FVector(450,2850,110),FRotator(0,-90,0));
     SpawnLabel(TEXT("MULEBOX 1200 - FARM VAN"),FVector(450,2850,340),FRotator(0,180,0),48.0f);
 
@@ -92,6 +96,18 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnBox(FVector(5050,700,115),FVector(5.5f,4.5f,3.2f));
     SpawnLabel(TEXT("GAME WARDEN OUTPOST"),FVector(5050,700,470),FRotator(0,180,0),46.0f);
     SpawnLabel(TEXT("POACHING TRIGGERS WARDEN ALERT 1-3"),FVector(4600,350,260),FRotator(0,180,0),38.0f);
+
+    // First forest expansion: a rough woodland patch east of the lake with an illegal poaching interaction.
+    for(int32 Tree=0; Tree<18; ++Tree)
+    {
+        const float X = 6100.0f + (Tree%6)*420.0f;
+        const float Y = -1750.0f + (Tree/6)*620.0f;
+        SpawnBox(FVector(X,Y,120),FVector(.45f,.45f,3.2f));
+        SpawnBox(FVector(X,Y,410),FVector(1.4f,1.4f,1.2f),FRotator::ZeroRotator,false);
+    }
+    SpawnLabel(TEXT("WARDEN FOREST / NO HUNTING"),FVector(7050,-1700,540),FRotator(0,180,0),52.0f);
+    GetWorld()->SpawnActor<AGTTForestPoachingSpot>(FVector(7050,-950,55),FRotator::ZeroRotator);
+    SpawnLabel(TEXT("ILLEGAL FOREST POACHING - E"),FVector(7050,-950,210),FRotator(0,180,0),44.0f);
 
     SpawnBox(FVector(5200,2550,20),FVector(20,12,.2f),FRotator::ZeroRotator,false);
     SpawnLabel(TEXT("FIELD DELIVERY / LEGAL JOB"),FVector(5200,2550,260));
@@ -105,7 +121,7 @@ void AGTTPrototypeWorld::BuildWorld()
     for(int32 I=0;I<9;++I) SpawnBox(FVector(-2200+I*520,-650,35),FVector(4.2f,.18f,.85f));
     for(int32 I=0;I<7;++I) SpawnBox(FVector(1450,-900+I*420,35),FVector(.18f,3.5f,.85f));
 
-    SpawnLabel(TEXT("GTT 0.0.7 | LIVE TRAFFIC + POLICE + GAME WARDEN"),FVector(-2500,-1250,380),FRotator(0,180,0),48.0f);
+    SpawnLabel(TEXT("GTT 0.0.9 | GARAGE RECALL + TUNING + FOREST POACHING"),FVector(-2500,-1250,380),FRotator(0,180,0),46.0f);
     if(APawn* PlayerPawn=UGameplayStatics::GetPlayerPawn(this,0)){ PlayerPawn->SetActorLocation(FVector(-2550,-1250,120)); PlayerPawn->SetActorRotation(FRotator(0,25,0)); }
 }
 
