@@ -11,6 +11,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Missions/GTTArc3Director.h"
+#include "Missions/GTTArc4Director.h"
 #include "Missions/GTTMainStoryDirector.h"
 #include "Missions/GTTMissionComponent.h"
 #include "Missions/GTTNightFavorDirector.h"
@@ -39,6 +40,7 @@ void AGTTGameHUD::DrawHUD()
     AGTTBrawlDirector* Brawl = Cast<AGTTBrawlDirector>(UGameplayStatics::GetActorOfClass(this, AGTTBrawlDirector::StaticClass()));
     AGTTMainStoryDirector* MainStory = Cast<AGTTMainStoryDirector>(UGameplayStatics::GetActorOfClass(this, AGTTMainStoryDirector::StaticClass()));
     AGTTArc3Director* Arc3 = Cast<AGTTArc3Director>(UGameplayStatics::GetActorOfClass(this, AGTTArc3Director::StaticClass()));
+    AGTTArc4Director* Arc4 = Cast<AGTTArc4Director>(UGameplayStatics::GetActorOfClass(this, AGTTArc4Director::StaticClass()));
     AGTTNightFavorDirector* NightFavor = Cast<AGTTNightFavorDirector>(UGameplayStatics::GetActorOfClass(this, AGTTNightFavorDirector::StaticClass()));
     AGTTVillageEventDirector* NightDirector = Cast<AGTTVillageEventDirector>(UGameplayStatics::GetActorOfClass(this, AGTTVillageEventDirector::StaticClass()));
 
@@ -95,6 +97,12 @@ void AGTTGameHUD::DrawHUD()
     if (Arc3 && (Arc3->GetStage() != EGTTArc3Stage::Locked || (MainStory && MainStory->GetStage() == EGTTMainStoryStage::Completed)))
     {
         DrawText(Arc3->GetObjectiveText(), Arc3->GetStage() == EGTTArc3Stage::Completed ? FLinearColor(0.3f,1.0f,0.45f,1.0f) : FLinearColor(1.0f,0.42f,0.14f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
+        Y += 30.0f;
+    }
+
+    if (Arc4 && (Arc4->GetStage() != EGTTArc4Stage::Locked || (Arc3 && Arc3->GetStage() == EGTTArc3Stage::Completed)))
+    {
+        DrawText(Arc4->GetObjectiveText(), Arc4->GetStage() == EGTTArc4Stage::Completed ? FLinearColor(0.3f,1.0f,0.55f,1.0f) : FLinearColor(1.0f,0.58f,0.12f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
         Y += 30.0f;
     }
 
