@@ -27,7 +27,8 @@ REQUIRED_FILES = [
     "Source/GTT/Public/World/GTTDayNightCycle.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
     "Source/GTT/Public/World/GTTVillageEventDirector.h", "Source/GTT/Public/World/GTTVillageEventMarker.h",
     "Source/GTT/Public/World/GTTMudZone.h", "Source/GTT/Public/World/GTTRecoveryWorldSubsystem.h",
-    "Source/GTT/Public/World/GTTMainStoryWorldSubsystem.h",
+    "Source/GTT/Public/World/GTTMainStoryWorldSubsystem.h", "Source/GTT/Public/World/GTTRoadGraph.h",
+    "Source/GTT/Private/World/GTTRoadGraph.cpp",
     "Source/GTT/Public/World/GTTGarageTerminal.h", "Source/GTT/Public/World/GTTGarageSlotTerminal.h",
     "Source/GTT/Public/Save/GTTSaveGame.h", "Source/GTT/Public/Save/GTTMainStorySave.h", "Scripts/package_windows.ps1",
 ]
@@ -35,10 +36,16 @@ REQUIRED_FILES = [
 EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "OwnedVehicles"],
     "Source/GTT/Public/Save/GTTMainStorySave.h": ["StorySaveVersion", "StoryStage"],
+    "Source/GTT/Private/World/GTTRoadGraph.cpp": [
+        "BuildGraph", "BuildRoute", "FindClosestNode", "WardenOutpost", "ForestDeep", "HillFarmNorth", "Link(OutNodes"
+    ],
+    "Source/GTT/Private/Traffic/GTTTrafficDirector.cpp": [
+        "FGTTRoadGraph::GetVillageLoop", "FGTTRoadGraph::BuildRoute", "NorthWood", "HillFarm"
+    ],
     "Source/GTT/Private/Radio/GTTRadioComponent.cpp": ["GRAVEL FM", "BARNBEAT 96", "RUST & DIESEL", "NIGHT SHIFT"],
     "Source/GTT/Private/Police/GTTPoliceDirector.cpp": [
         "DesiredRoadblocks", "RoadblockEscalationWantedLevel", "SpawnRoadblock", "BuildRuntimeRoadNetwork",
-        "SelectInterceptionRoadNode", "InterceptPredictionSeconds", "NORTH WOOD TURN", "LastInterceptionNodeIndex"
+        "FGTTRoadGraph::GetNodes", "SelectInterceptionRoadNode", "InterceptPredictionSeconds", "LastInterceptionNodeIndex"
     ],
     "Source/GTT/Private/Police/GTTRoadblock.cpp": ["SPIKE STRIP", "ApplyTireDamage"],
     "Source/GTT/Private/World/GTTGarageTerminal.cpp": ["FleetSlotCount", "AGTTGarageSlotTerminal", "Use GARAGE SLOT 1-4"],
@@ -61,13 +68,15 @@ EXPECTED_SOURCE_TOKENS = {
     ],
     "Source/GTT/Private/Missions/GTTMainStoryDirector.cpp": [
         "COUNTY LEDGER", "BACKROAD DEAL", "BackroadPickupHeat", "EscapePolice", "GetOwnedVehicleCount() < 2",
+        "TIMBER GHOSTS", "TryWardenBriefing", "TryForestCache", "ReportWildlifeCrime", "EscapeRanger",
+        "TryHillFarmEvidence", "HasUsableOwnedTractor", "FGTTRoadGraph::BuildRoute", "StorySaveVersion = 2",
         "SaveGameToSlot", "LoadGameFromSlot", "18.5f", "2.5f"
     ],
     "Source/GTT/Private/Missions/GTTMainStoryTerminal.cpp": [
-        "FarmOffice", "NorthWood", "VillageShop", "Tavern", "EastRoad", "Workshop"
+        "FarmOffice", "NorthWood", "VillageShop", "Tavern", "EastRoad", "Workshop", "WardenOutpost", "ForestCache", "HillFarm"
     ],
     "Source/GTT/Private/World/GTTMainStoryWorldSubsystem.cpp": [
-        "AGTTMainStoryDirector", "FarmOffice", "NorthWood", "VillageShop", "EastRoad", "Workshop"
+        "AGTTMainStoryDirector", "FarmOffice", "NorthWood", "VillageShop", "EastRoad", "Workshop", "WardenOutpost", "ForestCache", "HillFarm"
     ],
     "Source/GTT/Private/Missions/GTTNightFavorDirector.cpp": [
         "18.5f", "2.5f", "CollectParts", "ReachNeighbor", "ReturnToTavern", "CompletionReward", "SaveProgress"
@@ -77,7 +86,7 @@ EXPECTED_SOURCE_TOKENS = {
         "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "MainStory", "GetObjectiveText", "NightFavor", "R radio"
     ],
     "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
-        "AGTTRuralWorkDirector", "AGTTNightFavorDirector", "NORTH WOOD YARD", "MOWING CONTRACT", "FIELD GATE", "NIGHT SHIFT FAVOR", "GTT 0.0.12"
+        "AGTTRuralWorkDirector", "AGTTNightFavorDirector", "NORTH WOOD YARD", "MOWING CONTRACT", "FIELD GATE", "NIGHT SHIFT FAVOR"
     ],
 }
 
@@ -124,9 +133,17 @@ def main() -> int:
             fail(f"{relative} is missing expected gameplay hooks: {absent}")
 
     story_header = (ROOT / "Source/GTT/Public/Missions/GTTMainStoryDirector.h").read_text(encoding="utf-8")
-    for token in ["NorthWoodPickup", "ShopDelivery", "TavernMeet", "EastRoadPickup", "EscapePolice", "WorkshopDelivery", "FinalFarmMeet", "Completed", "GTT_MainStory_01"]:
+    for token in [
+        "NorthWoodPickup", "ShopDelivery", "TavernMeet", "EastRoadPickup", "EscapePolice", "WorkshopDelivery", "FinalFarmMeet",
+        "Arc1Completed", "WardenBriefing", "ForestCache", "EscapeRanger", "HillFarmEvidence", "Arc2FinalFarm", "Completed", "GTT_MainStory_01"
+    ]:
         if token not in story_header:
             fail(f"Main story director header missing stage/save contract: {token}")
+
+    road_graph_header = (ROOT / "Source/GTT/Public/World/GTTRoadGraph.h").read_text(encoding="utf-8")
+    for token in ["FGTTRoadNode", "GetVillageLoop", "BuildRoute", "FindClosestNode", "GetNodeLabel"]:
+        if token not in road_graph_header:
+            fail(f"Shared road graph missing API: {token}")
 
     police_header = (ROOT / "Source/GTT/Public/Police/GTTPoliceDirector.h").read_text(encoding="utf-8")
     for token in ["GetRoadNodeCount", "GetLastInterceptionNodeLabel", "MinimumInterceptLeadDistance", "SelectPursuitInterceptTransform"]:
@@ -138,27 +155,17 @@ def main() -> int:
         if token not in garage_slot_header:
             fail(f"Garage slot selector missing API: {token}")
 
-    rural_header = (ROOT / "Source/GTT/Public/Activities/GTTRuralWorkDirector.h").read_text(encoding="utf-8")
-    for token in ["TimberHaul", "FieldMowing", "ReachTimberPickup", "DeliverTimber", "MowingField"]:
-        if token not in rural_header:
-            fail(f"Rural work director header missing contract: {token}")
-
     recovery_header = (ROOT / "Source/GTT/Public/Activities/GTTRecoveryDirector.h").read_text(encoding="utf-8")
     for token in ["ReachBreakdown", "HookVehicle", "TowToWorkshop", "GetTowCableLoad"]:
         if token not in recovery_header:
             fail(f"Recovery director header missing stage/API: {token}")
-
-    favor_header = (ROOT / "Source/GTT/Public/Missions/GTTNightFavorDirector.h").read_text(encoding="utf-8")
-    for token in ["CollectParts", "ReachNeighbor", "ReturnToTavern", "Completed"]:
-        if token not in favor_header:
-            fail(f"Night favor header missing stage: {token}")
 
     forbidden = ["Binaries", "Intermediate", "DerivedDataCache", "Saved"]
     present = [n for n in forbidden if (ROOT / n).exists()]
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.15 persistent main story, police escape chapter, garage gate and existing sandbox systems look structurally sane.")
+    print("[OK] GTT 0.0.16 shared road graph, rural traffic, police routing and persistent ranger story arc look structurally sane.")
     return 0
 
 

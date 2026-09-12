@@ -24,14 +24,15 @@ void UGTTMainStoryWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         {FVector(1120.0f, -2200.0f, 55.0f), EGTTMainStoryTerminalType::VillageShop},
         {FVector(1650.0f, 2250.0f, 55.0f), EGTTMainStoryTerminalType::Tavern},
         {FVector(4700.0f, 1650.0f, 55.0f), EGTTMainStoryTerminalType::EastRoad},
-        {FVector(100.0f, 2250.0f, 55.0f), EGTTMainStoryTerminalType::Workshop}
+        {FVector(100.0f, 2250.0f, 55.0f), EGTTMainStoryTerminalType::Workshop},
+        {FVector(5050.0f, 430.0f, 55.0f), EGTTMainStoryTerminalType::WardenOutpost},
+        {FVector(7050.0f, -650.0f, 55.0f), EGTTMainStoryTerminalType::ForestCache},
+        {FVector(5850.0f, 2820.0f, 55.0f), EGTTMainStoryTerminalType::HillFarm}
     };
 
     for (const FStoryTerminalSpawn& Spawn : Terminals)
     {
         if (AGTTMainStoryTerminal* Terminal = InWorld.SpawnActor<AGTTMainStoryTerminal>(Spawn.Location, FRotator::ZeroRotator))
-        {
             Terminal->SetTerminalType(Spawn.Type);
-        }
     }
 }

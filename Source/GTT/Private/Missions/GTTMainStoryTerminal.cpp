@@ -30,6 +30,9 @@ void AGTTMainStoryTerminal::Interact_Implementation(AActor* Interactor)
         case EGTTMainStoryTerminalType::Tavern: Director->TryTavernMeet(Pawn); break;
         case EGTTMainStoryTerminalType::EastRoad: Director->TryEastRoadPickup(Pawn); break;
         case EGTTMainStoryTerminalType::Workshop: Director->TryWorkshopDelivery(Pawn); break;
+        case EGTTMainStoryTerminalType::WardenOutpost: Director->TryWardenBriefing(Pawn); break;
+        case EGTTMainStoryTerminalType::ForestCache: Director->TryForestCache(Pawn); break;
+        case EGTTMainStoryTerminalType::HillFarm: Director->TryHillFarmEvidence(Pawn); break;
     }
 }
 
@@ -37,12 +40,15 @@ FText AGTTMainStoryTerminal::GetInteractionText_Implementation() const
 {
     switch (TerminalType)
     {
-        case EGTTMainStoryTerminalType::FarmOffice: return NSLOCTEXT("GTT", "StoryFarm", "Talk about farm business / finish story arc");
+        case EGTTMainStoryTerminalType::FarmOffice: return NSLOCTEXT("GTT", "StoryFarm", "Talk about farm business / campaign");
         case EGTTMainStoryTerminalType::NorthWood: return NSLOCTEXT("GTT", "StoryWood", "Collect sealed county ledger");
         case EGTTMainStoryTerminalType::VillageShop: return NSLOCTEXT("GTT", "StoryShop", "Deliver county ledger");
         case EGTTMainStoryTerminalType::Tavern: return NSLOCTEXT("GTT", "StoryTavern", "Meet the backroad contact");
         case EGTTMainStoryTerminalType::EastRoad: return NSLOCTEXT("GTT", "StoryEastRoad", "Take unmarked backroad crate");
         case EGTTMainStoryTerminalType::Workshop: return NSLOCTEXT("GTT", "StoryWorkshop", "Deliver backroad crate");
+        case EGTTMainStoryTerminalType::WardenOutpost: return NSLOCTEXT("GTT", "StoryWarden", "Meet warden about Timber Ghosts");
+        case EGTTMainStoryTerminalType::ForestCache: return NSLOCTEXT("GTT", "StoryForestCache", "Inspect illegal timber evidence cache");
+        case EGTTMainStoryTerminalType::HillFarm: return NSLOCTEXT("GTT", "StoryHillFarm", "Secure Timber Ghosts evidence with tractor");
     }
     return FText::GetEmpty();
 }

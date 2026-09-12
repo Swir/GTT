@@ -15,7 +15,10 @@ enum class EGTTMainStoryTerminalType : uint8
     VillageShop,
     Tavern,
     EastRoad,
-    Workshop
+    Workshop,
+    WardenOutpost,
+    ForestCache,
+    HillFarm
 };
 
 UCLASS()

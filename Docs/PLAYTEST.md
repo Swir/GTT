@@ -1,6 +1,6 @@
 # GTT Prototype Playtest
 
-This document describes the current source-driven prototype loop for **GTT 0.0.15**.
+This document describes the current source-driven prototype loop for **GTT 0.0.16**.
 
 ## Requirements
 - Unreal Engine 5.8
@@ -25,114 +25,69 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 - `F5` — quick-save
 - `F9` — quick-load
 
-## 0.0.15 main story arc — County Ledger / Backroad Deal
-1. Complete **BORROWED TRACTOR** so the Rusty Fieldmaster becomes owned.
-2. Go to the **PLAYER FARM office** and start the main story. Starting before Borrowed Tractor is complete must be rejected.
-3. Follow the HUD to **NORTH WOOD YARD**, collect the sealed county ledger, then deliver it to **VILLAGE SHOP**.
-4. Verify the County Ledger chapter pays `$250` and advances the persistent story to the Bent Axle contact.
-5. Visit **THE BENT AXLE** outside 18:30–02:30 and verify the contact refuses to appear; return during the night window and continue.
-6. Travel to **EAST ROAD** and take the unmarked crate. This must inject wanted heat and switch the HUD objective to **ESCAPE POLICE**.
-7. Lose the police using normal pursuit/roadblock gameplay. The story should automatically advance to workshop delivery only after wanted reaches zero.
-8. Deliver the crate to the **WORKSHOP** and verify the Backroad Deal chapter pays `$600`.
-9. Return to Player Farm with only one owned vehicle and verify the finale refuses to close. Register/own a second vehicle, return, and verify the arc pays another `$350` and becomes `ARC 1 COMPLETE`.
-10. Quit/relaunch at multiple points in the chain. Verify the dedicated `GTT_MainStory_01` story save restores the current stage rather than resetting the campaign.
-11. Verify police/ranger attention blocks legal story contacts where appropriate, while the East Road criminal handoff deliberately creates wanted heat.
+## 0.0.16 Main Story Arc 2 — Timber Ghosts
+1. Complete Main Story Arc 1 and return to the **PLAYER FARM office**. Interact again to start **TIMBER GHOSTS**.
+2. Follow the HUD road hint toward **WARDEN OUTPOST**. Verify the objective includes a `NEXT ROAD:` node and remaining route-node count.
+3. Approach the warden while wanted or with existing ranger alert and verify the briefing is refused. Clear attention and accept the briefing.
+4. Follow the shared-road hint into the forest and interact with the **FOREST CACHE**.
+5. Verify taking the evidence creates a real game-warden alert through the existing ranger system and changes the objective to `CLEAR GAME WARDEN ALERT`.
+6. Either evade until the ranger heat decays or accept the existing ranger citation. Verify the story advances only when wildlife alert reaches zero.
+7. Go to **HILL FARM** and interact without a healthy owned tractor. The evidence handoff must be rejected.
+8. Repair/own the Rusty Fieldmaster (40%+ condition) and retry. Verify the evidence chapter pays `$500` and advances to the final farm return.
+9. Return to Player Farm and close Arc 2. Verify the final reward is `$700` and the HUD shows `ARCS 1-2 COMPLETE`.
+10. Quit/relaunch during Arc 2 and verify `GTT_MainStory_01` v2 restores the current Arc 2 stage.
+11. Load a 0.0.15 save whose story stage was `8`; verify it behaves as `ARC 1 COMPLETE` and allows starting Timber Ghosts rather than resetting campaign progress.
 
-## 0.0.14 road-node police interception
-1. Build wanted to level 3 and verify pursuit cars still join normally.
-2. Raise wanted to level 4 while driving around the village loop or East Road.
-3. Verify newly spawned roadblocks appear on recognizable road approaches rather than arbitrary nearby terrain.
-4. Change direction before a new roadblock is requested and verify the planner favors a different node aligned with the new escape direction.
-5. Reach wanted level 5 and verify two roadblocks can use different interception nodes instead of stacking on the same location.
-6. Verify high-tier pursuit cars can also enter from a predicted route node rather than always spawning radially behind/around the player.
-7. Clear wanted and verify roadblocks/pursuit units despawn through the existing response cleanup.
+## 0.0.16 shared countryside road graph
+1. Drive around the original village loop and verify the normal alternating civilian traffic remains active.
+2. Observe additional traffic leaving the core loop toward rural destinations such as North Wood and Hill Farm.
+3. Build wanted to level 4–5 while using East Road/forest/Hill Farm approaches. Verify police roadblocks still choose recognizable interception nodes.
+4. Change direction between roadblock spawns and verify the existing predictive planner still chooses different likely escape nodes.
+5. During story travel stages, compare HUD `NEXT ROAD:` hints with the same roads used by traffic/police.
+6. Regression check: clear wanted and ensure pursuit/roadblock cleanup still works.
 
-## 0.0.14 explicit garage slots
-1. Own/register at least the Rusty Fieldmaster, Rattleback and Mulebox.
-2. Visit Player Farm and verify four numbered physical garage selectors exist near the four bays.
-3. Verify slot labels resolve the current fleet deterministically: Fieldmaster first, Rattleback second, Mulebox third and unused slots show `EMPTY`.
-4. Interact with slot 2 and verify the Rattleback is recalled directly rather than cycling another owned vehicle first.
-5. Verify a successful recall costs `$15` and the economy message records the garage service charge.
-6. Try recalling an occupied vehicle and verify the request is rejected without charging the fee.
-7. Try recalling while police wanted or game-warden alert is active and verify garage recall is locked.
-8. Use the original large garage desk with a nearby unowned persistent vehicle and verify vehicle registration still works separately from recall.
-9. Save/load and repeat recalls to confirm slot resolution remains stable from persistent vehicle IDs.
+## 0.0.15 Main Story Arc 1 regression
+1. Complete **BORROWED TRACTOR** and start the campaign at Player Farm.
+2. Complete **COUNTY LEDGER**: North Wood pickup -> Village Shop delivery -> `$250`.
+3. Meet the Bent Axle contact only during 18:30–02:30.
+4. Collect the East Road crate and verify wanted heat / police escape stage.
+5. Lose police, deliver to workshop -> `$600`.
+6. Own two vehicles and finish Arc 1 at Player Farm -> `$350`.
+7. Confirm the stage becomes `ARC 1 COMPLETE`, which is now the gateway into Arc 2.
 
-## 0.0.13 roadside recovery
-1. Go to the workshop and interact with **RECOVERY DESK / DROP BAY** with zero police wanted.
-2. Follow the contract to the disabled Mulebox on East Road.
-3. Park a working vehicle within roughly 9 m of the disabled van and get out.
-4. Interact with **RECOVERY HOOK**. The tow constraint should connect the parked vehicle and disabled van.
-5. Enter the tow vehicle and drive toward the workshop. Verify the disabled van physically follows rather than teleporting.
-6. Make a violent pull or create excessive separation. The tow line should snap and the contract should switch to re-hook state instead of silently completing.
-7. Reattach and tow the van into the workshop recovery bay, then interact with the recovery desk.
-8. Verify payout is added to the economy, fast completion can add a bonus, and poorer recovered-vehicle condition reduces reward.
-9. Let the 240-second timer expire once and verify the contract fails and resets the target.
-10. Try accepting while wanted and verify the legal contract is rejected.
+## 0.0.14 police / garage regression
+- Wanted 3 adds pursuit cars; wanted 4–5 adds route-aware roadblocks/spike strips.
+- Explicit garage selectors recall Fieldmaster/Rattleback/Mulebox deterministically.
+- Successful recall costs `$15`; occupied vehicles and active authority attention reject recall without charging.
 
-## 0.0.13 mud/off-road handling
-1. Drive tractor, old car and van through the Hill Farm field mud zone and the forest-track mud zone.
-2. Verify moving vehicles experience obvious velocity-proportional resistance while inside the zones.
-3. Compare a slow crawl with a fast pass: faster movement should produce more noticeable drag.
-4. Repeatedly drive through mud and verify tire integrity decreases through the same shared tire-damage model used by collisions and spike strips.
-5. Verify leaving the mud restores the normal source-only physics fallback behavior.
+## 0.0.13 recovery / mud regression
+- Start roadside recovery at workshop, hook the disabled Mulebox with a working vehicle and physically tow it back.
+- Excessive separation snaps the line and requires re-hooking.
+- Recovery payout depends on time/condition.
+- Hill Farm and forest mud apply physical drag and tire wear.
 
-## 0.0.12 feed-cargo regression
-1. Start **FEED CARGO CONTRACT** at Player Farm.
-2. Drive any working vehicle to Feed Depot, park beside the pickup and exit.
-3. Interact with **LOAD FEED PALLETS**. The nearby parked vehicle must satisfy the vehicle requirement.
-4. Drive to Hill Farm, park inside the delivery yard, exit and interact with **DELIVER FEED CARGO**.
-5. Verify timer, cargo integrity, fast bonus and payout still work.
-
-## 0.0.12 legal timber haul
-1. Clear police wanted and ranger alert.
-2. Travel to **NORTH WOOD YARD** and take **TIMBER CONTRACT**.
-3. Park a working vehicle beside **LOAD LOGS** and interact.
-4. Drive the loaded vehicle across the map to the workshop.
-5. Damage the vehicle and/or tires during one run and verify timber integrity/payout decreases.
-6. Park beside **TIMBER UNLOAD** and interact.
-7. Repeat quickly with a healthy vehicle and verify the fast-delivery bonus can be earned.
-
-## 0.0.12 tractor field mowing
-1. Bring the Rusty Fieldmaster tractor near the Hill Farm field office.
-2. Interact with **MOWING CONTRACT**. Starting without a nearby tractor must be rejected.
-3. Enter the tractor and drive through **FIELD GATE 1** through **FIELD GATE 5** in order.
-4. Check that each overlap advances the HUD objective automatically without leaving the tractor.
-5. Driving through a later gate out of order must not advance progress.
-6. Finish all five passes before the timer expires and verify the base reward plus optional efficient-route bonus.
-
-## 0.0.12 Night Shift Favor side mission
-1. Visit **THE BENT AXLE TAVERN** between 18:30 and 02:30 with zero wanted level.
-2. Interact with **NIGHT SHIFT FAVOR**.
-3. Follow the HUD objective to the workshop and collect **EMERGENCY PARTS**.
-4. Travel to **STRANDED NEIGHBOR / EAST ROAD** and interact with **HELP NEIGHBOR**.
-5. Return to The Bent Axle and interact again.
-6. Verify the side mission pays `$450` and saves resulting progress/economy.
-7. Try starting outside nightlife hours and while wanted; both starts must be rejected.
+## Rural-work regression
+- Feed cargo: Player Farm -> Feed Depot -> Hill Farm, with timer/cargo integrity/fast bonus.
+- Timber: North Wood Yard -> Workshop, with damage-sensitive cargo payout.
+- Mowing: tractor required; FIELD GATES 1–5 must be driven in order.
+- Night Shift Favor: Bent Axle -> workshop parts -> stranded neighbor -> tavern, nighttime only.
 
 ## Existing systems to regression-test
-- Four-station fictional radio and `R` cycling.
-- Nightlife crowd and random village encounters.
-- Police pursuit cars at wanted 3+ and roadblocks/spike strips at wanted 4–5.
 - Borrowed Tractor mission and tractor ownership.
-- Multi-vehicle garage, save/load and persistent tuning.
-- Police arrest/fines and separate ranger/game-warden response.
-- Fishing, poaching, fish buyer and legal feed/timber cargo.
-- Day/night, citizen schedules and village traffic.
-- Vehicle body damage, breakable parts, engine heat/stalls and tire degradation.
-- Workshop repair/refuel and tuning.
+- Multi-vehicle garage/save/load and persistent tuning.
+- Police arrest/fines and separate ranger citations.
+- Fishing, poaching, fish buyer and legal work.
+- Day/night, citizen schedules and nightlife.
+- Four-station fictional radio.
+- Vehicle body damage, detachable parts, heat/stalls and tire degradation.
+- Workshop repair/refuel/tuning.
 
 ## Current limitations
 - Player, traffic and pursuit vehicles still use the source-only physics fallback; dedicated Chaos wheel/suspension drivetrain tuning is not yet implemented.
-- Main Story Arc 1 now persists its stage, but it is still source-driven and uses world interaction terminals rather than cinematic/dialogue UI.
-- Story persistence currently uses a dedicated story SaveGame slot alongside the existing sandbox save slot; a later save-schema consolidation should unify them.
-- Police interception currently uses a fixed source-defined road-node graph matched to the runtime greybox world; it is not yet a shared authored road graph/nav asset.
-- Garage slot selection is physical world UI rather than a full UMG fleet-management screen.
-- 0.0.13 towing uses a real Unreal physics constraint between primitive vehicle roots, but not yet authored hitch sockets, trailer skeletal rigs or dedicated Chaos Vehicle suspension.
-- Mud is represented as authored gameplay volumes with drag/tire wear rather than landscape physical-material sampling or deformable terrain.
-- Rural cargo is gameplay state rather than visible strapped log/pallet assets.
-- Mowing gates model route completion; visible cut-grass deformation is not yet implemented.
-- Night Shift Favor is session mission-state; its resulting cash is saved, but the side-mission stage itself is not yet in SaveGame.
+- Towing uses a real Unreal physics constraint but not authored hitch sockets/trailer skeletal rigs.
+- Mud uses authored gameplay volumes rather than landscape physical-material sampling/deformation.
+- Story stage still lives in a dedicated story save slot rather than the primary sandbox SaveGame schema.
+- The shared road graph has topology and named nodes, but not lane metadata, speed limits, junction priority or nav-lane splines yet.
 - Vehicles/world remain primitive-mesh prototypes rather than final art.
 - Repository CI is structural sanity checking, not a full Unreal Win64 compile/package smoke test.
 
