@@ -22,3 +22,6 @@ jobs:
 
       - name: Verify repository structure
         run: python Scripts/verify_project.py
+
+      - name: Verify combat milestone
+        run: python Scripts/verify_combat.py
