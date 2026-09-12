@@ -20,9 +20,12 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Activities/GTTFarmJobDirector.h", "Source/GTT/Public/Activities/GTTFarmJobTerminal.h",
     "Source/GTT/Public/Activities/GTTRuralWorkDirector.h", "Source/GTT/Public/Activities/GTTRuralWorkTerminal.h",
     "Source/GTT/Public/Activities/GTTFieldCheckpoint.h",
+    "Source/GTT/Public/Activities/GTTRecoveryDirector.h", "Source/GTT/Public/Activities/GTTRecoveryTerminal.h",
+    "Source/GTT/Public/Activities/GTTRecoveryTargetVehicle.h",
     "Source/GTT/Public/Missions/GTTNightFavorDirector.h", "Source/GTT/Public/Missions/GTTNightFavorTerminal.h",
     "Source/GTT/Public/World/GTTDayNightCycle.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
     "Source/GTT/Public/World/GTTVillageEventDirector.h", "Source/GTT/Public/World/GTTVillageEventMarker.h",
+    "Source/GTT/Public/World/GTTMudZone.h", "Source/GTT/Public/World/GTTRecoveryWorldSubsystem.h",
     "Source/GTT/Public/Save/GTTSaveGame.h", "Scripts/package_windows.ps1",
 ]
 
@@ -37,6 +40,14 @@ EXPECTED_SOURCE_TOKENS = {
         "TryStartTimber", "TryPickupTimber", "TryDeliverTimber", "TimberFastBonus", "TryStartMowing", "TryMowingPass", "RequiredMowingPasses", "AGTTTractorPawn"
     ],
     "Source/GTT/Private/Activities/GTTFieldCheckpoint.cpp": ["OnComponentBeginOverlap", "AGTTTractorPawn", "TryMowingPass"],
+    "Source/GTT/Private/Activities/GTTRecoveryDirector.cpp": [
+        "TryStartRecovery", "TryHookRecoveryVehicle", "TryFinishRecovery", "SetConstrainedComponents", "TOW LINE SNAPPED", "BaseReward", "FastBonus"
+    ],
+    "Source/GTT/Private/Activities/GTTRecoveryTargetVehicle.cpp": ["Disabled Mulebox", "Engine is dead", "PersistentVehicleId = NAME_None"],
+    "Source/GTT/Private/World/GTTMudZone.cpp": ["GetOverlappingActors", "AddForce", "ApplyTireDamage", "DragStrength"],
+    "Source/GTT/Private/World/GTTRecoveryWorldSubsystem.cpp": [
+        "AGTTRecoveryDirector", "EGTTRecoveryTerminalType::Workshop", "EGTTRecoveryTerminalType::Hook", "HillFarmMud", "ForestTrackMud"
+    ],
     "Source/GTT/Private/Missions/GTTNightFavorDirector.cpp": [
         "18.5f", "2.5f", "CollectParts", "ReachNeighbor", "ReturnToTavern", "CompletionReward", "SaveProgress"
     ],
@@ -73,6 +84,10 @@ def main() -> int:
     if missing_plugins:
         fail("Required plugins are not enabled: " + ", ".join(sorted(missing_plugins)))
 
+    build = (ROOT / "Source/GTT/GTT.Build.cs").read_text(encoding="utf-8")
+    if '"ChaosVehicles"' not in build:
+        fail("GTT runtime module must link ChaosVehicles")
+
     inputs = (ROOT / "Config/DefaultInput.ini").read_text(encoding="utf-8")
     for token in ['ActionName="RadioNext"', 'Key=R', 'ActionName="QuickSave"', 'Key=F5', 'ActionName="QuickLoad"', 'Key=F9']:
         if token not in inputs:
@@ -92,6 +107,11 @@ def main() -> int:
         if token not in rural_header:
             fail(f"Rural work director header missing contract: {token}")
 
+    recovery_header = (ROOT / "Source/GTT/Public/Activities/GTTRecoveryDirector.h").read_text(encoding="utf-8")
+    for token in ["ReachBreakdown", "HookVehicle", "TowToWorkshop", "GetTowCableLoad"]:
+        if token not in recovery_header:
+            fail(f"Recovery director header missing stage/API: {token}")
+
     favor_header = (ROOT / "Source/GTT/Public/Missions/GTTNightFavorDirector.h").read_text(encoding="utf-8")
     for token in ["CollectParts", "ReachNeighbor", "ReturnToTavern", "Completed"]:
         if token not in favor_header:
@@ -102,7 +122,7 @@ def main() -> int:
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.12 rural contracts, tractor field route, night side mission and existing escalation hooks look structurally sane.")
+    print("[OK] GTT 0.0.13 recovery towing, mud traction, rural contracts, story and escalation hooks look structurally sane.")
     return 0
 
 

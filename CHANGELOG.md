@@ -2,6 +2,28 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.13] - 2026-09-12
+
+### Added
+- New physical roadside-recovery contract with workshop dispatch, East Road breakdown target, hook interaction, timed return and economy payout.
+- Disabled `Mulebox` recovery target that cannot simply be driven away and must be recovered through the tow flow.
+- Physics-constraint tow line connecting the player's nearby vehicle to the disabled target, including live cable load and snap/re-hook behavior under excessive separation.
+- Reward scaling based on recovered-vehicle condition plus a fast-recovery bonus.
+- Automatic `UGTTRecoveryWorldSubsystem` bootstrap so recovery gameplay is present without requiring hand-authored map placement.
+- Two physical mud zones around Hill Farm and the forest track. Mud adds velocity-proportional drag and tire wear while vehicles are moving through it.
+
+### Changed
+- Structural sanity CI now verifies recovery stages, physical constraint hookup, tow-line failure behavior, automatic bootstrap, mud-force application and tire-wear integration.
+- Roadmap and playtest documentation now distinguish the new physical towing/off-road foundation from the still-unfinished dedicated Chaos wheel/drivetrain implementation.
+
+### Next
+- Dedicated Chaos wheeled drivetrain/suspension for tractor, old car and van.
+- Authored hitch sockets and articulated trailers for timber/feed/recovery work.
+- Road-node-aware police interception and authored roadblock positions.
+- Explicit garage slot-selection UI and per-vehicle ownership costs.
+- Larger connected countryside and additional story chapters.
+- Real Unreal-equipped Win64 compile/package smoke-test runner.
+
 ## [0.0.12] - 2026-09-12
 
 ### Added

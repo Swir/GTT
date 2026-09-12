@@ -35,6 +35,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Legal timber-haul contract with condition-sensitive payout
 - [x] Tractor-only field-mowing route with ordered checkpoints
 - [x] Multiple legal mission archetypes
+- [x] Timed roadside recovery contract tied to economy
 
 ## 0.4 — Village Nights
 - [x] Village party window 18:30–02:30
@@ -59,8 +60,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Tire integrity and grip-loss simulation
 - [x] Repair/refuel service
 - [x] Persistent performance tuning
-- [ ] Mud/off-road handling
+- [x] Mud/off-road handling foundation with physical drag and tire wear zones
+- [x] Physics-constraint tow line with cable-load and snap behavior
 - [ ] Dedicated Chaos drivetrain/suspension
+- [ ] Authored hitch sockets / articulated trailers
 
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Traffic route network
@@ -82,8 +85,9 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] First mowing field-work job
 - [x] Legal timber transport
 - [x] Illegal poaching loop feeding the ranger system
+- [x] First towing/recovery job with a physical tow constraint
 - [ ] Deeper poaching inventory / fence economy
-- [ ] Towing/recovery jobs with physical hitch/trailer
+- [ ] Dedicated trailer/hitch work contracts
 - [ ] More shops/services
 - [x] First side-mission chain
 - [ ] Larger connected road network and countryside
@@ -97,6 +101,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Persistent engine/tire upgrade levels
 - [x] Police spike strips use the same tire-durability model
 - [x] Timber payout reacts to body/tire condition
+- [x] Mud zones consume tire integrity under load
 - [ ] Tractor visual upgrades
 - [ ] Old-car visual/performance upgrade variants
 - [ ] Replacement body-panel economy

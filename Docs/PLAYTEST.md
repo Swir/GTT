@@ -1,6 +1,6 @@
 # GTT Prototype Playtest
 
-This document describes the current source-driven prototype loop for **GTT 0.0.12**.
+This document describes the current source-driven prototype loop for **GTT 0.0.13**.
 
 ## Requirements
 - Unreal Engine 5.8
@@ -25,14 +25,31 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 - `F5` — quick-save
 - `F9` — quick-load
 
+## 0.0.13 roadside recovery
+1. Go to the workshop and interact with **RECOVERY DESK / DROP BAY** with zero police wanted.
+2. Follow the contract to the disabled Mulebox on East Road.
+3. Park a working vehicle within roughly 9 m of the disabled van and get out.
+4. Interact with **RECOVERY HOOK**. The tow constraint should connect the parked vehicle and disabled van.
+5. Enter the tow vehicle and drive toward the workshop. Verify the disabled van physically follows rather than teleporting.
+6. Make a violent pull or create excessive separation. The tow line should snap and the contract should switch to re-hook state instead of silently completing.
+7. Reattach and tow the van into the workshop recovery bay, then interact with the recovery desk.
+8. Verify payout is added to the economy, fast completion can add a bonus, and poorer recovered-vehicle condition reduces reward.
+9. Let the 240-second timer expire once and verify the contract fails and resets the target.
+10. Try accepting while wanted and verify the legal contract is rejected.
+
+## 0.0.13 mud/off-road handling
+1. Drive tractor, old car and van through the Hill Farm field mud zone and the forest-track mud zone.
+2. Verify moving vehicles experience obvious velocity-proportional resistance while inside the zones.
+3. Compare a slow crawl with a fast pass: faster movement should produce more noticeable drag.
+4. Repeatedly drive through mud and verify tire integrity decreases through the same shared tire-damage model used by collisions and spike strips.
+5. Verify leaving the mud restores the normal source-only physics fallback behavior.
+
 ## 0.0.12 feed-cargo regression
 1. Start **FEED CARGO CONTRACT** at Player Farm.
 2. Drive any working vehicle to Feed Depot, park beside the pickup and exit.
 3. Interact with **LOAD FEED PALLETS**. The nearby parked vehicle must satisfy the vehicle requirement.
 4. Drive to Hill Farm, park inside the delivery yard, exit and interact with **DELIVER FEED CARGO**.
 5. Verify timer, cargo integrity, fast bonus and payout still work.
-
-This specifically regression-tests the old possession-flow problem where interacting on foot could not see the parked cargo vehicle.
 
 ## 0.0.12 legal timber haul
 1. Clear police wanted and ranger alert.
@@ -60,26 +77,25 @@ This specifically regression-tests the old possession-flow problem where interac
 6. Verify the side mission pays `$450` and saves resulting progress/economy.
 7. Try starting outside nightlife hours and while wanted; both starts must be rejected.
 
-## 0.0.11 systems to regression-test
+## Existing systems to regression-test
 - Four-station fictional radio and `R` cycling.
 - Nightlife crowd and random village encounters.
-- Police pursuit cars at wanted 3+.
-- Roadblocks and spike-strip tire damage at wanted 4–5.
-
-## Existing systems to regression-test
+- Police pursuit cars at wanted 3+ and roadblocks/spike strips at wanted 4–5.
 - Borrowed Tractor mission and tractor ownership.
 - Multi-vehicle garage, save/load and persistent tuning.
 - Police arrest/fines and separate ranger/game-warden response.
-- Fishing, poaching, fish buyer and legal feed cargo.
+- Fishing, poaching, fish buyer and legal feed/timber cargo.
 - Day/night, citizen schedules and village traffic.
 - Vehicle body damage, breakable parts, engine heat/stalls and tire degradation.
 - Workshop repair/refuel and tuning.
 
 ## Current limitations
 - Player, traffic and pursuit vehicles still use the source-only physics fallback; dedicated Chaos wheel/suspension drivetrain tuning is not yet implemented.
+- 0.0.13 towing uses a real Unreal physics constraint between primitive vehicle roots, but not yet authored hitch sockets, trailer skeletal rigs or dedicated Chaos Vehicle suspension.
+- Mud is represented as authored gameplay volumes with drag/tire wear rather than landscape physical-material sampling or deformable terrain.
 - Rural cargo is gameplay state rather than visible strapped log/pallet assets.
 - Mowing gates model route completion; visible cut-grass deformation is not yet implemented.
-- Night Shift Favor is session mission-state in 0.0.12; its resulting cash is saved, but the side-mission stage itself is not yet in SaveGame.
+- Night Shift Favor is session mission-state; its resulting cash is saved, but the side-mission stage itself is not yet in SaveGame.
 - Police roadblocks are not yet positioned by an authored road-node interception planner.
 - Vehicles/world remain primitive-mesh prototypes rather than final art.
 - Repository CI is structural sanity checking, not a full Unreal Win64 compile/package smoke test.
