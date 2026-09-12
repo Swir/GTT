@@ -1,6 +1,8 @@
 #include "UI/GTTGameHUD.h"
+#include "Activities/GTTBrawlDirector.h"
 #include "Activities/GTTFarmJobDirector.h"
 #include "Activities/GTTRuralWorkDirector.h"
+#include "Combat/GTTCombatComponent.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -26,10 +28,12 @@ void AGTTGameHUD::DrawHUD()
     UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(ControlledPawn);
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn);
     UGTTRadioComponent* Radio = UGTTGameplayStatics::FindRadioComponentForPawn(ControlledPawn);
+    UGTTCombatComponent* Combat = ControlledPawn ? ControlledPawn->FindComponentByClass<UGTTCombatComponent>() : nullptr;
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
     AGTTPoliceDirector* PoliceDirector = Cast<AGTTPoliceDirector>(UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()));
     AGTTFarmJobDirector* FarmJobDirector = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
     AGTTRuralWorkDirector* RuralWork = Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRuralWorkDirector::StaticClass()));
+    AGTTBrawlDirector* Brawl = Cast<AGTTBrawlDirector>(UGameplayStatics::GetActorOfClass(this, AGTTBrawlDirector::StaticClass()));
     AGTTMainStoryDirector* MainStory = Cast<AGTTMainStoryDirector>(UGameplayStatics::GetActorOfClass(this, AGTTMainStoryDirector::StaticClass()));
     AGTTNightFavorDirector* NightFavor = Cast<AGTTNightFavorDirector>(UGameplayStatics::GetActorOfClass(this, AGTTNightFavorDirector::StaticClass()));
     AGTTVillageEventDirector* NightDirector = Cast<AGTTVillageEventDirector>(UGameplayStatics::GetActorOfClass(this, AGTTVillageEventDirector::StaticClass()));
@@ -64,6 +68,12 @@ void AGTTGameHUD::DrawHUD()
         Y += 30.0f;
     }
 
+    if (Combat)
+    {
+        DrawText(Combat->GetCombatStatusText(), Combat->GetHealthPercent() < 0.3f ? FLinearColor(1.0f,0.2f,0.1f,1.0f) : FLinearColor(1.0f,0.68f,0.22f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.98f, false);
+        Y += 29.0f;
+    }
+
     if (GameMode)
     {
         const FString TimeText = GameMode->GetDayNightCycle() ? GameMode->GetDayNightCycle()->GetClockText() : TEXT("DAY ? --:--");
@@ -74,8 +84,13 @@ void AGTTGameHUD::DrawHUD()
 
     if (MainStory)
     {
-        DrawText(MainStory->GetObjectiveText(), MainStory->GetStage() == EGTTMainStoryStage::Completed ? FLinearColor(0.35f,1.0f,0.5f,1.0f) : FLinearColor(1.0f,0.78f,0.18f,1.0f),
-            36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
+        DrawText(MainStory->GetObjectiveText(), MainStory->GetStage() == EGTTMainStoryStage::Completed ? FLinearColor(0.35f,1.0f,0.5f,1.0f) : FLinearColor(1.0f,0.78f,0.18f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
+        Y += 30.0f;
+    }
+
+    if (Brawl && Brawl->IsBrawlActive())
+    {
+        DrawText(Brawl->GetObjectiveText(), FLinearColor(1.0f,0.28f,0.18f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
         Y += 30.0f;
     }
 
@@ -110,29 +125,19 @@ void AGTTGameHUD::DrawHUD()
             Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
         DrawText(VehicleLine, FLinearColor::White, 36.0f, Y, GEngine->GetSmallFont(), 1.05f, false);
         Y += 30.0f;
-
-        DrawText(FString::Printf(TEXT("VEHICLE DYNAMICS | %s"), *Vehicle->GetDynamicsSummary()),
-            Vehicle->GetGroundContactCount() >= 3 ? FLinearColor(0.45f,0.9f,1.0f,1.0f) : FLinearColor(1.0f,0.65f,0.2f,1.0f),
-            36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
+        DrawText(FString::Printf(TEXT("VEHICLE DYNAMICS | %s"), *Vehicle->GetDynamicsSummary()), Vehicle->GetGroundContactCount() >= 3 ? FLinearColor(0.45f,0.9f,1.0f,1.0f) : FLinearColor(1.0f,0.65f,0.2f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
         Y += 28.0f;
-
         if (Radio)
         {
             DrawText(Radio->GetDisplayLine(), Radio->IsRadioOn() ? FLinearColor(0.48f,0.88f,1.0f,1.0f) : FLinearColor(0.55f,0.6f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
             Y += 28.0f;
         }
-
-        DrawText(FString::Printf(TEXT("TUNING | ENGINE L%d/3 | TIRES L%d/3 | TIRE HEALTH %.0f%%"),
-            Vehicle->GetEngineUpgradeLevel(), Vehicle->GetTireUpgradeLevel(), Vehicle->GetTireIntegrity()*100.0f),
-            Vehicle->GetTireIntegrity() < 0.25f ? FLinearColor(1.0f,0.25f,0.12f,1.0f) : FLinearColor(0.55f,0.85f,1.0f,1.0f),
-            36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
+        DrawText(FString::Printf(TEXT("TUNING | ENGINE L%d/3 | TIRES L%d/3 | TIRE HEALTH %.0f%%"), Vehicle->GetEngineUpgradeLevel(), Vehicle->GetTireUpgradeLevel(), Vehicle->GetTireIntegrity()*100.0f), Vehicle->GetTireIntegrity() < 0.25f ? FLinearColor(1.0f,0.25f,0.12f,1.0f) : FLinearColor(0.55f,0.85f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
         Y += 28.0f;
-
         const FString FaultText = Vehicle->GetFaultStatusText();
         if (!FaultText.IsEmpty())
         {
-            DrawText(FString::Printf(TEXT("VEHICLE DAMAGE  |  %s  |  DETACHED PARTS %d"), *FaultText, Vehicle->GetDetachedPartCount()),
-                FLinearColor(1.0f,0.34f,0.12f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
+            DrawText(FString::Printf(TEXT("VEHICLE DAMAGE  |  %s  |  DETACHED PARTS %d"), *FaultText, Vehicle->GetDetachedPartCount()), FLinearColor(1.0f,0.34f,0.12f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
             Y += 28.0f;
         }
     }
@@ -148,7 +153,7 @@ void AGTTGameHUD::DrawHUD()
         DrawText(Economy->GetActivityMessage(), FLinearColor(0.35f,0.88f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
         Y += 30.0f;
     }
-    DrawText(TEXT("CONTROLS | WASD move/drive | E interact | F exit | R radio | F5 save | F9 load | Space jump"), FLinearColor(0.72f,0.82f,0.95f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.85f, false);
+    DrawText(TEXT("CONTROLS | LMB attack | Q next weapon | G drop | E interact | WASD move/drive | F exit | R radio | F5/F9 save/load"), FLinearColor(0.72f,0.82f,0.95f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.85f, false);
 }
 
 FString AGTTGameHUD::BuildWantedBar(int32 WantedLevel) const
