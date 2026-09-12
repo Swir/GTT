@@ -19,7 +19,25 @@ AGTTPoliceDirector::AGTTPoliceDirector()
 void AGTTPoliceDirector::BeginPlay()
 {
     Super::BeginPlay();
+    BuildRuntimeRoadNetwork();
     GetWorldTimerManager().SetTimer(EvaluationTimer, this, &AGTTPoliceDirector::EvaluatePoliceResponse, EvaluationInterval, true, 0.25f);
+}
+
+void AGTTPoliceDirector::BuildRuntimeRoadNetwork()
+{
+    RoadNodes = {
+        FVector(-3300.0f,-1800.0f,100.0f), FVector(0.0f,-1800.0f,100.0f), FVector(3300.0f,-1800.0f,100.0f),
+        FVector(3300.0f,0.0f,100.0f), FVector(3300.0f,1800.0f,100.0f), FVector(0.0f,1800.0f,100.0f),
+        FVector(-3300.0f,1800.0f,100.0f), FVector(-3300.0f,0.0f,100.0f), FVector(4350.0f,1900.0f,100.0f),
+        FVector(5200.0f,2550.0f,100.0f), FVector(6100.0f,650.0f,100.0f), FVector(7350.0f,650.0f,100.0f),
+        FVector(4700.0f,-500.0f,100.0f), FVector(1850.0f,3400.0f,100.0f), FVector(-650.0f,2400.0f,100.0f)
+    };
+    RoadNodeLabels = {
+        TEXT("WEST SOUTH JUNCTION"), TEXT("VILLAGE SOUTH"), TEXT("POLICE SOUTH"), TEXT("EAST CROSSROAD"),
+        TEXT("EAST ROAD"), TEXT("VILLAGE NORTH"), TEXT("FARM NORTH"), TEXT("FARM CROSSROAD"), TEXT("NEIGHBOR BEND"),
+        TEXT("HILL FARM TURN"), TEXT("FOREST TRACK"), TEXT("NORTH WOOD TURN"), TEXT("PRIVATE LAKE ROAD"),
+        TEXT("FEED DEPOT ROAD"), TEXT("WORKSHOP ROAD")
+    };
 }
 
 void AGTTPoliceDirector::EvaluatePoliceResponse()
@@ -40,6 +58,7 @@ void AGTTPoliceDirector::EvaluatePoliceResponse()
     if (WantedLevel != LastResponseLevel)
     {
         LastResponseLevel = WantedLevel;
+        if (WantedLevel < RoadblockEscalationWantedLevel) LastInterceptionNodeIndex = INDEX_NONE;
         OnResponseLevelChanged(WantedLevel, DesiredFootUnits + DesiredVehicles + DesiredRoadblocks);
     }
 
@@ -75,10 +94,10 @@ void AGTTPoliceDirector::SpawnPursuitVehicle(int32 WantedLevel)
 
     FActorSpawnParameters Params;
     Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    AGTTPolicePursuitVehicle* Vehicle = GetWorld()->SpawnActor<AGTTPolicePursuitVehicle>(
-        PursuitVehicleClass,
-        SelectSpawnTransform(1.35f),
-        Params);
+    const FTransform SpawnTransform = WantedLevel >= RoadblockEscalationWantedLevel
+        ? SelectPursuitInterceptTransform(WantedLevel)
+        : SelectSpawnTransform(1.35f);
+    AGTTPolicePursuitVehicle* Vehicle = GetWorld()->SpawnActor<AGTTPolicePursuitVehicle>(PursuitVehicleClass, SpawnTransform, Params);
     if (Vehicle)
     {
         Vehicle->SetResponseTier(FMath::Clamp(WantedLevel - 2, 1, 3));
@@ -103,6 +122,11 @@ void AGTTPoliceDirector::SpawnRoadblock(int32 WantedLevel)
 int32 AGTTPoliceDirector::GetPlayerWantedLevel() const
 {
     return UGTTGameplayStatics::GetPlayerWantedLevel(this, 0);
+}
+
+FString AGTTPoliceDirector::GetLastInterceptionNodeLabel() const
+{
+    return RoadNodeLabels.IsValidIndex(LastInterceptionNodeIndex) ? RoadNodeLabels[LastInterceptionNodeIndex] : TEXT("NONE");
 }
 
 void AGTTPoliceDirector::RemoveInvalidUnits()
@@ -131,6 +155,68 @@ void AGTTPoliceDirector::DespawnExcessUnits(int32 DesiredUnits, int32 DesiredVeh
     }
 }
 
+int32 AGTTPoliceDirector::SelectInterceptionRoadNode(const APawn* PlayerPawn, bool bPreferFartherNode) const
+{
+    if (!PlayerPawn || RoadNodes.IsEmpty()) return INDEX_NONE;
+
+    FVector TravelDirection = PlayerPawn->GetVelocity().GetSafeNormal2D();
+    if (TravelDirection.IsNearlyZero()) TravelDirection = PlayerPawn->GetActorForwardVector().GetSafeNormal2D();
+    if (TravelDirection.IsNearlyZero()) TravelDirection = FVector::ForwardVector;
+
+    const FVector PlayerLocation = PlayerPawn->GetActorLocation();
+    const FVector PredictedLocation = PlayerLocation + PlayerPawn->GetVelocity() * InterceptPredictionSeconds;
+    const float DesiredLead = bPreferFartherNode ? 2350.0f : 1550.0f;
+
+    int32 BestIndex = INDEX_NONE;
+    float BestScore = TNumericLimits<float>::Max();
+    for (int32 Index = 0; Index < RoadNodes.Num(); ++Index)
+    {
+        const FVector ToNode = RoadNodes[Index] - PlayerLocation;
+        const float Distance = ToNode.Size2D();
+        if (Distance < MinimumInterceptLeadDistance * 0.55f) continue;
+
+        const FVector DirectionToNode = ToNode.GetSafeNormal2D();
+        const float AheadDot = FVector::DotProduct(DirectionToNode, TravelDirection);
+        const float BehindPenalty = AheadDot < 0.05f ? 2800000.0f * (0.1f - AheadDot) : 0.0f;
+        const float PredictionError = FVector::DistSquared2D(RoadNodes[Index], PredictedLocation);
+        const float LeadError = FMath::Square(Distance - DesiredLead) * 0.42f;
+        const float ReusePenalty = Index == LastInterceptionNodeIndex ? 1800000.0f : 0.0f;
+        const float Score = PredictionError + LeadError + BehindPenalty + ReusePenalty;
+        if (Score < BestScore)
+        {
+            BestScore = Score;
+            BestIndex = Index;
+        }
+    }
+    return BestIndex;
+}
+
+FTransform AGTTPoliceDirector::MakeRoadNodeTransform(int32 NodeIndex, const APawn* PlayerPawn) const
+{
+    if (!RoadNodes.IsValidIndex(NodeIndex)) return SelectSpawnTransform(1.0f);
+    FVector Location = RoadNodes[NodeIndex];
+    Location.Z = FMath::Max(Location.Z, 100.0f);
+
+    FVector Facing = PlayerPawn ? (PlayerPawn->GetActorLocation() - Location).GetSafeNormal2D() : FVector::ForwardVector;
+    if (Facing.IsNearlyZero()) Facing = FVector::ForwardVector;
+    return FTransform(Facing.Rotation(), Location);
+}
+
+FTransform AGTTPoliceDirector::SelectPursuitInterceptTransform(int32 WantedLevel) const
+{
+    APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+    if (!PlayerPawn) return SelectSpawnTransform(1.35f);
+
+    const int32 NodeIndex = SelectInterceptionRoadNode(PlayerPawn, WantedLevel >= 5);
+    if (NodeIndex == INDEX_NONE) return SelectSpawnTransform(1.35f);
+
+    FTransform Transform = MakeRoadNodeTransform(NodeIndex, PlayerPawn);
+    FVector Location = Transform.GetLocation();
+    Location -= Transform.GetRotation().GetForwardVector() * 420.0f;
+    Transform.SetLocation(Location);
+    return Transform;
+}
+
 FTransform AGTTPoliceDirector::SelectSpawnTransform(float DistanceScale) const
 {
     if (!SpawnPoints.IsEmpty())
@@ -151,28 +237,28 @@ FTransform AGTTPoliceDirector::SelectSpawnTransform(float DistanceScale) const
     return FTransform(FRotator(0.0f, FacingYaw, 0.0f), PlayerLocation + Offset);
 }
 
-FTransform AGTTPoliceDirector::SelectRoadblockTransform(int32 WantedLevel) const
+FTransform AGTTPoliceDirector::SelectRoadblockTransform(int32 WantedLevel)
 {
     APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
-    if (!PlayerPawn)
+    if (!PlayerPawn) return SelectSpawnTransform(1.0f);
+
+    const int32 NodeIndex = SelectInterceptionRoadNode(PlayerPawn, WantedLevel >= 5 || ActiveRoadblocks.Num() > 0);
+    if (NodeIndex != INDEX_NONE)
     {
-        return SelectSpawnTransform(1.0f);
+        LastInterceptionNodeIndex = NodeIndex;
+        FTransform Transform = MakeRoadNodeTransform(NodeIndex, PlayerPawn);
+        FRotator Rotation = Transform.Rotator();
+        Rotation.Yaw += 90.0f;
+        Transform.SetRotation(Rotation.Quaternion());
+        return Transform;
     }
 
     FVector Direction = PlayerPawn->GetVelocity().GetSafeNormal2D();
-    if (Direction.IsNearlyZero())
-    {
-        Direction = PlayerPawn->GetActorForwardVector().GetSafeNormal2D();
-    }
-    if (Direction.IsNearlyZero())
-    {
-        Direction = FVector::ForwardVector;
-    }
-
+    if (Direction.IsNearlyZero()) Direction = PlayerPawn->GetActorForwardVector().GetSafeNormal2D();
+    if (Direction.IsNearlyZero()) Direction = FVector::ForwardVector;
     const FVector Right = FVector::CrossProduct(FVector::UpVector, Direction).GetSafeNormal();
     const float Distance = 1350.0f + WantedLevel * 180.0f + FMath::FRandRange(-120.0f, 260.0f);
     FVector Location = PlayerPawn->GetActorLocation() + Direction * Distance + Right * FMath::FRandRange(-180.0f, 180.0f);
     Location.Z = FMath::Max(Location.Z, 80.0f);
-    const FRotator Rotation = Direction.Rotation();
-    return FTransform(Rotation, Location);
+    return FTransform(Direction.Rotation(), Location);
 }
