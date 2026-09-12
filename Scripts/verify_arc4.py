@@ -5,7 +5,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 required = {
     "Source/GTT/Public/Missions/GTTArc4Director.h": ["EGTTArc4Stage", "ProveGround", "PrepareContraband", "NorthPass", "EscapePolice", "RidgeExchange", "GTT_MainStory_Arc4_01"],
-    "Source/GTT/Private/Missions/GTTArc4Director.cpp": ["GetFactionVictories", "GetContrabandUnits", "Sell", "NorthPassHeat", "AddHeat", "NEXT ROAD", "ARCS 1-4 COMPLETE"],
+    "Source/GTT/Private/Missions/GTTArc4Director.cpp": ["GetFactionVictories", "GetContrabandUnits", "bContrabandPrepared", "NorthPassHeat", "AddHeat", "NEXT ROAD", "ARCS 1-4 COMPLETE"],
     "Source/GTT/Public/Save/GTTArc4Save.h": ["Arc4Stage", "StartingFactionVictories", "bContrabandPrepared"],
     "Source/GTT/Private/World/GTTArc4WorldSubsystem.cpp": ["NORTH PASS", "RIDGE EXCHANGE", "SpawnActor<AGTTArc4Director>"],
     "Source/GTT/Private/World/GTTRoadGraph.cpp": ["NorthPassApproach", "NORTH PASS CHECKPOINT", "RiverFord", "RIDGE EXCHANGE", "QuarryNorth"],
@@ -25,8 +25,8 @@ if len(node_rows) < 28:
     raise SystemExit(f"[FAIL] expected >=28 shared road nodes after North Pass expansion, found {len(node_rows)}")
 
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
-if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-    raise SystemExit("[FAIL] roadmap style lock marker missing")
+if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap or "ROADMAP-PROGRESS:START" not in roadmap:
+    raise SystemExit("[FAIL] roadmap style lock/dashboard marker missing")
 checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M)
 done = sum(1 for x in checks if x == 'x')
 total = len(checks)
