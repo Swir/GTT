@@ -1,5 +1,8 @@
 #include "Economy/GTTPlayerEconomyComponent.h"
 
+#include "GameFramework/Pawn.h"
+#include "World/GTTRuralEconomySubsystem.h"
+
 UGTTPlayerEconomyComponent::UGTTPlayerEconomyComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
@@ -29,11 +32,7 @@ void UGTTPlayerEconomyComponent::TickComponent(float DeltaTime, ELevelTick TickT
 
 void UGTTPlayerEconomyComponent::AddCash(int32 Amount, const FString& Reason)
 {
-    if (Amount <= 0)
-    {
-        return;
-    }
-
+    if (Amount <= 0) return;
     Cash += Amount;
     PushMessage(Reason.IsEmpty() ? FString::Printf(TEXT("Received $%d"), Amount) : Reason);
     BroadcastEconomy();
@@ -41,17 +40,12 @@ void UGTTPlayerEconomyComponent::AddCash(int32 Amount, const FString& Reason)
 
 bool UGTTPlayerEconomyComponent::SpendCash(int32 Amount, const FString& Reason)
 {
-    if (Amount <= 0)
-    {
-        return true;
-    }
-
+    if (Amount <= 0) return true;
     if (Cash < Amount)
     {
         PushMessage(FString::Printf(TEXT("Not enough cash. Need $%d, have $%d."), Amount, Cash));
         return false;
     }
-
     Cash -= Amount;
     PushMessage(Reason.IsEmpty() ? FString::Printf(TEXT("Spent $%d"), Amount) : Reason);
     BroadcastEconomy();
@@ -60,9 +54,21 @@ bool UGTTPlayerEconomyComponent::SpendCash(int32 Amount, const FString& Reason)
 
 int32 UGTTPlayerEconomyComponent::ChargeFine(int32 Amount, const FString& Reason)
 {
-    if (Amount <= 0)
+    if (Amount <= 0) return 0;
+
+    // Arrest fines are the authoritative point where the police loop has already forced the player out of the vehicle,
+    // but wanted heat has not yet been cleared. This lets the rural-law subsystem seize that nearby owned vehicle.
+    if (Reason.StartsWith(TEXT("ARRESTED")))
     {
-        return 0;
+        UWorld* World = GetWorld();
+        APawn* OwnerPawn = Cast<APawn>(GetOwner());
+        if (World && OwnerPawn)
+        {
+            if (UGTTRuralEconomySubsystem* RuralEconomy = World->GetSubsystem<UGTTRuralEconomySubsystem>())
+            {
+                RuralEconomy->HandleArrestImpound(OwnerPawn);
+            }
+        }
     }
 
     const int32 Charged = FMath::Min(Cash, Amount);
@@ -77,11 +83,7 @@ int32 UGTTPlayerEconomyComponent::ChargeFine(int32 Amount, const FString& Reason
 
 void UGTTPlayerEconomyComponent::AddFish(float WeightKg, const FString& Species)
 {
-    if (WeightKg <= 0.0f)
-    {
-        return;
-    }
-
+    if (WeightKg <= 0.0f) return;
     ++FishCount;
     FishWeightKg += WeightKg;
     PushMessage(FString::Printf(TEXT("Caught %s - %.2f kg"), *Species, WeightKg));
@@ -99,11 +101,9 @@ int32 UGTTPlayerEconomyComponent::SellAllFish(float PricePerKg)
     const int32 SaleValue = FMath::Max(1, FMath::RoundToInt(FishWeightKg * PricePerKg));
     const int32 SoldCount = FishCount;
     const float SoldWeight = FishWeightKg;
-
     FishCount = 0;
     FishWeightKg = 0.0f;
     Cash += SaleValue;
-
     PushMessage(FString::Printf(TEXT("Sold %d fish (%.2f kg) for $%d"), SoldCount, SoldWeight, SaleValue));
     BroadcastEconomy();
     return SaleValue;
