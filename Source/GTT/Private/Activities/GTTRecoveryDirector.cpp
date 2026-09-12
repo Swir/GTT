@@ -104,10 +104,11 @@ void AGTTRecoveryDirector::SpawnRecoveryTarget()
 
 bool AGTTRecoveryDirector::TryStartRecovery(APawn* PlayerPawn)
 {
-    if (Stage != EGTTRecoveryStage::Idle || !CanTakeLegalJob(PlayerPawn)) return false;
+    if ((Stage != EGTTRecoveryStage::Idle && Stage != EGTTRecoveryStage::Completed) || !CanTakeLegalJob(PlayerPawn)) return false;
     SpawnRecoveryTarget();
     if (!DisabledVehicle) return false;
 
+    DetachTow();
     DisabledVehicle->SetActorLocation(BreakdownLocation, false, nullptr, ETeleportType::TeleportPhysics);
     DisabledVehicle->SetActorRotation(FRotator(0.0f, -120.0f, 0.0f), ETeleportType::TeleportPhysics);
     ContractTimeRemaining = ContractTimeLimit;
@@ -174,7 +175,7 @@ FString AGTTRecoveryDirector::GetObjectiveText() const
         case EGTTRecoveryStage::ReachBreakdown: return FString::Printf(TEXT("RECOVERY: reach East Road | %.0fs"), ContractTimeRemaining);
         case EGTTRecoveryStage::HookVehicle: return FString::Printf(TEXT("RECOVERY: re-hook disabled van | %.0fs"), ContractTimeRemaining);
         case EGTTRecoveryStage::TowToWorkshop: return FString::Printf(TEXT("RECOVERY: tow to workshop | %.0fs | cable %.0f%%"), ContractTimeRemaining, TowCableLoad * 100.0f);
-        case EGTTRecoveryStage::Completed: return TEXT("RECOVERY: completed");
+        case EGTTRecoveryStage::Completed: return TEXT("RECOVERY: completed - new contract available");
         default: return TEXT("RECOVERY");
     }
 }
