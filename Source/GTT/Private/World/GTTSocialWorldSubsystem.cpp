@@ -4,7 +4,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
 #include "NPC/GTTSocialNPC.h"
-#include "UObject/ConstructorHelpers.h"
+#include "UObject/UObjectGlobals.h"
 #include "World/GTTSocialVenueDoor.h"
 
 namespace
@@ -35,8 +35,8 @@ void UGTTSocialWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     if (bBuilt || InWorld.GetNetMode() == NM_Client) return;
     bBuilt = true;
 
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
-    UStaticMesh* CubeMesh = CubeFinder.Succeeded() ? CubeFinder.Object : nullptr;
+    UStaticMesh* CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+    if (!CubeMesh) return;
 
     const FVector TavernInterior(30000.0f, 30000.0f, 0.0f);
     const FVector HallInterior(34000.0f, 30000.0f, 0.0f);
