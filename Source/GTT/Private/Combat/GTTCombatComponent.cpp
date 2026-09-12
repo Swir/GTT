@@ -1,10 +1,12 @@
 #include "Combat/GTTCombatComponent.h"
 
+#include "Combat/GTTWeaponPickup.h"
 #include "Characters/GTTCharacter.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Controller.h"
 #include "Kismet/GameplayStatics.h"
 #include "NPC/GTTCitizenPawn.h"
 #include "Vehicles/GTTVehicleBase.h"
@@ -66,7 +68,7 @@ void UGTTCombatComponent::PerformMeleeAttack(const FGTTWeaponProfile& Profile)
     FCollisionQueryParams Params(SCENE_QUERY_STAT(GTTMelee), false, Owner);
     const FCollisionShape Shape = FCollisionShape::MakeSphere(52.0f);
     if (!World->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn, Shape, Params)) return;
-    TSet<TObjectPtr<AActor>> Damaged;
+    TSet<AActor*> Damaged;
     for (const FHitResult& Hit : Hits)
     {
         AActor* Target = Hit.GetActor();
@@ -88,7 +90,7 @@ void UGTTCombatComponent::PerformShotgunAttack(const FGTTWeaponProfile& Profile)
     FRotator ViewRotation = Owner->GetActorRotation();
     if (APawn* Pawn = Cast<APawn>(Owner)) if (AController* Controller = Pawn->GetController()) ViewRotation = Controller->GetControlRotation();
 
-    TSet<TObjectPtr<AActor>> HitActors;
+    TSet<AActor*> HitActors;
     for (int32 Ray=0; Ray<5; ++Ray)
     {
         const FVector Direction = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(5.5f));
@@ -158,9 +160,19 @@ void UGTTCombatComponent::CycleWeapon()
 
 void UGTTCombatComponent::DropCurrentWeapon()
 {
-    if (EquippedWeapon == EGTTWeaponType::BareHands) return;
-    Inventory.Remove(EquippedWeapon);
-    EquippedWeapon = EGTTWeaponType::BareHands;
+    if (EquippedWeapon == EGTTWeaponType::BareHands || !GetWorld() || !GetOwner()) return;
+    const EGTTWeaponType DroppedType = EquippedWeapon;
+    const int32 DroppedAmmo = DroppedType == EGTTWeaponType::FarmShotgun ? ShotgunAmmo : 0;
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    const FVector SpawnLocation = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector()*90.0f + FVector(0,0,35);
+    if (AGTTWeaponPickup* Pickup = GetWorld()->SpawnActor<AGTTWeaponPickup>(SpawnLocation, GetOwner()->GetActorRotation(), Params))
+    {
+        Pickup->Configure(DroppedType, DroppedAmmo);
+        Inventory.Remove(DroppedType);
+        if (DroppedType == EGTTWeaponType::FarmShotgun) ShotgunAmmo = 0;
+        EquippedWeapon = EGTTWeaponType::BareHands;
+    }
 }
 
 FString UGTTCombatComponent::GetCombatStatusText() const
