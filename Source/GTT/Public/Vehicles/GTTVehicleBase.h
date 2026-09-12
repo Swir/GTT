@@ -6,6 +6,7 @@
 #include "GTTVehicleBase.generated.h"
 
 class UCameraComponent;
+class UPhysicsConstraintComponent;
 class UPrimitiveComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
@@ -24,6 +25,7 @@ public:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     virtual void Interact_Implementation(AActor* Interactor) override;
     virtual FText GetInteractionText_Implementation() const override;
@@ -61,6 +63,22 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Tuning")
     void ApplyTireDamage(float Amount);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Tow")
+    void ToggleTowHook();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Tow")
+    void ReleaseTowHook();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Recovery")
+    void ConfigureRecoveryTarget();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Terrain")
+    void SetTerrainHandling(FName SurfaceName, float GripMultiplier, float RollingResistanceMultiplier,
+        float SuspensionMultiplier, AActor* Source);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Terrain")
+    void ClearTerrainHandling(AActor* Source);
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     float GetConditionPercent() const;
@@ -119,6 +137,27 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
     FText GetVehicleDisplayName() const { return VehicleDisplayName; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Tow")
+    AGTTVehicleBase* GetTowedVehicle() const { return TowedVehicle.Get(); }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Tow")
+    AGTTVehicleBase* GetTowVehicle() const { return TowVehicle.Get(); }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Tow")
+    bool IsBeingTowed() const { return TowVehicle.IsValid(); }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Recovery")
+    bool IsRecoveryTarget() const { return bRecoveryTarget; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Terrain")
+    FName GetTerrainSurfaceName() const { return TerrainSurfaceName; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Terrain")
+    float GetTerrainGripMultiplier() const { return TerrainGripMultiplier; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Suspension")
+    int32 GetWheelContactCount() const { return WheelContactCount; }
+
     UPROPERTY(BlueprintAssignable, Category="GTT|Vehicle")
     FGTTVehicleDriverEvent OnDriverEntered;
 
@@ -155,6 +194,9 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle")
     TObjectPtr<UStaticMeshComponent> VehicleMesh;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Tow")
+    TObjectPtr<UPhysicsConstraintComponent> TowConstraint;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera")
     TObjectPtr<USpringArmComponent> CameraBoom;
 
@@ -183,6 +225,19 @@ protected:
     float DriveAcceleration = 950.0f;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Driving", meta=(ClampMin="0.0"))
     float SteeringAcceleration = 75.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Suspension", meta=(ClampMin="20.0"))
+    float SuspensionTraceLength = 105.0f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Suspension", meta=(ClampMin="0.0"))
+    float SuspensionSpringForce = 52000.0f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Suspension", meta=(ClampMin="0.0"))
+    float SuspensionDampingForce = 1800.0f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Driving", meta=(ClampMin="0.0"))
+    float LateralGripStrength = 2.8f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Driving", meta=(ClampMin="0.0"))
+    float RollingResistanceStrength = 0.32f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Tow", meta=(ClampMin="100.0"))
+    float TowSearchRadius = 520.0f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Vehicle|Fuel", meta=(ClampMin="1.0"))
     float FuelCapacityLiters = 45.0f;
@@ -233,6 +288,7 @@ private:
     void UpdateBreakableParts();
     void RestoreBreakableParts();
     void UpdateDamageSmoke(float DeltaSeconds);
+    void UpdateSuspensionAndTraction(float DeltaSeconds);
     void TriggerMechanicalStall(const TCHAR* Reason);
 
     TWeakObjectPtr<APawn> PreviousPawn;
@@ -241,6 +297,7 @@ private:
     bool bEngineRunning = false;
     bool bTheftReported = false;
     bool bOwnedByPlayer = false;
+    bool bRecoveryTarget = false;
     float LastThrottleInput = 0.0f;
     float EngineTemperatureC = 72.0f;
     float FaultRestartTimeRemaining = 0.0f;
@@ -251,4 +308,13 @@ private:
     int32 EngineUpgradeLevel = 0;
     int32 TireUpgradeLevel = 0;
     float TireIntegrity = 1.0f;
+
+    TWeakObjectPtr<AGTTVehicleBase> TowedVehicle;
+    TWeakObjectPtr<AGTTVehicleBase> TowVehicle;
+    TWeakObjectPtr<AActor> TerrainSource;
+    FName TerrainSurfaceName = TEXT("ROAD");
+    float TerrainGripMultiplier = 1.0f;
+    float TerrainRollingResistanceMultiplier = 1.0f;
+    float TerrainSuspensionMultiplier = 1.0f;
+    int32 WheelContactCount = 0;
 };
