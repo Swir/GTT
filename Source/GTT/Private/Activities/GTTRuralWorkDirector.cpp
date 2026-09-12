@@ -1,8 +1,10 @@
 #include "Activities/GTTRuralWorkDirector.h"
 
+#include "Activities/GTTRecoveryDirector.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Vehicles/GTTTractorPawn.h"
@@ -12,6 +14,15 @@
 AGTTRuralWorkDirector::AGTTRuralWorkDirector()
 {
     PrimaryActorTick.bCanEverTick = true;
+}
+
+void AGTTRuralWorkDirector::BeginPlay()
+{
+    Super::BeginPlay();
+    if (GetWorld() && !UGameplayStatics::GetActorOfClass(this, AGTTRecoveryDirector::StaticClass()))
+    {
+        GetWorld()->SpawnActor<AGTTRecoveryDirector>();
+    }
 }
 
 void AGTTRuralWorkDirector::Tick(float DeltaSeconds)
