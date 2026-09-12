@@ -1,6 +1,7 @@
 #include "Characters/GTTCharacter.h"
 
 #include "Camera/CameraComponent.h"
+#include "Combat/GTTCombatComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Core/GTTGameMode.h"
@@ -30,10 +31,7 @@ AGTTCharacter::AGTTCharacter()
     PlaceholderBody->SetRelativeLocation(FVector(0.0f, 0.0f, -10.0f));
     PlaceholderBody->SetRelativeScale3D(FVector(0.35f, 0.35f, 1.45f));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> BodyMeshFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    if (BodyMeshFinder.Succeeded())
-    {
-        PlaceholderBody->SetStaticMesh(BodyMeshFinder.Object);
-    }
+    if (BodyMeshFinder.Succeeded()) PlaceholderBody->SetStaticMesh(BodyMeshFinder.Object);
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(RootComponent);
@@ -47,6 +45,7 @@ AGTTCharacter::AGTTCharacter()
     WantedComponent = CreateDefaultSubobject<UGTTWantedComponent>(TEXT("WantedComponent"));
     EconomyComponent = CreateDefaultSubobject<UGTTPlayerEconomyComponent>(TEXT("EconomyComponent"));
     RadioComponent = CreateDefaultSubobject<UGTTRadioComponent>(TEXT("RadioComponent"));
+    CombatComponent = CreateDefaultSubobject<UGTTCombatComponent>(TEXT("CombatComponent"));
 }
 
 void AGTTCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -63,6 +62,9 @@ void AGTTCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
     PlayerInputComponent->BindAction(TEXT("QuickSave"), IE_Pressed, this, &AGTTCharacter::QuickSave);
     PlayerInputComponent->BindAction(TEXT("QuickLoad"), IE_Pressed, this, &AGTTCharacter::QuickLoad);
     PlayerInputComponent->BindAction(TEXT("RadioNext"), IE_Pressed, this, &AGTTCharacter::CycleRadio);
+    PlayerInputComponent->BindAction(TEXT("Attack"), IE_Pressed, this, &AGTTCharacter::Attack);
+    PlayerInputComponent->BindAction(TEXT("WeaponNext"), IE_Pressed, this, &AGTTCharacter::CycleWeapon);
+    PlayerInputComponent->BindAction(TEXT("DropWeapon"), IE_Pressed, this, &AGTTCharacter::DropWeapon);
 }
 
 void AGTTCharacter::MoveForward(float Value)
@@ -92,33 +94,13 @@ void AGTTCharacter::TryInteract()
     if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, QueryParams))
     {
         AActor* HitActor = Hit.GetActor();
-        if (IsValid(HitActor) && HitActor->GetClass()->ImplementsInterface(UGTTInteractable::StaticClass()))
-        {
-            IGTTInteractable::Execute_Interact(HitActor, this);
-        }
+        if (IsValid(HitActor) && HitActor->GetClass()->ImplementsInterface(UGTTInteractable::StaticClass())) IGTTInteractable::Execute_Interact(HitActor, this);
     }
 }
 
-void AGTTCharacter::QuickSave()
-{
-    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
-    {
-        GameMode->SaveProgress();
-    }
-}
-
-void AGTTCharacter::QuickLoad()
-{
-    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
-    {
-        GameMode->LoadProgress();
-    }
-}
-
-void AGTTCharacter::CycleRadio()
-{
-    if (RadioComponent)
-    {
-        RadioComponent->CycleStation();
-    }
-}
+void AGTTCharacter::QuickSave(){ if (AGTTGameMode* GameMode=Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress(); }
+void AGTTCharacter::QuickLoad(){ if (AGTTGameMode* GameMode=Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->LoadProgress(); }
+void AGTTCharacter::CycleRadio(){ if (RadioComponent) RadioComponent->CycleStation(); }
+void AGTTCharacter::Attack(){ if (CombatComponent) CombatComponent->Attack(); }
+void AGTTCharacter::CycleWeapon(){ if (CombatComponent) CombatComponent->CycleWeapon(); }
+void AGTTCharacter::DropWeapon(){ if (CombatComponent) CombatComponent->DropCurrentWeapon(); }
