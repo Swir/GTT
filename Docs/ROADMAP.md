@@ -11,7 +11,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Borrowed Tractor mission loop
 - [x] Runtime greybox village
 - [x] Windows packaging helper
-- [ ] Dedicated Chaos wheeled tractor movement
+- [x] Source-driven four-contact drivetrain/suspension foundation
+- [ ] Dedicated native Chaos wheeled tractor movement
 - [ ] Full Unreal compile + packaged Win64 smoke test
 
 ## 0.2 — Living Village
@@ -60,7 +61,11 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Persistent performance tuning
 - [x] Mud/off-road drag and tire wear
 - [x] Physics-constraint tow line with snap/re-hook behavior
-- [ ] Dedicated Chaos drivetrain/suspension
+- [x] Four-contact spring/damper suspension simulation
+- [x] Multi-gear drivetrain with vehicle-specific gearing and speed envelopes
+- [x] Vehicle-specific off-road grip response tied into mud volumes
+- [x] Live gear/contact/suspension/grip telemetry in HUD
+- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup
 - [ ] Authored hitch sockets / articulated trailers
 
 ## 0.6 — Roads, Rangers & Vehicle Life
@@ -85,6 +90,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Illegal poaching loop feeding ranger system
 - [x] Physical towing/recovery job
 - [x] Main Story Arc 2 uses forest, warden outpost and Hill Farm
+- [x] Farm/timber/recovery routes consume shared vehicle damage, tire and terrain dynamics
 - [ ] Deeper poaching inventory / fence economy
 - [ ] Dedicated trailer/hitch work contracts
 - [ ] More shops/services
@@ -99,6 +105,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Police spike strips use shared tire-durability model
 - [x] Timber payout reacts to body/tire condition
 - [x] Mud zones consume tire integrity under load
+- [x] Engine/tire tuning feeds the shared drivetrain power/grip model
 - [ ] Tractor visual upgrades
 - [ ] Old-car visual/performance variants
 - [ ] Replacement body-panel economy

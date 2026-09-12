@@ -111,6 +111,11 @@ void AGTTGameHUD::DrawHUD()
         DrawText(VehicleLine, FLinearColor::White, 36.0f, Y, GEngine->GetSmallFont(), 1.05f, false);
         Y += 30.0f;
 
+        DrawText(FString::Printf(TEXT("VEHICLE DYNAMICS | %s"), *Vehicle->GetDynamicsSummary()),
+            Vehicle->GetGroundContactCount() >= 3 ? FLinearColor(0.45f,0.9f,1.0f,1.0f) : FLinearColor(1.0f,0.65f,0.2f,1.0f),
+            36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
+        Y += 28.0f;
+
         if (Radio)
         {
             DrawText(Radio->GetDisplayLine(), Radio->IsRadioOn() ? FLinearColor(0.48f,0.88f,1.0f,1.0f) : FLinearColor(0.55f,0.6f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);

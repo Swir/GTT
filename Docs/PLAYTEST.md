@@ -1,6 +1,6 @@
 # GTT Prototype Playtest
 
-This document describes the current source-driven prototype loop for **GTT 0.0.16**.
+This document describes the current source-driven prototype loop for **GTT 0.0.17**.
 
 ## Requirements
 - Unreal Engine 5.8
@@ -24,6 +24,20 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 - `R` — cycle radio
 - `F5` — quick-save
 - `F9` — quick-load
+
+## 0.0.17 vehicle dynamics milestone
+1. Drive the **Rusty Fieldmaster 60** on flat ground. Watch the new `VEHICLE DYNAMICS` HUD row and verify gear changes progress through the five short ratios instead of remaining a single direct-force response.
+2. Drive over uneven greybox terrain/edges slowly and verify `CONTACT` varies between 0–4 and `SUSP` changes as the four suspension traces compress/release.
+3. Accelerate the tractor on a long clear road. Verify power tapers near its ~58 km/h target envelope instead of accelerating indefinitely.
+4. Repeat with **Rattleback 82**. Verify it uses five road-oriented ratios, accelerates/turns more aggressively and has a much higher ~128 km/h target envelope.
+5. Repeat with **Mulebox 1200**. Verify its four utility ratios and longer/heavier suspension feel sit between tractor and car, with ~104 km/h target speed.
+6. Damage a vehicle until condition drops materially. Verify acceleration weakens through the same drivetrain rather than only changing HUD/body state.
+7. Overheat or stall a vehicle and verify drivetrain force drops to zero while steering/throttle input telemetry remains coherent after restart.
+8. Upgrade engine level at the tuning terminal and verify effective acceleration improves. Upgrade/repair tires and verify grip improves after tire damage.
+9. Drive each vehicle through Hill Farm mud. Verify grip drops and rolling resistance rises in the HUD/handling model while tire wear continues.
+10. Compare Fieldmaster vs Rattleback in the same mud. The Fieldmaster should preserve noticeably more effective grip due to its dedicated 42% off-road recovery bias.
+11. Tow the disabled recovery Mulebox through/near mud and verify the recovered vehicle still experiences physical terrain drag while the towing vehicle uses the new drivetrain.
+12. Regression: garage recall, save/load, body damage, spike-strip tire loss, timber payout and mowing/recovery contracts must still function.
 
 ## 0.0.16 Main Story Arc 2 — Timber Ghosts
 1. Complete Main Story Arc 1 and return to the **PLAYER FARM office**. Interact again to start **TIMBER GHOSTS**.
@@ -83,7 +97,8 @@ The project boots from Unreal's built-in Entry map and creates the greybox count
 - Workshop repair/refuel/tuning.
 
 ## Current limitations
-- Player, traffic and pursuit vehicles still use the source-only physics fallback; dedicated Chaos wheel/suspension drivetrain tuning is not yet implemented.
+- 0.0.17 replaces the old single-force player-driving path with a four-contact source-driven suspension/drivetrain model, but it is **not yet a verified native `ChaosWheeledVehicleMovement` setup** with authored wheel/suspension assets.
+- `ChaosVehiclesPlugin` is enabled and the runtime module links `ChaosVehicles`, but the current repository runner cannot compile/test a full UE 5.8 Win64 Chaos vehicle package.
 - Towing uses a real Unreal physics constraint but not authored hitch sockets/trailer skeletal rigs.
 - Mud uses authored gameplay volumes rather than landscape physical-material sampling/deformation.
 - Story stage still lives in a dedicated story save slot rather than the primary sandbox SaveGame schema.

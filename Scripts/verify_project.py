@@ -15,6 +15,8 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Economy/GTTPlayerEconomyComponent.h",
     "Source/GTT/Public/Radio/GTTRadioComponent.h",
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h",
+    "Source/GTT/Public/Vehicles/GTTVehicleDynamicsComponent.h",
+    "Source/GTT/Private/Vehicles/GTTVehicleDynamicsComponent.cpp",
     "Source/GTT/Public/Police/GTTPoliceDirector.h", "Source/GTT/Public/Police/GTTPolicePursuitVehicle.h",
     "Source/GTT/Public/Police/GTTRoadblock.h",
     "Source/GTT/Public/Activities/GTTFarmJobDirector.h", "Source/GTT/Public/Activities/GTTFarmJobTerminal.h",
@@ -36,6 +38,25 @@ REQUIRED_FILES = [
 EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "OwnedVehicles"],
     "Source/GTT/Public/Save/GTTMainStorySave.h": ["StorySaveVersion", "StoryStage"],
+    "Source/GTT/Public/Vehicles/GTTVehicleDynamicsComponent.h": [
+        "WheelBaseCm", "SuspensionRestLengthCm", "SpringStrength", "DamperStrength", "ForwardGearTopSpeedsKmh", "OffroadGripBias"
+    ],
+    "Source/GTT/Private/Vehicles/GTTVehicleDynamicsComponent.cpp": [
+        "LineTraceSingleByChannel", "AddForceAtLocation", "GetPhysicsLinearVelocityAtPoint", "GroundContactCount",
+        "UpdateGear", "MaxSpeedKmh", "ApplyTerrainModifier", "GetDynamicsSummary"
+    ],
+    "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp": [
+        "VehicleDynamics", "ConfigureDynamics", "RefreshDynamicsPower", "SetDriverInputs", "ApplyTerrainDynamicsModifier"
+    ],
+    "Source/GTT/Private/Vehicles/GTTTractorPawn.cpp": [
+        "MaxSpeedKmh = 58.0f", "OffroadGripBias = 0.42f", "ForwardGearTopSpeedsKmh", "ConfigureDynamics"
+    ],
+    "Source/GTT/Private/Vehicles/GTTOldCarPawn.cpp": [
+        "MaxSpeedKmh = 128.0f", "LateralGrip = 9.8f", "ForwardGearTopSpeedsKmh", "ConfigureDynamics"
+    ],
+    "Source/GTT/Private/Vehicles/GTTFarmVanPawn.cpp": [
+        "MaxSpeedKmh = 104.0f", "SuspensionRestLengthCm = 52.0f", "ForwardGearTopSpeedsKmh", "ConfigureDynamics"
+    ],
     "Source/GTT/Private/World/GTTRoadGraph.cpp": [
         "BuildGraph", "BuildRoute", "FindClosestNode", "WardenOutpost", "ForestDeep", "HillFarmNorth", "Link(OutNodes"
     ],
@@ -62,7 +83,9 @@ EXPECTED_SOURCE_TOKENS = {
         "TryStartRecovery", "TryHookRecoveryVehicle", "TryFinishRecovery", "SetConstrainedComponents", "TOW LINE SNAPPED", "BaseReward", "FastBonus"
     ],
     "Source/GTT/Private/Activities/GTTRecoveryTargetVehicle.cpp": ["Disabled Mulebox", "Engine is dead", "PersistentVehicleId = NAME_None"],
-    "Source/GTT/Private/World/GTTMudZone.cpp": ["GetOverlappingActors", "AddForce", "ApplyTireDamage", "DragStrength"],
+    "Source/GTT/Private/World/GTTMudZone.cpp": [
+        "GetOverlappingActors", "ApplyTerrainDynamicsModifier", "ApplyTireDamage", "DragStrength", "0.52f"
+    ],
     "Source/GTT/Private/World/GTTRecoveryWorldSubsystem.cpp": [
         "AGTTRecoveryDirector", "EGTTRecoveryTerminalType::Workshop", "EGTTRecoveryTerminalType::Hook", "HillFarmMud", "ForestTrackMud"
     ],
@@ -83,7 +106,7 @@ EXPECTED_SOURCE_TOKENS = {
     ],
     "Source/GTT/Private/Missions/GTTNightFavorTerminal.cpp": ["Tavern", "Workshop", "Neighbor", "TryFinish"],
     "Source/GTT/Private/UI/GTTGameHUD.cpp": [
-        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "MainStory", "GetObjectiveText", "NightFavor", "R radio"
+        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "MainStory", "VEHICLE DYNAMICS", "GetDynamicsSummary", "NightFavor", "R radio"
     ],
     "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
         "AGTTRuralWorkDirector", "AGTTNightFavorDirector", "NORTH WOOD YARD", "MOWING CONTRACT", "FIELD GATE", "NIGHT SHIFT FAVOR"
@@ -132,6 +155,16 @@ def main() -> int:
         if absent:
             fail(f"{relative} is missing expected gameplay hooks: {absent}")
 
+    dynamics_header = (ROOT / "Source/GTT/Public/Vehicles/GTTVehicleDynamicsComponent.h").read_text(encoding="utf-8")
+    for token in ["GetCurrentGear", "GetGroundContactCount", "GetAverageSuspensionCompression", "ApplyTerrainModifier"]:
+        if token not in dynamics_header:
+            fail(f"Vehicle dynamics component missing API: {token}")
+
+    base_header = (ROOT / "Source/GTT/Public/Vehicles/GTTVehicleBase.h").read_text(encoding="utf-8")
+    for token in ["DynamicsComponent", "GetDynamicsSummary", "ApplyTerrainDynamicsModifier", "ConfigureDynamics"]:
+        if token not in base_header:
+            fail(f"Vehicle base missing dynamics integration: {token}")
+
     story_header = (ROOT / "Source/GTT/Public/Missions/GTTMainStoryDirector.h").read_text(encoding="utf-8")
     for token in [
         "NorthWoodPickup", "ShopDelivery", "TavernMeet", "EastRoadPickup", "EscapePolice", "WorkshopDelivery", "FinalFarmMeet",
@@ -165,7 +198,7 @@ def main() -> int:
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.16 shared road graph, rural traffic, police routing and persistent ranger story arc look structurally sane.")
+    print("[OK] GTT 0.0.17 vehicle dynamics, four-point suspension, differentiated gearing, mud traction and existing sandbox/story hooks look structurally sane.")
     return 0
 
 

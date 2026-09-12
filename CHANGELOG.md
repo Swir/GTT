@@ -2,6 +2,30 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.17] - 2026-09-12
+
+### Added
+- New reusable `UGTTVehicleDynamicsComponent` replacing the old one-force driving path with a source-driven four-contact vehicle dynamics layer.
+- Four suspension traces per vehicle with spring force, damping, per-contact lateral stabilization and live ground-contact/compression telemetry.
+- Multi-gear drivetrain model with speed-based automatic gear selection, gear-dependent drive force, speed-limited power falloff, reverse/braking response and rolling resistance.
+- Dedicated dynamics profiles for all three player vehicles instead of only changing raw acceleration numbers:
+  - **Rusty Fieldmaster 60** — 5 short gears, 58 km/h target speed, long-travel suspension, heavy chassis and 42% off-road grip recovery.
+  - **Rattleback 82** — 5 road-oriented gears, 128 km/h target speed, shorter suspension and strongest lateral road grip.
+  - **Mulebox 1200** — 4 utility gears, 104 km/h target speed, long wheelbase and heavier/stabler damping.
+- Live `VEHICLE DYNAMICS` HUD telemetry for current gear, grounded wheel-contact count, suspension compression and effective grip.
+
+### Changed
+- Vehicle condition, overheating, engine tuning, tire upgrades and tire damage now feed power/grip multipliers into the shared drivetrain rather than only scaling the old direct force input.
+- Mud volumes now reduce drivetrain grip and increase rolling resistance through the same vehicle-dynamics component while retaining physical momentum drag and tire wear.
+- Fieldmaster's dedicated off-road bias makes the tractor materially more useful for Hill Farm, timber and recovery terrain instead of merely being slower/heavier.
+- Base vehicle physics damping was reduced because rolling resistance and suspension damping are now modeled by the dynamics layer.
+- Structural sanity checks now verify suspension traces, spring/damper forces, gearing, all three vehicle profiles, terrain integration and HUD telemetry.
+
+### Limitations / Next
+- This milestone is a substantial source-driven suspension/drivetrain foundation, **not yet a verified native ChaosWheeledVehicleMovement wheel setup**. `ChaosVehiclesPlugin` remains enabled/linked for the planned migration.
+- Next: native Chaos wheel assets/configuration when a UE-equipped compile runner is available, authored hitch sockets/articulated trailers, Main Story Arc 3 and lane/speed-limit metadata.
+- Real Unreal-equipped Win64 compile/package smoke-test runner remains required before claiming packaged vehicle behavior verified.
+
 ## [0.0.16] - 2026-09-12
 
 ### Added
