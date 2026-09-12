@@ -59,12 +59,12 @@ EXPECTED_SOURCE_TOKENS = {
         "WANTED [", "WARDEN [", "GARAGE %d/%d", "TEMP %.0fC", "VEHICLE DAMAGE", "DETACHED PARTS"
     ],
     "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
-        "4-SLOT GARAGE", "SpawnActor<AGTTOldCarPawn>", "SpawnActor<AGTTFarmVanPawn>", "SpawnActor<AGTTTrafficDirector>",
+        "4-SLOT GARAGE", "SpawnActor<AGTTOldCarPawn>", "SpawnActor<AGTTFarmVanPawn>",
         "GAME WARDEN OUTPOST", "PRIVATE LAKE - NO FISHING"
     ],
     "Source/GTT/Private/Core/GTTGameMode.cpp": [
         "SaveGameToSlot", "LoadGameFromSlot", "OwnedVehicles", "TryRegisterVehicle", "GarageCapacity",
-        "ReportWildlifeCrime", "TryRangerCitation", "GetWildlifeAlertLevel"
+        "ReportWildlifeCrime", "TryRangerCitation", "GetWildlifeAlertLevel", "SpawnActor<AGTTTrafficDirector>"
     ],
     "Source/GTT/Private/Characters/GTTCharacter.cpp": ["QuickSave", "QuickLoad", "SaveProgress", "LoadProgress"],
 }
