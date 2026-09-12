@@ -2,6 +2,31 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.21] - 2026-09-12
+
+### Added
+- New persistent countryside-faction system with three original hostile groups: **Rust Dogs**, **Stone Crows**, and **Mud Jackals**.
+- Four differentiated hostile archetypes layered onto the existing citizen combat body: **Scrapper**, **Runner**, **Bruiser**, and **Enforcer**, each with distinct health, speed, damage, attack distance and cadence.
+- Three automatic proximity-driven hostile territories: Rust Dogs Scrap Yard, Stone Crows Old Quarry and Mud Jackals Marsh Camp.
+- Repeatable ambush encounters that use the existing player health, Rural Arsenal and knockout/economy loops rather than a parallel combat prototype.
+- Persistent faction notoriety and per-faction victory counters stored in `GTT_Factions_01`.
+- Escalation system: every two total faction victories increases subsequent ambush group size up to +2 enemies, while payouts rise with notoriety.
+- Automatic `UGTTFactionWorldSubsystem` bootstrap so faction gameplay exists in the runtime world without authored map placement.
+- Shared road graph expanded from 20 to 23 named nodes with connected roads to Scrap Yard, Old Quarry and Marsh Camp.
+- Dedicated `verify_factions.py` sanity suite and GitHub Actions step.
+
+### Changed
+- Hostile faction enemies chase over a longer range than civilians and remain committed instead of using the civilian low-health flee behavior.
+- Encounter rewards feed the existing cash economy; failed/abandoned encounters regroup instead of paying out.
+- Rural faction combat resolves through the hidden driver pawn when the player is inside a vehicle, preserving combat/economy component access during possession.
+- Roadmap now marks differentiated hostile archetypes, persistent notoriety, repeatable faction encounters and the three new countryside road branches complete.
+
+### Limitations / Next
+- Faction enemies still use source-driven primitive citizen visuals; authored faction meshes, combat animations, weapons and hit reactions remain outstanding.
+- Faction progression currently has a dedicated save slot; combat/story/faction state should eventually be consolidated into the primary sandbox SaveGame.
+- Native Chaos wheeled movement and a real UE 5.8 Win64 compile/package smoke runner remain outstanding.
+- Next major package: deeper rural services/economy (fence/impound/insurance), lane and speed-limit metadata, and a larger connected countryside/story expansion.
+
 ## [0.0.20] - 2026-09-12
 
 ### Added
