@@ -26,6 +26,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Day/night + NPC schedules
 - [x] Basic radio framework
 - [x] Four fictional stations + track rotation
+- [x] Civilian combat reactions: retaliate / chase / flee / knockout / recover
 
 ## 0.3 — Rural Crime & Jobs
 - [x] Fishing + fish inventory/sales
@@ -36,6 +37,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Legal timber-haul contract with condition-sensitive payout
 - [x] Tractor-only field-mowing route with ordered checkpoints
 - [x] Timed roadside recovery contract tied to economy
+- [x] Rural improvised weapon pickup loop
+- [x] Assault / firearm-discharge hooks into wanted system
 
 ## 0.4 — Village Nights
 - [x] Village party window 18:30–02:30
@@ -44,9 +47,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Bent Axle tavern exterior
 - [x] Night Shift Favor side mission
 - [x] Main-story nighttime contact integrated with village clock
+- [x] Village fight/combat encounter framework
+- [x] Bent Axle repeatable nighttime brawl activity
 - [ ] Tavern/community-hall interiors
 - [ ] NPC dialogue/social encounters
-- [ ] Village fight/combat encounter framework
 - [ ] Original/royalty-cleared music and radio audio assets
 
 ## 0.5 — Vehicle Chaos
@@ -117,8 +121,12 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Shared mission road-route guidance
 - [x] First side-story chain
 - [x] Police escalation variety: foot / pursuit cars / roadblocks
+- [x] Player health + defeat/economy consequence loop
+- [x] Eight-item Rural Arsenal foundation
 - [ ] Main Story Arc 3 and campaign finale
-- [ ] More NPC archetypes
+- [ ] Persist combat inventory/ammo in sandbox SaveGame
+- [ ] More hostile NPC archetypes / faction encounters
+- [ ] Authored combat animations / weapon models / hit reactions
 - [ ] Performance passes
 - [ ] Accessibility/settings
 - [ ] Controller support
@@ -126,4 +134,4 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [ ] Full Win64 CI/build runner
 
 ## 1.0 — First Complete Release
-A stable Windows build with a complete core story loop, countryside sandbox, vehicles, wanted + ranger systems, side activities, saving, settings, audio and optimized packaged build.
+A stable Windows build with a complete core story loop, countryside sandbox, vehicles, wanted + ranger systems, combat, side activities, saving, settings, audio and optimized packaged build.
