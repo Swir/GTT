@@ -52,3 +52,6 @@ jobs:
 
       - name: Verify release pipeline milestone
         run: python Scripts/verify_release_pipeline.py
+
+      - name: Verify social venues milestone
+        run: python Scripts/verify_social_venues.py
