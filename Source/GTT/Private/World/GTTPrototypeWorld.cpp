@@ -1,8 +1,11 @@
 #include "World/GTTPrototypeWorld.h"
 #include "Activities/GTTFarmJobDirector.h"
 #include "Activities/GTTFarmJobTerminal.h"
+#include "Activities/GTTFieldCheckpoint.h"
 #include "Activities/GTTFishingSpot.h"
 #include "Activities/GTTForestPoachingSpot.h"
+#include "Activities/GTTRuralWorkDirector.h"
+#include "Activities/GTTRuralWorkTerminal.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -15,6 +18,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "Missions/GTTNightFavorDirector.h"
+#include "Missions/GTTNightFavorTerminal.h"
 #include "NPC/GTTCitizenPawn.h"
 #include "Vehicles/GTTFarmVanPawn.h"
 #include "Vehicles/GTTOldCarPawn.h"
@@ -46,6 +51,8 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("LIVE VILLAGE TRAFFIC LOOP"),FVector(0,-1800,170),FRotator(0,180,0),38.0f);
 
     GetWorld()->SpawnActor<AGTTFarmJobDirector>();
+    GetWorld()->SpawnActor<AGTTRuralWorkDirector>();
+    GetWorld()->SpawnActor<AGTTNightFavorDirector>();
     GetWorld()->SpawnActor<AGTTVillageEventDirector>();
 
     SpawnBox(FVector(-3000,-900,125),FVector(7,6,3.5f));
@@ -59,7 +66,7 @@ void AGTTPrototypeWorld::BuildWorld()
     }
 
     if(AGTTFarmJobTerminal* JobStart=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(-2450,-1150,55),FRotator::ZeroRotator)) JobStart->SetTerminalType(EGTTFarmJobTerminalType::Start);
-    SpawnLabel(TEXT("FARM CARGO CONTRACT - E"),FVector(-2450,-1150,200),FRotator(0,180,0),44.0f);
+    SpawnLabel(TEXT("FEED CARGO CONTRACT - E"),FVector(-2450,-1150,200),FRotator(0,180,0),44.0f);
 
     SpawnBox(FVector(-3600,900,180),FVector(8,7,4.5f));
     SpawnLabel(TEXT("BARN - MISSION GOAL"),FVector(-3500,300,420));
@@ -87,6 +94,8 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("COMMUNITY HALL / NIGHT PARTY 18:30-02:30"),FVector(2400,2700,580),FRotator(0,180,0),42.0f);
     SpawnBox(FVector(1450,2700,135),FVector(5.5f,4.5f,3.5f));
     SpawnLabel(TEXT("THE BENT AXLE TAVERN"),FVector(1450,2700,520),FRotator(0,180,0),44.0f);
+    if(AGTTNightFavorTerminal* TavernFavor=GetWorld()->SpawnActor<AGTTNightFavorTerminal>(FVector(1450,2250,55),FRotator::ZeroRotator)) TavernFavor->SetTerminalType(EGTTNightFavorTerminalType::Tavern);
+    SpawnLabel(TEXT("NIGHT SHIFT FAVOR - E"),FVector(1450,2250,190),FRotator(0,180,0),38.0f);
     SpawnLabel(TEXT("RANDOM NIGHT EVENTS AROUND HALL / TAVERN / SHOP / FOREST"),FVector(1950,2150,300),FRotator(0,180,0),32.0f);
 
     SpawnBox(FVector(-400,2900,140),FVector(7,5,3.8f));
@@ -95,6 +104,10 @@ void AGTTPrototypeWorld::BuildWorld()
     SpawnLabel(TEXT("REPAIR + REFUEL $75 - E"),FVector(-650,2400,190),FRotator(0,180,0),42.0f);
     GetWorld()->SpawnActor<AGTTTuningTerminal>(FVector(-150,2400,55),FRotator::ZeroRotator);
     SpawnLabel(TEXT("TUNING / TIRES - E"),FVector(-150,2400,190),FRotator(0,180,0),44.0f);
+    if(AGTTNightFavorTerminal* Parts=GetWorld()->SpawnActor<AGTTNightFavorTerminal>(FVector(250,2400,55),FRotator::ZeroRotator)) Parts->SetTerminalType(EGTTNightFavorTerminalType::Workshop);
+    SpawnLabel(TEXT("EMERGENCY PARTS - E"),FVector(250,2400,190),FRotator(0,180,0),34.0f);
+    if(AGTTRuralWorkTerminal* TimberFinish=GetWorld()->SpawnActor<AGTTRuralWorkTerminal>(FVector(-950,2400,55),FRotator::ZeroRotator)) TimberFinish->SetTerminalType(EGTTRuralWorkTerminalType::TimberFinish);
+    SpawnLabel(TEXT("TIMBER UNLOAD - E"),FVector(-950,2400,190),FRotator(0,180,0),36.0f);
     GetWorld()->SpawnActor<AGTTFarmVanPawn>(FVector(450,2850,110),FRotator(0,-90,0));
     SpawnLabel(TEXT("MULEBOX 1200 - FARM VAN"),FVector(450,2850,340),FRotator(0,180,0),48.0f);
 
@@ -123,11 +136,38 @@ void AGTTPrototypeWorld::BuildWorld()
     GetWorld()->SpawnActor<AGTTForestPoachingSpot>(FVector(7050,-950,55),FRotator::ZeroRotator);
     SpawnLabel(TEXT("ILLEGAL FOREST POACHING - E"),FVector(7050,-950,210),FRotator(0,180,0),44.0f);
 
+    // Legal timber yard deliberately sits outside the poaching interaction zone.
+    SpawnBox(FVector(7850,900,115),FVector(7,5,2.8f));
+    SpawnLabel(TEXT("NORTH WOOD YARD / LEGAL TIMBER"),FVector(7850,900,470),FRotator(0,180,0),42.0f);
+    if(AGTTRuralWorkTerminal* TimberStart=GetWorld()->SpawnActor<AGTTRuralWorkTerminal>(FVector(7350,650,55),FRotator::ZeroRotator)) TimberStart->SetTerminalType(EGTTRuralWorkTerminalType::TimberStart);
+    SpawnLabel(TEXT("TIMBER CONTRACT - E"),FVector(7350,650,190),FRotator(0,180,0),36.0f);
+    if(AGTTRuralWorkTerminal* TimberPickup=GetWorld()->SpawnActor<AGTTRuralWorkTerminal>(FVector(7850,450,55),FRotator::ZeroRotator)) TimberPickup->SetTerminalType(EGTTRuralWorkTerminalType::TimberPickup);
+    SpawnLabel(TEXT("LOAD LOGS - E"),FVector(7850,450,190),FRotator(0,180,0),38.0f);
+
     SpawnBox(FVector(5850,3100,145),FVector(8,7,3.8f));
-    SpawnLabel(TEXT("HILL FARM / CARGO DELIVERY"),FVector(5850,3100,560),FRotator(0,180,0),46.0f);
+    SpawnLabel(TEXT("HILL FARM / CARGO DELIVERY + FIELD OFFICE"),FVector(5850,3100,560),FRotator(0,180,0),42.0f);
     SpawnBox(FVector(5200,2550,20),FVector(20,12,.2f),FRotator::ZeroRotator,false);
     if(AGTTFarmJobTerminal* JobFinish=GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(5200,2550,55),FRotator::ZeroRotator)) JobFinish->SetTerminalType(EGTTFarmJobTerminalType::Finish);
-    SpawnLabel(TEXT("DELIVER CARGO - E"),FVector(5200,2550,200),FRotator(0,180,0),46.0f);
+    SpawnLabel(TEXT("DELIVER FEED CARGO - E"),FVector(5200,2550,200),FRotator(0,180,0),42.0f);
+    if(AGTTRuralWorkTerminal* MowingStart=GetWorld()->SpawnActor<AGTTRuralWorkTerminal>(FVector(5900,2550,55),FRotator::ZeroRotator)) MowingStart->SetTerminalType(EGTTRuralWorkTerminalType::MowingStart);
+    SpawnLabel(TEXT("MOWING CONTRACT - TRACTOR REQUIRED - E"),FVector(5900,2550,200),FRotator(0,180,0),34.0f);
+
+    // Five ordered mowing gates form a real driving route through the east field.
+    const TArray<FVector> FieldGates={FVector(6200,3800,90),FVector(7200,3800,90),FVector(7200,4700,90),FVector(6200,4700,90),FVector(6200,5600,90)};
+    for(int32 GateIndex=0; GateIndex<FieldGates.Num(); ++GateIndex)
+    {
+        AGTTFieldCheckpoint* Gate=GetWorld()->SpawnActor<AGTTFieldCheckpoint>(FieldGates[GateIndex], GateIndex%2==0?FRotator::ZeroRotator:FRotator(0,90,0));
+        if(Gate) Gate->SetPassIndex(GateIndex);
+        SpawnLabel(FString::Printf(TEXT("FIELD GATE %d"),GateIndex+1),FieldGates[GateIndex]+FVector(0,0,300),FRotator(0,180,0),30.0f);
+    }
+    SpawnBox(FVector(6700,4700,-35),FVector(18,18,.08f),FRotator::ZeroRotator,false);
+    SpawnLabel(TEXT("HILL FARM MOWING FIELD"),FVector(6700,4700,240),FRotator(0,180,0),38.0f);
+
+    // Stranded-neighbor story beat on the east road.
+    SpawnBox(FVector(4350,1900,75),FVector(2.8f,1.4f,1.2f));
+    SpawnLabel(TEXT("STRANDED NEIGHBOR / EAST ROAD"),FVector(4350,1900,310),FRotator(0,180,0),36.0f);
+    if(AGTTNightFavorTerminal* Neighbor=GetWorld()->SpawnActor<AGTTNightFavorTerminal>(FVector(4350,1600,55),FRotator::ZeroRotator)) Neighbor->SetTerminalType(EGTTNightFavorTerminalType::Neighbor);
+    SpawnLabel(TEXT("HELP NEIGHBOR - E"),FVector(4350,1600,185),FRotator(0,180,0),34.0f);
 
     const TArray<FVector> CitizenSpawns={FVector(2200,450,120),FVector(3150,350,120),FVector(850,-2150,120),FVector(1650,-1650,120),FVector(-250,2150,120),FVector(2100,2200,120),FVector(-1900,-900,120),FVector(3400,-1500,120)};
     for(const FVector& P:CitizenSpawns) GetWorld()->SpawnActor<AGTTCitizenPawn>(P,FRotator::ZeroRotator);
@@ -136,7 +176,7 @@ void AGTTPrototypeWorld::BuildWorld()
     for(int32 I=0;I<9;++I) SpawnBox(FVector(-2200+I*520,-650,35),FVector(4.2f,.18f,.85f));
     for(int32 I=0;I<7;++I) SpawnBox(FVector(1450,-900+I*420,35),FVector(.18f,3.5f,.85f));
 
-    SpawnLabel(TEXT("GTT 0.0.11 | VILLAGE NIGHTS + RADIO + ROADBLOCKS"),FVector(-2500,-1250,380),FRotator(0,180,0),44.0f);
+    SpawnLabel(TEXT("GTT 0.0.12 | RURAL WORK + NIGHT SHIFT FAVOR"),FVector(-2500,-1250,380),FRotator(0,180,0),44.0f);
     if(APawn* PlayerPawn=UGameplayStatics::GetPlayerPawn(this,0)){ PlayerPawn->SetActorLocation(FVector(-2550,-1250,120)); PlayerPawn->SetActorRotation(FRotator(0,25,0)); }
 }
 

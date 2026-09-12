@@ -32,7 +32,9 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] First forest / poaching gameplay
 - [x] Staged farm cargo job with pickup checkpoint
 - [x] Timed delivery and cargo-integrity reward scaling
-- [ ] More mission archetypes
+- [x] Legal timber-haul contract with condition-sensitive payout
+- [x] Tractor-only field-mowing route with ordered checkpoints
+- [x] Multiple legal mission archetypes
 
 ## 0.4 — Village Nights
 - [x] Village party window 18:30–02:30
@@ -41,6 +43,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Community hall nightlife gameplay foundation
 - [x] Tavern exterior / Bent Axle location
 - [x] Radio expansion foundation
+- [x] First nightlife side-mission chain: Night Shift Favor
 - [ ] Tavern/community-hall interiors
 - [ ] NPC dialogue/social encounters
 - [ ] Village fight/combat encounter framework
@@ -74,15 +77,16 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 ## 0.7 — Jobs & Countryside Expansion
 - [x] First east-side forest expansion
-- [ ] Larger connected road network and countryside
+- [x] North Wood Yard legal-work expansion
 - [x] Cargo farm job
-- [ ] Plowing/mowing field-work jobs
-- [ ] Forest work and legal timber transport
+- [x] First mowing field-work job
+- [x] Legal timber transport
 - [x] Illegal poaching loop feeding the ranger system
 - [ ] Deeper poaching inventory / fence economy
-- [ ] Towing/recovery jobs
+- [ ] Towing/recovery jobs with physical hitch/trailer
 - [ ] More shops/services
-- [ ] Side-mission chain
+- [x] First side-mission chain
+- [ ] Larger connected road network and countryside
 
 ## 0.8 — Vehicle Damage & Tuning
 - [x] Detachable doors/fenders/body panels
@@ -92,12 +96,14 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Upgrade/tuning garage foundation
 - [x] Persistent engine/tire upgrade levels
 - [x] Police spike strips use the same tire-durability model
+- [x] Timber payout reacts to body/tire condition
 - [ ] Tractor visual upgrades
 - [ ] Old-car visual/performance upgrade variants
 - [ ] Replacement body-panel economy
 
 ## 0.9 — Content & Polish
-- [ ] Story mission chain
+- [ ] Main story mission chain
+- [x] First side-story chain
 - [ ] More NPC archetypes
 - [x] Police escalation variety: foot / pursuit cars / roadblocks
 - [ ] Performance passes
