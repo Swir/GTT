@@ -46,3 +46,6 @@ jobs:
 
       - name: Verify world performance milestone
         run: python Scripts/verify_world_performance.py
+
+      - name: Verify player experience milestone
+        run: python Scripts/verify_player_experience.py

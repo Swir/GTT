@@ -13,6 +13,7 @@
 #include "Interaction/GTTInteractable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Radio/GTTRadioComponent.h"
+#include "UI/GTTGameUserSettings.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Wanted/GTTWantedComponent.h"
 
@@ -81,8 +82,20 @@ void AGTTCharacter::MoveRight(float Value)
     AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), Value);
 }
 
-void AGTTCharacter::Turn(float Value) { AddControllerYawInput(Value); }
-void AGTTCharacter::LookUp(float Value) { AddControllerPitchInput(Value); }
+void AGTTCharacter::Turn(float Value)
+{
+    const UGTTGameUserSettings* Settings = UGTTGameUserSettings::Get();
+    const float Sensitivity = Settings ? Settings->LookSensitivity : 1.0f;
+    AddControllerYawInput(Value * Sensitivity);
+}
+
+void AGTTCharacter::LookUp(float Value)
+{
+    const UGTTGameUserSettings* Settings = UGTTGameUserSettings::Get();
+    const float Sensitivity = Settings ? Settings->LookSensitivity : 1.0f;
+    const float Invert = Settings && Settings->bInvertLookY ? -1.0f : 1.0f;
+    AddControllerPitchInput(Value * Sensitivity * Invert);
+}
 
 void AGTTCharacter::TryInteract()
 {

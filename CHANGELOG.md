@@ -2,6 +2,23 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.26] - 2026-09-12
+
+### Added
+- **Player Experience** milestone with a custom persistent `UGTTGameUserSettings` class for look sensitivity, invert-Y, HUD/subtitle scale, reduced camera motion preference, color-vision mode, master/radio volume, controller vibration and stick dead-zone preference.
+- Full current-gameplay Xbox-compatible controller mappings for on-foot movement/look, jump, interaction, combat, weapon cycling/drop, quick save/load, radio, vehicle throttle/reverse, steering and exit.
+- Dedicated `verify_player_experience.py` sanity suite and `PLAYTEST_0.0.26.md` covering controller and persistence regressions.
+
+### Changed
+- Character camera input now consumes persistent GTT look sensitivity and invert-Y settings instead of hard-wiring raw input values.
+- Unreal now uses `UGTTGameUserSettings` as the project GameUserSettings implementation so player preferences live in the normal per-user configuration path and remain separate from campaign/world saves.
+- Roadmap advances from `115/130 (88.5%)` to exactly `117/130 (90.0%)`; the 20-segment bar remains mathematically correct at 18/20 and preserves `SWIR-ROADMAP-STANDARD:v1`.
+
+### Limitations / Next
+- The persistent settings API is ready for a polished settings menu, but this source milestone does not claim final menu art/layout or runtime validation of every controller model.
+- Full Unreal Engine 5.8 Win64 compile/package/smoke validation remains unavailable in repository CI; no packaged EXE verification is claimed.
+- Next major package should target packaging/release automation and/or native Chaos Vehicles once an Unreal-capable runner exists, while remaining content gaps are interiors/dialogue, final authored combat/vehicle art and cleared audio.
+
 ## [0.0.25] - 2026-09-12
 
 ### Added
@@ -24,52 +41,13 @@ All notable development steps for GTT are tracked here.
 - Next major package should focus on accessibility/settings + controller support or continue toward native Chaos Vehicles once an Unreal-capable runner is available.
 
 ## [0.0.24] - 2026-09-12
-
-### Added
-- **Unified World State** migration layer using the existing primary `GTT_Prototype_01` sandbox SaveGame as the aggregate snapshot for combat, story, Arc 3, Arc 4, rural factions and rural economy.
-- Save v4 fields for Rural Arsenal inventory/equipped weapon/shotgun ammunition, all campaign stages, Arc 4 preparation state, faction notoriety/counters, contraband, insurance, impound and road-law citation progress.
-- Automatic import of all pre-0.0.24 dedicated save slots into the primary sandbox SaveGame without deleting the old data.
-- Compatibility-mirror hydration so missing legacy domain slots can be reconstructed from an initialized v4 unified snapshot.
-- Change-aware five-second consolidation pass: the primary snapshot is rewritten only when a domain actually changed, avoiding continuous unnecessary disk writes.
-- Dedicated `verify_unified_save.py` sanity suite covering every persisted domain, migration/mirror hooks and exact SWIR roadmap dashboard arithmetic.
-- Dedicated `PLAYTEST_0.0.24.md` migration/regression plan.
-
-### Changed
-- Primary `UGTTSaveGame` schema advances from v3 to v4 and now carries the whole persistent sandbox state instead of only economy/time/garage data.
-- Legacy combat/story/faction/economy slots are retained as compatibility mirrors during migration rather than being destructively removed.
-- New profiles are protected from premature save creation: the unified subsystem never manufactures `GTT_Prototype_01` before the normal GameMode owns a real primary save.
-- Roadmap advances from `113/130 (86.9%)` to the exactly recalculated `114/130 (87.7%)`; the 20-segment bar advances to 18/20 while preserving `SWIR-ROADMAP-STANDARD:v1`.
-
-### Limitations / Next
-- Compatibility mirrors intentionally remain during this migration milestone; a later cleanup can retire them only after UE-equipped playtests prove upgrade safety across real save files.
-- The next major gameplay/technical package is a real performance pass across civilians, traffic and hostile encounters, then settings/controller work and native Chaos migration.
-- Full Unreal Engine 5.8 Win64 compile/package/smoke validation is still unavailable in repository CI; no packaged EXE verification is claimed.
+- Added Unified World State / SaveGame v4 with non-destructive legacy migration, compatibility mirrors and change-aware synchronization.
 
 ## [0.0.23] - 2026-09-12
-
-### Added
-- **Main Story Arc 4 — North Pass Run**, unlocked after Red Barn Reckoning and deliberately reusing the existing hostile-faction, poaching/fence, wanted/police and shared-routing systems.
-- Arc 4 progression: win one fresh hostile-territory encounter, prepare at least two persistent contraband units, sell the stash through Backlot Fence, hit North Pass, escape a real police response, complete Ridge Exchange, then return to Player Farm.
-- Persistent `GTT_MainStory_Arc4_01` state for campaign stage, baseline faction victories and prepared-stash state.
-- Five new shared road nodes: North Pass Approach, North Pass Checkpoint, River Ford, Ridge Exchange and Quarry North Cut.
-- Runtime North Pass/Ridge landmarks and physical Arc 4 interaction terminals through `UGTTArc4WorldSubsystem`.
-- `$1250` Ridge Exchange payout and `$1500` Arc 4 completion payout.
-- Dedicated `verify_arc4.py` sanity suite and GitHub Actions step.
-
-### Changed
-- Shared road graph expands from 23 to 28 connected nodes.
-- Campaign now consumes persistent faction victories and contraband state instead of creating parallel story-only counters.
-- Roadmap advances from `111/129 (86.0%)` to the exactly recalculated `113/130 (86.9%)`, preserving `SWIR-ROADMAP-STANDARD:v1` and the 17/20 progress bar.
-
-### Limitations / Next
-- North Pass/Ridge landmarks are runtime greybox geometry rather than final authored art/interiors.
-- Arc 4 still uses a dedicated SaveGame; consolidation of combat/story/faction/economy state remains outstanding.
-- Full Unreal Engine 5.8 Win64 compile/package/smoke validation is still unavailable in repository CI; no packaged EXE verification is claimed.
-- Next major package: save consolidation and performance foundations, followed by native Chaos wheel migration when a UE-equipped runner is available, plus dialogue/interior/content polish.
+- Added Main Story Arc 4 — North Pass Run, faction/contraband/police integration and North Pass countryside expansion.
 
 ## [0.0.22] - 2026-09-12
 - Added persistent rural law/economy: contraband and Backlot Fence, Farm Mutual insurance, vehicle impound/release, authored road speed/lane/priority metadata and speeding/reckless-driving enforcement.
-- Roadmap: `111/129 (86.0%)`.
 
 ## [0.0.21] - 2026-09-12
 - Added Rust Dogs, Stone Crows and Mud Jackals persistent factions, four hostile archetypes, escalating proximity encounters and three new countryside territory branches.
