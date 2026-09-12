@@ -6,6 +6,7 @@
 #include "GTTBrawlTerminal.generated.h"
 
 class UStaticMeshComponent;
+class UTextRenderComponent;
 
 UCLASS()
 class GTT_API AGTTBrawlTerminal : public AActor, public IGTTInteractable
@@ -17,4 +18,5 @@ public:
     virtual FText GetInteractionText_Implementation() const override;
 private:
     UPROPERTY() TObjectPtr<UStaticMeshComponent> Mesh;
+    UPROPERTY() TObjectPtr<UTextRenderComponent> Label;
 };
