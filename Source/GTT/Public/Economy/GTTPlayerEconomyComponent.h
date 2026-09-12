@@ -32,6 +32,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Economy")
     int32 SellAllFish(float PricePerKg);
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Economy")
+    float ConfiscateAllFish();
+
     UFUNCTION(BlueprintCallable, Category="GTT|Economy|Save")
     void RestoreState(int32 InCash, int32 InFishCount, float InFishWeightKg);
 

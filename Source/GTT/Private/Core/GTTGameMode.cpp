@@ -9,7 +9,9 @@
 #include "Missions/GTTMissionComponent.h"
 #include "NPC/GTTCitizenPawn.h"
 #include "Police/GTTPoliceDirector.h"
+#include "Ranger/GTTRangerDirector.h"
 #include "Save/GTTSaveGame.h"
+#include "Traffic/GTTTrafficDirector.h"
 #include "UI/GTTGameHUD.h"
 #include "Vehicles/GTTTractorPawn.h"
 #include "Vehicles/GTTVehicleBase.h"
@@ -19,6 +21,7 @@
 
 AGTTGameMode::AGTTGameMode()
 {
+    PrimaryActorTick.bCanEverTick = true;
     DefaultPawnClass = AGTTCharacter::StaticClass();
     HUDClass = AGTTGameHUD::StaticClass();
     MissionComponent = CreateDefaultSubobject<UGTTMissionComponent>(TEXT("MissionComponent"));
@@ -33,29 +36,111 @@ void AGTTGameMode::BeginPlay()
         MissionComponent->StartMission(FName(TEXT("BorrowedTractor")));
     }
 
-    if (!UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()) && GetWorld())
+    if (GetWorld())
     {
-        GetWorld()->SpawnActor<AGTTPoliceDirector>();
-    }
-
-    if (!UGameplayStatics::GetActorOfClass(this, AGTTPrototypeWorld::StaticClass()) && GetWorld())
-    {
-        GetWorld()->SpawnActor<AGTTPrototypeWorld>();
-    }
-
-    if (!UGameplayStatics::GetActorOfClass(this, AGTTDayNightCycle::StaticClass()) && GetWorld())
-    {
-        DayNightCycle = GetWorld()->SpawnActor<AGTTDayNightCycle>();
-    }
-    else
-    {
-        DayNightCycle = Cast<AGTTDayNightCycle>(UGameplayStatics::GetActorOfClass(this, AGTTDayNightCycle::StaticClass()));
+        if (!UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()))
+        {
+            GetWorld()->SpawnActor<AGTTPoliceDirector>();
+        }
+        if (!UGameplayStatics::GetActorOfClass(this, AGTTRangerDirector::StaticClass()))
+        {
+            GetWorld()->SpawnActor<AGTTRangerDirector>();
+        }
+        if (!UGameplayStatics::GetActorOfClass(this, AGTTTrafficDirector::StaticClass()))
+        {
+            GetWorld()->SpawnActor<AGTTTrafficDirector>();
+        }
+        if (!UGameplayStatics::GetActorOfClass(this, AGTTPrototypeWorld::StaticClass()))
+        {
+            GetWorld()->SpawnActor<AGTTPrototypeWorld>();
+        }
+        if (!UGameplayStatics::GetActorOfClass(this, AGTTDayNightCycle::StaticClass()))
+        {
+            DayNightCycle = GetWorld()->SpawnActor<AGTTDayNightCycle>();
+        }
+        else
+        {
+            DayNightCycle = Cast<AGTTDayNightCycle>(UGameplayStatics::GetActorOfClass(this, AGTTDayNightCycle::StaticClass()));
+        }
     }
 
     if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
     {
         LoadProgress();
     }
+}
+
+void AGTTGameMode::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (WildlifeHeat <= 0.0f)
+    {
+        WildlifeHeat = 0.0f;
+        WildlifeQuietTimeRemaining = 0.0f;
+        return;
+    }
+
+    if (WildlifeQuietTimeRemaining > 0.0f)
+    {
+        WildlifeQuietTimeRemaining = FMath::Max(0.0f, WildlifeQuietTimeRemaining - DeltaSeconds);
+        return;
+    }
+
+    WildlifeHeat = FMath::Max(0.0f, WildlifeHeat - WildlifeHeatDecayPerSecond * DeltaSeconds);
+}
+
+int32 AGTTGameMode::GetWildlifeAlertLevel() const
+{
+    if (WildlifeHeat >= 65.0f) return 3;
+    if (WildlifeHeat >= 30.0f) return 2;
+    return WildlifeHeat > KINDA_SMALL_NUMBER ? 1 : 0;
+}
+
+void AGTTGameMode::ReportWildlifeCrime(APawn* Offender, float Severity)
+{
+    if (!Offender)
+    {
+        return;
+    }
+
+    WildlifeHeat = FMath::Clamp(WildlifeHeat + FMath::Max(1.0f, Severity), 0.0f, 100.0f);
+    WildlifeQuietTimeRemaining = WildlifeQuietDelay;
+    PushPlayerMessage(
+        Offender,
+        FString::Printf(TEXT("GAME WARDEN ALERT %d/3 - ranger dispatched."), GetWildlifeAlertLevel()),
+        4.0f);
+}
+
+bool AGTTGameMode::TryRangerCitation(APawn* PursuedPawn)
+{
+    const int32 AlertLevel = GetWildlifeAlertLevel();
+    if (!PursuedPawn || AlertLevel <= 0)
+    {
+        return false;
+    }
+
+    UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PursuedPawn);
+    if (!Economy)
+    {
+        return false;
+    }
+
+    const int32 FishCount = Economy->GetFishCount();
+    const float ConfiscatedWeight = Economy->ConfiscateAllFish();
+    const int32 Fine = 55 + AlertLevel * 45;
+    Economy->ChargeFine(Fine, FString::Printf(TEXT("GAME WARDEN CITATION - fine $%d."), Fine));
+
+    WildlifeHeat = 0.0f;
+    WildlifeQuietTimeRemaining = 0.0f;
+
+    Economy->PushMessage(
+        FishCount > 0
+            ? FString::Printf(TEXT("Warden confiscated %d fish (%.2f kg). Wildlife alert cleared."), FishCount, ConfiscatedWeight)
+            : TEXT("Warden issued a citation. Wildlife alert cleared."),
+        5.0f);
+    SaveProgress();
+    return true;
 }
 
 void AGTTGameMode::NotifyVehicleStolen(AGTTVehicleBase* Vehicle, APawn* Offender)
@@ -121,9 +206,7 @@ bool AGTTGameMode::TryCompleteBorrowedTractor(AGTTVehicleBase* Vehicle)
 
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Vehicle))
     {
-        Economy->AddCash(
-            BorrowedTractorCashReward,
-            FString::Printf(TEXT("Borrowed Tractor reward: $%d"), BorrowedTractorCashReward));
+        Economy->AddCash(BorrowedTractorCashReward, FString::Printf(TEXT("Borrowed Tractor reward: $%d"), BorrowedTractorCashReward));
         Economy->PushMessage(TEXT("The Rusty Fieldmaster is now yours. Garage ownership unlocked."), 5.0f);
     }
 
@@ -155,7 +238,6 @@ bool AGTTGameMode::SaveProgress()
     }
 
     Save->SaveVersion = 2;
-
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn))
     {
         Save->Cash = Economy->GetCash();
@@ -205,10 +287,7 @@ bool AGTTGameMode::SaveProgress()
     const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
     if (bSaved)
     {
-        PushPlayerMessage(
-            ControlledPawn,
-            FString::Printf(TEXT("Progress saved. Garage: %d/%d vehicles."), Save->OwnedVehicles.Num(), GarageCapacity),
-            2.5f);
+        PushPlayerMessage(ControlledPawn, FString::Printf(TEXT("Progress saved. Garage: %d/%d vehicles."), Save->OwnedVehicles.Num(), GarageCapacity), 2.5f);
     }
     return bSaved;
 }
@@ -241,6 +320,8 @@ bool AGTTGameMode::LoadProgress()
         Wanted->ClearWanted();
     }
 
+    WildlifeHeat = 0.0f;
+    WildlifeQuietTimeRemaining = 0.0f;
     ControlledPawn->SetActorTransform(Save->PlayerTransform, false, nullptr, ETeleportType::TeleportPhysics);
 
     if (Save->bBorrowedTractorCompleted && MissionComponent && MissionComponent->GetMissionState() == EGTTMissionState::Active)
@@ -265,27 +346,17 @@ bool AGTTGameMode::LoadProgress()
                     {
                         return Data.VehicleId == Vehicle->GetPersistentVehicleId();
                     });
-
                 if (Stored)
                 {
-                    Vehicle->RestorePersistentState(
-                        Stored->Transform,
-                        Stored->ConditionPercent,
-                        Stored->FuelLiters,
-                        true);
+                    Vehicle->RestorePersistentState(Stored->Transform, Stored->ConditionPercent, Stored->FuelLiters, true);
                 }
             }
         }
         else if (Save->bTractorOwned)
         {
-            // Migration path for 0.0.5 saves.
             if (AGTTTractorPawn* Tractor = Cast<AGTTTractorPawn>(UGameplayStatics::GetActorOfClass(this, AGTTTractorPawn::StaticClass())))
             {
-                Tractor->RestorePersistentState(
-                    Save->TractorTransform,
-                    Save->TractorConditionPercent,
-                    Save->TractorFuelLiters,
-                    true);
+                Tractor->RestorePersistentState(Save->TractorTransform, Save->TractorConditionPercent, Save->TractorFuelLiters, true);
             }
         }
     }
@@ -295,10 +366,7 @@ bool AGTTGameMode::LoadProgress()
         Cycle->RestoreTime(Save->DayNumber, Save->TimeOfDayHours);
     }
 
-    PushPlayerMessage(
-        ControlledPawn,
-        FString::Printf(TEXT("Progress loaded. Garage: %d/%d vehicles."), GetOwnedVehicleCount(), GarageCapacity),
-        3.0f);
+    PushPlayerMessage(ControlledPawn, FString::Printf(TEXT("Progress loaded. Garage: %d/%d vehicles."), GetOwnedVehicleCount(), GarageCapacity), 3.0f);
     return true;
 }
 
@@ -357,6 +425,11 @@ bool AGTTGameMode::StartFarmJob(APawn* PlayerPawn)
             return false;
         }
     }
+    if (GetWildlifeAlertLevel() > 0)
+    {
+        PushPlayerMessage(PlayerPawn, TEXT("Deal with the game warden before taking a legal job."));
+        return false;
+    }
 
     bFarmJobActive = true;
     PushPlayerMessage(PlayerPawn, TEXT("LEGAL JOB STARTED: Take a vehicle to FIELD DELIVERY and finish the run."), 6.0f);
@@ -393,9 +466,9 @@ bool AGTTGameMode::TryRegisterVehicle(AGTTVehicleBase* Vehicle, APawn* PlayerPaw
         return false;
     }
 
-    if (Wanted && Wanted->GetWantedLevel() > 0)
+    if ((Wanted && Wanted->GetWantedLevel() > 0) || GetWildlifeAlertLevel() > 0)
     {
-        Economy->PushMessage(TEXT("Garage refuses registration while police are looking for you."), 4.0f);
+        Economy->PushMessage(TEXT("Garage refuses service while any authority is looking for you."), 4.0f);
         return false;
     }
 
@@ -426,13 +499,8 @@ bool AGTTGameMode::TryRegisterVehicle(AGTTVehicleBase* Vehicle, APawn* PlayerPaw
 
     Vehicle->MarkOwnedByPlayer();
     Economy->PushMessage(
-        FString::Printf(
-            TEXT("%s registered. Garage: %d/%d."),
-            *Vehicle->GetVehicleDisplayName().ToString(),
-            CurrentCount + 1,
-            GarageCapacity),
+        FString::Printf(TEXT("%s registered. Garage: %d/%d."), *Vehicle->GetVehicleDisplayName().ToString(), CurrentCount + 1, GarageCapacity),
         5.0f);
-
     SaveProgress();
     return true;
 }

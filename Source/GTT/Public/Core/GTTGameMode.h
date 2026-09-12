@@ -17,6 +17,7 @@ class GTT_API AGTTGameMode : public AGameModeBase
 public:
     AGTTGameMode();
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
 
     UFUNCTION(BlueprintPure, Category="GTT|Mission")
     UGTTMissionComponent* GetMissionComponent() const { return MissionComponent; }
@@ -35,6 +36,18 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="GTT|Police")
     bool TryArrestPlayer(APawn* PursuedPawn);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Ranger")
+    void ReportWildlifeCrime(APawn* Offender, float Severity);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Ranger")
+    bool TryRangerCitation(APawn* PursuedPawn);
+
+    UFUNCTION(BlueprintPure, Category="GTT|Ranger")
+    int32 GetWildlifeAlertLevel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Ranger")
+    float GetWildlifeHeatPercent() const { return WildlifeHeat / 100.0f; }
 
     UFUNCTION(BlueprintCallable, Category="GTT|FarmJob")
     bool StartFarmJob(APawn* PlayerPawn);
@@ -70,6 +83,12 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Garage", meta=(ClampMin="1", ClampMax="12"))
     int32 GarageCapacity = 4;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger", meta=(ClampMin="0.0"))
+    float WildlifeHeatDecayPerSecond = 2.8f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger", meta=(ClampMin="0.0"))
+    float WildlifeQuietDelay = 18.0f;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Save")
     FString SaveSlotName = TEXT("GTT_Prototype_01");
 
@@ -77,5 +96,7 @@ private:
     void PushPlayerMessage(APawn* Pawn, const FString& Message, float Duration = 4.0f) const;
 
     bool bFarmJobActive = false;
+    float WildlifeHeat = 0.0f;
+    float WildlifeQuietTimeRemaining = 0.0f;
     TWeakObjectPtr<AGTTDayNightCycle> DayNightCycle;
 };

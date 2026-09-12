@@ -109,6 +109,15 @@ int32 UGTTPlayerEconomyComponent::SellAllFish(float PricePerKg)
     return SaleValue;
 }
 
+float UGTTPlayerEconomyComponent::ConfiscateAllFish()
+{
+    const float ConfiscatedWeight = FishWeightKg;
+    FishCount = 0;
+    FishWeightKg = 0.0f;
+    BroadcastEconomy();
+    return ConfiscatedWeight;
+}
+
 void UGTTPlayerEconomyComponent::RestoreState(int32 InCash, int32 InFishCount, float InFishWeightKg)
 {
     Cash = FMath::Max(0, InCash);
