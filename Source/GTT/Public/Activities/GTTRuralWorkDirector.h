@@ -28,6 +28,7 @@ class GTT_API AGTTRuralWorkDirector : public AActor
 
 public:
     AGTTRuralWorkDirector();
+    virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
 
     UFUNCTION(BlueprintCallable, Category="GTT|RuralWork") bool TryStartTimber(APawn* PlayerPawn);
