@@ -4,10 +4,12 @@
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTVehicleBase.h"
+#include "World/GTTGarageSlotTerminal.h"
 
 AGTTGarageTerminal::AGTTGarageTerminal()
 {
@@ -19,6 +21,19 @@ AGTTGarageTerminal::AGTTGarageTerminal()
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     if (CubeFinder.Succeeded()) Mesh->SetStaticMesh(CubeFinder.Object);
     Mesh->SetRelativeScale3D(FVector(0.9f, 0.9f, 1.25f));
+}
+
+void AGTTGarageTerminal::BeginPlay()
+{
+    Super::BeginPlay();
+    if (!GetWorld()) return;
+
+    for (int32 Slot = 0; Slot < FleetSlotCount; ++Slot)
+    {
+        const FVector Offset(-1300.0f + Slot * 420.0f, -630.0f, 55.0f);
+        AGTTGarageSlotTerminal* Selector = GetWorld()->SpawnActor<AGTTGarageSlotTerminal>(GetActorLocation() + Offset, FRotator::ZeroRotator);
+        if (Selector) Selector->SetSlotIndex(Slot);
+    }
 }
 
 void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
@@ -56,48 +71,12 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
         return;
     }
 
-    RecallNextOwnedVehicle(Pawn);
-}
-
-bool AGTTGarageTerminal::RecallNextOwnedVehicle(APawn* Pawn)
-{
-    UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Pawn);
-    if (!Economy || !GetWorld()) return false;
-
-    TArray<AGTTVehicleBase*> OwnedVehicles;
-    for (TActorIterator<AGTTVehicleBase> It(GetWorld()); It; ++It)
-    {
-        AGTTVehicleBase* Vehicle = *It;
-        if (Vehicle && Vehicle->IsOwnedByPlayer() && !Vehicle->GetPersistentVehicleId().IsNone()) OwnedVehicles.Add(Vehicle);
-    }
-
-    if (OwnedVehicles.Num() == 0)
-    {
-        Economy->PushMessage(TEXT("Garage empty. Register a vehicle first."), 3.0f);
-        return false;
-    }
-
-    RecallCursor = FMath::Abs(RecallCursor) % OwnedVehicles.Num();
-    AGTTVehicleBase* Vehicle = OwnedVehicles[RecallCursor];
-    RecallCursor = (RecallCursor + 1) % OwnedVehicles.Num();
-
-    const FVector BayOffset(260.0f, -390.0f, 70.0f);
-    FTransform Destination(FRotator(0.0f, 90.0f, 0.0f), GetActorLocation() + BayOffset);
-    if (!Vehicle->RecallToTransform(Destination))
-    {
-        Economy->PushMessage(TEXT("Cannot recall that vehicle while it is occupied."), 3.0f);
-        return false;
-    }
-
-    Economy->PushMessage(
-        FString::Printf(TEXT("GARAGE RECALL: %s arrived. Use terminal again to cycle the fleet."), *Vehicle->GetVehicleDisplayName().ToString()),
-        4.0f);
-    return true;
+    Economy->PushMessage(TEXT("No vehicle at registration desk. Use GARAGE SLOT 1-4 selectors to recall a specific owned vehicle."), 5.0f);
 }
 
 FText AGTTGarageTerminal::GetInteractionText_Implementation() const
 {
     return FText::Format(
-        NSLOCTEXT("GTT", "GarageRegisterRecall", "Register nearby (${0}) / recall next owned vehicle"),
+        NSLOCTEXT("GTT", "GarageRegisterExplicitSlots", "Register nearby vehicle (${0}) / use numbered slots to recall"),
         FText::AsNumber(RegistrationCost));
 }
