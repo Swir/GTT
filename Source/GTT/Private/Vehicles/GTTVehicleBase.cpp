@@ -5,9 +5,12 @@
 #include "Components/StaticMeshComponent.h"
 #include "Core/GTTGameMode.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "Radio/GTTRadioComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Wanted/GTTWantedComponent.h"
@@ -24,6 +27,10 @@ AGTTVehicleBase::AGTTVehicleBase()
     VehicleMesh->SetLinearDamping(1.4f);
     VehicleMesh->SetAngularDamping(2.5f);
     VehicleMesh->OnComponentHit.AddDynamic(this, &AGTTVehicleBase::HandleVehicleHit);
+
+    TowConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("TowConstraint"));
+    TowConstraint->SetupAttachment(VehicleMesh);
+    TowConstraint->SetDisableCollision(true);
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(VehicleMesh);
@@ -68,12 +75,23 @@ void AGTTVehicleBase::BeginPlay()
     UpdateBreakableParts();
 }
 
+void AGTTVehicleBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (TowVehicle.IsValid())
+    {
+        TowVehicle->ReleaseTowHook();
+    }
+    ReleaseTowHook();
+    Super::EndPlay(EndPlayReason);
+}
+
 void AGTTVehicleBase::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
     FaultRestartTimeRemaining = FMath::Max(0.0f, FaultRestartTimeRemaining - DeltaSeconds);
     UpdateDamageSmoke(DeltaSeconds);
+    UpdateSuspensionAndTraction(DeltaSeconds);
 
     if (!bEngineRunning || !bOccupied || CurrentFuelLiters <= 0.0f)
     {
@@ -130,11 +148,12 @@ void AGTTVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAxis(TEXT("VehicleSteer"), this, &AGTTVehicleBase::HandleSteering);
     PlayerInputComponent->BindAction(TEXT("ExitVehicle"), IE_Pressed, this, &AGTTVehicleBase::ExitVehicle);
     PlayerInputComponent->BindAction(TEXT("RadioNext"), IE_Pressed, this, &AGTTVehicleBase::CycleRadio);
+    PlayerInputComponent->BindAction(TEXT("TowToggle"), IE_Pressed, this, &AGTTVehicleBase::ToggleTowHook);
 }
 
 void AGTTVehicleBase::Interact_Implementation(AActor* Interactor)
 {
-    if (bOccupied || !IsValid(Interactor) || Condition <= 0.0f)
+    if (bOccupied || bRecoveryTarget || !IsValid(Interactor) || Condition <= 0.0f)
     {
         return;
     }
@@ -181,6 +200,7 @@ void AGTTVehicleBase::Interact_Implementation(AActor* Interactor)
 
 FText AGTTVehicleBase::GetInteractionText_Implementation() const
 {
+    if (bRecoveryTarget) return NSLOCTEXT("GTT", "VehicleRecoveryTarget", "Disabled vehicle - tow with T");
     if (bOccupied) return NSLOCTEXT("GTT", "VehicleOccupied", "Occupied");
     if (Condition <= 0.0f) return NSLOCTEXT("GTT", "VehicleBroken", "Broken down");
     if (CurrentFuelLiters <= KINDA_SMALL_NUMBER)
@@ -235,19 +255,20 @@ void AGTTVehicleBase::RepairVehicle(float RepairAmount)
 
     Condition = FMath::Clamp(Condition + RepairAmount, 0.0f, MaxCondition);
     EngineTemperatureC = FMath::Min(EngineTemperatureC, NormalEngineTemperatureC + 5.0f);
-    ActiveFaultStatus.Empty();
+    if (!bRecoveryTarget) ActiveFaultStatus.Empty();
     if (GetConditionPercent() >= 0.88f) RestoreBreakableParts(); else UpdateBreakableParts();
 }
 
 void AGTTVehicleBase::RefuelVehicle(float Liters)
 {
-    if (Liters <= 0.0f) return;
+    if (Liters <= 0.0f || bRecoveryTarget) return;
     CurrentFuelLiters = FMath::Clamp(CurrentFuelLiters + Liters, 0.0f, FuelCapacityLiters);
     if (CurrentFuelLiters > KINDA_SMALL_NUMBER && ActiveFaultStatus == TEXT("OUT OF FUEL")) ActiveFaultStatus.Empty();
 }
 
 void AGTTVehicleBase::MarkOwnedByPlayer()
 {
+    if (bRecoveryTarget) return;
     bOwnedByPlayer = true;
     bIllegalToTake = false;
     bTheftReported = false;
@@ -257,6 +278,8 @@ void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, floa
     int32 InEngineUpgradeLevel, int32 InTireUpgradeLevel, float InTireIntegrity)
 {
     if (bOccupied) ExitVehicle();
+    if (TowVehicle.IsValid()) TowVehicle->ReleaseTowHook();
+    ReleaseTowHook();
 
     SetEngineRunning(false);
     SetActorTransform(InTransform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -267,6 +290,7 @@ void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, floa
     TireIntegrity = FMath::Clamp(InTireIntegrity, 0.0f, 1.0f);
     EngineTemperatureC = NormalEngineTemperatureC;
     ActiveFaultStatus.Empty();
+    bRecoveryTarget = false;
     bOwnedByPlayer = bOwned;
     if (bOwnedByPlayer)
     {
@@ -279,7 +303,9 @@ void AGTTVehicleBase::RestorePersistentState(const FTransform& InTransform, floa
 
 bool AGTTVehicleBase::RecallToTransform(const FTransform& Destination)
 {
-    if (bOccupied || !bOwnedByPlayer || !VehicleMesh) return false;
+    if (bOccupied || bRecoveryTarget || !bOwnedByPlayer || !VehicleMesh) return false;
+    if (TowVehicle.IsValid()) TowVehicle->ReleaseTowHook();
+    ReleaseTowHook();
     SetEngineRunning(false);
     VehicleMesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
     VehicleMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
@@ -289,7 +315,7 @@ bool AGTTVehicleBase::RecallToTransform(const FTransform& Destination)
 
 bool AGTTVehicleBase::InstallEngineUpgrade()
 {
-    if (!bOwnedByPlayer || EngineUpgradeLevel >= 3) return false;
+    if (!bOwnedByPlayer || bRecoveryTarget || EngineUpgradeLevel >= 3) return false;
     ++EngineUpgradeLevel;
     EngineTemperatureC = FMath::Min(EngineTemperatureC, NormalEngineTemperatureC);
     return true;
@@ -297,7 +323,7 @@ bool AGTTVehicleBase::InstallEngineUpgrade()
 
 bool AGTTVehicleBase::InstallTireUpgrade()
 {
-    if (!bOwnedByPlayer || TireUpgradeLevel >= 3) return false;
+    if (!bOwnedByPlayer || bRecoveryTarget || TireUpgradeLevel >= 3) return false;
     ++TireUpgradeLevel;
     TireIntegrity = 1.0f;
     return true;
@@ -305,17 +331,112 @@ bool AGTTVehicleBase::InstallTireUpgrade()
 
 void AGTTVehicleBase::RepairTires()
 {
-    TireIntegrity = 1.0f;
+    if (!bRecoveryTarget) TireIntegrity = 1.0f;
 }
 
 void AGTTVehicleBase::ApplyTireDamage(float Amount)
 {
-    if (Amount <= 0.0f)
-    {
-        return;
-    }
+    if (Amount <= 0.0f) return;
     const float Reinforcement = 1.0f + TireUpgradeLevel * 0.35f;
     TireIntegrity = FMath::Clamp(TireIntegrity - Amount / Reinforcement, 0.0f, 1.0f);
+}
+
+void AGTTVehicleBase::ConfigureRecoveryTarget()
+{
+    if (bOccupied) return;
+    if (TowVehicle.IsValid()) TowVehicle->ReleaseTowHook();
+    ReleaseTowHook();
+    bRecoveryTarget = true;
+    bOwnedByPlayer = false;
+    bIllegalToTake = false;
+    bTheftReported = false;
+    Condition = MaxCondition * 0.28f;
+    CurrentFuelLiters = 0.0f;
+    TireIntegrity = 0.52f;
+    EngineTemperatureC = NormalEngineTemperatureC;
+    ActiveFaultStatus = TEXT("RECOVERY TARGET");
+    SetEngineRunning(false);
+    UpdateBreakableParts();
+}
+
+void AGTTVehicleBase::ToggleTowHook()
+{
+    if (!VehicleMesh || !VehicleMesh->IsSimulatingPhysics() || TowVehicle.IsValid()) return;
+
+    if (TowedVehicle.IsValid())
+    {
+        ReleaseTowHook();
+        return;
+    }
+
+    AGTTVehicleBase* BestTarget = nullptr;
+    float BestScore = TowSearchRadius;
+    for (TActorIterator<AGTTVehicleBase> It(GetWorld()); It; ++It)
+    {
+        AGTTVehicleBase* Candidate = *It;
+        if (!Candidate || Candidate == this || Candidate->IsOccupied() || Candidate->TowVehicle.IsValid() || Candidate->TowedVehicle.IsValid()) continue;
+        if (!Candidate->VehicleMesh || !Candidate->VehicleMesh->IsSimulatingPhysics()) continue;
+
+        const float Distance = FVector::Dist(GetActorLocation(), Candidate->GetActorLocation());
+        if (Distance > TowSearchRadius) continue;
+        const float Score = Distance - (Candidate->bRecoveryTarget ? 100000.0f : 0.0f);
+        if (!BestTarget || Score < BestScore)
+        {
+            BestTarget = Candidate;
+            BestScore = Score;
+        }
+    }
+
+    if (!BestTarget || !TowConstraint) return;
+
+    const FVector HitchLocation = GetActorLocation() - GetActorForwardVector() * 230.0f + GetActorUpVector() * 35.0f;
+    TowConstraint->SetWorldLocation(HitchLocation);
+    TowConstraint->SetLinearXLimit(ELinearConstraintMotion::LCM_Limited, 360.0f);
+    TowConstraint->SetLinearYLimit(ELinearConstraintMotion::LCM_Limited, 360.0f);
+    TowConstraint->SetLinearZLimit(ELinearConstraintMotion::LCM_Limited, 220.0f);
+    TowConstraint->SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Limited, 42.0f);
+    TowConstraint->SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Limited, 42.0f);
+    TowConstraint->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Limited, 28.0f);
+    TowConstraint->SetDisableCollision(true);
+    TowConstraint->SetConstrainedComponents(VehicleMesh, NAME_None, BestTarget->VehicleMesh, NAME_None);
+
+    TowedVehicle = BestTarget;
+    BestTarget->TowVehicle = this;
+    UE_LOG(LogGTT, Log, TEXT("%s attached tow hitch to %s"), *GetName(), *BestTarget->GetName());
+}
+
+void AGTTVehicleBase::ReleaseTowHook()
+{
+    AGTTVehicleBase* Target = TowedVehicle.Get();
+    if (Target) Target->TowVehicle.Reset();
+
+    if (TowConstraint)
+    {
+        TowConstraint->BreakConstraint();
+        TowConstraint->SetConstrainedComponents(nullptr, NAME_None, nullptr, NAME_None);
+    }
+    TowedVehicle.Reset();
+}
+
+void AGTTVehicleBase::SetTerrainHandling(FName SurfaceName, float GripMultiplier, float RollingResistanceMultiplier,
+    float SuspensionMultiplier, AActor* Source)
+{
+    if (!Source) return;
+    TerrainSource = Source;
+    TerrainSurfaceName = SurfaceName.IsNone() ? FName(TEXT("ROAD")) : SurfaceName;
+    TerrainGripMultiplier = FMath::Clamp(GripMultiplier, 0.20f, 1.25f);
+    TerrainRollingResistanceMultiplier = FMath::Clamp(RollingResistanceMultiplier, 0.50f, 3.0f);
+    TerrainSuspensionMultiplier = FMath::Clamp(SuspensionMultiplier, 0.55f, 1.35f);
+}
+
+void AGTTVehicleBase::ClearTerrainHandling(AActor* Source)
+{
+    if (TerrainSource.Get() != Source) return;
+    TerrainSource.Reset();
+    TerrainSurfaceName = TEXT("ROAD");
+    TerrainGripMultiplier = 1.0f;
+    TerrainRollingResistanceMultiplier = 1.0f;
+    TerrainSuspensionMultiplier = 1.0f;
 }
 
 float AGTTVehicleBase::GetConditionPercent() const
@@ -340,6 +461,7 @@ FString AGTTVehicleBase::GetTuningSummary() const
 
 FString AGTTVehicleBase::GetFaultStatusText() const
 {
+    if (bRecoveryTarget) return TEXT("RECOVERY TARGET");
     if (Condition <= 0.0f) return TEXT("BROKEN DOWN");
     if (TireIntegrity <= 0.08f) return TEXT("FLAT TIRE");
     if (!ActiveFaultStatus.IsEmpty()) return ActiveFaultStatus;
@@ -364,8 +486,10 @@ void AGTTVehicleBase::HandleThrottle(float Value)
     const float TemperaturePower = EngineTemperatureC >= OverheatStartTemperatureC ? 0.72f : 1.0f;
     const float EngineTunePower = 1.0f + EngineUpgradeLevel * 0.12f;
     const float TireGrip = FMath::Lerp(0.38f, 1.0f, TireIntegrity) * (1.0f + TireUpgradeLevel * 0.04f);
+    const float ContactPower = WheelContactCount > 0 ? FMath::Lerp(0.58f, 1.0f, WheelContactCount / 4.0f) : 0.22f;
+    const float TowLoad = TowedVehicle.IsValid() ? 0.72f : 1.0f;
     const float EffectiveValue = bEngineRunning && Condition > 0.0f && CurrentFuelLiters > 0.0f
-        ? Value * ConditionPower * TemperaturePower * EngineTunePower * TireGrip
+        ? Value * ConditionPower * TemperaturePower * EngineTunePower * TireGrip * TerrainGripMultiplier * ContactPower * TowLoad
         : 0.0f;
 
     if (!FMath::IsNearlyZero(EffectiveValue) && VehicleMesh && VehicleMesh->IsSimulatingPhysics())
@@ -381,9 +505,57 @@ void AGTTVehicleBase::HandleSteering(float Value)
     {
         const float SpeedFactor = FMath::Clamp(GetVelocity().Size2D() / 500.0f, 0.18f, 1.0f);
         const float TireGrip = FMath::Lerp(0.28f, 1.0f, TireIntegrity) * (1.0f + TireUpgradeLevel * 0.08f);
-        VehicleMesh->AddTorqueInRadians(FVector::UpVector * Value * SteeringAcceleration * SpeedFactor * TireGrip, NAME_None, true);
+        const float TowSteering = TowedVehicle.IsValid() ? 0.78f : 1.0f;
+        VehicleMesh->AddTorqueInRadians(FVector::UpVector * Value * SteeringAcceleration * SpeedFactor * TireGrip * TerrainGripMultiplier * TowSteering, NAME_None, true);
     }
     OnSteeringInput(Value);
+}
+
+void AGTTVehicleBase::UpdateSuspensionAndTraction(float DeltaSeconds)
+{
+    WheelContactCount = 0;
+    if (!VehicleMesh || !VehicleMesh->IsSimulatingPhysics() || !GetWorld()) return;
+
+    const FVector Up = GetActorUpVector();
+    const FVector Right = GetActorRightVector();
+    const FVector Forward = GetActorForwardVector();
+    const FVector WheelSamples[] =
+    {
+        FVector(120.0f, 82.0f, 28.0f),
+        FVector(120.0f, -82.0f, 28.0f),
+        FVector(-120.0f, 82.0f, 28.0f),
+        FVector(-120.0f, -82.0f, 28.0f)
+    };
+
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GTTVehicleSuspension), false, this);
+    for (const FVector& LocalSample : WheelSamples)
+    {
+        const FVector Start = VehicleMesh->GetComponentTransform().TransformPosition(LocalSample);
+        const FVector End = Start - Up * SuspensionTraceLength;
+        FHitResult Hit;
+        if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, QueryParams)) continue;
+
+        ++WheelContactCount;
+        const float Distance = FVector::Distance(Start, Hit.ImpactPoint);
+        const float Compression = 1.0f - FMath::Clamp(Distance / SuspensionTraceLength, 0.0f, 1.0f);
+        const FVector PointVelocity = VehicleMesh->GetPhysicsLinearVelocityAtPoint(Start);
+        const float VerticalSpeed = FVector::DotProduct(PointVelocity, Up);
+        const float Spring = Compression * SuspensionSpringForce * TerrainSuspensionMultiplier;
+        const float Damping = VerticalSpeed * SuspensionDampingForce;
+        const float NetForce = FMath::Max(0.0f, Spring - Damping);
+        VehicleMesh->AddForceAtLocation(Up * NetForce, Start, NAME_None);
+    }
+
+    if (WheelContactCount <= 0) return;
+
+    const FVector Velocity = VehicleMesh->GetPhysicsLinearVelocity();
+    const float LateralSpeed = FVector::DotProduct(Velocity, Right);
+    const float ForwardSpeed = FVector::DotProduct(Velocity, Forward);
+    const float TireGrip = FMath::Lerp(0.30f, 1.0f, TireIntegrity) * (1.0f + TireUpgradeLevel * 0.06f);
+    const float ContactAlpha = FMath::Clamp(WheelContactCount / 4.0f, 0.25f, 1.0f);
+
+    VehicleMesh->AddForce(-Right * LateralSpeed * LateralGripStrength * TireGrip * TerrainGripMultiplier * ContactAlpha, NAME_None, true);
+    VehicleMesh->AddForce(-Forward * ForwardSpeed * RollingResistanceStrength * TerrainRollingResistanceMultiplier * DeltaSeconds, NAME_None, true);
 }
 
 void AGTTVehicleBase::CycleRadio()
@@ -494,7 +666,7 @@ void AGTTVehicleBase::TriggerMechanicalStall(const TCHAR* Reason)
 
 void AGTTVehicleBase::SetEngineRunning(bool bNewRunning)
 {
-    const bool bCanRun = bNewRunning && Condition > 0.0f && CurrentFuelLiters > KINDA_SMALL_NUMBER && EngineTemperatureC < CriticalEngineTemperatureC;
+    const bool bCanRun = bNewRunning && !bRecoveryTarget && Condition > 0.0f && CurrentFuelLiters > KINDA_SMALL_NUMBER && EngineTemperatureC < CriticalEngineTemperatureC;
     if (bEngineRunning == bCanRun) return;
     bEngineRunning = bCanRun;
     OnEngineStateChanged(bEngineRunning);
