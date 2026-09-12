@@ -22,16 +22,19 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Activities/GTTFieldCheckpoint.h",
     "Source/GTT/Public/Activities/GTTRecoveryDirector.h", "Source/GTT/Public/Activities/GTTRecoveryTerminal.h",
     "Source/GTT/Public/Activities/GTTRecoveryTargetVehicle.h",
+    "Source/GTT/Public/Missions/GTTMainStoryDirector.h", "Source/GTT/Public/Missions/GTTMainStoryTerminal.h",
     "Source/GTT/Public/Missions/GTTNightFavorDirector.h", "Source/GTT/Public/Missions/GTTNightFavorTerminal.h",
     "Source/GTT/Public/World/GTTDayNightCycle.h", "Source/GTT/Public/World/GTTPrototypeWorld.h",
     "Source/GTT/Public/World/GTTVillageEventDirector.h", "Source/GTT/Public/World/GTTVillageEventMarker.h",
     "Source/GTT/Public/World/GTTMudZone.h", "Source/GTT/Public/World/GTTRecoveryWorldSubsystem.h",
+    "Source/GTT/Public/World/GTTMainStoryWorldSubsystem.h",
     "Source/GTT/Public/World/GTTGarageTerminal.h", "Source/GTT/Public/World/GTTGarageSlotTerminal.h",
-    "Source/GTT/Public/Save/GTTSaveGame.h", "Scripts/package_windows.ps1",
+    "Source/GTT/Public/Save/GTTSaveGame.h", "Source/GTT/Public/Save/GTTMainStorySave.h", "Scripts/package_windows.ps1",
 ]
 
 EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Public/Save/GTTSaveGame.h": ["SaveVersion = 3", "OwnedVehicles"],
+    "Source/GTT/Public/Save/GTTMainStorySave.h": ["StorySaveVersion", "StoryStage"],
     "Source/GTT/Private/Radio/GTTRadioComponent.cpp": ["GRAVEL FM", "BARNBEAT 96", "RUST & DIESEL", "NIGHT SHIFT"],
     "Source/GTT/Private/Police/GTTPoliceDirector.cpp": [
         "DesiredRoadblocks", "RoadblockEscalationWantedLevel", "SpawnRoadblock", "BuildRuntimeRoadNetwork",
@@ -56,12 +59,22 @@ EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Private/World/GTTRecoveryWorldSubsystem.cpp": [
         "AGTTRecoveryDirector", "EGTTRecoveryTerminalType::Workshop", "EGTTRecoveryTerminalType::Hook", "HillFarmMud", "ForestTrackMud"
     ],
+    "Source/GTT/Private/Missions/GTTMainStoryDirector.cpp": [
+        "COUNTY LEDGER", "BACKROAD DEAL", "BackroadPickupHeat", "EscapePolice", "GetOwnedVehicleCount() < 2",
+        "GTT_MainStory_01", "SaveGameToSlot", "LoadGameFromSlot", "18.5f", "2.5f"
+    ],
+    "Source/GTT/Private/Missions/GTTMainStoryTerminal.cpp": [
+        "FarmOffice", "NorthWood", "VillageShop", "Tavern", "EastRoad", "Workshop"
+    ],
+    "Source/GTT/Private/World/GTTMainStoryWorldSubsystem.cpp": [
+        "AGTTMainStoryDirector", "FarmOffice", "NorthWood", "VillageShop", "EastRoad", "Workshop"
+    ],
     "Source/GTT/Private/Missions/GTTNightFavorDirector.cpp": [
         "18.5f", "2.5f", "CollectParts", "ReachNeighbor", "ReturnToTavern", "CompletionReward", "SaveProgress"
     ],
     "Source/GTT/Private/Missions/GTTNightFavorTerminal.cpp": ["Tavern", "Workshop", "Neighbor", "TryFinish"],
     "Source/GTT/Private/UI/GTTGameHUD.cpp": [
-        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "GetObjectiveText", "NightFavor", "R radio"
+        "POLICE RESPONSE", "ROADBLOCKS", "RuralWork", "MainStory", "MAIN STORY", "NightFavor", "R radio"
     ],
     "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
         "AGTTRuralWorkDirector", "AGTTNightFavorDirector", "NORTH WOOD YARD", "MOWING CONTRACT", "FIELD GATE", "NIGHT SHIFT FAVOR", "GTT 0.0.12"
@@ -110,6 +123,11 @@ def main() -> int:
         if absent:
             fail(f"{relative} is missing expected gameplay hooks: {absent}")
 
+    story_header = (ROOT / "Source/GTT/Public/Missions/GTTMainStoryDirector.h").read_text(encoding="utf-8")
+    for token in ["NorthWoodPickup", "ShopDelivery", "TavernMeet", "EastRoadPickup", "EscapePolice", "WorkshopDelivery", "FinalFarmMeet", "Completed"]:
+        if token not in story_header:
+            fail(f"Main story director header missing stage: {token}")
+
     police_header = (ROOT / "Source/GTT/Public/Police/GTTPoliceDirector.h").read_text(encoding="utf-8")
     for token in ["GetRoadNodeCount", "GetLastInterceptionNodeLabel", "MinimumInterceptLeadDistance", "SelectPursuitInterceptTransform"]:
         if token not in police_header:
@@ -140,7 +158,7 @@ def main() -> int:
     if present:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present))
 
-    print("[OK] GTT 0.0.14 road-node police interception, explicit garage slots, recovery, rural work and existing systems look structurally sane.")
+    print("[OK] GTT 0.0.15 persistent main story, police escape chapter, garage gate and existing sandbox systems look structurally sane.")
     return 0
 
 
