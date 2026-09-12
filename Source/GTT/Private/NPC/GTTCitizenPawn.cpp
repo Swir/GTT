@@ -49,7 +49,7 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
         KnockoutTimeRemaining=FMath::Max(0.0f,KnockoutTimeRemaining-DeltaSeconds);
         if(KnockoutTimeRemaining<=0.0f)
         {
-            bKnockedOut=false; Health=MaxHealth*.55f; SetActorHiddenInGame(false); SetActorEnableCollision(true); GetCharacterMovement()->SetMovementMode(MOVE_Walking); CombatTarget.Reset(); ChooseNewWanderTarget();
+            bKnockedOut=false; Health=MaxHealth*.55f; bBrawlParticipant=false; SetActorHiddenInGame(false); SetActorEnableCollision(true); GetCharacterMovement()->SetMovementMode(MOVE_Walking); CombatTarget.Reset(); ChooseNewWanderTarget();
         }
         return;
     }
@@ -61,6 +61,15 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
     FVector ToTarget=WanderTarget-GetActorLocation(); ToTarget.Z=0;
     if(RetargetTimeRemaining<=0 || ToTarget.SizeSquared2D()<FMath::Square(90.0f)){ ChooseNewWanderTarget(); ToTarget=WanderTarget-GetActorLocation(); ToTarget.Z=0; }
     if(!ToTarget.IsNearlyZero()) AddMovementInput(ToTarget.GetSafeNormal2D(),1.0f);
+}
+
+void AGTTCitizenPawn::StartBrawlWith(APawn* Opponent)
+{
+    if(!Opponent||bKnockedOut) return;
+    bBrawlParticipant=true;
+    CombatTarget=Opponent;
+    Health=MaxHealth;
+    GetCharacterMovement()->MaxWalkSpeed=235.0f;
 }
 
 void AGTTCitizenPawn::ApplyCombatHit(float Damage, const FVector& HitDirection, float Knockback, APawn* Attacker)
@@ -83,13 +92,13 @@ void AGTTCitizenPawn::UpdateCombatBehavior(float DeltaSeconds)
     if(!Target){ CombatTarget.Reset(); return; }
     FVector ToTarget=Target->GetActorLocation()-GetActorLocation(); ToTarget.Z=0;
     const float Distance=ToTarget.Size2D();
-    if(Distance>2600.0f){ CombatTarget.Reset(); GetCharacterMovement()->MaxWalkSpeed=WanderSpeed; ChooseNewWanderTarget(); return; }
-    if(Health < MaxHealth*.30f){ AddMovementInput((-ToTarget).GetSafeNormal2D(),1.0f); return; }
+    if(Distance>2600.0f){ CombatTarget.Reset(); bBrawlParticipant=false; GetCharacterMovement()->MaxWalkSpeed=WanderSpeed; ChooseNewWanderTarget(); return; }
+    if(Health < MaxHealth*.30f && !bBrawlParticipant){ AddMovementInput((-ToTarget).GetSafeNormal2D(),1.0f); return; }
     if(Distance>RetaliationDistance) AddMovementInput(ToTarget.GetSafeNormal2D(),1.0f);
     else if(CombatCooldown<=0.0f)
     {
         CombatCooldown=FMath::FRandRange(.85f,1.25f);
-        if(UGTTCombatComponent* Combat=Target->FindComponentByClass<UGTTCombatComponent>()) Combat->ApplyIncomingDamage(RetaliationDamage, TEXT("Villager retaliation"));
+        if(UGTTCombatComponent* Combat=Target->FindComponentByClass<UGTTCombatComponent>()) Combat->ApplyIncomingDamage(RetaliationDamage, bBrawlParticipant?TEXT("Bent Axle brawler hit"):TEXT("Villager retaliation"));
     }
 }
 
