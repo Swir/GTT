@@ -7,6 +7,7 @@
 #include "Police/GTTPolicePursuitVehicle.h"
 #include "Police/GTTRoadblock.h"
 #include "TimerManager.h"
+#include "World/GTTRoadGraph.h"
 
 AGTTPoliceDirector::AGTTPoliceDirector()
 {
@@ -25,19 +26,13 @@ void AGTTPoliceDirector::BeginPlay()
 
 void AGTTPoliceDirector::BuildRuntimeRoadNetwork()
 {
-    RoadNodes = {
-        FVector(-3300.0f,-1800.0f,100.0f), FVector(0.0f,-1800.0f,100.0f), FVector(3300.0f,-1800.0f,100.0f),
-        FVector(3300.0f,0.0f,100.0f), FVector(3300.0f,1800.0f,100.0f), FVector(0.0f,1800.0f,100.0f),
-        FVector(-3300.0f,1800.0f,100.0f), FVector(-3300.0f,0.0f,100.0f), FVector(4350.0f,1900.0f,100.0f),
-        FVector(5200.0f,2550.0f,100.0f), FVector(6100.0f,650.0f,100.0f), FVector(7350.0f,650.0f,100.0f),
-        FVector(4700.0f,-500.0f,100.0f), FVector(1850.0f,3400.0f,100.0f), FVector(-650.0f,2400.0f,100.0f)
-    };
-    RoadNodeLabels = {
-        TEXT("WEST SOUTH JUNCTION"), TEXT("VILLAGE SOUTH"), TEXT("POLICE SOUTH"), TEXT("EAST CROSSROAD"),
-        TEXT("EAST ROAD"), TEXT("VILLAGE NORTH"), TEXT("FARM NORTH"), TEXT("FARM CROSSROAD"), TEXT("NEIGHBOR BEND"),
-        TEXT("HILL FARM TURN"), TEXT("FOREST TRACK"), TEXT("NORTH WOOD TURN"), TEXT("PRIVATE LAKE ROAD"),
-        TEXT("FEED DEPOT ROAD"), TEXT("WORKSHOP ROAD")
-    };
+    RoadNodes.Reset();
+    RoadNodeLabels.Reset();
+    for (const FGTTRoadNode& Node : FGTTRoadGraph::GetNodes())
+    {
+        RoadNodes.Add(Node.Location);
+        RoadNodeLabels.Add(Node.Label);
+    }
 }
 
 void AGTTPoliceDirector::EvaluatePoliceResponse()
@@ -120,7 +115,6 @@ int32 AGTTPoliceDirector::SelectInterceptionRoadNode(const APawn* PlayerPawn, bo
     const float DesiredLead = bPreferFartherNode ? 2350.0f : 1550.0f;
     int32 BestIndex = INDEX_NONE;
     float BestScore = TNumericLimits<float>::Max();
-
     for (int32 Index = 0; Index < RoadNodes.Num(); ++Index)
     {
         const FVector ToNode = RoadNodes[Index] - PlayerLocation;
