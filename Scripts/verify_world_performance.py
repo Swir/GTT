@@ -23,7 +23,7 @@ required = {
         "bAllowExpensiveQueries", "LineTraceSingleByChannel", "FMath::Min(BudgetInterval, 0.35f)"
     ],
     "Docs/PLAYTEST_0.0.25.md": ["World Performance", "traffic", "combat", "distant"],
-    "CHANGELOG.md": ["[0.0.25]", "World Performance", "simulation budget"],
+    "CHANGELOG.md": ["[0.0.25]", "World Performance", "distance-based", "Critical / Near / Mid / Far / Dormant"],
     ".github/workflows/project-sanity.yml": ["Verify world performance milestone", "verify_world_performance.py"],
 }
 
