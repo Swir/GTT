@@ -43,17 +43,10 @@ void AGTTPoliceDirector::BuildRuntimeRoadNetwork()
 void AGTTPoliceDirector::EvaluatePoliceResponse()
 {
     RemoveInvalidUnits();
-
     const int32 WantedLevel = GetPlayerWantedLevel();
-    const int32 DesiredFootUnits = WantedLevel > 0
-        ? FMath::Clamp(WantedLevel * UnitsPerWantedLevel - FMath::Max(0, WantedLevel - 2), 0, MaxPoliceUnits)
-        : 0;
-    const int32 DesiredVehicles = WantedLevel >= VehicleEscalationWantedLevel
-        ? FMath::Clamp(WantedLevel - VehicleEscalationWantedLevel + 1, 1, MaxPursuitVehicles)
-        : 0;
-    const int32 DesiredRoadblocks = WantedLevel >= RoadblockEscalationWantedLevel
-        ? FMath::Clamp(WantedLevel - RoadblockEscalationWantedLevel + 1, 1, MaxRoadblocks)
-        : 0;
+    const int32 DesiredFootUnits = WantedLevel > 0 ? FMath::Clamp(WantedLevel * UnitsPerWantedLevel - FMath::Max(0, WantedLevel - 2), 0, MaxPoliceUnits) : 0;
+    const int32 DesiredVehicles = WantedLevel >= VehicleEscalationWantedLevel ? FMath::Clamp(WantedLevel - VehicleEscalationWantedLevel + 1, 1, MaxPursuitVehicles) : 0;
+    const int32 DesiredRoadblocks = WantedLevel >= RoadblockEscalationWantedLevel ? FMath::Clamp(WantedLevel - RoadblockEscalationWantedLevel + 1, 1, MaxRoadblocks) : 0;
 
     if (WantedLevel != LastResponseLevel)
     {
@@ -63,42 +56,24 @@ void AGTTPoliceDirector::EvaluatePoliceResponse()
     }
 
     DespawnExcessUnits(DesiredFootUnits, DesiredVehicles, DesiredRoadblocks);
-
-    if (WantedLevel > 0 && ActivePoliceUnits.Num() < DesiredFootUnits)
-    {
-        SpawnPoliceUnit();
-    }
-    if (DesiredVehicles > 0 && ActivePursuitVehicles.Num() < DesiredVehicles)
-    {
-        SpawnPursuitVehicle(WantedLevel);
-    }
-    if (DesiredRoadblocks > 0 && ActiveRoadblocks.Num() < DesiredRoadblocks)
-    {
-        SpawnRoadblock(WantedLevel);
-    }
+    if (WantedLevel > 0 && ActivePoliceUnits.Num() < DesiredFootUnits) SpawnPoliceUnit();
+    if (DesiredVehicles > 0 && ActivePursuitVehicles.Num() < DesiredVehicles) SpawnPursuitVehicle(WantedLevel);
+    if (DesiredRoadblocks > 0 && ActiveRoadblocks.Num() < DesiredRoadblocks) SpawnRoadblock(WantedLevel);
 }
 
 void AGTTPoliceDirector::SpawnPoliceUnit()
 {
     if (!PolicePawnClass || !GetWorld()) return;
-
-    FActorSpawnParameters Params;
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    APawn* SpawnedPawn = GetWorld()->SpawnActor<APawn>(PolicePawnClass, SelectSpawnTransform(), Params);
-    if (SpawnedPawn) ActivePoliceUnits.Add(SpawnedPawn);
+    FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    if (APawn* SpawnedPawn = GetWorld()->SpawnActor<APawn>(PolicePawnClass, SelectSpawnTransform(), Params)) ActivePoliceUnits.Add(SpawnedPawn);
 }
 
 void AGTTPoliceDirector::SpawnPursuitVehicle(int32 WantedLevel)
 {
     if (!PursuitVehicleClass || !GetWorld()) return;
-
-    FActorSpawnParameters Params;
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    const FTransform SpawnTransform = WantedLevel >= RoadblockEscalationWantedLevel
-        ? SelectPursuitInterceptTransform(WantedLevel)
-        : SelectSpawnTransform(1.35f);
-    AGTTPolicePursuitVehicle* Vehicle = GetWorld()->SpawnActor<AGTTPolicePursuitVehicle>(PursuitVehicleClass, SpawnTransform, Params);
-    if (Vehicle)
+    FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    const FTransform SpawnTransform = WantedLevel >= RoadblockEscalationWantedLevel ? SelectPursuitInterceptTransform(WantedLevel) : SelectSpawnTransform(1.35f);
+    if (AGTTPolicePursuitVehicle* Vehicle = GetWorld()->SpawnActor<AGTTPolicePursuitVehicle>(PursuitVehicleClass, SpawnTransform, Params))
     {
         Vehicle->SetResponseTier(FMath::Clamp(WantedLevel - 2, 1, 3));
         ActivePursuitVehicles.Add(Vehicle);
@@ -108,26 +83,16 @@ void AGTTPoliceDirector::SpawnPursuitVehicle(int32 WantedLevel)
 void AGTTPoliceDirector::SpawnRoadblock(int32 WantedLevel)
 {
     if (!RoadblockClass || !GetWorld()) return;
-
-    FActorSpawnParameters Params;
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    AGTTRoadblock* Roadblock = GetWorld()->SpawnActor<AGTTRoadblock>(RoadblockClass, SelectRoadblockTransform(WantedLevel), Params);
-    if (Roadblock)
+    FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    if (AGTTRoadblock* Roadblock = GetWorld()->SpawnActor<AGTTRoadblock>(RoadblockClass, SelectRoadblockTransform(WantedLevel), Params))
     {
         Roadblock->SetResponseTier(FMath::Clamp(WantedLevel - 3, 1, 2));
         ActiveRoadblocks.Add(Roadblock);
     }
 }
 
-int32 AGTTPoliceDirector::GetPlayerWantedLevel() const
-{
-    return UGTTGameplayStatics::GetPlayerWantedLevel(this, 0);
-}
-
-FString AGTTPoliceDirector::GetLastInterceptionNodeLabel() const
-{
-    return RoadNodeLabels.IsValidIndex(LastInterceptionNodeIndex) ? RoadNodeLabels[LastInterceptionNodeIndex] : TEXT("NONE");
-}
+int32 AGTTPoliceDirector::GetPlayerWantedLevel() const { return UGTTGameplayStatics::GetPlayerWantedLevel(this, 0); }
+FString AGTTPoliceDirector::GetLastInterceptionNodeLabel() const { return RoadNodeLabels.IsValidIndex(LastInterceptionNodeIndex) ? RoadNodeLabels[LastInterceptionNodeIndex] : TEXT("NONE"); }
 
 void AGTTPoliceDirector::RemoveInvalidUnits()
 {
@@ -138,27 +103,14 @@ void AGTTPoliceDirector::RemoveInvalidUnits()
 
 void AGTTPoliceDirector::DespawnExcessUnits(int32 DesiredUnits, int32 DesiredVehicles, int32 DesiredRoadblocks)
 {
-    while (ActivePoliceUnits.Num() > DesiredUnits)
-    {
-        TObjectPtr<APawn> Unit = ActivePoliceUnits.Pop();
-        if (IsValid(Unit.Get())) Unit->Destroy();
-    }
-    while (ActivePursuitVehicles.Num() > DesiredVehicles)
-    {
-        TObjectPtr<AGTTPolicePursuitVehicle> Unit = ActivePursuitVehicles.Pop();
-        if (IsValid(Unit.Get())) Unit->Destroy();
-    }
-    while (ActiveRoadblocks.Num() > DesiredRoadblocks)
-    {
-        TObjectPtr<AGTTRoadblock> Unit = ActiveRoadblocks.Pop();
-        if (IsValid(Unit.Get())) Unit->Destroy();
-    }
+    while (ActivePoliceUnits.Num() > DesiredUnits) { TObjectPtr<APawn> Unit = ActivePoliceUnits.Pop(); if (IsValid(Unit.Get())) Unit->Destroy(); }
+    while (ActivePursuitVehicles.Num() > DesiredVehicles) { TObjectPtr<AGTTPolicePursuitVehicle> Unit = ActivePursuitVehicles.Pop(); if (IsValid(Unit.Get())) Unit->Destroy(); }
+    while (ActiveRoadblocks.Num() > DesiredRoadblocks) { TObjectPtr<AGTTRoadblock> Unit = ActiveRoadblocks.Pop(); if (IsValid(Unit.Get())) Unit->Destroy(); }
 }
 
 int32 AGTTPoliceDirector::SelectInterceptionRoadNode(const APawn* PlayerPawn, bool bPreferFartherNode) const
 {
     if (!PlayerPawn || RoadNodes.IsEmpty()) return INDEX_NONE;
-
     FVector TravelDirection = PlayerPawn->GetVelocity().GetSafeNormal2D();
     if (TravelDirection.IsNearlyZero()) TravelDirection = PlayerPawn->GetActorForwardVector().GetSafeNormal2D();
     if (TravelDirection.IsNearlyZero()) TravelDirection = FVector::ForwardVector;
@@ -166,27 +118,21 @@ int32 AGTTPoliceDirector::SelectInterceptionRoadNode(const APawn* PlayerPawn, bo
     const FVector PlayerLocation = PlayerPawn->GetActorLocation();
     const FVector PredictedLocation = PlayerLocation + PlayerPawn->GetVelocity() * InterceptPredictionSeconds;
     const float DesiredLead = bPreferFartherNode ? 2350.0f : 1550.0f;
-
     int32 BestIndex = INDEX_NONE;
     float BestScore = TNumericLimits<float>::Max();
+
     for (int32 Index = 0; Index < RoadNodes.Num(); ++Index)
     {
         const FVector ToNode = RoadNodes[Index] - PlayerLocation;
         const float Distance = ToNode.Size2D();
         if (Distance < MinimumInterceptLeadDistance * 0.55f) continue;
-
-        const FVector DirectionToNode = ToNode.GetSafeNormal2D();
-        const float AheadDot = FVector::DotProduct(DirectionToNode, TravelDirection);
+        const float AheadDot = FVector::DotProduct(ToNode.GetSafeNormal2D(), TravelDirection);
         const float BehindPenalty = AheadDot < 0.05f ? 2800000.0f * (0.1f - AheadDot) : 0.0f;
         const float PredictionError = FVector::DistSquared2D(RoadNodes[Index], PredictedLocation);
         const float LeadError = FMath::Square(Distance - DesiredLead) * 0.42f;
         const float ReusePenalty = Index == LastInterceptionNodeIndex ? 1800000.0f : 0.0f;
         const float Score = PredictionError + LeadError + BehindPenalty + ReusePenalty;
-        if (Score < BestScore)
-        {
-            BestScore = Score;
-            BestIndex = Index;
-        }
+        if (Score < BestScore) { BestScore = Score; BestIndex = Index; }
     }
     return BestIndex;
 }
@@ -194,9 +140,7 @@ int32 AGTTPoliceDirector::SelectInterceptionRoadNode(const APawn* PlayerPawn, bo
 FTransform AGTTPoliceDirector::MakeRoadNodeTransform(int32 NodeIndex, const APawn* PlayerPawn) const
 {
     if (!RoadNodes.IsValidIndex(NodeIndex)) return SelectSpawnTransform(1.0f);
-    FVector Location = RoadNodes[NodeIndex];
-    Location.Z = FMath::Max(Location.Z, 100.0f);
-
+    FVector Location = RoadNodes[NodeIndex]; Location.Z = FMath::Max(Location.Z, 100.0f);
     FVector Facing = PlayerPawn ? (PlayerPawn->GetActorLocation() - Location).GetSafeNormal2D() : FVector::ForwardVector;
     if (Facing.IsNearlyZero()) Facing = FVector::ForwardVector;
     return FTransform(Facing.Rotation(), Location);
@@ -206,10 +150,8 @@ FTransform AGTTPoliceDirector::SelectPursuitInterceptTransform(int32 WantedLevel
 {
     APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
     if (!PlayerPawn) return SelectSpawnTransform(1.35f);
-
     const int32 NodeIndex = SelectInterceptionRoadNode(PlayerPawn, WantedLevel >= 5);
     if (NodeIndex == INDEX_NONE) return SelectSpawnTransform(1.35f);
-
     FTransform Transform = MakeRoadNodeTransform(NodeIndex, PlayerPawn);
     FVector Location = Transform.GetLocation();
     Location -= Transform.GetRotation().GetForwardVector() * 420.0f;
@@ -227,30 +169,23 @@ FTransform AGTTPoliceDirector::SelectSpawnTransform(float DistanceScale) const
             if (const AActor* SpawnPoint = SpawnPoints[Index]) return SpawnPoint->GetActorTransform();
         }
     }
-
     APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
     const FVector PlayerLocation = PlayerPawn ? PlayerPawn->GetActorLocation() : GetActorLocation();
     const float AngleRadians = FMath::FRandRange(0.0f, 2.0f * PI);
     const float Distance = FMath::FRandRange(MinFallbackSpawnDistance, MaxFallbackSpawnDistance) * FMath::Max(0.5f, DistanceScale);
     const FVector Offset(FMath::Cos(AngleRadians) * Distance, FMath::Sin(AngleRadians) * Distance, 140.0f);
-    const float FacingYaw = FMath::RadiansToDegrees(AngleRadians) + 180.0f;
-    return FTransform(FRotator(0.0f, FacingYaw, 0.0f), PlayerLocation + Offset);
+    return FTransform(FRotator(0.0f, FMath::RadiansToDegrees(AngleRadians) + 180.0f, 0.0f), PlayerLocation + Offset);
 }
 
 FTransform AGTTPoliceDirector::SelectRoadblockTransform(int32 WantedLevel)
 {
     APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
     if (!PlayerPawn) return SelectSpawnTransform(1.0f);
-
     const int32 NodeIndex = SelectInterceptionRoadNode(PlayerPawn, WantedLevel >= 5 || ActiveRoadblocks.Num() > 0);
     if (NodeIndex != INDEX_NONE)
     {
         LastInterceptionNodeIndex = NodeIndex;
-        FTransform Transform = MakeRoadNodeTransform(NodeIndex, PlayerPawn);
-        FRotator Rotation = Transform.Rotator();
-        Rotation.Yaw += 90.0f;
-        Transform.SetRotation(Rotation.Quaternion());
-        return Transform;
+        return MakeRoadNodeTransform(NodeIndex, PlayerPawn);
     }
 
     FVector Direction = PlayerPawn->GetVelocity().GetSafeNormal2D();
