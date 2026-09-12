@@ -23,6 +23,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Mission")
     void NotifyVehicleStolen(AGTTVehicleBase* Vehicle);
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Mission")
+    bool TryCompleteBorrowedTractor(AGTTVehicleBase* Vehicle);
+
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Mission")
     TObjectPtr<UGTTMissionComponent> MissionComponent;

@@ -4,7 +4,7 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 
 ## 0.1 — Tractor Theft Prototype
 
-**Goal:** walk around a tiny rural test area, steal a vehicle and trigger a police response.
+**Goal:** walk around a tiny rural test area, steal a tractor, trigger a police response and return it home after losing wanted level.
 
 - [x] Unreal C++ project/module skeleton
 - [x] Third-person character foundation
@@ -19,59 +19,65 @@ The roadmap is deliberately ordered around **playable slices**, not feature coun
 - [x] Native HUD with wanted + vehicle diagnostics
 - [x] Mission runtime component foundation
 - [x] Borrowed Tractor mission start + theft stage transition
-- [ ] Dedicated Chaos wheeled tractor implementation
-- [ ] Placeholder tractor visual setup
-- [ ] Mission safe-zone / completion trigger
-- [ ] Greybox village map and road loop
-- [ ] First fully playable **Borrowed Tractor** mission
+- [x] Dedicated prototype tractor class and visible primitive-mesh body
+- [x] Mission safe-zone / completion trigger
+- [x] Runtime-generated greybox village and road loop
+- [x] Runtime lighting and landmark labels
+- [x] First complete **Borrowed Tractor** gameplay loop in source
+- [x] Windows packaging helper script
+- [ ] Dedicated Chaos wheeled tractor movement implementation
+- [ ] Full Unreal compile + packaged Win64 smoke test on an Unreal-equipped runner/PC
 
 ## 0.2 — Living Village
 
-- Civilian NPC schedules and reactions
-- Traffic on village roads
-- Shops, workshop and fuel
-- Basic cash/economy
-- Player garage
-- Save/load
-- Day/night cycle
-- Basic radio framework
+- [ ] Civilian NPC placeholders and reactions
+- [ ] Witness system for vehicle theft and crimes
+- [ ] Traffic on village roads
+- [ ] Shops, workshop and fuel
+- [ ] Basic cash/economy
+- [ ] Mission rewards and fines
+- [ ] Player garage
+- [ ] Save/load
+- [ ] Day/night cycle
+- [ ] Basic radio framework
 
 ## 0.3 — Rural Crime & Jobs
 
-- Fishing and illegal fishing zones
-- Forest/poaching gameplay
-- Farm work and legal side jobs
-- Vehicle theft witnesses
-- Fines/arrests
-- More mission archetypes
+- [ ] Fishing at the prototype lake
+- [ ] Illegal fishing zones / ranger response
+- [ ] Forest / poaching gameplay
+- [ ] Farm work and legal side jobs
+- [ ] Fines/arrests
+- [ ] More mission archetypes
 
 ## 0.4 — Village Nights
 
-- Village parties and events
-- Tavern/community-hall interiors
-- NPC social encounters
-- Music/radio expansion
-- Comedy random events
+- [ ] Village parties and events
+- [ ] Tavern/community-hall interiors
+- [ ] NPC social encounters
+- [ ] Music/radio expansion
+- [ ] Comedy random events
 
 ## 0.5 — Vehicle Chaos
 
-- Multiple tractor classes
-- Old cars/vans
-- Breakable body parts
-- Degradation, smoke and breakdowns
-- Repair/tuning system
-- Mud and off-road handling
+- [ ] Multiple tractor classes
+- [ ] Old cars/vans
+- [ ] Fuel system
+- [ ] Breakable body parts
+- [ ] Degradation, smoke and breakdowns
+- [ ] Repair/tuning system
+- [ ] Mud and off-road handling
 
 ## 0.6–0.9 — Content & Polish
 
-- Larger connected map
-- Story mission chain
-- More NPC archetypes
-- Police escalation variety
-- Performance passes
-- Accessibility/settings
-- Controller support
-- Packaging/release automation
+- [ ] Larger connected map
+- [ ] Story mission chain
+- [ ] More NPC archetypes
+- [ ] Police escalation variety
+- [ ] Performance passes
+- [ ] Accessibility/settings
+- [ ] Controller support
+- [ ] Packaging/release automation
 
 ## 1.0 — First Complete Release
 

@@ -45,6 +45,15 @@ void AGTTGameHUD::DrawHUD()
     {
         DrawText(MissionText, FLinearColor(1.0f, 0.82f, 0.18f, 1.0f), 36.0f, 98.0f, GEngine->GetSmallFont(), 1.0f, false);
     }
+
+    DrawText(
+        TEXT("CONTROLS  |  WASD move/drive  |  Mouse look  |  E enter/interact  |  F exit vehicle  |  Space jump"),
+        FLinearColor(0.72f, 0.82f, 0.95f, 1.0f),
+        36.0f,
+        132.0f,
+        GEngine->GetSmallFont(),
+        0.85f,
+        false);
 }
 
 FString AGTTGameHUD::BuildWantedBar(int32 WantedLevel) const
@@ -62,23 +71,41 @@ FString AGTTGameHUD::BuildMissionText() const
 {
     const AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
     const UGTTMissionComponent* Mission = GameMode ? GameMode->GetMissionComponent() : nullptr;
-    if (!Mission || Mission->GetMissionState() != EGTTMissionState::Active)
+    if (!Mission)
     {
         return FString();
     }
 
     if (Mission->GetActiveMissionId() == FName(TEXT("BorrowedTractor")))
     {
-        switch (Mission->GetMissionStage())
+        if (Mission->GetMissionState() == EGTTMissionState::Completed)
         {
-        case 0:
-            return TEXT("MISSION: BORROWED TRACTOR  |  Find a vehicle worth 'borrowing'.");
-        case 1:
-            return TEXT("MISSION: BORROWED TRACTOR  |  Lose the police and get the tractor home.");
-        default:
-            return TEXT("MISSION: BORROWED TRACTOR");
+            return TEXT("MISSION COMPLETE: BORROWED TRACTOR  |  Tractor delivered. Somehow.");
+        }
+
+        if (Mission->GetMissionState() == EGTTMissionState::Failed)
+        {
+            return TEXT("MISSION FAILED: BORROWED TRACTOR");
+        }
+
+        if (Mission->GetMissionState() == EGTTMissionState::Active)
+        {
+            switch (Mission->GetMissionStage())
+            {
+            case 0:
+                return TEXT("MISSION: BORROWED TRACTOR  |  Reach the neighbour farm and 'borrow' the tractor.");
+            case 1:
+                return TEXT("MISSION: BORROWED TRACTOR  |  Lose wanted, then drive into the BARN - MISSION GOAL zone.");
+            default:
+                return TEXT("MISSION: BORROWED TRACTOR");
+            }
         }
     }
 
-    return FString::Printf(TEXT("MISSION: %s"), *Mission->GetActiveMissionId().ToString());
+    if (Mission->GetMissionState() == EGTTMissionState::Active)
+    {
+        return FString::Printf(TEXT("MISSION: %s"), *Mission->GetActiveMissionId().ToString());
+    }
+
+    return FString();
 }

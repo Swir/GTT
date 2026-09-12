@@ -2,10 +2,13 @@
 
 #include "Camera/CameraComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Interaction/GTTInteractable.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Wanted/GTTWantedComponent.h"
 
 AGTTCharacter::AGTTCharacter()
@@ -18,6 +21,18 @@ AGTTCharacter::AGTTCharacter()
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
+
+    PlaceholderBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PlaceholderBody"));
+    PlaceholderBody->SetupAttachment(RootComponent);
+    PlaceholderBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    PlaceholderBody->SetRelativeLocation(FVector(0.0f, 0.0f, -10.0f));
+    PlaceholderBody->SetRelativeScale3D(FVector(0.35f, 0.35f, 1.45f));
+
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> BodyMeshFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+    if (BodyMeshFinder.Succeeded())
+    {
+        PlaceholderBody->SetStaticMesh(BodyMeshFinder.Object);
+    }
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(RootComponent);

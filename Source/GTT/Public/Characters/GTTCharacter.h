@@ -6,6 +6,7 @@
 
 class UCameraComponent;
 class USpringArmComponent;
+class UStaticMeshComponent;
 class UGTTWantedComponent;
 
 UCLASS()
@@ -27,6 +28,9 @@ protected:
     void Turn(float Value);
     void LookUp(float Value);
     void TryInteract();
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Character")
+    TObjectPtr<UStaticMeshComponent> PlaceholderBody;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera")
     TObjectPtr<USpringArmComponent> CameraBoom;

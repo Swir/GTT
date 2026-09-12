@@ -22,10 +22,14 @@ REQUIRED_FILES = [
     "Source/GTT/Public/Core/GTTGameplayStatics.h",
     "Source/GTT/Public/UI/GTTGameHUD.h",
     "Source/GTT/Public/Vehicles/GTTVehicleBase.h",
+    "Source/GTT/Public/Vehicles/GTTTractorPawn.h",
     "Source/GTT/Public/Wanted/GTTWantedComponent.h",
     "Source/GTT/Public/Police/GTTPoliceDirector.h",
     "Source/GTT/Public/Police/GTTPoliceAIController.h",
     "Source/GTT/Public/Police/GTTPolicePawn.h",
+    "Source/GTT/Public/World/GTTMissionSafeZone.h",
+    "Source/GTT/Public/World/GTTPrototypeWorld.h",
+    "Scripts/package_windows.ps1",
 ]
 
 EXPECTED_SOURCE_TOKENS = {
@@ -35,6 +39,12 @@ EXPECTED_SOURCE_TOKENS = {
         "NotifyVehicleStolen",
         "Wanted->AddHeat",
     ],
+    "Source/GTT/Private/Vehicles/GTTTractorPawn.cpp": [
+        "Rusty Fieldmaster 60",
+        "SetMassOverrideInKg",
+        "LeftRearWheel",
+        "RightRearWheel",
+    ],
     "Source/GTT/Private/Police/GTTPoliceAIController.cpp": [
         "MoveToActor(",
         "GetPlayerWantedLevel",
@@ -42,7 +52,22 @@ EXPECTED_SOURCE_TOKENS = {
     "Source/GTT/Private/UI/GTTGameHUD.cpp": [
         "WANTED [",
         "GetConditionPercent",
-        "BuildMissionText",
+        "MISSION COMPLETE: BORROWED TRACTOR",
+    ],
+    "Source/GTT/Private/World/GTTMissionSafeZone.cpp": [
+        "TryCompleteBorrowedTractor",
+        "IsOverlappingActor",
+    ],
+    "Source/GTT/Private/World/GTTPrototypeWorld.cpp": [
+        "NEIGHBOUR FARM",
+        "BARN - MISSION GOAL",
+        "SpawnActor<AGTTTractorPawn>",
+        "SpawnActor<AGTTMissionSafeZone>",
+    ],
+    "Source/GTT/Private/Core/GTTGameMode.cpp": [
+        "SpawnActor<AGTTPrototypeWorld>",
+        "TryCompleteBorrowedTractor",
+        "MissionComponent->CompleteMission",
     ],
 }
 
@@ -76,6 +101,10 @@ def main() -> int:
     if missing_plugins:
         fail("Required plugins are not enabled: " + ", ".join(sorted(missing_plugins)))
 
+    default_engine = (ROOT / "Config/DefaultEngine.ini").read_text(encoding="utf-8")
+    if "GameDefaultMap=/Engine/Maps/Entry" not in default_engine:
+        fail("Prototype boot map is not configured")
+
     for relative_path, tokens in EXPECTED_SOURCE_TOKENS.items():
         path = ROOT / relative_path
         if not path.is_file():
@@ -90,7 +119,7 @@ def main() -> int:
     if present_forbidden:
         fail("Generated Unreal directories should not be committed: " + ", ".join(present_forbidden))
 
-    print("[OK] GTT repository structure and gameplay hooks look sane.")
+    print("[OK] GTT repository, prototype world and mission loop look structurally sane.")
     return 0
 
 
