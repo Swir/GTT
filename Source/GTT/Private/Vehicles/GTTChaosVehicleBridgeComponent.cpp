@@ -17,6 +17,7 @@ void UGTTChaosVehicleBridgeComponent::BeginPlay()
     Super::BeginPlay();
     VehicleOwner = Cast<AGTTVehicleBase>(GetOwner());
     ResolveSpec();
+    ResolveRigContract();
     RefreshNativeBinding();
 }
 
@@ -68,6 +69,74 @@ void UGTTChaosVehicleBridgeComponent::ResolveSpec()
     }
 }
 
+void UGTTChaosVehicleBridgeComponent::ResolveRigContract()
+{
+    ResolvedRigContract = FGTTChaosRigContract();
+    if (!VehicleOwner)
+    {
+        return;
+    }
+
+    if (!UGTTChaosRigContractLibrary::GetRigForVehicleId(VehicleOwner->GetPersistentVehicleId(), ResolvedRigContract))
+    {
+        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge has no rig contract for %s"), *VehicleOwner->GetPersistentVehicleId().ToString());
+    }
+}
+
+bool UGTTChaosVehicleBridgeComponent::ValidateNativeRig()
+{
+    bRigContractValid = false;
+    RigValidationSummary = TEXT("No native skeletal rig bound");
+
+    if (!NativeSkeletalBody)
+    {
+        return false;
+    }
+
+    if (ResolvedRigContract.VehicleId.IsNone())
+    {
+        RigValidationSummary = TEXT("No rig contract resolved");
+        return false;
+    }
+
+    TArray<FName> MissingBones;
+    for (const FName BoneName : UGTTChaosRigContractLibrary::GetRequiredBoneNames(ResolvedRigContract))
+    {
+        if (BoneName.IsNone() || NativeSkeletalBody->GetBoneIndex(BoneName) == INDEX_NONE)
+        {
+            MissingBones.Add(BoneName);
+        }
+    }
+
+    TArray<FName> MissingSockets;
+    for (const FName SocketName : UGTTChaosRigContractLibrary::GetRequiredSocketNames(ResolvedRigContract))
+    {
+        if (SocketName.IsNone() || !NativeSkeletalBody->DoesSocketExist(SocketName))
+        {
+            MissingSockets.Add(SocketName);
+        }
+    }
+
+    if (MissingBones.Num() > 0 || MissingSockets.Num() > 0)
+    {
+        TArray<FString> Problems;
+        for (const FName BoneName : MissingBones)
+        {
+            Problems.Add(FString::Printf(TEXT("bone:%s"), *BoneName.ToString()));
+        }
+        for (const FName SocketName : MissingSockets)
+        {
+            Problems.Add(FString::Printf(TEXT("socket:%s"), *SocketName.ToString()));
+        }
+        RigValidationSummary = FString::Printf(TEXT("Missing %s"), *FString::Join(Problems, TEXT(", ")));
+        return false;
+    }
+
+    bRigContractValid = true;
+    RigValidationSummary = TEXT("Rig contract valid");
+    return true;
+}
+
 void UGTTChaosVehicleBridgeComponent::RefreshNativeBinding()
 {
     if (!VehicleOwner)
@@ -75,18 +144,35 @@ void UGTTChaosVehicleBridgeComponent::RefreshNativeBinding()
         VehicleOwner = Cast<AGTTVehicleBase>(GetOwner());
     }
 
+    if (VehicleOwner && ResolvedSpec.VehicleId.IsNone())
+    {
+        ResolveSpec();
+    }
+    if (VehicleOwner && ResolvedRigContract.VehicleId.IsNone())
+    {
+        ResolveRigContract();
+    }
+
     NativeMovement = VehicleOwner ? VehicleOwner->FindComponentByClass<UChaosWheeledVehicleMovementComponent>() : nullptr;
     LegacyDynamics = VehicleOwner ? VehicleOwner->FindComponentByClass<UGTTVehicleDynamicsComponent>() : nullptr;
-    const USkeletalMeshComponent* SkeletalBody = VehicleOwner ? VehicleOwner->FindComponentByClass<USkeletalMeshComponent>() : nullptr;
-    const bool bHasSpec = ResolvedSpec.VehicleId != NAME_None;
+    NativeSkeletalBody = VehicleOwner ? VehicleOwner->FindComponentByClass<USkeletalMeshComponent>() : nullptr;
 
-    bNativeMovementReady = NativeMovement != nullptr && SkeletalBody != nullptr && bHasSpec;
+    const bool bHasSpec = ResolvedSpec.VehicleId != NAME_None;
+    const bool bRigValid = ValidateNativeRig();
+    bNativeMovementReady = NativeMovement != nullptr && bHasSpec && bRigValid;
     BridgeState = bNativeMovementReady ? EGTTChaosBridgeState::NativeReady : EGTTChaosBridgeState::WaitingForNativeRig;
 
     if (bNativeMovementReady)
     {
         DisableLegacyDynamicsIfNeeded();
-        UE_LOG(LogGTT, Log, TEXT("Chaos bridge native rig ready for %s"), *ResolvedSpec.VehicleId.ToString());
+        UE_LOG(LogGTT, Log, TEXT("Chaos bridge native rig accepted for %s (%s)"), *ResolvedSpec.VehicleId.ToString(), *RigValidationSummary);
+    }
+    else if (NativeMovement || NativeSkeletalBody)
+    {
+        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge native rig rejected for %s: movement=%s rig=%s"),
+            ResolvedSpec.VehicleId.IsNone() ? TEXT("NO SPEC") : *ResolvedSpec.VehicleId.ToString(),
+            NativeMovement ? TEXT("YES") : TEXT("NO"),
+            *RigValidationSummary);
     }
 }
 
@@ -173,6 +259,22 @@ void UGTTChaosVehicleBridgeComponent::DisableLegacyDynamicsIfNeeded()
     bLegacyDynamicsDisabled = true;
 }
 
+bool UGTTChaosVehicleBridgeComponent::TryGetNativeHitchTransform(FTransform& OutTransform) const
+{
+    if (!bRigContractValid || !NativeSkeletalBody || !ResolvedRigContract.bRequiresHitchSocket || ResolvedRigContract.HitchSocket.IsNone())
+    {
+        return false;
+    }
+
+    if (!NativeSkeletalBody->DoesSocketExist(ResolvedRigContract.HitchSocket))
+    {
+        return false;
+    }
+
+    OutTransform = NativeSkeletalBody->GetSocketTransform(ResolvedRigContract.HitchSocket, RTS_World);
+    return true;
+}
+
 FString UGTTChaosVehicleBridgeComponent::GetBridgeStatusSummary() const
 {
     const TCHAR* StateText = TEXT("WAITING");
@@ -184,9 +286,10 @@ FString UGTTChaosVehicleBridgeComponent::GetBridgeStatusSummary() const
         default: break;
     }
 
-    return FString::Printf(TEXT("CHAOS %s | %s | PWR %.0f%% | GRIP %.0f%%"),
+    return FString::Printf(TEXT("CHAOS %s | %s | RIG %s | PWR %.0f%% | GRIP %.0f%%"),
         StateText,
         ResolvedSpec.VehicleId.IsNone() ? TEXT("NO SPEC") : *ResolvedSpec.VehicleId.ToString(),
+        bRigContractValid ? TEXT("VALID") : TEXT("WAIT"),
         EffectivePowerScale * 100.0f,
         EffectiveGripScale * 100.0f);
 }
