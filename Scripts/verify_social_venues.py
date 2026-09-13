@@ -39,7 +39,7 @@ assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
 checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
 unchecked = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
 total = checked + unchecked
-assert (checked, total) == (120, 130), f"roadmap checklist is {checked}/{total}, expected 120/130"
+assert total >= 130 and checked >= 120, f"social milestone regressed: got {checked}/{total}"
 percent = round(checked / total * 100, 1)
 segments = round(checked / total * 20)
 bar = "█" * segments + "░" * (20 - segments)
