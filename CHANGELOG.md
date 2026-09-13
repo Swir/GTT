@@ -2,6 +2,23 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.30] - 2026-09-13
+
+### Added
+- **Chaos Migration Foundation** with canonical UE 5.8 target specifications for the Rusty Fieldmaster 60, Rattleback 82 and Mulebox 1200.
+- Source-level `FGTTChaosVehicleSpec` / `FGTTChaosWheelSpec` contracts covering mass, torque/RPM, final drive, steering, drive layout, front/rear wheel geometry, suspension, friction and explicit gear ratios.
+- A persistent-ID lookup layer that maps the existing save-game vehicle identities directly to their future Chaos profiles.
+- `CHAOS_VEHICLE_MIGRATION.md`, `PLAYTEST_0.0.30.md` and `verify_chaos_migration.py` so future native conversion is gated by repeatable source and runtime acceptance criteria.
+
+### Changed
+- Project sanity now verifies Chaos plugin/module wiring, all three canonical vehicle profiles, persistent-ID consistency and the migration acceptance boundary.
+- Native Chaos roadmap tasks intentionally remain open at exactly `123/130 (94.6%)`: the current runtime vehicles still use static-mesh pawns and cannot honestly be called native Chaos vehicles until skeletal meshes, physics assets, Chaos wheel setups, a real `AWheeledVehiclePawn` path and UE 5.8 runtime validation exist.
+
+### Limitations / Next
+- This milestone does not replace the current source-driven vehicle simulation and therefore does not claim a gameplay handling change yet.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on repository CI; no packaged EXE verification is claimed.
+- Next major package should author the first true Fieldmaster skeletal/physics vehicle asset path and wire its fuel, damage, tire, mud, tuning, trailer and save systems into `UChaosWheeledVehicleMovementComponent` before migrating Rattleback and Mulebox.
+
 ## [0.0.29] - 2026-09-13
 
 ### Added

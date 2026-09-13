@@ -58,3 +58,6 @@ jobs:
 
       - name: Verify vehicle customization milestone
         run: python Scripts/verify_vehicle_customization.py
+
+      - name: Verify Chaos migration foundation
+        run: python Scripts/verify_chaos_migration.py
