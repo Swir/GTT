@@ -2,6 +2,25 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.29] - 2026-09-13
+
+### Added
+- **Workshop Customization** milestone with three new workshop bays tied to owned vehicles, player cash and existing persistent tuning/damage systems.
+- Staged **Rusty Fieldmaster 60 visual packages**: brush guard, work-light bar/lamps and rear toolbox, driven by the same engine/tire tune levels already persisted in the sandbox save.
+- Staged **Rattleback 82 street/performance variant** with hood scoop, ducktail and wider lip package while reusing the real drivetrain power/grip upgrades rather than introducing disconnected stats.
+- **Replacement body-panel economy** that prices repairs from the actual detached-part count and routes restoration through the existing breakable-part/vehicle-repair logic.
+- Automatic world-subsystem workshop spawning plus dedicated `verify_vehicle_customization.py` and `PLAYTEST_0.0.29.md` coverage.
+
+### Changed
+- Vehicle customization now consumes the existing workshop economy and ownership checks, and successful purchases immediately save through `AGTTGameMode::SaveProgress()`.
+- Visual packages are rebuilt from existing persistent engine/tire tune levels, so the functional upgrade state survives quit/relaunch even though the current milestone deliberately uses runtime original greybox geometry.
+- Roadmap advances from `120/130 (92.3%)` to exactly `123/130 (94.6%)`; 7 tasks remain and the mathematically rounded 20-segment bar is now 19/20 while preserving `SWIR-ROADMAP-STANDARD:v1`.
+
+### Limitations / Next
+- Vehicle styling is intentionally source-created greybox/procedural geometry; authored final meshes/materials remain outside this milestone.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation is still unavailable on repository CI; no packaged EXE verification is claimed.
+- Next major package should target native Chaos vehicle movement, authored trailer/combat assets or cleared original radio/music content, with the full Win64 runner still required before release acceptance.
+
 ## [0.0.28] - 2026-09-13
 
 ### Added
