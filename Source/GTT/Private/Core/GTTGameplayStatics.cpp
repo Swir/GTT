@@ -4,8 +4,25 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "Radio/GTTRadioComponent.h"
+#include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
+
+namespace
+{
+    APawn* ResolveGTTDriverPawn(APawn* Pawn)
+    {
+        if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(Pawn))
+        {
+            return Vehicle->GetDriverPawn();
+        }
+        if (const AGTTFieldmasterNativePawn* NativeFieldmaster = Cast<AGTTFieldmasterNativePawn>(Pawn))
+        {
+            return NativeFieldmaster->GetDriverPawn();
+        }
+        return nullptr;
+    }
+}
 
 UGTTWantedComponent* UGTTGameplayStatics::FindWantedComponentForPawn(APawn* Pawn)
 {
@@ -19,12 +36,9 @@ UGTTWantedComponent* UGTTGameplayStatics::FindWantedComponentForPawn(APawn* Pawn
         return Wanted;
     }
 
-    if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(Pawn))
+    if (APawn* Driver = ResolveGTTDriverPawn(Pawn))
     {
-        if (APawn* Driver = Vehicle->GetDriverPawn())
-        {
-            return Driver->FindComponentByClass<UGTTWantedComponent>();
-        }
+        return Driver->FindComponentByClass<UGTTWantedComponent>();
     }
 
     return nullptr;
@@ -42,12 +56,9 @@ UGTTPlayerEconomyComponent* UGTTGameplayStatics::FindEconomyComponentForPawn(APa
         return Economy;
     }
 
-    if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(Pawn))
+    if (APawn* Driver = ResolveGTTDriverPawn(Pawn))
     {
-        if (APawn* Driver = Vehicle->GetDriverPawn())
-        {
-            return Driver->FindComponentByClass<UGTTPlayerEconomyComponent>();
-        }
+        return Driver->FindComponentByClass<UGTTPlayerEconomyComponent>();
     }
 
     return nullptr;
@@ -65,12 +76,9 @@ UGTTRadioComponent* UGTTGameplayStatics::FindRadioComponentForPawn(APawn* Pawn)
         return Radio;
     }
 
-    if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(Pawn))
+    if (APawn* Driver = ResolveGTTDriverPawn(Pawn))
     {
-        if (APawn* Driver = Vehicle->GetDriverPawn())
-        {
-            return Driver->FindComponentByClass<UGTTRadioComponent>();
-        }
+        return Driver->FindComponentByClass<UGTTRadioComponent>();
     }
 
     return nullptr;

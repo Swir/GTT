@@ -1,12 +1,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Interaction/GTTInteractable.h"
 #include "WheeledVehiclePawn.h"
 #include "GTTFieldmasterNativePawn.generated.h"
 
 class AGTTVehicleBase;
+class UCameraComponent;
 class UChaosWheeledVehicleMovementComponent;
 class UInputComponent;
+class USpringArmComponent;
 
 USTRUCT(BlueprintType)
 struct FGTTVehicleMigrationSnapshot
@@ -33,14 +36,17 @@ struct FGTTVehicleMigrationSnapshot
 };
 
 UCLASS(Blueprintable)
-class GTT_API AGTTFieldmasterNativePawn : public AWheeledVehiclePawn
+class GTT_API AGTTFieldmasterNativePawn : public AWheeledVehiclePawn, public IGTTInteractable
 {
     GENERATED_BODY()
 
 public:
     AGTTFieldmasterNativePawn();
 
+    virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+    virtual void Interact_Implementation(AActor* Interactor) override;
+    virtual FText GetInteractionText_Implementation() const override;
 
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos")
     bool ConfigureAndValidateNativeFieldmaster(FString& OutSummary);
@@ -51,11 +57,26 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Migration")
     void ApplyMigrationSnapshot(const FGTTVehicleMigrationSnapshot& Snapshot);
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Takeover")
+    bool TryActivateLegacyTakeover();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Takeover")
+    void DeactivateLegacyTakeover();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle")
+    void ExitNativeVehicle();
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Garage")
+    bool RecallToTransform(const FTransform& Destination);
+
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Migration")
     FGTTVehicleMigrationSnapshot GetMigrationSnapshot() const { return MigrationSnapshot; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos")
     bool IsNativeFieldmasterReady() const { return bNativeReady; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Takeover")
+    bool IsLegacyTakeoverActive() const { return bTakeoverActive; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos")
     FString GetNativeAcceptanceSummary() const { return NativeAcceptanceSummary; }
@@ -63,13 +84,35 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Save")
     FName GetPersistentVehicleId() const { return TEXT("RustyFieldmaster60"); }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
+    FText GetVehicleDisplayName() const { return NSLOCTEXT("GTT", "NativeFieldmasterName", "Rusty Fieldmaster 60"); }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
+    APawn* GetDriverPawn() const { return PreviousPawn.Get(); }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle")
+    bool IsOccupied() const { return bOccupied; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Ownership")
+    bool IsOwnedByPlayer() const { return MigrationSnapshot.bOwnedByPlayer; }
+
 protected:
     virtual void BeginPlay() override;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera")
+    TObjectPtr<USpringArmComponent> CameraBoom;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera")
+    TObjectPtr<UCameraComponent> VehicleCamera;
 
 private:
     bool ValidateRigContract(FString& OutSummary) const;
     void HandleNativeThrottle(float Value);
     void HandleNativeSteering(float Value);
+    void QuickSave();
+    void QuickLoad();
+    void CycleRadio();
+    void SyncLegacyMirror();
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos")
     bool bNativeReady = false;
@@ -79,4 +122,12 @@ private:
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Migration")
     FGTTVehicleMigrationSnapshot MigrationSnapshot;
+
+    TWeakObjectPtr<APawn> PreviousPawn;
+    TWeakObjectPtr<AGTTVehicleBase> LegacyMirror;
+    bool bTakeoverActive = false;
+    bool bOccupied = false;
+    float LastThrottleInput = 0.0f;
+    float MirrorSyncAccumulator = 0.0f;
+    float TakeoverRetryAccumulator = 0.0f;
 };

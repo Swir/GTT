@@ -74,3 +74,5 @@ jobs:
         run: python Scripts/verify_win64_evidence_pipeline.py
       - name: Verify Fieldmaster native gameplay handoff
         run: python Scripts/verify_fieldmaster_native_handoff.py
+      - name: Verify Fieldmaster native runtime takeover
+        run: python Scripts/verify_fieldmaster_native_takeover.py
