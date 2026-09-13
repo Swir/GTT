@@ -38,8 +38,12 @@ protected:
     void ChooseNewWanderTarget();
     FVector GetScheduleCenter() const;
     void UpdateCombatBehavior(float DeltaSeconds);
+    void UpdateCombatPresentation(float DeltaSeconds);
+    void ConfigureCombatProp();
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|NPC") TObjectPtr<UStaticMeshComponent> BodyMesh;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|NPC") TObjectPtr<UStaticMeshComponent> HeadMesh;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|NPC|Combat") TObjectPtr<UStaticMeshComponent> CombatProp;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|NPC|Combat") TObjectPtr<UStaticMeshComponent> CombatPropDetail;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Crime", meta=(ClampMin="100.0")) float WitnessRadius = 1800.0f;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Crime", meta=(ClampMin="0.0")) float WitnessHeat = 9.0f;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Movement", meta=(ClampMin="100.0")) float WanderRadius = 750.0f;
@@ -60,6 +64,9 @@ private:
     float Health = 100.0f;
     float CombatCooldown = 0.0f;
     float KnockoutTimeRemaining = 0.0f;
+    float HitReactionTimeRemaining = 0.0f;
+    float AttackPresentationTimeRemaining = 0.0f;
+    FVector LastHitDirection = FVector::ForwardVector;
     bool bKnockedOut = false;
     bool bBrawlParticipant = false;
     EGTTHostileArchetype HostileArchetype = EGTTHostileArchetype::Civilian;

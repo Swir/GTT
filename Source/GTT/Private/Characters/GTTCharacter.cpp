@@ -2,6 +2,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "Combat/GTTCombatComponent.h"
+#include "Combat/GTTCombatPresentationComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Core/GTTGameMode.h"
@@ -47,6 +48,7 @@ AGTTCharacter::AGTTCharacter()
     EconomyComponent = CreateDefaultSubobject<UGTTPlayerEconomyComponent>(TEXT("EconomyComponent"));
     RadioComponent = CreateDefaultSubobject<UGTTRadioComponent>(TEXT("RadioComponent"));
     CombatComponent = CreateDefaultSubobject<UGTTCombatComponent>(TEXT("CombatComponent"));
+    CombatPresentationComponent = CreateDefaultSubobject<UGTTCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 }
 
 void AGTTCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -114,6 +116,21 @@ void AGTTCharacter::TryInteract()
 void AGTTCharacter::QuickSave(){ if (AGTTGameMode* GameMode=Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress(); }
 void AGTTCharacter::QuickLoad(){ if (AGTTGameMode* GameMode=Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->LoadProgress(); }
 void AGTTCharacter::CycleRadio(){ if (RadioComponent) RadioComponent->CycleStation(); }
-void AGTTCharacter::Attack(){ if (CombatComponent) CombatComponent->Attack(); }
-void AGTTCharacter::CycleWeapon(){ if (CombatComponent) CombatComponent->CycleWeapon(); }
-void AGTTCharacter::DropWeapon(){ if (CombatComponent) CombatComponent->DropCurrentWeapon(); }
+void AGTTCharacter::Attack()
+{
+    if (!CombatComponent) return;
+    if (CombatPresentationComponent) CombatPresentationComponent->PlayAttack(CombatComponent->GetEquippedWeapon());
+    CombatComponent->Attack();
+}
+void AGTTCharacter::CycleWeapon()
+{
+    if (!CombatComponent) return;
+    CombatComponent->CycleWeapon();
+    if (CombatPresentationComponent) CombatPresentationComponent->RefreshEquippedWeapon();
+}
+void AGTTCharacter::DropWeapon()
+{
+    if (!CombatComponent) return;
+    CombatComponent->DropCurrentWeapon();
+    if (CombatPresentationComponent) CombatPresentationComponent->RefreshEquippedWeapon();
+}

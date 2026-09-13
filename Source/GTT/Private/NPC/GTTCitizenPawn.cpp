@@ -22,12 +22,20 @@ AGTTCitizenPawn::AGTTCitizenPawn()
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 260.0f, 0.0f);
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
     BodyMesh->SetupAttachment(RootComponent); BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); BodyMesh->SetRelativeLocation(FVector(0,0,-20)); BodyMesh->SetRelativeScale3D(FVector(.28f,.28f,.85f));
     if (CylinderFinder.Succeeded()) BodyMesh->SetStaticMesh(CylinderFinder.Object);
     HeadMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HeadMesh"));
     HeadMesh->SetupAttachment(RootComponent); HeadMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); HeadMesh->SetRelativeLocation(FVector(0,0,65)); HeadMesh->SetRelativeScale3D(FVector(.22f));
     if (SphereFinder.Succeeded()) HeadMesh->SetStaticMesh(SphereFinder.Object);
+
+    CombatProp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CombatProp"));
+    CombatProp->SetupAttachment(RootComponent); CombatProp->SetCollisionEnabled(ECollisionEnabled::NoCollision); CombatProp->SetRelativeLocation(FVector(32,25,25)); CombatProp->SetRelativeRotation(FRotator(0,0,-18)); CombatProp->SetRelativeScale3D(FVector(.045f,.045f,.42f)); CombatProp->SetVisibility(false);
+    if (CylinderFinder.Succeeded()) CombatProp->SetStaticMesh(CylinderFinder.Object);
+    CombatPropDetail = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CombatPropDetail"));
+    CombatPropDetail->SetupAttachment(RootComponent); CombatPropDetail->SetCollisionEnabled(ECollisionEnabled::NoCollision); CombatPropDetail->SetRelativeLocation(FVector(32,25,64)); CombatPropDetail->SetRelativeScale3D(FVector(.08f,.20f,.06f)); CombatPropDetail->SetVisibility(false);
+    if (CubeFinder.Succeeded()) CombatPropDetail->SetStaticMesh(CubeFinder.Object);
 }
 
 void AGTTCitizenPawn::BeginPlay()
@@ -39,6 +47,7 @@ void AGTTCitizenPawn::BeginPlay()
     WorkLocation=HomeLocation+FVector(WorkOffset.X,WorkOffset.Y,0); SocialLocation=HomeLocation+FVector(SocialOffset.X,SocialOffset.Y,0);
     DayNightCycle=Cast<AGTTDayNightCycle>(UGameplayStatics::GetActorOfClass(this,AGTTDayNightCycle::StaticClass()));
     LastScheduleCenter=GetScheduleCenter(); ChooseNewWanderTarget();
+    ConfigureCombatProp();
 }
 
 void AGTTCitizenPawn::Tick(float DeltaSeconds)
@@ -46,7 +55,7 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
 
     EGTTWorldSimulationTier SimulationTier = EGTTWorldSimulationTier::Critical;
-    const bool bUrgentSimulation = bKnockedOut || CombatTarget.IsValid() || bBrawlParticipant || IsFactionHostile();
+    const bool bUrgentSimulation = bKnockedOut || CombatTarget.IsValid() || bBrawlParticipant || IsFactionHostile() || HitReactionTimeRemaining > 0.0f || AttackPresentationTimeRemaining > 0.0f;
     if (GetWorld())
     {
         if (UGTTWorldPerformanceSubsystem* Performance = GetWorld()->GetSubsystem<UGTTWorldPerformanceSubsystem>())
@@ -58,6 +67,7 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
         }
     }
 
+    UpdateCombatPresentation(DeltaSeconds);
     CombatCooldown=FMath::Max(0.0f,CombatCooldown-DeltaSeconds);
     if(bKnockedOut)
     {
@@ -65,13 +75,13 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
         if(KnockoutTimeRemaining<=0.0f)
         {
             bKnockedOut=false; Health=MaxHealth*.55f; bBrawlParticipant=false; SetActorHiddenInGame(false); SetActorEnableCollision(true); GetCharacterMovement()->SetMovementMode(MOVE_Walking); CombatTarget.Reset(); ChooseNewWanderTarget();
+            if (BodyMesh) { BodyMesh->SetRelativeRotation(FRotator::ZeroRotator); BodyMesh->SetRelativeLocation(FVector(0,0,-20)); }
+            if (HeadMesh) { HeadMesh->SetRelativeRotation(FRotator::ZeroRotator); HeadMesh->SetRelativeLocation(FVector(0,0,65)); }
         }
         return;
     }
     if(CombatTarget.IsValid()) { UpdateCombatBehavior(DeltaSeconds); return; }
 
-    // Far-away ambient civilians keep their persistent schedule state but do not spend
-    // movement/retarget work until the player returns to that part of the countryside.
     if(SimulationTier == EGTTWorldSimulationTier::Dormant) return;
 
     if(!DayNightCycle.IsValid()) DayNightCycle=Cast<AGTTDayNightCycle>(UGameplayStatics::GetActorOfClass(this,AGTTDayNightCycle::StaticClass()));
@@ -91,6 +101,7 @@ void AGTTCitizenPawn::StartBrawlWith(APawn* Opponent)
     Health=MaxHealth;
     SetActorTickInterval(0.0f);
     GetCharacterMovement()->MaxWalkSpeed=235.0f;
+    ConfigureCombatProp();
 }
 
 void AGTTCitizenPawn::ConfigureHostileArchetype(EGTTHostileArchetype NewArchetype, APawn* Target)
@@ -121,6 +132,39 @@ void AGTTCitizenPawn::ConfigureHostileArchetype(EGTTHostileArchetype NewArchetyp
     }
     Health=MaxHealth;
     if(Target) CombatTarget=Target;
+    ConfigureCombatProp();
+}
+
+void AGTTCitizenPawn::ConfigureCombatProp()
+{
+    if (!CombatProp || !CombatPropDetail) return;
+    const bool bShow = HostileArchetype != EGTTHostileArchetype::Civilian;
+    CombatProp->SetVisibility(bShow);
+    CombatPropDetail->SetVisibility(bShow);
+    if (!bShow) return;
+
+    CombatProp->SetRelativeLocation(FVector(32,25,25));
+    CombatProp->SetRelativeRotation(FRotator(0,0,-18));
+    CombatPropDetail->SetRelativeLocation(FVector(32,25,64));
+    switch (HostileArchetype)
+    {
+        case EGTTHostileArchetype::Runner:
+            CombatProp->SetRelativeScale3D(FVector(.035f,.035f,.32f));
+            CombatPropDetail->SetRelativeScale3D(FVector(.07f,.12f,.05f));
+            break;
+        case EGTTHostileArchetype::Bruiser:
+            CombatProp->SetRelativeScale3D(FVector(.075f,.075f,.44f));
+            CombatPropDetail->SetRelativeScale3D(FVector(.15f,.26f,.09f));
+            break;
+        case EGTTHostileArchetype::Enforcer:
+            CombatProp->SetRelativeScale3D(FVector(.05f,.05f,.52f));
+            CombatPropDetail->SetRelativeScale3D(FVector(.10f,.22f,.07f));
+            break;
+        default:
+            CombatProp->SetRelativeScale3D(FVector(.045f,.045f,.40f));
+            CombatPropDetail->SetRelativeScale3D(FVector(.09f,.18f,.06f));
+            break;
+    }
 }
 
 FString AGTTCitizenPawn::GetArchetypeLabel() const
@@ -140,14 +184,47 @@ void AGTTCitizenPawn::ApplyCombatHit(float Damage, const FVector& HitDirection, 
     if(bKnockedOut||Damage<=0.0f) return;
     SetActorTickInterval(0.0f);
     Health=FMath::Max(0.0f,Health-Damage);
-    LaunchCharacter(HitDirection.GetSafeNormal2D()*Knockback+FVector(0,0,FMath::Min(180.0f,Knockback*.35f)),true,true);
+    LastHitDirection = HitDirection.GetSafeNormal2D();
+    HitReactionTimeRemaining = 0.34f;
+    LaunchCharacter(LastHitDirection*Knockback+FVector(0,0,FMath::Min(180.0f,Knockback*.35f)),true,true);
     CombatTarget=Attacker;
     if(Health<=0.0f)
     {
-        bKnockedOut=true; KnockoutTimeRemaining=22.0f; CombatTarget.Reset(); GetCharacterMovement()->DisableMovement(); SetActorEnableCollision(false); SetActorHiddenInGame(true);
+        bKnockedOut=true; KnockoutTimeRemaining=22.0f; CombatTarget.Reset(); GetCharacterMovement()->DisableMovement(); SetActorEnableCollision(false);
+        if (BodyMesh) BodyMesh->SetRelativeRotation(FRotator(0,78,86));
+        if (HeadMesh) HeadMesh->SetRelativeLocation(FVector(18,0,12));
         return;
     }
     if(HostileArchetype==EGTTHostileArchetype::Civilian) GetCharacterMovement()->MaxWalkSpeed = Health < MaxHealth*.30f ? 310.0f : 225.0f;
+}
+
+void AGTTCitizenPawn::UpdateCombatPresentation(float DeltaSeconds)
+{
+    HitReactionTimeRemaining=FMath::Max(0.0f,HitReactionTimeRemaining-DeltaSeconds);
+    AttackPresentationTimeRemaining=FMath::Max(0.0f,AttackPresentationTimeRemaining-DeltaSeconds);
+    if (bKnockedOut) return;
+
+    const float HitAlpha = HitReactionTimeRemaining > 0.0f ? HitReactionTimeRemaining / 0.34f : 0.0f;
+    const float HitPulse = HitAlpha > 0.0f ? FMath::Sin(HitAlpha * PI) : 0.0f;
+    if (BodyMesh)
+    {
+        const float Side = FMath::Clamp(LastHitDirection.Y, -1.0f, 1.0f);
+        BodyMesh->SetRelativeRotation(FRotator(-20.0f*HitPulse,0,Side*24.0f*HitPulse));
+        BodyMesh->SetRelativeLocation(FVector(-10.0f*HitPulse,0,-20));
+    }
+    if (HeadMesh)
+    {
+        HeadMesh->SetRelativeRotation(FRotator(-12.0f*HitPulse,0,LastHitDirection.Y*18.0f*HitPulse));
+        HeadMesh->SetRelativeLocation(FVector(-7.0f*HitPulse,0,65+5.0f*HitPulse));
+    }
+
+    if (CombatProp && CombatProp->IsVisible())
+    {
+        const float AttackAlpha = AttackPresentationTimeRemaining > 0.0f ? AttackPresentationTimeRemaining / 0.30f : 0.0f;
+        const float Swing = AttackAlpha > 0.0f ? FMath::Sin(AttackAlpha * PI) : 0.0f;
+        CombatProp->SetRelativeRotation(FRotator(65.0f*Swing,18.0f*Swing,-18.0f));
+        CombatPropDetail->SetRelativeRotation(FRotator(65.0f*Swing,18.0f*Swing,-18.0f));
+    }
 }
 
 void AGTTCitizenPawn::UpdateCombatBehavior(float DeltaSeconds)
@@ -165,6 +242,7 @@ void AGTTCitizenPawn::UpdateCombatBehavior(float DeltaSeconds)
         const float MinCooldown=HostileArchetype==EGTTHostileArchetype::Runner?.55f:.78f;
         const float MaxCooldown=HostileArchetype==EGTTHostileArchetype::Bruiser?1.35f:1.05f;
         CombatCooldown=FMath::FRandRange(MinCooldown,MaxCooldown);
+        AttackPresentationTimeRemaining=0.30f;
         if(UGTTCombatComponent* Combat=Target->FindComponentByClass<UGTTCombatComponent>()) Combat->ApplyIncomingDamage(RetaliationDamage, bBrawlParticipant?FString::Printf(TEXT("%s hit"),*GetArchetypeLabel()):TEXT("Villager retaliation"));
     }
 }
