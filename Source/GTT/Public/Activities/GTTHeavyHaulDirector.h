@@ -5,6 +5,7 @@
 #include "GTTHeavyHaulDirector.generated.h"
 
 class AGTTFarmTrailer;
+class AGTTFieldmasterNativePawn;
 class AGTTVehicleBase;
 
 UENUM(BlueprintType)
@@ -41,6 +42,8 @@ public:
 private:
     bool CanTakeContract(APawn* PlayerPawn) const;
     AGTTVehicleBase* FindEligibleTowVehicle(const FVector& Origin, float Radius) const;
+    AGTTFieldmasterNativePawn* FindEligibleNativeTowVehicle(const FVector& Origin, float Radius) const;
+    float GetContractTowConditionFactor() const;
     void ResetContract(bool bResetTrailer);
     void PushMessage(APawn* Pawn, const FString& Message, float Duration = 5.0f) const;
 
@@ -49,6 +52,9 @@ private:
 
     UPROPERTY()
     TObjectPtr<AGTTVehicleBase> ContractTowVehicle;
+
+    UPROPERTY()
+    TObjectPtr<AGTTFieldmasterNativePawn> ContractNativeTowVehicle;
 
     EGTTHeavyHaulStage Stage = EGTTHeavyHaulStage::Idle;
     float TimeRemaining = 0.0f;

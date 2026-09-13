@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "GTTFarmTrailer.generated.h"
 
+class AGTTFieldmasterNativePawn;
 class AGTTVehicleBase;
 class UPhysicsConstraintComponent;
 class UStaticMeshComponent;
@@ -21,6 +22,9 @@ public:
     bool AttachToVehicle(AGTTVehicleBase* Vehicle);
 
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
+    bool AttachToNativeFieldmaster(AGTTFieldmasterNativePawn* Vehicle);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
     void DetachTrailer();
 
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
@@ -28,6 +32,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Trailer")
     bool IsAttached() const { return bAttached; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer")
+    bool IsAttachedToNativeFieldmaster() const { return NativeTowVehicle != nullptr; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Trailer")
     bool HasCargo() const { return bCargoLoaded; }
@@ -43,6 +50,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Trailer")
     AGTTVehicleBase* GetTowVehicle() const { return TowVehicle; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer")
+    AActor* GetTowActor() const;
 
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
     void ResetTrailer(const FTransform& Transform);
@@ -65,6 +75,9 @@ private:
 
     UPROPERTY()
     TObjectPtr<AGTTVehicleBase> TowVehicle;
+
+    UPROPERTY()
+    TObjectPtr<AGTTFieldmasterNativePawn> NativeTowVehicle;
 
     bool bAttached = false;
     bool bCargoLoaded = false;
