@@ -10,6 +10,9 @@ class UCameraComponent;
 class UChaosWheeledVehicleMovementComponent;
 class UInputComponent;
 class USpringArmComponent;
+class UPrimitiveComponent;
+class AActor;
+struct FHitResult;
 
 USTRUCT(BlueprintType)
 struct FGTTVehicleMigrationSnapshot
@@ -47,6 +50,7 @@ public:
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual void Interact_Implementation(AActor* Interactor) override;
     virtual FText GetInteractionText_Implementation() const override;
+    virtual void NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos")
     bool ConfigureAndValidateNativeFieldmaster(FString& OutSummary);
@@ -139,4 +143,5 @@ private:
     float LastThrottleInput = 0.0f;
     float MirrorSyncAccumulator = 0.0f;
     float TakeoverRetryAccumulator = 0.0f;
+    float LastImpactDamageTimeSeconds = -100.0f;
 };
