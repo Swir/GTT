@@ -88,3 +88,5 @@ jobs:
         run: python Scripts/verify_trailer_roadside_recovery.py
       - name: Verify trailer presentation milestone
         run: python Scripts/verify_trailer_presentation.py
+      - name: Verify Native Chaos runtime guard and evidence
+        run: python Scripts/verify_native_chaos_runtime_guard.py
