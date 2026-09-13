@@ -55,3 +55,6 @@ jobs:
 
       - name: Verify social venues milestone
         run: python Scripts/verify_social_venues.py
+
+      - name: Verify vehicle customization milestone
+        run: python Scripts/verify_vehicle_customization.py
