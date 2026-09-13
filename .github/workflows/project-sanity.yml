@@ -76,3 +76,5 @@ jobs:
         run: python Scripts/verify_fieldmaster_native_handoff.py
       - name: Verify Fieldmaster native runtime takeover
         run: python Scripts/verify_fieldmaster_native_takeover.py
+      - name: Verify Fieldmaster native workshop and tuning
+        run: python Scripts/verify_fieldmaster_native_service.py
