@@ -2,6 +2,24 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.34] - 2026-09-13
+
+### Added
+- **Chaos Fleet Runtime Bridge** milestone extending the gameplay-aware Chaos migration path from Rusty Fieldmaster 60 to all three owned vehicles: Fieldmaster, Rattleback 82 and Mulebox 1200.
+- Rattleback and Mulebox now each own `UGTTChaosVehicleBridgeComponent`, mirror the existing throttle/steering axes into the shared bridge and preserve the base/legacy driving path until a real native rig exists.
+- Fleet-wide canonical persistent-ID/spec resolution so `RustyFieldmaster60`, `Rattleback82` and `Mulebox1200` all feed the same fuel/condition/tuning/tire-aware Chaos bridge contract.
+- Dedicated `PLAYTEST_0.0.34.md` and `verify_chaos_fleet_bridge.py` coverage for all three vehicles, fallback safety and roadmap honesty.
+
+### Changed
+- The 0.0.33 single-tractor bridge is now a reusable fleet migration layer rather than a Fieldmaster-only integration path.
+- Rattleback workshop upgrades and Mulebox cargo/farm-job state remain authoritative because native input scaling consumes the existing persisted vehicle condition, fuel, engine tuning and tire state instead of duplicating gameplay data.
+- Roadmap remains exactly `125/130 (96.2%)`: source/runtime bridge readiness is meaningful progress, but Native Chaos tasks remain open until authored skeletal/physics/wheel rigs and UE 5.8 runtime acceptance exist.
+
+### Limitations / Next
+- The repository still lacks validated native skeletal/physics/wheel rigs for the fleet, so no vehicle is claimed to have switched to production Chaos handling yet.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current sanity runner; no packaged EXE verification is claimed.
+- Next package should author the first real Fieldmaster native rig/wheels/hitch path, then apply the same asset/runtime acceptance process to Rattleback and Mulebox.
+
 ## [0.0.33] - 2026-09-13
 
 ### Added
