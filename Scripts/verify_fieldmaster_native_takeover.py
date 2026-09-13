@@ -68,8 +68,8 @@ for token in [
 
 assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
 assert "📊 Overall progress" in roadmap
-checked = len(re.findall(r"^- \[x\] ", roadmap, re.MULTILINE))
-open_count = len(re.findall(r"^- \[ \] ", roadmap, re.MULTILINE))
+checked = len(re.findall(r"^\s*- \[x\] ", roadmap, re.MULTILINE))
+open_count = len(re.findall(r"^\s*- \[ \] ", roadmap, re.MULTILINE))
 total = checked + open_count
 assert (checked, total) == (125, 130), f"roadmap changed unexpectedly: {checked}/{total}"
 assert "125/130" in roadmap and "96.2%" in roadmap
