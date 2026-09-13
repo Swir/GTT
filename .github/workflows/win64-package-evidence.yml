@@ -1,0 +1,101 @@
+name: Win64 package evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'GTT version label for the package'
+        required: true
+        default: '0.0.43'
+      configuration:
+        description: 'Unreal build configuration'
+        required: true
+        type: choice
+        options:
+          - Shipping
+          - Development
+        default: Shipping
+      engine_root:
+        description: 'UE 5.8 installation root on the self-hosted runner'
+        required: true
+        default: 'C:\Program Files\Epic Games\UE_5.8'
+
+permissions:
+  contents: read
+
+jobs:
+  package-and-smoke:
+    name: UE 5.8 Win64 package + runtime evidence
+    runs-on: [self-hosted, windows, x64, unreal-5.8]
+    timeout-minutes: 90
+    env:
+      GTT_VERSION: ${{ inputs.version }}
+      GTT_CONFIGURATION: ${{ inputs.configuration }}
+      GTT_ENGINE_ROOT: ${{ inputs.engine_root }}
+      GTT_PACKAGE_DIR: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Verify UE 5.8 runner contract
+        shell: pwsh
+        run: |
+          $uat = Join-Path $env:GTT_ENGINE_ROOT 'Engine\Build\BatchFiles\RunUAT.bat'
+          if (-not (Test-Path $uat)) { throw "RunUAT.bat missing: $uat" }
+          Write-Host "Runner: $env:RUNNER_NAME"
+          Write-Host "UE root: $env:GTT_ENGINE_ROOT"
+          & $uat -Help | Select-Object -First 20
+
+      - name: Package Win64
+        shell: pwsh
+        run: |
+          ./Scripts/package_windows.ps1 `
+            -EngineRoot "$env:GTT_ENGINE_ROOT" `
+            -Configuration "$env:GTT_CONFIGURATION" `
+            -ArchiveDirectory "$env:GTT_PACKAGE_DIR" `
+            -Version "$env:GTT_VERSION" `
+            -SkipZip
+
+      - name: Runtime smoke test packaged EXE
+        shell: pwsh
+        run: |
+          ./Scripts/smoke_test_windows.ps1 `
+            -PackageDirectory "$env:GTT_PACKAGE_DIR" `
+            -Version "$env:GTT_VERSION" `
+            -MinimumAliveSeconds 20
+
+      - name: Re-validate evidence bundle
+        shell: pwsh
+        run: |
+          ./Scripts/validate_windows_package.ps1 `
+            -PackageDirectory "$env:GTT_PACKAGE_DIR" `
+            -Configuration "$env:GTT_CONFIGURATION" `
+            -Version "$env:GTT_VERSION"
+          if (-not (Test-Path (Join-Path $env:GTT_PACKAGE_DIR 'RUNTIME_SMOKE.json'))) {
+            throw 'RUNTIME_SMOKE.json missing after smoke test.'
+          }
+
+      - name: Build final ZIP and hash
+        shell: pwsh
+        run: |
+          $zip = "$env:GTT_PACKAGE_DIR.zip"
+          if (Test-Path $zip) { Remove-Item -Force $zip }
+          Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
+
+      - name: Upload verified Win64 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: GTT-${{ inputs.version }}-Win64-verified
+          path: |
+            ${{ env.GTT_PACKAGE_DIR }}.zip
+            ${{ env.GTT_PACKAGE_DIR }}.zip.sha256
+            ${{ env.GTT_PACKAGE_DIR }}\BUILD_INFO.json
+            ${{ env.GTT_PACKAGE_DIR }}\PACKAGE_VALIDATION.json
+            ${{ env.GTT_PACKAGE_DIR }}\RUNTIME_SMOKE.json
+          if-no-files-found: error
+          retention-days: 14
