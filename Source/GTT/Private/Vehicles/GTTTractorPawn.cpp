@@ -1,8 +1,10 @@
 #include "Vehicles/GTTTractorPawn.h"
 
+#include "Components/InputComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Vehicles/GTTChaosVehicleBridgeComponent.h"
 
 namespace
 {
@@ -34,6 +36,8 @@ AGTTTractorPawn::AGTTTractorPawn()
     ExitOffset = FVector(0.0f, 220.0f, 90.0f);
     LowConditionFaultChancePerSecond = 0.09f;
     CriticalEngineTemperatureC = 128.0f;
+
+    ChaosVehicleBridge = CreateDefaultSubobject<UGTTChaosVehicleBridgeComponent>(TEXT("ChaosVehicleBridge"));
 
     FGTTVehicleDynamicsProfile Dynamics;
     Dynamics.WheelBaseCm = 255.0f;
@@ -127,4 +131,23 @@ AGTTTractorPawn::AGTTTractorPawn()
     RegisterBreakablePart(RightFenderMesh, 0.44f, TEXT("right fender"));
     RegisterBreakablePart(ExhaustMesh, 0.28f, TEXT("exhaust stack"));
     RegisterBreakablePart(HoodMesh, 0.16f, TEXT("hood"));
+}
+
+void AGTTTractorPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+    if (!PlayerInputComponent) return;
+
+    PlayerInputComponent->BindAxis(TEXT("VehicleThrottle"), this, &AGTTTractorPawn::CaptureChaosThrottle);
+    PlayerInputComponent->BindAxis(TEXT("VehicleSteer"), this, &AGTTTractorPawn::CaptureChaosSteering);
+}
+
+void AGTTTractorPawn::CaptureChaosThrottle(float Value)
+{
+    if (ChaosVehicleBridge) ChaosVehicleBridge->CaptureThrottleInput(Value);
+}
+
+void AGTTTractorPawn::CaptureChaosSteering(float Value)
+{
+    if (ChaosVehicleBridge) ChaosVehicleBridge->CaptureSteeringInput(Value);
 }
