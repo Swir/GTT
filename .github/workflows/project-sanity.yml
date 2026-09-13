@@ -76,3 +76,6 @@ jobs:
 
       - name: Verify Native Chaos rig architecture
         run: python Scripts/verify_native_chaos_rig.py
+
+      - name: Verify native rig acceptance gate
+        run: python Scripts/verify_native_rig_acceptance.py
