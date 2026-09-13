@@ -182,6 +182,12 @@ void UGTTVillagePresentationSubsystem::RefreshPresentation()
     {
         if (UTextRenderComponent* Text = It->GetTextRender())
         {
+            const FString CurrentText = Text->GetText().ToString();
+            if (CurrentText.StartsWith(TEXT("GTT 0.0.12 |")))
+            {
+                Text->SetText(FText::FromString(TEXT("GTT 0.0.37 | LIVING VILLAGE SANDBOX")));
+            }
+
             const bool bNearby = FVector::DistSquared(PlayerLocation, It->GetActorLocation()) <= LabelVisibleDistanceSq;
             Text->SetVisibility(bNearby, true);
         }
