@@ -2,6 +2,25 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.37] - 2026-09-13
+
+### Added
+- **Village Presentation Pass** milestone focused on making the current playable sandbox cleaner and more readable before any public demo is considered.
+- Runtime `UGTTVillagePresentationSubsystem` scoped to the GTT prototype world, with 14 source-built roadside lamp fixtures tied directly to the existing `AGTTDayNightCycle`.
+- Roadside reflector/delineator props around the main village loop plus non-colliding hay-bale and timber-stack dressing at Hill Farm and North Wood Yard.
+- Dedicated `PLAYTEST_0.0.37.md` and `verify_village_presentation.py` coverage for lighting, label readability, rural dressing, regression safety and demo-acceptance honesty.
+
+### Changed
+- World-space prototype labels now use a 1900 cm readability radius, keeping nearby mission/service information while suppressing the distant wall-of-debug-text effect across the countryside.
+- The stale runtime prototype banner is normalized to `GTT 0.0.37 | LIVING VILLAGE SANDBOX` by the presentation layer without changing gameplay triggers or save data.
+- Street lights use bounded attenuation and no shadow casting, and automatically switch with the real day/night state instead of running a disconnected presentation clock.
+- Roadmap remains exactly `125/130 (96.2%)`: this is a genuine visual/readability milestone but does not substitute for Native Chaos runtime acceptance, authored trailer assets or a verified Win64 build runner.
+
+### Limitations / Next
+- The visual pass deliberately uses original source-built Unreal primitives and is not a claim of final environment art, final vehicle art or a visually approved packaged demo.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation is still unavailable on the current repository sanity runner; no packaged EXE verification is claimed.
+- Next large package should continue reducing prototype presentation debt while advancing the first truly activatable Native Chaos vehicle path or the missing Unreal-capable Windows runner.
+
 ## [0.0.36] - 2026-09-13
 
 ### Added
@@ -73,7 +92,7 @@ All notable development steps for GTT are tracked here.
 
 ### Limitations / Next
 - The current repository still does not contain the final Fieldmaster skeletal mesh, physics asset, wheel assets or validated native Chaos vehicle pawn, so handling is not claimed to have switched in the playable greybox build yet.
-- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current sanity runner; no packaged EXE verification is claimed.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current repository sanity runner; no packaged EXE verification is claimed.
 - Next package should add the authored Fieldmaster skeletal/physics/wheel rig and activate this bridge against a real native movement component, then repeat the same integration for Rattleback 82 and Mulebox 1200.
 
 ## [0.0.32] - 2026-09-13
