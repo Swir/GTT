@@ -90,3 +90,5 @@ jobs:
         run: python Scripts/verify_trailer_presentation.py
       - name: Verify Native Chaos runtime guard and evidence
         run: python Scripts/verify_native_chaos_runtime_guard.py
+      - name: Verify Native Fieldmaster drive dynamics
+        run: python Scripts/verify_native_drive_dynamics.py
