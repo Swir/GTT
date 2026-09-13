@@ -3,6 +3,7 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
+#include "Vehicles/GTTChaosPowertrainSetupLibrary.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Vehicles/GTTVehicleDynamicsComponent.h"
 #include "GTT.h"
@@ -155,6 +156,55 @@ bool UGTTChaosVehicleBridgeComponent::ValidateNativeWheelSetup()
     return bNativeWheelSetupValid;
 }
 
+bool UGTTChaosVehicleBridgeComponent::ValidateNativePowertrain()
+{
+    bNativePowertrainValid = false;
+    PowertrainValidationSummary = TEXT("No native powertrain bound");
+
+    if (!NativeMovement || ResolvedSpec.VehicleId.IsNone())
+    {
+        return false;
+    }
+
+    bNativePowertrainValid = UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(
+        NativeMovement,
+        ResolvedSpec.VehicleId,
+        PowertrainValidationSummary);
+    return bNativePowertrainValid;
+}
+
+bool UGTTChaosVehicleBridgeComponent::ConfigureNativeMovementFromCanonicalSpec(FString& OutSummary)
+{
+    if (!VehicleOwner)
+    {
+        VehicleOwner = Cast<AGTTVehicleBase>(GetOwner());
+    }
+    if (!VehicleOwner)
+    {
+        OutSummary = TEXT("No GTT vehicle owner");
+        return false;
+    }
+
+    if (ResolvedSpec.VehicleId.IsNone()) ResolveSpec();
+    NativeMovement = VehicleOwner->FindComponentByClass<UChaosWheeledVehicleMovementComponent>();
+    if (!NativeMovement || ResolvedSpec.VehicleId.IsNone())
+    {
+        OutSummary = TEXT("Native Chaos movement/spec unavailable");
+        return false;
+    }
+
+    FString WheelSummary;
+    FString PowertrainSummary;
+    const bool bWheelsConfigured = UGTTChaosNativeSetupLibrary::ConfigureCanonicalWheelSetups(
+        NativeMovement, ResolvedSpec.VehicleId, WheelSummary);
+    const bool bPowertrainConfigured = UGTTChaosPowertrainSetupLibrary::ConfigureCanonicalPowertrain(
+        NativeMovement, ResolvedSpec.VehicleId, PowertrainSummary);
+
+    OutSummary = FString::Printf(TEXT("WHEELS: %s | POWERTRAIN: %s"), *WheelSummary, *PowertrainSummary);
+    RefreshNativeBinding();
+    return bWheelsConfigured && bPowertrainConfigured && bNativeMovementReady;
+}
+
 void UGTTChaosVehicleBridgeComponent::RefreshNativeBinding()
 {
     if (!VehicleOwner)
@@ -162,14 +212,8 @@ void UGTTChaosVehicleBridgeComponent::RefreshNativeBinding()
         VehicleOwner = Cast<AGTTVehicleBase>(GetOwner());
     }
 
-    if (VehicleOwner && ResolvedSpec.VehicleId.IsNone())
-    {
-        ResolveSpec();
-    }
-    if (VehicleOwner && ResolvedRigContract.VehicleId.IsNone())
-    {
-        ResolveRigContract();
-    }
+    if (VehicleOwner && ResolvedSpec.VehicleId.IsNone()) ResolveSpec();
+    if (VehicleOwner && ResolvedRigContract.VehicleId.IsNone()) ResolveRigContract();
 
     NativeMovement = VehicleOwner ? VehicleOwner->FindComponentByClass<UChaosWheeledVehicleMovementComponent>() : nullptr;
     LegacyDynamics = VehicleOwner ? VehicleOwner->FindComponentByClass<UGTTVehicleDynamicsComponent>() : nullptr;
@@ -178,24 +222,21 @@ void UGTTChaosVehicleBridgeComponent::RefreshNativeBinding()
     const bool bHasSpec = ResolvedSpec.VehicleId != NAME_None;
     const bool bRigValid = ValidateNativeRig();
     const bool bWheelSetupValid = ValidateNativeWheelSetup();
-    bNativeMovementReady = NativeMovement != nullptr && bHasSpec && bRigValid && bWheelSetupValid;
+    const bool bPowertrainValid = ValidateNativePowertrain();
+    bNativeMovementReady = NativeMovement != nullptr && bHasSpec && bRigValid && bWheelSetupValid && bPowertrainValid;
     BridgeState = bNativeMovementReady ? EGTTChaosBridgeState::NativeReady : EGTTChaosBridgeState::WaitingForNativeRig;
 
     if (bNativeMovementReady)
     {
         DisableLegacyDynamicsIfNeeded();
-        UE_LOG(LogGTT, Log, TEXT("Chaos bridge native setup accepted for %s (%s; %s)"),
-            *ResolvedSpec.VehicleId.ToString(),
-            *RigValidationSummary,
-            *NativeSetupValidationSummary);
+        UE_LOG(LogGTT, Log, TEXT("Chaos bridge native setup accepted for %s (%s; %s; %s)"),
+            *ResolvedSpec.VehicleId.ToString(), *RigValidationSummary, *NativeSetupValidationSummary, *PowertrainValidationSummary);
     }
     else if (NativeMovement || NativeSkeletalBody)
     {
-        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge native setup rejected for %s: movement=%s rig=%s wheels=%s"),
+        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge native setup rejected for %s: movement=%s rig=%s wheels=%s powertrain=%s"),
             ResolvedSpec.VehicleId.IsNone() ? TEXT("NO SPEC") : *ResolvedSpec.VehicleId.ToString(),
-            NativeMovement ? TEXT("YES") : TEXT("NO"),
-            *RigValidationSummary,
-            *NativeSetupValidationSummary);
+            NativeMovement ? TEXT("YES") : TEXT("NO"), *RigValidationSummary, *NativeSetupValidationSummary, *PowertrainValidationSummary);
     }
 }
 
@@ -230,10 +271,7 @@ void UGTTChaosVehicleBridgeComponent::UpdateRuntimeState()
 
 void UGTTChaosVehicleBridgeComponent::RouteInputsToChaos()
 {
-    if (!NativeMovement || !VehicleOwner)
-    {
-        return;
-    }
+    if (!NativeMovement || !VehicleOwner) return;
 
     const bool bCanDrive = VehicleOwner->IsOccupied() && VehicleOwner->IsEngineRunning() &&
         VehicleOwner->GetFuelLiters() > KINDA_SMALL_NUMBER && VehicleOwner->GetConditionPercent() > 0.0f;
@@ -272,11 +310,7 @@ void UGTTChaosVehicleBridgeComponent::RouteInputsToChaos()
 
 void UGTTChaosVehicleBridgeComponent::DisableLegacyDynamicsIfNeeded()
 {
-    if (bLegacyDynamicsDisabled || !LegacyDynamics)
-    {
-        return;
-    }
-
+    if (bLegacyDynamicsDisabled || !LegacyDynamics) return;
     LegacyDynamics->SetDriverInputs(0.0f, 0.0f);
     LegacyDynamics->SetComponentTickEnabled(false);
     bLegacyDynamicsDisabled = true;
@@ -284,16 +318,8 @@ void UGTTChaosVehicleBridgeComponent::DisableLegacyDynamicsIfNeeded()
 
 bool UGTTChaosVehicleBridgeComponent::TryGetNativeHitchTransform(FTransform& OutTransform) const
 {
-    if (!bRigContractValid || !NativeSkeletalBody || !ResolvedRigContract.bRequiresHitchSocket || ResolvedRigContract.HitchSocket.IsNone())
-    {
-        return false;
-    }
-
-    if (!NativeSkeletalBody->DoesSocketExist(ResolvedRigContract.HitchSocket))
-    {
-        return false;
-    }
-
+    if (!bRigContractValid || !NativeSkeletalBody || !ResolvedRigContract.bRequiresHitchSocket || ResolvedRigContract.HitchSocket.IsNone()) return false;
+    if (!NativeSkeletalBody->DoesSocketExist(ResolvedRigContract.HitchSocket)) return false;
     OutTransform = NativeSkeletalBody->GetSocketTransform(ResolvedRigContract.HitchSocket, RTS_World);
     return true;
 }
@@ -309,11 +335,12 @@ FString UGTTChaosVehicleBridgeComponent::GetBridgeStatusSummary() const
         default: break;
     }
 
-    return FString::Printf(TEXT("CHAOS %s | %s | RIG %s | WHEELS %s | PWR %.0f%% | GRIP %.0f%%"),
+    return FString::Printf(TEXT("CHAOS %s | %s | RIG %s | WHEELS %s | POWERTRAIN %s | PWR %.0f%% | GRIP %.0f%%"),
         StateText,
         ResolvedSpec.VehicleId.IsNone() ? TEXT("NO SPEC") : *ResolvedSpec.VehicleId.ToString(),
         bRigContractValid ? TEXT("VALID") : TEXT("WAIT"),
         bNativeWheelSetupValid ? TEXT("VALID") : TEXT("WAIT"),
+        bNativePowertrainValid ? TEXT("VALID") : TEXT("WAIT"),
         EffectivePowerScale * 100.0f,
         EffectiveGripScale * 100.0f);
 }
