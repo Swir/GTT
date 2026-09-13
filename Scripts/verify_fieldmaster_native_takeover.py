@@ -4,6 +4,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 header = (ROOT / "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h").read_text(encoding="utf-8")
 cpp = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp").read_text(encoding="utf-8")
+rig_header = (ROOT / "Source/GTT/Public/Vehicles/GTTChaosRigContract.h").read_text(encoding="utf-8")
 statics = (ROOT / "Source/GTT/Private/Core/GTTGameplayStatics.cpp").read_text(encoding="utf-8")
 garage = (ROOT / "Source/GTT/Private/World/GTTGarageSlotTerminal.cpp").read_text(encoding="utf-8")
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
@@ -31,7 +32,6 @@ for token in [
     "ImportLegacyGameplayState",
     "LegacyVehicle->SetActorTickEnabled(false)",
     "SetActorHiddenInGame(false)",
-    "driver_seat",
     "Rig.DriverSocket",
     "Rig.ExitSocket",
     'BindAction(TEXT("ExitVehicle")',
@@ -45,6 +45,9 @@ for token in [
     "SetTargetGear",
 ]:
     assert token in cpp, f"native takeover implementation missing {token}"
+
+assert 'DriverSocket = TEXT("driver_seat")' in rig_header
+assert 'ExitSocket = TEXT("driver_exit")' in rig_header
 
 for token in [
     'Cast<AGTTFieldmasterNativePawn>(Pawn)',
