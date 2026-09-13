@@ -14,71 +14,51 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: false
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
       - name: Verify repository structure
         run: python Scripts/verify_project.py
-
       - name: Verify combat milestone
         run: python Scripts/verify_combat.py
-
       - name: Verify Arc 3 campaign milestone
         run: python Scripts/verify_arc3.py
-
       - name: Verify heavy haul milestone
         run: python Scripts/verify_heavy_haul.py
-
       - name: Verify rural factions milestone
         run: python Scripts/verify_factions.py
-
       - name: Verify rural economy and road law milestone
         run: python Scripts/verify_rural_economy.py
-
       - name: Verify Arc 4 and North Pass countryside milestone
         run: python Scripts/verify_arc4.py
-
       - name: Verify unified world-state milestone
         run: python Scripts/verify_unified_save.py
-
       - name: Verify world performance milestone
         run: python Scripts/verify_world_performance.py
-
       - name: Verify player experience milestone
         run: python Scripts/verify_player_experience.py
-
       - name: Verify release pipeline milestone
         run: python Scripts/verify_release_pipeline.py
-
       - name: Verify social venues milestone
         run: python Scripts/verify_social_venues.py
-
       - name: Verify vehicle customization milestone
         run: python Scripts/verify_vehicle_customization.py
-
       - name: Verify Chaos migration foundation
         run: python Scripts/verify_chaos_migration.py
-
       - name: Verify original radio audio milestone
         run: python Scripts/verify_radio_audio.py
-
       - name: Verify combat presentation milestone
         run: python Scripts/verify_combat_presentation.py
-
       - name: Verify Fieldmaster Chaos runtime bridge
         run: python Scripts/verify_fieldmaster_chaos_bridge.py
-
       - name: Verify Chaos fleet runtime bridge
         run: python Scripts/verify_chaos_fleet_bridge.py
-
       - name: Verify Native Chaos rig architecture
         run: python Scripts/verify_native_chaos_rig.py
-
       - name: Verify native rig acceptance gate
         run: python Scripts/verify_native_rig_acceptance.py
-
       - name: Verify village presentation milestone
         run: python Scripts/verify_village_presentation.py
+      - name: Verify demo HUD presentation milestone
+        run: python Scripts/verify_demo_hud.py

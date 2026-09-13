@@ -7,6 +7,7 @@
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
+#include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -25,165 +26,210 @@
 void AGTTGameHUD::DrawHUD()
 {
     Super::DrawHUD();
-    if (!PlayerOwner) return;
+    if (!PlayerOwner || !Canvas || !GEngine) return;
 
     APawn* ControlledPawn = PlayerOwner->GetPawn();
+    AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn);
     UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(ControlledPawn);
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn);
     UGTTRadioComponent* Radio = UGTTGameplayStatics::FindRadioComponentForPawn(ControlledPawn);
     UGTTCombatComponent* Combat = ControlledPawn ? ControlledPawn->FindComponentByClass<UGTTCombatComponent>() : nullptr;
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
     AGTTPoliceDirector* PoliceDirector = Cast<AGTTPoliceDirector>(UGameplayStatics::GetActorOfClass(this, AGTTPoliceDirector::StaticClass()));
-    AGTTFarmJobDirector* FarmJobDirector = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
-    AGTTHeavyHaulDirector* HeavyHaul = Cast<AGTTHeavyHaulDirector>(UGameplayStatics::GetActorOfClass(this, AGTTHeavyHaulDirector::StaticClass()));
-    AGTTRuralWorkDirector* RuralWork = Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRuralWorkDirector::StaticClass()));
-    AGTTBrawlDirector* Brawl = Cast<AGTTBrawlDirector>(UGameplayStatics::GetActorOfClass(this, AGTTBrawlDirector::StaticClass()));
-    AGTTMainStoryDirector* MainStory = Cast<AGTTMainStoryDirector>(UGameplayStatics::GetActorOfClass(this, AGTTMainStoryDirector::StaticClass()));
-    AGTTArc3Director* Arc3 = Cast<AGTTArc3Director>(UGameplayStatics::GetActorOfClass(this, AGTTArc3Director::StaticClass()));
-    AGTTArc4Director* Arc4 = Cast<AGTTArc4Director>(UGameplayStatics::GetActorOfClass(this, AGTTArc4Director::StaticClass()));
-    AGTTNightFavorDirector* NightFavor = Cast<AGTTNightFavorDirector>(UGameplayStatics::GetActorOfClass(this, AGTTNightFavorDirector::StaticClass()));
-    AGTTVillageEventDirector* NightDirector = Cast<AGTTVillageEventDirector>(UGameplayStatics::GetActorOfClass(this, AGTTVillageEventDirector::StaticClass()));
 
+    const float LeftX = 34.0f;
+    const float RightX = FMath::Max(520.0f, Canvas->ClipX - 570.0f);
+    const float BottomY = FMath::Max(360.0f, Canvas->ClipY - 118.0f);
     const int32 WantedLevel = Wanted ? Wanted->GetWantedLevel() : 0;
-    const FLinearColor WantedColor = WantedLevel > 0 ? FLinearColor(1.0f,0.18f,0.08f,1.0f) : FLinearColor(0.72f,0.72f,0.72f,1.0f);
-    DrawText(BuildWantedBar(WantedLevel), WantedColor, 36.0f, 34.0f, GEngine->GetSmallFont(), 1.35f, false);
 
-    float Y = 64.0f;
-    if (PoliceDirector && WantedLevel > 0)
-    {
-        DrawText(FString::Printf(TEXT("POLICE RESPONSE | FOOT %d | PURSUIT CARS %d | ROADBLOCKS %d%s"),
-            PoliceDirector->GetActiveFootUnitCount(), PoliceDirector->GetActivePursuitVehicleCount(), PoliceDirector->GetActiveRoadblockCount(),
-            WantedLevel >= 4 ? TEXT(" | INTERCEPTION MODE") : (WantedLevel >= 3 ? TEXT(" | VEHICLE ESCALATION") : TEXT(""))),
-            WantedLevel >= 4 ? FLinearColor(1.0f,0.18f,0.08f,1.0f) : FLinearColor(0.9f,0.72f,0.32f,1.0f),
-            36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
-        Y += 28.0f;
-    }
-
-    if (GameMode)
-    {
-        FString WardenMarks;
-        const int32 RangerLevel = GameMode->GetWildlifeAlertLevel();
-        for (int32 Index=0; Index<3; ++Index) WardenMarks += Index < RangerLevel ? TEXT("!") : TEXT("-");
-        DrawText(FString::Printf(TEXT("WARDEN [%s]"), *WardenMarks), RangerLevel > 0 ? FLinearColor(1.0f,0.55f,0.12f,1.0f) : FLinearColor(0.55f,0.7f,0.55f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
-        Y += 28.0f;
-    }
-
-    if (Economy)
-    {
-        DrawText(FString::Printf(TEXT("CASH $%d  |  FISH %d  |  %.2f kg"), Economy->GetCash(), Economy->GetFishCount(), Economy->GetFishWeightKg()), FLinearColor(0.35f,1.0f,0.45f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
-        Y += 30.0f;
-    }
-
-    if (Combat)
-    {
-        DrawText(Combat->GetCombatStatusText(), Combat->GetHealthPercent() < 0.3f ? FLinearColor(1.0f,0.2f,0.1f,1.0f) : FLinearColor(1.0f,0.68f,0.22f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.98f, false);
-        Y += 29.0f;
-    }
-
+    // Persistent status is deliberately compact. Quiet systems no longer occupy a line each.
+    FString StatusLine;
     if (GameMode)
     {
         const FString TimeText = GameMode->GetDayNightCycle() ? GameMode->GetDayNightCycle()->GetClockText() : TEXT("DAY ? --:--");
-        const FString GarageText = FString::Printf(TEXT("  |  GARAGE %d/%d"), GameMode->GetOwnedVehicleCount(), GameMode->GetGarageCapacity());
-        DrawText(TimeText + GarageText, FLinearColor(0.95f,0.9f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
-        Y += 30.0f;
+        StatusLine = FString::Printf(TEXT("%s  |  GARAGE %d/%d"), *TimeText, GameMode->GetOwnedVehicleCount(), GameMode->GetGarageCapacity());
+    }
+    if (Economy)
+    {
+        StatusLine += FString::Printf(TEXT("  |  $%d"), Economy->GetCash());
+    }
+    if (!StatusLine.IsEmpty())
+    {
+        DrawHudText(StatusLine, FLinearColor(0.92f, 0.90f, 0.76f, 1.0f), LeftX, 30.0f, 0.98f);
     }
 
-    if (MainStory)
+    float AlertY = 57.0f;
+    if (WantedLevel > 0)
     {
-        DrawText(MainStory->GetObjectiveText(), MainStory->GetStage() == EGTTMainStoryStage::Completed ? FLinearColor(0.35f,1.0f,0.5f,1.0f) : FLinearColor(1.0f,0.78f,0.18f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
-        Y += 30.0f;
-    }
-
-    if (Arc3 && (Arc3->GetStage() != EGTTArc3Stage::Locked || (MainStory && MainStory->GetStage() == EGTTMainStoryStage::Completed)))
-    {
-        DrawText(Arc3->GetObjectiveText(), Arc3->GetStage() == EGTTArc3Stage::Completed ? FLinearColor(0.3f,1.0f,0.45f,1.0f) : FLinearColor(1.0f,0.42f,0.14f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
-        Y += 30.0f;
-    }
-
-    if (Arc4 && (Arc4->GetStage() != EGTTArc4Stage::Locked || (Arc3 && Arc3->GetStage() == EGTTArc3Stage::Completed)))
-    {
-        DrawText(Arc4->GetObjectiveText(), Arc4->GetStage() == EGTTArc4Stage::Completed ? FLinearColor(0.3f,1.0f,0.55f,1.0f) : FLinearColor(1.0f,0.58f,0.12f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
-        Y += 30.0f;
-    }
-
-    if (Brawl && Brawl->IsBrawlActive())
-    {
-        DrawText(Brawl->GetObjectiveText(), FLinearColor(1.0f,0.28f,0.18f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.02f, false);
-        Y += 30.0f;
-    }
-
-    if (NightDirector && NightDirector->IsNightlifeOpen())
-    {
-        DrawText(NightDirector->GetNightlifeSummary(), FLinearColor(1.0f,0.45f,0.9f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.94f, false);
-        Y += 28.0f;
-    }
-
-    if (FarmJobDirector && FarmJobDirector->IsJobActive())
-    {
-        DrawText(FarmJobDirector->GetObjectiveText(), FLinearColor(0.35f,1.0f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
-        Y += 30.0f;
-    }
-    if (HeavyHaul && HeavyHaul->IsActive())
-    {
-        DrawText(HeavyHaul->GetObjectiveText(), FLinearColor(1.0f,0.72f,0.18f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
-        Y += 30.0f;
-    }
-    if (RuralWork && RuralWork->IsWorkActive())
-    {
-        DrawText(RuralWork->GetObjectiveText(), FLinearColor(0.45f,0.95f,0.35f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
-        Y += 30.0f;
-    }
-    if (NightFavor && NightFavor->IsActive())
-    {
-        DrawText(NightFavor->GetObjectiveText(), FLinearColor(0.95f,0.55f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
-        Y += 30.0f;
-    }
-
-    if (const AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn))
-    {
-        const FString VehicleLine = FString::Printf(TEXT("%s  |  CONDITION %.0f%%  |  FUEL %.0f%% (%.1fL)  |  TEMP %.0fC  |  %.0f km/h%s%s"),
-            *Vehicle->GetVehicleDisplayName().ToString(), Vehicle->GetConditionPercent()*100.0f, Vehicle->GetFuelPercent()*100.0f,
-            Vehicle->GetFuelLiters(), Vehicle->GetEngineTemperatureC(), Vehicle->GetSpeedKmh(),
-            Vehicle->WasReportedStolen() && !Vehicle->IsOwnedByPlayer() ? TEXT("  |  STOLEN") : TEXT(""),
-            Vehicle->IsOwnedByPlayer() ? TEXT("  |  OWNED") : TEXT(""));
-        DrawText(VehicleLine, FLinearColor::White, 36.0f, Y, GEngine->GetSmallFont(), 1.05f, false);
-        Y += 30.0f;
-        DrawText(FString::Printf(TEXT("VEHICLE DYNAMICS | %s"), *Vehicle->GetDynamicsSummary()), Vehicle->GetGroundContactCount() >= 3 ? FLinearColor(0.45f,0.9f,1.0f,1.0f) : FLinearColor(1.0f,0.65f,0.2f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
-        Y += 28.0f;
-        if (Radio)
+        DrawHudText(BuildWantedBar(WantedLevel), FLinearColor(1.0f, 0.18f, 0.08f, 1.0f), LeftX, AlertY, 1.18f);
+        AlertY += 27.0f;
+        if (PoliceDirector)
         {
-            DrawText(Radio->GetDisplayLine(), Radio->IsRadioOn() ? FLinearColor(0.48f,0.88f,1.0f,1.0f) : FLinearColor(0.55f,0.6f,0.65f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
-            Y += 28.0f;
-        }
-        DrawText(FString::Printf(TEXT("TUNING | ENGINE L%d/3 | TIRES L%d/3 | TIRE HEALTH %.0f%%"), Vehicle->GetEngineUpgradeLevel(), Vehicle->GetTireUpgradeLevel(), Vehicle->GetTireIntegrity()*100.0f), Vehicle->GetTireIntegrity() < 0.25f ? FLinearColor(1.0f,0.25f,0.12f,1.0f) : FLinearColor(0.55f,0.85f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.92f, false);
-        Y += 28.0f;
-        const FString FaultText = Vehicle->GetFaultStatusText();
-        if (!FaultText.IsEmpty())
-        {
-            DrawText(FString::Printf(TEXT("VEHICLE DAMAGE  |  %s  |  DETACHED PARTS %d"), *FaultText, Vehicle->GetDetachedPartCount()), FLinearColor(1.0f,0.34f,0.12f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.95f, false);
-            Y += 28.0f;
+            const FString Response = FString::Printf(TEXT("POLICE  |  FOOT %d  CARS %d  BLOCKS %d%s"),
+                PoliceDirector->GetActiveFootUnitCount(), PoliceDirector->GetActivePursuitVehicleCount(), PoliceDirector->GetActiveRoadblockCount(),
+                WantedLevel >= 4 ? TEXT("  |  INTERCEPT") : (WantedLevel >= 3 ? TEXT("  |  ESCALATING") : TEXT("")));
+            DrawHudText(Response, WantedLevel >= 4 ? FLinearColor(1.0f, 0.20f, 0.10f, 1.0f) : FLinearColor(0.95f, 0.66f, 0.24f, 1.0f), LeftX, AlertY, 0.88f);
+            AlertY += 24.0f;
         }
     }
 
-    const FString MissionText = BuildMissionText();
-    if (!MissionText.IsEmpty())
+    if (GameMode && GameMode->GetWildlifeAlertLevel() > 0)
     {
-        DrawText(MissionText, FLinearColor(1.0f,0.82f,0.18f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
-        Y += 30.0f;
+        FString Marks;
+        const int32 RangerLevel = GameMode->GetWildlifeAlertLevel();
+        for (int32 Index = 0; Index < 3; ++Index) Marks += Index < RangerLevel ? TEXT("!") : TEXT("-");
+        DrawHudText(FString::Printf(TEXT("WARDEN [%s]"), *Marks), FLinearColor(1.0f, 0.55f, 0.12f, 1.0f), LeftX, AlertY, 0.94f);
     }
+
+    // Only the highest-priority live objective is shown. This prevents four story/activity lines competing at once.
+    const FString Objective = BuildPrimaryObjective();
+    if (!Objective.IsEmpty())
+    {
+        DrawHudText(TEXT("CURRENT OBJECTIVE"), FLinearColor(0.52f, 0.72f, 0.95f, 1.0f), RightX, 30.0f, 0.78f);
+        DrawHudText(Objective, FLinearColor(1.0f, 0.80f, 0.20f, 1.0f), RightX, 52.0f, 0.98f);
+    }
+
     if (Economy && !Economy->GetActivityMessage().IsEmpty())
     {
-        DrawText(Economy->GetActivityMessage(), FLinearColor(0.35f,0.88f,1.0f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 1.0f, false);
-        Y += 30.0f;
+        DrawHudText(Economy->GetActivityMessage(), FLinearColor(0.35f, 0.88f, 1.0f, 1.0f), RightX, Objective.IsEmpty() ? 30.0f : 81.0f, 0.86f);
     }
-    DrawText(TEXT("CONTROLS | LMB attack | Q next weapon | G drop | E interact | WASD move/drive | F exit | R radio | F5/F9 save/load"), FLinearColor(0.72f,0.82f,0.95f,1.0f), 36.0f, Y, GEngine->GetSmallFont(), 0.85f, false);
+
+    if (Vehicle)
+    {
+        DrawHudText(TEXT("VEHICLE"), FLinearColor(0.52f, 0.72f, 0.95f, 1.0f), LeftX, BottomY - 28.0f, 0.78f);
+        DrawHudText(BuildVehicleStatus(Vehicle), FLinearColor::White, LeftX, BottomY - 7.0f, 0.98f);
+
+        const FString VehicleAlert = BuildVehicleAlert(Vehicle);
+        if (!VehicleAlert.IsEmpty())
+        {
+            DrawHudText(VehicleAlert, FLinearColor(1.0f, 0.34f, 0.12f, 1.0f), LeftX, BottomY + 19.0f, 0.86f);
+        }
+
+        if (Radio && Radio->IsRadioOn())
+        {
+            DrawHudText(Radio->GetDisplayLine(), FLinearColor(0.48f, 0.88f, 1.0f, 1.0f), LeftX, BottomY + (VehicleAlert.IsEmpty() ? 19.0f : 43.0f), 0.82f);
+        }
+    }
+    else if (Combat)
+    {
+        const FLinearColor CombatColor = Combat->GetHealthPercent() < 0.3f ? FLinearColor(1.0f, 0.20f, 0.10f, 1.0f) : FLinearColor(1.0f, 0.68f, 0.22f, 1.0f);
+        DrawHudText(Combat->GetCombatStatusText(), CombatColor, LeftX, BottomY + 8.0f, 0.90f);
+    }
+
+    const FString ContextHint = BuildContextHint(ControlledPawn, Vehicle);
+    if (!ContextHint.IsEmpty())
+    {
+        DrawHudText(ContextHint, FLinearColor(0.68f, 0.78f, 0.90f, 1.0f), FMath::Max(LeftX, Canvas->ClipX - 500.0f), Canvas->ClipY - 42.0f, 0.76f);
+    }
+}
+
+void AGTTGameHUD::DrawHudText(const FString& Text, const FLinearColor& Color, float X, float Y, float Scale)
+{
+    if (Text.IsEmpty() || !GEngine) return;
+    DrawText(Text, Color, X, Y, GEngine->GetSmallFont(), Scale, false);
 }
 
 FString AGTTGameHUD::BuildWantedBar(int32 WantedLevel) const
 {
     FString Stars;
-    for (int32 Index=0; Index<5; ++Index) Stars += Index < WantedLevel ? TEXT("*") : TEXT("-");
+    for (int32 Index = 0; Index < 5; ++Index) Stars += Index < WantedLevel ? TEXT("*") : TEXT("-");
     return FString::Printf(TEXT("WANTED [%s]"), *Stars);
+}
+
+FString AGTTGameHUD::BuildPrimaryObjective() const
+{
+    if (const AGTTBrawlDirector* Brawl = Cast<AGTTBrawlDirector>(UGameplayStatics::GetActorOfClass(this, AGTTBrawlDirector::StaticClass())))
+    {
+        if (Brawl->IsBrawlActive()) return Brawl->GetObjectiveText();
+    }
+    if (const AGTTHeavyHaulDirector* HeavyHaul = Cast<AGTTHeavyHaulDirector>(UGameplayStatics::GetActorOfClass(this, AGTTHeavyHaulDirector::StaticClass())))
+    {
+        if (HeavyHaul->IsActive()) return HeavyHaul->GetObjectiveText();
+    }
+    if (const AGTTFarmJobDirector* Farm = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass())))
+    {
+        if (Farm->IsJobActive()) return Farm->GetObjectiveText();
+    }
+    if (const AGTTRuralWorkDirector* Work = Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this, AGTTRuralWorkDirector::StaticClass())))
+    {
+        if (Work->IsWorkActive()) return Work->GetObjectiveText();
+    }
+    if (const AGTTNightFavorDirector* Favor = Cast<AGTTNightFavorDirector>(UGameplayStatics::GetActorOfClass(this, AGTTNightFavorDirector::StaticClass())))
+    {
+        if (Favor->IsActive()) return Favor->GetObjectiveText();
+    }
+
+    const FString PrototypeMission = BuildMissionText();
+    if (!PrototypeMission.IsEmpty()) return PrototypeMission;
+
+    const AGTTArc4Director* Arc4 = Cast<AGTTArc4Director>(UGameplayStatics::GetActorOfClass(this, AGTTArc4Director::StaticClass()));
+    if (Arc4 && Arc4->GetStage() != EGTTArc4Stage::Locked && Arc4->GetStage() != EGTTArc4Stage::Completed)
+    {
+        return Arc4->GetObjectiveText();
+    }
+
+    const AGTTArc3Director* Arc3 = Cast<AGTTArc3Director>(UGameplayStatics::GetActorOfClass(this, AGTTArc3Director::StaticClass()));
+    if (Arc3 && Arc3->GetStage() != EGTTArc3Stage::Locked && Arc3->GetStage() != EGTTArc3Stage::Completed)
+    {
+        return Arc3->GetObjectiveText();
+    }
+
+    const AGTTMainStoryDirector* Story = Cast<AGTTMainStoryDirector>(UGameplayStatics::GetActorOfClass(this, AGTTMainStoryDirector::StaticClass()));
+    if (Story && Story->GetStage() != EGTTMainStoryStage::Completed)
+    {
+        return Story->GetObjectiveText();
+    }
+
+    if (const AGTTVillageEventDirector* Nightlife = Cast<AGTTVillageEventDirector>(UGameplayStatics::GetActorOfClass(this, AGTTVillageEventDirector::StaticClass())))
+    {
+        if (Nightlife->IsNightlifeOpen()) return Nightlife->GetNightlifeSummary();
+    }
+    return FString();
+}
+
+FString AGTTGameHUD::BuildContextHint(const APawn* ControlledPawn, const AGTTVehicleBase* Vehicle) const
+{
+    if (Vehicle)
+    {
+        return TEXT("E interact  |  F exit vehicle  |  R radio  |  F5 save  F9 load");
+    }
+    if (ControlledPawn)
+    {
+        return TEXT("E interact  |  LMB attack  |  Q next weapon  |  G drop");
+    }
+    return FString();
+}
+
+FString AGTTGameHUD::BuildVehicleStatus(const AGTTVehicleBase* Vehicle) const
+{
+    if (!Vehicle) return FString();
+    const TCHAR* Ownership = Vehicle->IsOwnedByPlayer() ? TEXT("OWNED") : (Vehicle->WasReportedStolen() ? TEXT("STOLEN") : TEXT("BORROWED"));
+    return FString::Printf(TEXT("%s  |  %.0f km/h  |  FUEL %.0f%%  |  CONDITION %.0f%%  |  TIRES %.0f%%  |  %s"),
+        *Vehicle->GetVehicleDisplayName().ToString(), Vehicle->GetSpeedKmh(), Vehicle->GetFuelPercent() * 100.0f,
+        Vehicle->GetConditionPercent() * 100.0f, Vehicle->GetTireIntegrity() * 100.0f, Ownership);
+}
+
+FString AGTTGameHUD::BuildVehicleAlert(const AGTTVehicleBase* Vehicle) const
+{
+    if (!Vehicle) return FString();
+    const FString FaultText = Vehicle->GetFaultStatusText();
+    if (!FaultText.IsEmpty())
+    {
+        return FString::Printf(TEXT("DAMAGE  |  %s  |  DETACHED %d"), *FaultText, Vehicle->GetDetachedPartCount());
+    }
+    if (Vehicle->GetTireIntegrity() < 0.30f)
+    {
+        return TEXT("WARNING  |  TIRE INTEGRITY CRITICAL");
+    }
+    if (Vehicle->GetFuelPercent() < 0.15f)
+    {
+        return TEXT("WARNING  |  LOW FUEL");
+    }
+    if (Vehicle->GetEngineTemperatureC() > 108.0f)
+    {
+        return TEXT("WARNING  |  ENGINE TEMPERATURE HIGH");
+    }
+    return FString();
 }
 
 FString AGTTGameHUD::BuildMissionText() const
@@ -193,13 +239,13 @@ FString AGTTGameHUD::BuildMissionText() const
     if (!Mission) return FString();
     if (Mission->GetActiveMissionId() == FName(TEXT("BorrowedTractor")))
     {
-        if (Mission->GetMissionState() == EGTTMissionState::Completed) return TEXT("MISSION COMPLETE: BORROWED TRACTOR | tractor owned | $300 earned | main story unlocked at farm office");
-        if (Mission->GetMissionState() == EGTTMissionState::Failed) return TEXT("MISSION FAILED: BORROWED TRACTOR");
+        if (Mission->GetMissionState() == EGTTMissionState::Completed) return FString();
+        if (Mission->GetMissionState() == EGTTMissionState::Failed) return TEXT("BORROWED TRACTOR | Mission failed");
         if (Mission->GetMissionState() == EGTTMissionState::Active)
         {
-            if (Mission->GetMissionStage() == 0) return TEXT("MISSION: BORROWED TRACTOR | Reach neighbour farm and 'borrow' the tractor.");
-            if (Mission->GetMissionStage() == 1) return TEXT("MISSION: BORROWED TRACTOR | Lose wanted, then reach the barn goal.");
+            if (Mission->GetMissionStage() == 0) return TEXT("BORROWED TRACTOR | Reach the neighbour farm and take the tractor");
+            if (Mission->GetMissionStage() == 1) return TEXT("BORROWED TRACTOR | Lose wanted level, then reach the barn");
         }
     }
-    return Mission->GetMissionState() == EGTTMissionState::Active ? FString::Printf(TEXT("MISSION: %s"), *Mission->GetActiveMissionId().ToString()) : FString();
+    return Mission->GetMissionState() == EGTTMissionState::Active ? FString::Printf(TEXT("MISSION | %s"), *Mission->GetActiveMissionId().ToString()) : FString();
 }
