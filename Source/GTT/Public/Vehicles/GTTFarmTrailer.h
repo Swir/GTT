@@ -67,13 +67,18 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery")
     int32 GetLostWheelCount() const { return (bLeftWheelLost ? 1 : 0) + (bRightWheelLost ? 1 : 0); }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Presentation")
+    bool IsPresentationDamaged() const { return TrailerIntegrity < 0.55f || !HasIntactAxle(); }
+
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
     void ResetTrailer(const FTransform& Transform);
 
 private:
     void ConfigureWheelAxle(UPhysicsConstraintComponent* Constraint, UStaticMeshComponent* Wheel);
     void RefreshAxleState();
+    void RefreshPresentation();
     void RestoreWheel(UStaticMeshComponent* Wheel, UPhysicsConstraintComponent* Constraint, const FVector& RelativeLocation);
+    void SetCargoVisualsVisible(bool bVisible);
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> TrailerBody;
@@ -90,8 +95,48 @@ private:
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UPhysicsConstraintComponent> RightWheelConstraint;
 
+    // Invisible mass/state carrier retained for compatibility; presentation uses the log stack below.
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> CargoBlock;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> Drawbar;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> HitchCoupler;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> FrontRail;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> LeftRail;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> RightRail;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> Tailgate;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> LeftFender;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> RightFender;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> RearReflectorBar;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> CargoLogA;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> CargoLogB;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> CargoLogC;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Trailer|Presentation")
+    TObjectPtr<UStaticMeshComponent> CargoLogD;
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UPhysicsConstraintComponent> HitchConstraint;
