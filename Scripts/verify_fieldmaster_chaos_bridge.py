@@ -57,7 +57,7 @@ assert 'PersistentVehicleId = TEXT("RustyFieldmaster60")' in tractor_cpp
 assert 'TEXT("RustyFieldmaster60")' in spec_cpp
 
 assert "0.0.33" in playtest and "fallback" in playtest.lower()
-assert "no packaged EXE verification" in playtest
+assert "no packaged exe verification" in playtest.lower()
 assert "[0.0.33]" in changelog and "Fieldmaster Chaos Runtime Bridge" in changelog
 assert "Verify Fieldmaster Chaos runtime bridge" in workflow
 assert "verify_fieldmaster_chaos_bridge.py" in workflow
