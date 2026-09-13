@@ -66,3 +66,5 @@ jobs:
         run: python Scripts/verify_vehicle_presentation.py
       - name: Verify native Chaos setup contract
         run: python Scripts/verify_native_chaos_setup.py
+      - name: Verify native Chaos powertrain contract
+        run: python Scripts/verify_native_chaos_powertrain.py
