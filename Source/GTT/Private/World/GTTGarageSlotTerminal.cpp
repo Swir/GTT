@@ -9,8 +9,23 @@
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
+
+namespace
+{
+    AGTTFieldmasterNativePawn* ResolveActiveNativeFieldmaster(UWorld* World)
+    {
+        if (!World) return nullptr;
+        for (TActorIterator<AGTTFieldmasterNativePawn> It(World); It; ++It)
+        {
+            AGTTFieldmasterNativePawn* NativeFieldmaster = *It;
+            if (NativeFieldmaster && NativeFieldmaster->IsLegacyTakeoverActive()) return NativeFieldmaster;
+        }
+        return nullptr;
+    }
+}
 
 AGTTGarageSlotTerminal::AGTTGarageSlotTerminal()
 {
@@ -90,7 +105,12 @@ void AGTTGarageSlotTerminal::RefreshLabel()
 {
     if (!Label) return;
     const AGTTVehicleBase* Vehicle = ResolveSlotVehicle();
-    const FString VehicleName = Vehicle ? Vehicle->GetVehicleDisplayName().ToString().ToUpper() : TEXT("EMPTY");
+    FString VehicleName = Vehicle ? Vehicle->GetVehicleDisplayName().ToString().ToUpper() : TEXT("EMPTY");
+    if (Vehicle && Vehicle->GetPersistentVehicleId() == FName(TEXT("RustyFieldmaster60")))
+    {
+        if (const AGTTFieldmasterNativePawn* NativeFieldmaster = ResolveActiveNativeFieldmaster(GetWorld()))
+            VehicleName = NativeFieldmaster->GetVehicleDisplayName().ToString().ToUpper() + TEXT(" [NATIVE]");
+    }
     Label->SetText(FText::FromString(FString::Printf(TEXT("GARAGE SLOT %d\n%s\nE - RECALL $%d"), SlotIndex + 1, *VehicleName, RecallServiceCost)));
 }
 
@@ -125,7 +145,12 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
         Economy->PushMessage(FString::Printf(TEXT("GARAGE SLOT %d is empty."), SlotIndex + 1), 3.0f);
         return;
     }
-    if (Vehicle->IsOccupied())
+
+    AGTTFieldmasterNativePawn* NativeFieldmaster = nullptr;
+    const bool bFieldmasterSlot = Vehicle->GetPersistentVehicleId() == FName(TEXT("RustyFieldmaster60"));
+    if (bFieldmasterSlot) NativeFieldmaster = ResolveActiveNativeFieldmaster(GetWorld());
+
+    if ((NativeFieldmaster && NativeFieldmaster->IsOccupied()) || (!NativeFieldmaster && Vehicle->IsOccupied()))
     {
         Economy->PushMessage(TEXT("Cannot recall a vehicle while someone is driving it."), 3.0f);
         return;
@@ -138,14 +163,16 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
 
     const FVector BayLocation = GetActorLocation() + FVector(0.0f, -260.0f, 95.0f);
     const FTransform Destination(FRotator(0.0f, 90.0f, 0.0f), BayLocation);
-    if (!Vehicle->RecallToTransform(Destination))
+    const bool bRecalled = NativeFieldmaster ? NativeFieldmaster->RecallToTransform(Destination) : Vehicle->RecallToTransform(Destination);
+    if (!bRecalled)
     {
         Economy->PushMessage(TEXT("That vehicle cannot be recalled right now."), 3.0f);
         return;
     }
 
+    const FString DisplayName = NativeFieldmaster ? NativeFieldmaster->GetVehicleDisplayName().ToString() : Vehicle->GetVehicleDisplayName().ToString();
     Economy->SpendCash(RecallServiceCost, FString::Printf(TEXT("Garage recall service: -$%d"), RecallServiceCost));
-    Economy->PushMessage(FString::Printf(TEXT("SLOT %d RECALL: %s delivered to its bay."), SlotIndex + 1, *Vehicle->GetVehicleDisplayName().ToString()), 4.0f);
+    Economy->PushMessage(FString::Printf(TEXT("SLOT %d RECALL: %s delivered to its bay."), SlotIndex + 1, *DisplayName), 4.0f);
 }
 
 FText AGTTGarageSlotTerminal::GetInteractionText_Implementation() const
@@ -155,6 +182,13 @@ FText AGTTGarageSlotTerminal::GetInteractionText_Implementation() const
     {
         return FText::Format(NSLOCTEXT("GTT", "GarageSlotEmpty", "Garage slot {0}: empty"), FText::AsNumber(SlotIndex + 1));
     }
+
+    FText DisplayName = Vehicle->GetVehicleDisplayName();
+    if (Vehicle->GetPersistentVehicleId() == FName(TEXT("RustyFieldmaster60")))
+    {
+        if (const AGTTFieldmasterNativePawn* NativeFieldmaster = ResolveActiveNativeFieldmaster(GetWorld())) DisplayName = NativeFieldmaster->GetVehicleDisplayName();
+    }
+
     return FText::Format(NSLOCTEXT("GTT", "GarageSlotRecall", "Recall slot {0}: {1} (${2})"),
-        FText::AsNumber(SlotIndex + 1), Vehicle->GetVehicleDisplayName(), FText::AsNumber(RecallServiceCost));
+        FText::AsNumber(SlotIndex + 1), DisplayName, FText::AsNumber(RecallServiceCost));
 }
