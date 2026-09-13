@@ -14,7 +14,7 @@ namespace
 {
     const FName FieldmasterVehicleId(TEXT("RustyFieldmaster60"));
 
-    AGTTFieldmasterNativePawn* FindActiveNativeFieldmaster(const UWorld* World, const FVector& Origin, float Radius)
+    AGTTFieldmasterNativePawn* FindActiveNativeFieldmaster(UWorld* World, const FVector& Origin, float Radius)
     {
         if (!World)
         {
@@ -41,7 +41,7 @@ namespace
         return Best;
     }
 
-    AGTTVehicleBase* FindFieldmasterMirror(const UWorld* World, const AGTTFieldmasterNativePawn* Native)
+    AGTTVehicleBase* FindFieldmasterMirror(UWorld* World, const AGTTFieldmasterNativePawn* Native)
     {
         if (!World || !Native)
         {
@@ -112,7 +112,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         }
 
         const FGTTVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
-        const bool bNeedsRepair = State.ConditionPercent < 99.9f;
+        const bool bNeedsRepair = State.ConditionPercent < 0.999f;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < Mirror->GetFuelCapacity();
         if (!bNeedsRepair && !bNeedsFuel)
         {
@@ -146,7 +146,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         return;
     }
 
-    const bool bNeedsRepair = Vehicle->GetConditionPercent() < 99.9f;
+    const bool bNeedsRepair = Vehicle->GetConditionPercent() < 0.999f;
     const bool bNeedsFuel = Vehicle->GetFuelPercent() < 0.999f;
     if (!bNeedsRepair && !bNeedsFuel)
     {
