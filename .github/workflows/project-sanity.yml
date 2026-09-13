@@ -64,3 +64,6 @@ jobs:
 
       - name: Verify original radio audio milestone
         run: python Scripts/verify_radio_audio.py
+
+      - name: Verify combat presentation milestone
+        run: python Scripts/verify_combat_presentation.py
