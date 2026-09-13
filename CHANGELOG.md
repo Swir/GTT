@@ -2,6 +2,25 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.31] - 2026-09-13
+
+### Added
+- **Original Radio Audio** runtime: the four existing fictional stations now produce audible, project-owned music beds instead of metadata-only track names.
+- Deterministic procedural PCM synthesis for all 16 fictional programs, with station-specific tempo and sound palettes for GRAVEL FM, BARNBEAT 96, RUST & DIESEL and NIGHT SHIFT.
+- Runtime `UAudioComponent` + `USoundWaveProcedural` playback path with automatic 36-second program transitions and immediate stop on `RADIO OFF`.
+- Live integration with the existing persistent `MasterVolume` and `RadioVolume` player settings.
+- Dedicated `PLAYTEST_0.0.31.md` and `verify_radio_audio.py` coverage, including a guard that no third-party WAV/MP3/OGG/FLAC/AAC/M4A files are required by this milestone.
+
+### Changed
+- The radio HUD now explicitly identifies the active program as original GTT audio while preserving the existing station/title rotation and keyboard/controller cycling flow.
+- The 0.0.30 Chaos migration regression test is now forward-compatible with later roadmap progress while still requiring both Native Chaos tasks to remain open until real skeletal/physics assets and UE runtime acceptance exist.
+- Roadmap advances from `123/130 (94.6%)` to the exactly recalculated `124/130 (95.4%)`; 6 tasks remain and the 20-segment bar remains mathematically correct at 19/20 while preserving `SWIR-ROADMAP-STANDARD:v1`.
+
+### Limitations / Next
+- Audio is intentionally synthesized at runtime from original GTT code, avoiding licensed samples or copyrighted recordings; it is not a claim of final studio-produced soundtrack quality.
+- Full Unreal Engine 5.8 audio-device validation and Win64 compile/package/runtime smoke testing remain unavailable on the current repository sanity runner, so no packaged EXE verification is claimed.
+- Next major package should return to vehicle feel with the first true Fieldmaster Chaos pawn/assets or close another remaining release gap such as authored combat animations/models and the Unreal-capable Win64 runner.
+
 ## [0.0.30] - 2026-09-13
 
 ### Added
@@ -54,7 +73,7 @@ All notable development steps for GTT are tracked here.
 
 ### Limitations / Next
 - Interiors and social characters intentionally use original runtime greybox primitives; this milestone does not claim final authored environment art, character models, animation or voice acting.
-- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation is still unavailable on repository CI; no packaged EXE verification is claimed.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation is still unavailable in repository CI; no packaged EXE verification is claimed.
 - Next major package should target native Chaos Vehicles and/or authored vehicle/combat assets, with cleared original radio/audio also remaining before the first complete release.
 
 ## [0.0.27] - 2026-09-13
