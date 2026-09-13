@@ -3,7 +3,7 @@ param(
     [ValidateSet("Development", "Shipping")]
     [string]$Configuration = "Shipping",
     [string]$ArchiveDirectory = "",
-    [string]$Version = "0.0.27",
+    [string]$Version = "0.0.43",
     [switch]$SkipZip
 )
 
@@ -76,6 +76,7 @@ $buildInfo = [ordered]@{
     engine = Split-Path -Leaf $EngineRoot
     git_sha = $gitSha
     built_utc = (Get-Date).ToUniversalTime().ToString("o")
+    evidence_schema = 1
 }
 $buildInfoPath = Join-Path $ArchiveDirectory "BUILD_INFO.json"
 $buildInfo | ConvertTo-Json | Set-Content -Encoding UTF8 $buildInfoPath
