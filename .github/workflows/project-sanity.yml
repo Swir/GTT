@@ -70,3 +70,6 @@ jobs:
 
       - name: Verify Fieldmaster Chaos runtime bridge
         run: python Scripts/verify_fieldmaster_chaos_bridge.py
+
+      - name: Verify Chaos fleet runtime bridge
+        run: python Scripts/verify_chaos_fleet_bridge.py
