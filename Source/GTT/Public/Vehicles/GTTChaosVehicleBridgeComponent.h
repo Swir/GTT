@@ -40,6 +40,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Chaos")
     void RefreshNativeBinding();
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Chaos")
+    bool ConfigureNativeMovementFromCanonicalSpec(FString& OutSummary);
+
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     bool IsNativeMovementReady() const { return bNativeMovementReady; }
 
@@ -48,6 +51,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     bool IsNativeWheelSetupValid() const { return bNativeWheelSetupValid; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
+    bool IsNativePowertrainValid() const { return bNativePowertrainValid; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     EGTTChaosBridgeState GetBridgeState() const { return BridgeState; }
@@ -60,6 +66,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     FString GetNativeSetupValidationSummary() const { return NativeSetupValidationSummary; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
+    FString GetPowertrainValidationSummary() const { return PowertrainValidationSummary; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     FGTTChaosVehicleSpec GetResolvedSpec() const { return ResolvedSpec; }
@@ -75,6 +84,7 @@ private:
     void ResolveRigContract();
     bool ValidateNativeRig();
     bool ValidateNativeWheelSetup();
+    bool ValidateNativePowertrain();
     void UpdateRuntimeState();
     void RouteInputsToChaos();
     void DisableLegacyDynamicsIfNeeded();
@@ -90,8 +100,10 @@ private:
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bNativeMovementReady = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bRigContractValid = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bNativeWheelSetupValid = false;
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bNativePowertrainValid = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FString RigValidationSummary = TEXT("No native skeletal rig bound");
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FString NativeSetupValidationSummary = TEXT("No native wheel setup bound");
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FString PowertrainValidationSummary = TEXT("No native powertrain bound");
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") float EffectivePowerScale = 1.0f;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") float EffectiveGripScale = 1.0f;
 
