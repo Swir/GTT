@@ -41,7 +41,8 @@ require(PLAYTEST.exists(), "PLAYTEST_0.0.37.md must document the presentation mi
 # This source-built visual pass must not introduce external media as a hidden dependency.
 for suffix in (".fbx", ".obj", ".gltf", ".glb", ".wav", ".mp3", ".ogg"):
     matches = [p for p in ROOT.rglob(f"*{suffix}") if ".git" not in p.parts]
-    require(not matches, f"unexpected external presentation/media dependency: {matches[0]}")
+    if matches:
+        require(False, f"unexpected external presentation/media dependency: {matches[0]}")
 
 checkboxes = re.findall(r"^- \[([ xX])\] ", roadmap, flags=re.MULTILINE)
 done = sum(1 for value in checkboxes if value.lower() == "x")
