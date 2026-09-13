@@ -42,7 +42,9 @@ for token in [
     assert token in radio_cpp, f"radio runtime missing {token}"
 
 assert "float MasterVolume" in settings and "float RadioVolume" in settings
-assert "third-party music" in playtest.lower() and "procedural" in playtest.lower()
+playtest_lower = playtest.lower()
+assert "procedural" in playtest_lower or "generated" in playtest_lower
+assert "no third-party music" in playtest_lower or "no external audio files" in playtest_lower
 assert "0.0.31" in playtest
 assert "[0.0.31]" in changelog and "Original Radio Audio" in changelog
 assert "Verify original radio audio milestone" in workflow
@@ -58,15 +60,15 @@ assert "- [x] Original/royalty-cleared music and radio audio assets" in roadmap
 assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
 assert "<!-- ROADMAP-PROGRESS:START -->" in roadmap and "<!-- ROADMAP-PROGRESS:END -->" in roadmap
 checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
-unckecked = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
-total = checked + unckecked
+unchecked = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
+total = checked + unchecked
 assert total == 130, f"unexpected roadmap total: {total}"
 percent = round(checked / total * 100, 1)
 segments = round(checked / total * 20)
 bar = "█" * segments + "░" * (20 - segments)
 assert f"ROADMAP-{percent:.1f}%25" in roadmap
 assert f"DONE-{checked}%2F{total}" in roadmap
-assert f"| **{checked}** | **{unckecked}** | **{total}** | **{percent:.1f}%** |" in roadmap
+assert f"| **{checked}** | **{unchecked}** | **{total}** | **{percent:.1f}%** |" in roadmap
 assert f"{bar} {percent:.1f}%" in roadmap
 assert checked >= 124, f"radio milestone did not advance roadmap: {checked}/{total}"
 
