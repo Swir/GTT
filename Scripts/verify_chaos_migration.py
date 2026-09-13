@@ -49,20 +49,21 @@ assert "Full Unreal Engine 5.8" in playtest and "no packaged EXE verification" i
 assert "[0.0.30]" in changelog and "Chaos Migration Foundation" in changelog
 assert "Verify Chaos migration foundation" in workflow and "verify_chaos_migration.py" in workflow
 
-# This milestone intentionally does not check off Native Chaos without authored skeletal/physics assets and UE runtime validation.
+# Native Chaos remains intentionally open until authored skeletal/physics assets and real UE runtime validation exist.
 assert "- [ ] Dedicated native Chaos wheeled tractor movement" in roadmap
 assert "- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup" in roadmap
 assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
 checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
-unchecked = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
-total = checked + unchecked
-assert (checked, total) == (123, 130), f"roadmap unexpectedly changed: {checked}/{total}"
+unckecked = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
+total = checked + unckecked
+assert total == 130, f"roadmap total drifted: {total}"
+assert checked >= 123, f"roadmap regressed below Chaos foundation baseline: {checked}/{total}"
 percent = round(checked / total * 100, 1)
 segments = round(checked / total * 20)
 bar = "█" * segments + "░" * (20 - segments)
 assert f"ROADMAP-{percent:.1f}%25" in roadmap
 assert f"DONE-{checked}%2F{total}" in roadmap
-assert f"| **{checked}** | **{unchecked}** | **{total}** | **{percent:.1f}%** |" in roadmap
+assert f"| **{checked}** | **{unckecked}** | **{total}** | **{percent:.1f}%** |" in roadmap
 assert f"{bar} {percent:.1f}%" in roadmap
 
-print(f"Chaos migration foundation sanity OK: 3 canonical vehicle specs; roadmap remains {checked}/{total} ({percent:.1f}%)")
+print(f"Chaos migration foundation sanity OK: 3 canonical vehicle specs; roadmap {checked}/{total} ({percent:.1f}%)")

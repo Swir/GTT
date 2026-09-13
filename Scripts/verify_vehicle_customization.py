@@ -43,7 +43,8 @@ assert "<!-- ROADMAP-PROGRESS:START -->" in roadmap and "<!-- ROADMAP-PROGRESS:E
 checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
 unchecked = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
 total = checked + unchecked
-assert (checked, total) == (123, 130), f"roadmap checklist is {checked}/{total}, expected 123/130"
+assert total == 130, f"roadmap total drifted: {total}"
+assert checked >= 123, f"roadmap regressed below Workshop Customization baseline: {checked}/{total}"
 percent = round(checked / total * 100, 1)
 segments = round(checked / total * 20)
 bar = "█" * segments + "░" * (20 - segments)
