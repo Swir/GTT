@@ -34,6 +34,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
     void SetCargoLoaded(bool bLoaded);
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Trailer|Recovery")
+    bool PerformRoadsideRepair(float IntegrityRestore = 0.35f);
+
     UFUNCTION(BlueprintPure, Category="GTT|Trailer")
     bool IsAttached() const { return bAttached; }
 
@@ -61,12 +64,16 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Trailer")
     bool HasIntactAxle() const;
 
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery")
+    int32 GetLostWheelCount() const { return (bLeftWheelLost ? 1 : 0) + (bRightWheelLost ? 1 : 0); }
+
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
     void ResetTrailer(const FTransform& Transform);
 
 private:
     void ConfigureWheelAxle(UPhysicsConstraintComponent* Constraint, UStaticMeshComponent* Wheel);
     void RefreshAxleState();
+    void RestoreWheel(UStaticMeshComponent* Wheel, UPhysicsConstraintComponent* Constraint, const FVector& RelativeLocation);
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> TrailerBody;
