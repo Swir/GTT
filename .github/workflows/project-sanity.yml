@@ -67,3 +67,6 @@ jobs:
 
       - name: Verify combat presentation milestone
         run: python Scripts/verify_combat_presentation.py
+
+      - name: Verify Fieldmaster Chaos runtime bridge
+        run: python Scripts/verify_fieldmaster_chaos_bridge.py
