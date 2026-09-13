@@ -43,7 +43,7 @@ for token in [
     assert token in trailer_cpp, f"trailer native hitch integration missing {token}"
 
 assert "0.0.36" in playtest and "Native Rig Acceptance" in playtest
-assert "no packaged EXE verification" in playtest.lower()
+assert "no packaged exe verification" in playtest.lower()
 assert "Verify native rig acceptance gate" in workflow
 assert "verify_native_rig_acceptance.py" in workflow
 
