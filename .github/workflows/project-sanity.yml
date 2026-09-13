@@ -61,3 +61,6 @@ jobs:
 
       - name: Verify Chaos migration foundation
         run: python Scripts/verify_chaos_migration.py
+
+      - name: Verify original radio audio milestone
+        run: python Scripts/verify_radio_audio.py
