@@ -69,6 +69,15 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Garage")
     bool RecallToTransform(const FTransform& Destination);
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Terrain")
+    void ApplyNativeMudResponse(float DragStrength, float TireWearPerSecond, float DeltaSeconds);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Damage")
+    void ApplyNativeImpactDamage(float ImpactSpeedKmh, float DamageScale = 1.0f);
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Trailer")
+    bool TryGetRearHitchTransform(FTransform& OutTransform) const;
+
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Migration")
     FGTTVehicleMigrationSnapshot GetMigrationSnapshot() const { return MigrationSnapshot; }
 
