@@ -7,7 +7,9 @@
 class AGTTFieldmasterNativePawn;
 class AGTTVehicleBase;
 class UPhysicsConstraintComponent;
+class UPrimitiveComponent;
 class UStaticMeshComponent;
+struct FHitResult;
 
 UCLASS()
 class GTT_API AGTTFarmTrailer : public AActor
@@ -16,7 +18,9 @@ class GTT_API AGTTFarmTrailer : public AActor
 
 public:
     AGTTFarmTrailer();
+    virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
+    virtual void NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
     bool AttachToVehicle(AGTTVehicleBase* Vehicle);
@@ -54,10 +58,16 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Trailer")
     AActor* GetTowActor() const;
 
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer")
+    bool HasIntactAxle() const;
+
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer")
     void ResetTrailer(const FTransform& Transform);
 
 private:
+    void ConfigureWheelAxle(UPhysicsConstraintComponent* Constraint, UStaticMeshComponent* Wheel);
+    void RefreshAxleState();
+
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> TrailerBody;
 
@@ -66,6 +76,12 @@ private:
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> RightWheel;
+
+    UPROPERTY(VisibleAnywhere)
+    TObjectPtr<UPhysicsConstraintComponent> LeftWheelConstraint;
+
+    UPROPERTY(VisibleAnywhere)
+    TObjectPtr<UPhysicsConstraintComponent> RightWheelConstraint;
 
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<UStaticMeshComponent> CargoBlock;
@@ -81,13 +97,22 @@ private:
 
     bool bAttached = false;
     bool bCargoLoaded = false;
+    bool bLeftWheelLost = false;
+    bool bRightWheelLost = false;
     float CargoIntegrity = 1.0f;
     float TrailerIntegrity = 1.0f;
     float HitchLoad = 0.0f;
+    float LastImpactDamageTimeSeconds = -100.0f;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer")
     float SafeHitchDistance = 360.0f;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer")
     float BreakHitchDistance = 760.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer|Axle")
+    float WheelBreakForce = 420000.0f;
+
+    UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer|Axle")
+    float WheelBreakTorque = 260000.0f;
 };
