@@ -15,6 +15,7 @@ def require(condition: bool, message: str) -> None:
 
 header = HEADER.read_text(encoding="utf-8")
 cpp = CPP.read_text(encoding="utf-8")
+compact_cpp = re.sub(r"\s+", "", cpp)
 roadmap = ROADMAP.read_text(encoding="utf-8")
 
 for symbol in ("BuildPrimaryObjective", "BuildContextHint", "BuildVehicleStatus", "BuildVehicleAlert", "DrawHudText"):
@@ -22,17 +23,16 @@ for symbol in ("BuildPrimaryObjective", "BuildContextHint", "BuildVehicleStatus"
 
 require("Canvas->ClipX" in cpp and "Canvas->ClipY" in cpp, "HUD must anchor presentation to the current viewport")
 require("CURRENT OBJECTIVE" in cpp, "primary objective presentation is missing")
-require("if (Brawl->IsBrawlActive())" in cpp and "if (HeavyHaul->IsActive())" in cpp, "urgent activity objective priority is missing")
-require("if (Farm->IsJobActive())" in cpp and "if (Work->IsWorkActive())" in cpp, "legal-work objective priority is missing")
-require("WantedLevel > 0" in cpp, "wanted UI must be contextual")
-require("GetWildlifeAlertLevel() > 0" in cpp, "warden UI must be contextual")
-require("Radio && Radio->IsRadioOn()" in cpp, "radio row must only appear while radio is on")
-require("GetTireIntegrity() < 0.30f" in cpp, "critical tire warning threshold is missing")
-require("GetFuelPercent() < 0.15f" in cpp, "low-fuel warning threshold is missing")
-require("GetEngineTemperatureC() > 108.0f" in cpp, "engine temperature warning threshold is missing")
+require("if(Brawl->IsBrawlActive())" in compact_cpp and "if(HeavyHaul->IsActive())" in compact_cpp, "urgent activity objective priority is missing")
+require("if(Farm->IsJobActive())" in compact_cpp and "if(Work->IsWorkActive())" in compact_cpp, "legal-work objective priority is missing")
+require("WantedLevel>0" in compact_cpp, "wanted UI must be contextual")
+require("GetWildlifeAlertLevel()>0" in compact_cpp, "warden UI must be contextual")
+require("Radio&&Radio->IsRadioOn()" in compact_cpp, "radio row must only appear while radio is on")
+require("GetTireIntegrity()<0.30f" in compact_cpp, "critical tire warning threshold is missing")
+require("GetFuelPercent()<0.15f" in compact_cpp, "low-fuel warning threshold is missing")
+require("GetEngineTemperatureC()>108.0f" in compact_cpp, "engine temperature warning threshold is missing")
 require("F exit vehicle" in cpp and "Q next weapon" in cpp, "vehicle/on-foot contextual hints are missing")
 
-# Normal player presentation must no longer expose the old permanent debug-like telemetry wall.
 for noisy_literal in ("VEHICLE DYNAMICS |", "TUNING | ENGINE", "CONTROLS | LMB attack"):
     require(noisy_literal not in cpp, f"legacy always-visible HUD clutter remains: {noisy_literal}")
 
