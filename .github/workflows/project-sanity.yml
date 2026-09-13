@@ -73,3 +73,6 @@ jobs:
 
       - name: Verify Chaos fleet runtime bridge
         run: python Scripts/verify_chaos_fleet_bridge.py
+
+      - name: Verify Native Chaos rig architecture
+        run: python Scripts/verify_native_chaos_rig.py
