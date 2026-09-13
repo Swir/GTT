@@ -2,6 +2,26 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.32] - 2026-09-13
+
+### Added
+- **Combat Presentation** milestone integrated with the existing Rural Arsenal rather than a parallel demo system.
+- Source-authored runtime weapon visuals for all eight non-hand arsenal items: Pitchfork, Axe, Branch, Rake, Cow Chain, Shovel, Workshop Wrench and Old Farm Shotgun.
+- Player melee swing and shotgun recoil presentation driven directly from the equipped `UGTTCombatComponent` weapon state.
+- Hostile NPC combat props for Scrapper, Runner, Bruiser and Enforcer plus visible attack-swing presentation when their existing retaliation damage fires.
+- Directional body/head hit reactions and a persistent visible knockout pose that recovers through the existing knockout timer.
+- Dedicated `PLAYTEST_0.0.32.md` and `verify_combat_presentation.py` coverage, including a guard against imported third-party combat model files.
+
+### Changed
+- Combat-critical world-performance simulation now also treats active hit/attack presentation windows as urgent so reactions are not throttled while a fight is visible.
+- Dropping or cycling a player weapon immediately resynchronizes the held visual with the real persistent inventory/equipped state.
+- Roadmap advances from `124/130 (95.4%)` to exactly `125/130 (96.2%)`; 5 tasks remain and the 20-segment bar remains mathematically correct at 19/20 while preserving `SWIR-ROADMAP-STANDARD:v1`.
+
+### Limitations / Next
+- Weapon models and motion are deliberately original source-built runtime geometry/animation, not a claim of final skeletal mocap-quality art.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current sanity runner; no packaged EXE verification is claimed.
+- Native Chaos vehicle tasks, authored trailer wheel/hitch assets and the Unreal-capable Win64 runner remain open until they can be validated honestly.
+
 ## [0.0.31] - 2026-09-13
 
 ### Added
