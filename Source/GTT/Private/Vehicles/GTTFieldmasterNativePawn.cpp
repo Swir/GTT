@@ -1,10 +1,12 @@
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Components/InputComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
 #include "Vehicles/GTTChaosPowertrainSetupLibrary.h"
 #include "Vehicles/GTTChaosRigContract.h"
+#include "Vehicles/GTTVehicleBase.h"
 #include "GTT.h"
 
 namespace
@@ -33,6 +35,92 @@ void AGTTFieldmasterNativePawn::BeginPlay()
     {
         UE_LOG(LogGTT, Warning, TEXT("Fieldmaster native pawn not accepted: %s"), *NativeAcceptanceSummary);
     }
+}
+
+void AGTTFieldmasterNativePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+    if (!PlayerInputComponent)
+    {
+        return;
+    }
+
+    PlayerInputComponent->BindAxis(TEXT("VehicleThrottle"), this, &AGTTFieldmasterNativePawn::HandleNativeThrottle);
+    PlayerInputComponent->BindAxis(TEXT("VehicleSteer"), this, &AGTTFieldmasterNativePawn::HandleNativeSteering);
+}
+
+void AGTTFieldmasterNativePawn::HandleNativeThrottle(float Value)
+{
+    if (!bNativeReady)
+    {
+        return;
+    }
+
+    if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
+    {
+        Movement->SetThrottleInput(FMath::Clamp(Value, -1.0f, 1.0f));
+    }
+}
+
+void AGTTFieldmasterNativePawn::HandleNativeSteering(float Value)
+{
+    if (!bNativeReady)
+    {
+        return;
+    }
+
+    if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
+    {
+        Movement->SetSteeringInput(FMath::Clamp(Value, -1.0f, 1.0f));
+    }
+}
+
+bool AGTTFieldmasterNativePawn::ImportLegacyGameplayState(const AGTTVehicleBase* LegacyVehicle, FString& OutSummary)
+{
+    if (!LegacyVehicle)
+    {
+        OutSummary = TEXT("Legacy vehicle missing");
+        return false;
+    }
+
+    if (LegacyVehicle->GetPersistentVehicleId() != FieldmasterVehicleId)
+    {
+        OutSummary = FString::Printf(
+            TEXT("Persistent ID mismatch: expected %s, got %s"),
+            *FieldmasterVehicleId.ToString(),
+            *LegacyVehicle->GetPersistentVehicleId().ToString());
+        return false;
+    }
+
+    FGTTVehicleMigrationSnapshot Snapshot;
+    Snapshot.ConditionPercent = LegacyVehicle->GetConditionPercent();
+    Snapshot.FuelLiters = LegacyVehicle->GetFuelLiters();
+    Snapshot.bOwnedByPlayer = LegacyVehicle->IsOwnedByPlayer();
+    Snapshot.EngineUpgradeLevel = LegacyVehicle->GetEngineUpgradeLevel();
+    Snapshot.TireUpgradeLevel = LegacyVehicle->GetTireUpgradeLevel();
+    Snapshot.TireIntegrity = LegacyVehicle->GetTireIntegrity();
+    ApplyMigrationSnapshot(Snapshot);
+
+    OutSummary = FString::Printf(
+        TEXT("Imported %s gameplay state: condition %.1f%%, fuel %.1f L, engine upgrade %d, tire upgrade %d, tires %.0f%%, owned %s"),
+        *FieldmasterVehicleId.ToString(),
+        MigrationSnapshot.ConditionPercent,
+        MigrationSnapshot.FuelLiters,
+        MigrationSnapshot.EngineUpgradeLevel,
+        MigrationSnapshot.TireUpgradeLevel,
+        MigrationSnapshot.TireIntegrity * 100.0f,
+        MigrationSnapshot.bOwnedByPlayer ? TEXT("YES") : TEXT("NO"));
+    return true;
+}
+
+void AGTTFieldmasterNativePawn::ApplyMigrationSnapshot(const FGTTVehicleMigrationSnapshot& Snapshot)
+{
+    MigrationSnapshot.ConditionPercent = FMath::Clamp(Snapshot.ConditionPercent, 0.0f, 100.0f);
+    MigrationSnapshot.FuelLiters = FMath::Max(0.0f, Snapshot.FuelLiters);
+    MigrationSnapshot.bOwnedByPlayer = Snapshot.bOwnedByPlayer;
+    MigrationSnapshot.EngineUpgradeLevel = FMath::Max(0, Snapshot.EngineUpgradeLevel);
+    MigrationSnapshot.TireUpgradeLevel = FMath::Max(0, Snapshot.TireUpgradeLevel);
+    MigrationSnapshot.TireIntegrity = FMath::Clamp(Snapshot.TireIntegrity, 0.0f, 1.0f);
 }
 
 bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
