@@ -84,3 +84,5 @@ jobs:
         run: python Scripts/verify_fieldmaster_native_collision.py
       - name: Verify trailer axle and impact physics
         run: python Scripts/verify_trailer_axle_physics.py
+      - name: Verify trailer roadside recovery
+        run: python Scripts/verify_trailer_roadside_recovery.py
