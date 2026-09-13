@@ -68,3 +68,5 @@ jobs:
         run: python Scripts/verify_native_chaos_setup.py
       - name: Verify native Chaos powertrain contract
         run: python Scripts/verify_native_chaos_powertrain.py
+      - name: Verify Fieldmaster native pawn acceptance
+        run: python Scripts/verify_fieldmaster_native_pawn.py
