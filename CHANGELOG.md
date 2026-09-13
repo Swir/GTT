@@ -2,6 +2,26 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.33] - 2026-09-13
+
+### Added
+- **Fieldmaster Chaos Runtime Bridge** milestone that moves the Rusty Fieldmaster 60 beyond a spec-only migration plan and into gameplay-state-aware Chaos integration.
+- `UGTTChaosVehicleBridgeComponent` with native-rig detection, canonical vehicle-spec resolution, bridge-state telemetry and automatic fallback protection.
+- Native input routing for throttle, steering, forward/reverse intent and braking when a real `UChaosWheeledVehicleMovementComponent` plus skeletal vehicle body are present.
+- Shared vehicle-state integration so fuel, engine-running state, condition, engine tuning, tire integrity and tire tuning influence the inputs sent to Chaos instead of creating disconnected stats.
+- Automatic disabling of the legacy source-driven dynamics tick once a valid native rig is detected, preventing two drivetrain systems from applying force simultaneously.
+- Dedicated `PLAYTEST_0.0.33.md` and `verify_fieldmaster_chaos_bridge.py` coverage.
+
+### Changed
+- Rusty Fieldmaster 60 now mirrors its existing keyboard/controller vehicle axes into the Chaos bridge while preserving the current proven source-driven dynamics fallback when native skeletal/physics prerequisites are absent.
+- The migration path now has an explicit runtime state machine (`WAITING / READY / DRIVING / BLOCKED`) rather than relying only on documentation and static target specs.
+- Roadmap remains honestly unchanged at exactly `125/130 (96.2%)`: the bridge is substantial implementation progress, but neither Native Chaos checkbox is closed until an authored skeletal/physics rig passes real UE 5.8 runtime acceptance.
+
+### Limitations / Next
+- The current repository still does not contain the final Fieldmaster skeletal mesh, physics asset, wheel assets or validated native Chaos vehicle pawn, so handling is not claimed to have switched in the playable greybox build yet.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current sanity runner; no packaged EXE verification is claimed.
+- Next package should add the authored Fieldmaster skeletal/physics/wheel rig and activate this bridge against a real native movement component, then repeat the same integration for Rattleback 82 and Mulebox 1200.
+
 ## [0.0.32] - 2026-09-13
 
 ### Added
