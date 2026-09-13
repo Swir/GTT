@@ -19,10 +19,7 @@ AGTTHeavyHaulDirector::AGTTHeavyHaulDirector()
 void AGTTHeavyHaulDirector::BeginPlay()
 {
     Super::BeginPlay();
-    if (GetWorld())
-    {
-        Trailer = GetWorld()->SpawnActor<AGTTFarmTrailer>(TrailerYardLocation, FRotator(0.0f, 90.0f, 0.0f));
-    }
+    if (GetWorld()) Trailer = GetWorld()->SpawnActor<AGTTFarmTrailer>(TrailerYardLocation, FRotator(0.0f, 90.0f, 0.0f));
 }
 
 void AGTTHeavyHaulDirector::Tick(float DeltaSeconds)
@@ -40,7 +37,6 @@ void AGTTHeavyHaulDirector::Tick(float DeltaSeconds)
     }
 
     if (!Trailer) return;
-
     if ((Stage == EGTTHeavyHaulStage::ReachWoodYard || Stage == EGTTHeavyHaulStage::LoadTimber || Stage == EGTTHeavyHaulStage::DeliverHillFarm) && !Trailer->IsAttached())
     {
         Stage = EGTTHeavyHaulStage::HitchTrailer;
@@ -57,14 +53,8 @@ void AGTTHeavyHaulDirector::Tick(float DeltaSeconds)
 bool AGTTHeavyHaulDirector::CanTakeContract(APawn* PlayerPawn) const
 {
     if (!PlayerPawn || IsActive()) return false;
-    if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn))
-    {
-        if (Wanted->GetWantedLevel() > 0) return false;
-    }
-    if (const AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this)))
-    {
-        if (GameMode->GetWildlifeAlertLevel() > 0) return false;
-    }
+    if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn)) if (Wanted->GetWantedLevel() > 0) return false;
+    if (const AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) if (GameMode->GetWildlifeAlertLevel() > 0) return false;
     return true;
 }
 
@@ -76,15 +66,9 @@ AGTTVehicleBase* AGTTHeavyHaulDirector::FindEligibleTowVehicle(const FVector& Or
     for (TActorIterator<AGTTVehicleBase> It(GetWorld()); It; ++It)
     {
         AGTTVehicleBase* Candidate = *It;
-        if (!Candidate || !Candidate->IsOwnedByPlayer() || Candidate->GetConditionPercent() < 0.40f) continue;
-        if (!Cast<AGTTTractorPawn>(Candidate)) continue;
-        if (Candidate->IsHidden()) continue;
+        if (!Candidate || !Candidate->IsOwnedByPlayer() || Candidate->GetConditionPercent() < 0.40f || !Cast<AGTTTractorPawn>(Candidate) || Candidate->IsHidden()) continue;
         const float DistSq = FVector::DistSquared2D(Candidate->GetActorLocation(), Origin);
-        if (DistSq < BestDistSq)
-        {
-            BestDistSq = DistSq;
-            Best = Candidate;
-        }
+        if (DistSq < BestDistSq) { BestDistSq = DistSq; Best = Candidate; }
     }
     return Best;
 }
@@ -100,25 +84,15 @@ AGTTFieldmasterNativePawn* AGTTHeavyHaulDirector::FindEligibleNativeTowVehicle(c
         if (!Candidate || !Candidate->IsNativeFieldmasterReady() || !Candidate->IsLegacyTakeoverActive() || !Candidate->IsOwnedByPlayer()) continue;
         if (Candidate->GetMigrationSnapshot().ConditionPercent < 40.0f) continue;
         const float DistSq = FVector::DistSquared2D(Candidate->GetActorLocation(), Origin);
-        if (DistSq < BestDistSq)
-        {
-            BestDistSq = DistSq;
-            Best = Candidate;
-        }
+        if (DistSq < BestDistSq) { BestDistSq = DistSq; Best = Candidate; }
     }
     return Best;
 }
 
 float AGTTHeavyHaulDirector::GetContractTowConditionFactor() const
 {
-    if (ContractNativeTowVehicle)
-    {
-        return FMath::Clamp(ContractNativeTowVehicle->GetMigrationSnapshot().ConditionPercent / 100.0f, 0.40f, 1.0f);
-    }
-    if (ContractTowVehicle)
-    {
-        return FMath::Clamp(ContractTowVehicle->GetConditionPercent(), 0.40f, 1.0f);
-    }
+    if (ContractNativeTowVehicle) return FMath::Clamp(ContractNativeTowVehicle->GetMigrationSnapshot().ConditionPercent / 100.0f, 0.40f, 1.0f);
+    if (ContractTowVehicle) return FMath::Clamp(ContractTowVehicle->GetConditionPercent(), 0.40f, 1.0f);
     return 0.40f;
 }
 
@@ -134,6 +108,7 @@ bool AGTTHeavyHaulDirector::TryStartContract(APawn* PlayerPawn)
     Trailer->ResetTrailer(FTransform(FRotator(0.0f, 90.0f, 0.0f), TrailerYardLocation));
     ContractTowVehicle = nullptr;
     ContractNativeTowVehicle = nullptr;
+    RoadsideRepairCount = 0;
     TimeRemaining = ContractTimeLimit;
     Stage = EGTTHeavyHaulStage::HitchTrailer;
     PushMessage(PlayerPawn, TEXT("HEAVY TIMBER HAUL: hitch the farm trailer, drive to NORTH WOOD YARD, load timber and deliver to HILL FARM."), 7.0f);
@@ -143,7 +118,6 @@ bool AGTTHeavyHaulDirector::TryStartContract(APawn* PlayerPawn)
 bool AGTTHeavyHaulDirector::TryHitchTrailer(APawn* PlayerPawn)
 {
     if (!PlayerPawn || !Trailer || Stage != EGTTHeavyHaulStage::HitchTrailer) return false;
-
     if (AGTTFieldmasterNativePawn* NativeTractor = FindEligibleNativeTowVehicle(Trailer->GetActorLocation(), 750.0f))
     {
         if (!Trailer->AttachToNativeFieldmaster(NativeTractor)) return false;
@@ -155,13 +129,8 @@ bool AGTTHeavyHaulDirector::TryHitchTrailer(APawn* PlayerPawn)
     }
 
     AGTTVehicleBase* Tractor = FindEligibleTowVehicle(Trailer->GetActorLocation(), 750.0f);
-    if (!Tractor)
-    {
-        PushMessage(PlayerPawn, TEXT("Park your owned Fieldmaster beside the trailer hitch. Tractor must have at least 40% condition."));
-        return false;
-    }
+    if (!Tractor) { PushMessage(PlayerPawn, TEXT("Park your owned Fieldmaster beside the trailer hitch. Tractor must have at least 40% condition.")); return false; }
     if (!Trailer->AttachToVehicle(Tractor)) return false;
-
     ContractTowVehicle = Tractor;
     ContractNativeTowVehicle = nullptr;
     Stage = Trailer->HasCargo() ? EGTTHeavyHaulStage::DeliverHillFarm : EGTTHeavyHaulStage::ReachWoodYard;
@@ -172,26 +141,52 @@ bool AGTTHeavyHaulDirector::TryHitchTrailer(APawn* PlayerPawn)
 bool AGTTHeavyHaulDirector::TryLoadTimber(APawn* PlayerPawn)
 {
     if (!PlayerPawn || !Trailer || Stage != EGTTHeavyHaulStage::LoadTimber || !Trailer->IsAttached()) return false;
-    if (FVector::Dist2D(Trailer->GetActorLocation(), WoodYardLoadLocation) > 900.0f)
-    {
-        PushMessage(PlayerPawn, TEXT("Bring the trailer into the NORTH WOOD YARD loading area."));
-        return false;
-    }
-
+    if (FVector::Dist2D(Trailer->GetActorLocation(), WoodYardLoadLocation) > 900.0f) { PushMessage(PlayerPawn, TEXT("Bring the trailer into the NORTH WOOD YARD loading area.")); return false; }
     Trailer->SetCargoLoaded(true);
     Stage = EGTTHeavyHaulStage::DeliverHillFarm;
     PushMessage(PlayerPawn, TEXT("HEAVY LOGS LOADED: deliver to HILL FARM. Speed, rollover angle and rough driving can damage the load."), 7.0f);
     return true;
 }
 
+bool AGTTHeavyHaulDirector::TryRoadsideRepair(APawn* PlayerPawn)
+{
+    if (!PlayerPawn || !Trailer || !IsActive()) return false;
+    if (FVector::Dist2D(PlayerPawn->GetActorLocation(), Trailer->GetActorLocation()) > 650.0f)
+    {
+        PushMessage(PlayerPawn, TEXT("ROADSIDE REPAIR: move closer to the damaged trailer."));
+        return false;
+    }
+    if (Trailer->GetTrailerIntegrity() >= 0.98f && Trailer->HasIntactAxle())
+    {
+        PushMessage(PlayerPawn, TEXT("ROADSIDE REPAIR: trailer does not need service."));
+        return false;
+    }
+
+    UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn);
+    if (!Economy) return false;
+    const int32 RepairCost = RoadsideRepairBaseCost + RoadsideRepairCount * RoadsideRepairEscalation + Trailer->GetLostWheelCount() * 80;
+    if (!Economy->SpendCash(RepairCost, FString::Printf(TEXT("Heavy-haul roadside repair: -$%d"), RepairCost)))
+    {
+        Economy->PushMessage(FString::Printf(TEXT("ROADSIDE REPAIR requires $%d."), RepairCost), 4.0f);
+        return false;
+    }
+
+    if (!Trailer->PerformRoadsideRepair())
+    {
+        Economy->AddCash(RepairCost, TEXT("Roadside repair refund"));
+        return false;
+    }
+
+    ++RoadsideRepairCount;
+    TimeRemaining = FMath::Max(0.0f, TimeRemaining - 22.0f);
+    Economy->PushMessage(FString::Printf(TEXT("ROADSIDE REPAIR COMPLETE | $%d | contract time -22s | trailer %.0f%%"), RepairCost, Trailer->GetTrailerIntegrity() * 100.0f), 6.0f);
+    return true;
+}
+
 bool AGTTHeavyHaulDirector::TryDeliverTimber(APawn* PlayerPawn)
 {
     if (!PlayerPawn || !Trailer || Stage != EGTTHeavyHaulStage::DeliverHillFarm || !Trailer->HasCargo()) return false;
-    if (!Trailer->IsAttached() || FVector::Dist2D(Trailer->GetActorLocation(), HillFarmDropLocation) > 950.0f)
-    {
-        PushMessage(PlayerPawn, TEXT("Tow the loaded trailer fully into the HILL FARM heavy-haul bay."));
-        return false;
-    }
+    if (!Trailer->IsAttached() || FVector::Dist2D(Trailer->GetActorLocation(), HillFarmDropLocation) > 950.0f) { PushMessage(PlayerPawn, TEXT("Tow the loaded trailer fully into the HILL FARM heavy-haul bay.")); return false; }
 
     const float CargoFactor = FMath::Clamp(Trailer->GetCargoIntegrity(), 0.20f, 1.0f);
     const float TrailerFactor = FMath::Clamp(Trailer->GetTrailerIntegrity(), 0.45f, 1.0f);
@@ -216,6 +211,7 @@ void AGTTHeavyHaulDirector::ResetContract(bool bResetTrailer)
 {
     Stage = EGTTHeavyHaulStage::Idle;
     TimeRemaining = 0.0f;
+    RoadsideRepairCount = 0;
     ContractTowVehicle = nullptr;
     ContractNativeTowVehicle = nullptr;
     if (bResetTrailer && Trailer) Trailer->ResetTrailer(FTransform(FRotator(0.0f, 90.0f, 0.0f), TrailerYardLocation));
@@ -228,15 +224,15 @@ void AGTTHeavyHaulDirector::PushMessage(APawn* Pawn, const FString& Message, flo
 
 FString AGTTHeavyHaulDirector::GetObjectiveText() const
 {
-    if (!Trailer)
-        return TEXT("HEAVY HAUL | trailer unavailable");
+    if (!Trailer) return TEXT("HEAVY HAUL | trailer unavailable");
+    const FString RepairState = (!Trailer->HasIntactAxle() || Trailer->GetTrailerIntegrity() < 0.55f) ? TEXT(" | ROADSIDE REPAIR AVAILABLE") : TEXT("");
     switch (Stage)
     {
         case EGTTHeavyHaulStage::Idle: return TEXT("HEAVY HAUL | available at Player Farm");
-        case EGTTHeavyHaulStage::HitchTrailer: return FString::Printf(TEXT("HEAVY HAUL | hitch Fieldmaster to trailer | %.0fs"), TimeRemaining);
-        case EGTTHeavyHaulStage::ReachWoodYard: return FString::Printf(TEXT("HEAVY HAUL | tow EMPTY trailer to NORTH WOOD | %.0fs | hitch %.0f%%"), TimeRemaining, Trailer->GetHitchLoad()*100.0f);
-        case EGTTHeavyHaulStage::LoadTimber: return FString::Printf(TEXT("HEAVY HAUL | load logs at NORTH WOOD | %.0fs"), TimeRemaining);
-        case EGTTHeavyHaulStage::DeliverHillFarm: return FString::Printf(TEXT("HEAVY HAUL | HILL FARM | %.0fs | cargo %.0f%% | trailer %.0f%% | hitch %.0f%%"), TimeRemaining, Trailer->GetCargoIntegrity()*100.0f, Trailer->GetTrailerIntegrity()*100.0f, Trailer->GetHitchLoad()*100.0f);
+        case EGTTHeavyHaulStage::HitchTrailer: return FString::Printf(TEXT("HEAVY HAUL | hitch Fieldmaster to trailer | %.0fs%s"), TimeRemaining, *RepairState);
+        case EGTTHeavyHaulStage::ReachWoodYard: return FString::Printf(TEXT("HEAVY HAUL | tow EMPTY trailer to NORTH WOOD | %.0fs | hitch %.0f%%%s"), TimeRemaining, Trailer->GetHitchLoad()*100.0f, *RepairState);
+        case EGTTHeavyHaulStage::LoadTimber: return FString::Printf(TEXT("HEAVY HAUL | load logs at NORTH WOOD | %.0fs%s"), TimeRemaining, *RepairState);
+        case EGTTHeavyHaulStage::DeliverHillFarm: return FString::Printf(TEXT("HEAVY HAUL | HILL FARM | %.0fs | cargo %.0f%% | trailer %.0f%% | hitch %.0f%%%s"), TimeRemaining, Trailer->GetCargoIntegrity()*100.0f, Trailer->GetTrailerIntegrity()*100.0f, Trailer->GetHitchLoad()*100.0f, *RepairState);
         case EGTTHeavyHaulStage::Completed: return TEXT("HEAVY HAUL | completed - new contract available");
         default: return TEXT("HEAVY HAUL");
     }
