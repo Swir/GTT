@@ -82,3 +82,5 @@ jobs:
         run: python Scripts/verify_fieldmaster_native_environment.py
       - name: Verify Fieldmaster native collision damage
         run: python Scripts/verify_fieldmaster_native_collision.py
+      - name: Verify trailer axle and impact physics
+        run: python Scripts/verify_trailer_axle_physics.py
