@@ -14,7 +14,7 @@ namespace
 {
     const FName FieldmasterVehicleId(TEXT("RustyFieldmaster60"));
 
-    AGTTFieldmasterNativePawn* FindActiveNativeFieldmaster(const UWorld* World, const FVector& Origin, float Radius)
+    AGTTFieldmasterNativePawn* FindActiveNativeFieldmaster(UWorld* World, const FVector& Origin, float Radius)
     {
         if (!World)
         {
@@ -40,7 +40,7 @@ namespace
         return Best;
     }
 
-    AGTTVehicleBase* FindFieldmasterMirror(const UWorld* World, const AGTTFieldmasterNativePawn* Native)
+    AGTTVehicleBase* FindFieldmasterMirror(UWorld* World, const AGTTFieldmasterNativePawn* Native)
     {
         if (!World || !Native)
         {
