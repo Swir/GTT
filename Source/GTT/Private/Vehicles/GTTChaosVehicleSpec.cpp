@@ -19,8 +19,8 @@ namespace
 FGTTChaosVehicleSpec UGTTVehicleChaosSpecLibrary::GetFieldmaster60Spec()
 {
     FGTTChaosVehicleSpec Spec;
-    Spec.VehicleId = TEXT("Fieldmaster60");
-    Spec.MassKg = 2850.0f;
+    Spec.VehicleId = TEXT("RustyFieldmaster60");
+    Spec.MassKg = 1850.0f;
     Spec.EngineMaxTorqueNm = 680.0f;
     Spec.EngineMaxRpm = 2600.0f;
     Spec.EngineIdleRpm = 720.0f;
@@ -28,7 +28,7 @@ FGTTChaosVehicleSpec UGTTVehicleChaosSpecLibrary::GetFieldmaster60Spec()
     Spec.MaxSteeringAngleDegrees = 38.0f;
     Spec.DriveLayout = EGTTChaosDriveLayout::FourWheelDrive;
     Spec.FrontWheel = MakeWheel(46.0f, 27.0f, 15.0f, 24.0f, 310.0f, 0.62f, 3.05f);
-    Spec.RearWheel = MakeWheel(68.0f, 38.0f, 12.0f, 22.0f, 365.0f, 0.68f, 3.35f);
+    Spec.RearWheel = MakeWheel(52.0f, 38.0f, 12.0f, 22.0f, 365.0f, 0.68f, 3.35f);
     Spec.ForwardGearRatios = {5.10f, 3.20f, 2.05f, 1.35f, 0.92f};
     Spec.ReverseGearRatio = -4.75f;
     return Spec;
@@ -72,7 +72,7 @@ FGTTChaosVehicleSpec UGTTVehicleChaosSpecLibrary::GetMulebox1200Spec()
 
 bool UGTTVehicleChaosSpecLibrary::GetSpecForVehicleId(FName VehicleId, FGTTChaosVehicleSpec& OutSpec)
 {
-    if (VehicleId == TEXT("Fieldmaster60") || VehicleId == TEXT("Tractor")) { OutSpec = GetFieldmaster60Spec(); return true; }
+    if (VehicleId == TEXT("RustyFieldmaster60") || VehicleId == TEXT("Tractor")) { OutSpec = GetFieldmaster60Spec(); return true; }
     if (VehicleId == TEXT("Rattleback82") || VehicleId == TEXT("OldCar")) { OutSpec = GetRattleback82Spec(); return true; }
     if (VehicleId == TEXT("Mulebox1200") || VehicleId == TEXT("FarmVan")) { OutSpec = GetMulebox1200Spec(); return true; }
     return false;
