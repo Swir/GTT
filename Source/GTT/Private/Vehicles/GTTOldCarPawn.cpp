@@ -1,8 +1,10 @@
 #include "Vehicles/GTTOldCarPawn.h"
 
+#include "Components/InputComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Vehicles/GTTChaosVehicleBridgeComponent.h"
 
 namespace
 {
@@ -33,6 +35,8 @@ AGTTOldCarPawn::AGTTOldCarPawn()
     ExitOffset = FVector(0.0f, 165.0f, 65.0f);
     LowConditionFaultChancePerSecond = 0.23f;
     CriticalEngineTemperatureC = 116.0f;
+
+    ChaosVehicleBridge = CreateDefaultSubobject<UGTTChaosVehicleBridgeComponent>(TEXT("ChaosVehicleBridge"));
 
     FGTTVehicleDynamicsProfile Dynamics;
     Dynamics.WheelBaseCm = 260.0f;
@@ -133,4 +137,22 @@ AGTTOldCarPawn::AGTTOldCarPawn()
     RegisterBreakablePart(TrunkMesh, 0.35f, TEXT("trunk lid"));
     RegisterBreakablePart(RearBumperMesh, 0.26f, TEXT("rear bumper"));
     RegisterBreakablePart(RightRearWheel, 0.14f, TEXT("right rear wheel"));
+}
+
+void AGTTOldCarPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
+    if (!PlayerInputComponent) return;
+    PlayerInputComponent->BindAxis(TEXT("VehicleThrottle"), this, &AGTTOldCarPawn::CaptureChaosThrottle);
+    PlayerInputComponent->BindAxis(TEXT("VehicleSteer"), this, &AGTTOldCarPawn::CaptureChaosSteering);
+}
+
+void AGTTOldCarPawn::CaptureChaosThrottle(float Value)
+{
+    if (ChaosVehicleBridge) ChaosVehicleBridge->CaptureThrottleInput(Value);
+}
+
+void AGTTOldCarPawn::CaptureChaosSteering(float Value)
+{
+    if (ChaosVehicleBridge) ChaosVehicleBridge->CaptureSteeringInput(Value);
 }
