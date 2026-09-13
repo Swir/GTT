@@ -11,6 +11,7 @@ class UGTTWantedComponent;
 class UGTTPlayerEconomyComponent;
 class UGTTRadioComponent;
 class UGTTCombatComponent;
+class UGTTCombatPresentationComponent;
 
 UCLASS()
 class GTT_API AGTTCharacter : public ACharacter
@@ -66,6 +67,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Combat")
     TObjectPtr<UGTTCombatComponent> CombatComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Combat|Presentation")
+    TObjectPtr<UGTTCombatPresentationComponent> CombatPresentationComponent;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Interaction", meta=(ClampMin="50.0"))
     float InteractionDistance = 350.0f;
