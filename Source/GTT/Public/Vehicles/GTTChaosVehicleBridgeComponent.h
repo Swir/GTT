@@ -47,6 +47,9 @@ public:
     bool IsNativeRigContractValid() const { return bRigContractValid; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
+    bool IsNativeWheelSetupValid() const { return bNativeWheelSetupValid; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     EGTTChaosBridgeState GetBridgeState() const { return BridgeState; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
@@ -54,6 +57,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     FString GetRigValidationSummary() const { return RigValidationSummary; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
+    FString GetNativeSetupValidationSummary() const { return NativeSetupValidationSummary; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     FGTTChaosVehicleSpec GetResolvedSpec() const { return ResolvedSpec; }
@@ -68,6 +74,7 @@ private:
     void ResolveSpec();
     void ResolveRigContract();
     bool ValidateNativeRig();
+    bool ValidateNativeWheelSetup();
     void UpdateRuntimeState();
     void RouteInputsToChaos();
     void DisableLegacyDynamicsIfNeeded();
@@ -82,7 +89,9 @@ private:
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") EGTTChaosBridgeState BridgeState = EGTTChaosBridgeState::WaitingForNativeRig;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bNativeMovementReady = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bRigContractValid = false;
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bNativeWheelSetupValid = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FString RigValidationSummary = TEXT("No native skeletal rig bound");
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FString NativeSetupValidationSummary = TEXT("No native wheel setup bound");
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") float EffectivePowerScale = 1.0f;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") float EffectiveGripScale = 1.0f;
 

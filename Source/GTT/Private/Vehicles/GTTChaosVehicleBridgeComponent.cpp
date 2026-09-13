@@ -2,6 +2,7 @@
 
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Vehicles/GTTChaosNativeSetupLibrary.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Vehicles/GTTVehicleDynamicsComponent.h"
 #include "GTT.h"
@@ -137,6 +138,23 @@ bool UGTTChaosVehicleBridgeComponent::ValidateNativeRig()
     return true;
 }
 
+bool UGTTChaosVehicleBridgeComponent::ValidateNativeWheelSetup()
+{
+    bNativeWheelSetupValid = false;
+    NativeSetupValidationSummary = TEXT("No native wheel setup bound");
+
+    if (!NativeMovement || ResolvedSpec.VehicleId.IsNone())
+    {
+        return false;
+    }
+
+    bNativeWheelSetupValid = UGTTChaosNativeSetupLibrary::ValidateCanonicalWheelSetups(
+        NativeMovement,
+        ResolvedSpec.VehicleId,
+        NativeSetupValidationSummary);
+    return bNativeWheelSetupValid;
+}
+
 void UGTTChaosVehicleBridgeComponent::RefreshNativeBinding()
 {
     if (!VehicleOwner)
@@ -159,20 +177,25 @@ void UGTTChaosVehicleBridgeComponent::RefreshNativeBinding()
 
     const bool bHasSpec = ResolvedSpec.VehicleId != NAME_None;
     const bool bRigValid = ValidateNativeRig();
-    bNativeMovementReady = NativeMovement != nullptr && bHasSpec && bRigValid;
+    const bool bWheelSetupValid = ValidateNativeWheelSetup();
+    bNativeMovementReady = NativeMovement != nullptr && bHasSpec && bRigValid && bWheelSetupValid;
     BridgeState = bNativeMovementReady ? EGTTChaosBridgeState::NativeReady : EGTTChaosBridgeState::WaitingForNativeRig;
 
     if (bNativeMovementReady)
     {
         DisableLegacyDynamicsIfNeeded();
-        UE_LOG(LogGTT, Log, TEXT("Chaos bridge native rig accepted for %s (%s)"), *ResolvedSpec.VehicleId.ToString(), *RigValidationSummary);
+        UE_LOG(LogGTT, Log, TEXT("Chaos bridge native setup accepted for %s (%s; %s)"),
+            *ResolvedSpec.VehicleId.ToString(),
+            *RigValidationSummary,
+            *NativeSetupValidationSummary);
     }
     else if (NativeMovement || NativeSkeletalBody)
     {
-        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge native rig rejected for %s: movement=%s rig=%s"),
+        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge native setup rejected for %s: movement=%s rig=%s wheels=%s"),
             ResolvedSpec.VehicleId.IsNone() ? TEXT("NO SPEC") : *ResolvedSpec.VehicleId.ToString(),
             NativeMovement ? TEXT("YES") : TEXT("NO"),
-            *RigValidationSummary);
+            *RigValidationSummary,
+            *NativeSetupValidationSummary);
     }
 }
 
@@ -286,10 +309,11 @@ FString UGTTChaosVehicleBridgeComponent::GetBridgeStatusSummary() const
         default: break;
     }
 
-    return FString::Printf(TEXT("CHAOS %s | %s | RIG %s | PWR %.0f%% | GRIP %.0f%%"),
+    return FString::Printf(TEXT("CHAOS %s | %s | RIG %s | WHEELS %s | PWR %.0f%% | GRIP %.0f%%"),
         StateText,
         ResolvedSpec.VehicleId.IsNone() ? TEXT("NO SPEC") : *ResolvedSpec.VehicleId.ToString(),
         bRigContractValid ? TEXT("VALID") : TEXT("WAIT"),
+        bNativeWheelSetupValid ? TEXT("VALID") : TEXT("WAIT"),
         EffectivePowerScale * 100.0f,
         EffectiveGripScale * 100.0f);
 }

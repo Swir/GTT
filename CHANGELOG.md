@@ -2,6 +2,25 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.40] - 2026-09-13
+
+### Added
+- **Native Chaos Setup Contract** milestone adding a fleet-wide canonical `FChaosWheelSetup` builder/validator for Rusty Fieldmaster 60, Rattleback 82 and Mulebox 1200.
+- New `UGTTChaosNativeSetupLibrary` maps each persistent vehicle ID to the correct vehicle-specific front/rear `UChaosVehicleWheel` classes and consumes the existing `FGTTChaosRigContract` wheel-bone names instead of duplicating rig literals.
+- Canonical setup helper enforces exactly four FL/FR/RL/RR wheel entries, zero additional offsets and enabled mechanical simulation before the setup can be accepted.
+- Dedicated `PLAYTEST_0.0.40.md` and `verify_native_chaos_setup.py` coverage wired into Project sanity.
+
+### Changed
+- `UGTTChaosVehicleBridgeComponent` now requires three independent native acceptance gates before disabling the proven legacy drivetrain: canonical vehicle spec, complete skeletal rig contract and a matching canonical native wheel setup.
+- A mismatched wheel class, wrong wheel bone, disabled mechanical simulation or incomplete wheel array now keeps the vehicle on legacy dynamics and exposes a readable native-setup diagnostic instead of silently accepting a half-configured Chaos component.
+- Bridge status now exposes separate `RIG` and `WHEELS` readiness so future UE runtime work can distinguish skeletal-asset failures from movement/wheel configuration failures.
+- Roadmap remains exactly `125/130 (96.2%)`: source-level native wheel setup is substantial migration progress, but the Native Chaos tasks remain open until real authored assets and UE 5.8 runtime acceptance exist.
+
+### Limitations / Next
+- This milestone validates/configures `WheelSetups`, but it does not claim that a final skeletal/physics vehicle asset exists or that wheel instances have been runtime-created successfully in packaged UE 5.8.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current repository runner, so no packaged EXE or demo Release is claimed.
+- Next large package should build the first real Fieldmaster native vehicle pawn/asset activation path around this stricter setup contract, then verify suspension/drivetrain behavior in an Unreal-capable Windows runner.
+
 ## [0.0.39] - 2026-09-13
 
 ### Added
