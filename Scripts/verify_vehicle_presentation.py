@@ -15,7 +15,6 @@ required_header = [
 required_cpp = [
     "RustyFieldmaster60",
     "Mulebox1200",
-    "Rattleback82",
     "DayNightCycle->IsNight()",
     "GetConditionPercent()",
     "GetVelocity()",
@@ -32,7 +31,8 @@ for token in required_header:
 for token in required_cpp:
     assert token in CPP, f"missing runtime integration: {token}"
 
-assert 'TEXT("Rattleback82")' not in CPP, "Rattleback should use the tuned default layout instead of a redundant special case"
+# Rattleback intentionally consumes the tuned default compact-road layout.
+assert 'TEXT("Rattleback82")' not in CPP, "Rattleback should use the default compact-road layout instead of a redundant special case"
 assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in ROADMAP
 assert "**125** | **5** | **130** | **96.2%**" in ROADMAP
 assert "- [ ] Dedicated native Chaos wheeled tractor movement" in ROADMAP
