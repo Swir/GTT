@@ -7,7 +7,67 @@
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
+
+namespace
+{
+    const FName FieldmasterVehicleId(TEXT("RustyFieldmaster60"));
+
+    AGTTFieldmasterNativePawn* FindActiveNativeFieldmaster(const UWorld* World, const FVector& Origin, float Radius)
+    {
+        if (!World)
+        {
+            return nullptr;
+        }
+
+        AGTTFieldmasterNativePawn* Best = nullptr;
+        float BestDistanceSquared = FMath::Square(Radius);
+        for (TActorIterator<AGTTFieldmasterNativePawn> It(World); It; ++It)
+        {
+            AGTTFieldmasterNativePawn* Native = *It;
+            if (!IsValid(Native) || !Native->IsLegacyTakeoverActive())
+            {
+                continue;
+            }
+
+            const float DistanceSquared = FVector::DistSquared(Origin, Native->GetActorLocation());
+            if (DistanceSquared <= BestDistanceSquared)
+            {
+                BestDistanceSquared = DistanceSquared;
+                Best = Native;
+            }
+        }
+        return Best;
+    }
+
+    AGTTVehicleBase* FindFieldmasterMirror(const UWorld* World, const AGTTFieldmasterNativePawn* Native)
+    {
+        if (!World || !Native)
+        {
+            return nullptr;
+        }
+
+        AGTTVehicleBase* Best = nullptr;
+        float BestDistanceSquared = TNumericLimits<float>::Max();
+        for (TActorIterator<AGTTVehicleBase> It(World); It; ++It)
+        {
+            AGTTVehicleBase* Vehicle = *It;
+            if (!IsValid(Vehicle) || Vehicle->GetPersistentVehicleId() != FieldmasterVehicleId)
+            {
+                continue;
+            }
+
+            const float DistanceSquared = FVector::DistSquared(Native->GetActorLocation(), Vehicle->GetActorLocation());
+            if (DistanceSquared < BestDistanceSquared)
+            {
+                BestDistanceSquared = DistanceSquared;
+                Best = Vehicle;
+            }
+        }
+        return Best;
+    }
+}
 
 AGTTServiceTerminal::AGTTServiceTerminal()
 {
@@ -42,6 +102,43 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         return;
     }
 
+    if (AGTTFieldmasterNativePawn* Native = FindActiveNativeFieldmaster(GetWorld(), GetActorLocation(), VehicleSearchRadius))
+    {
+        AGTTVehicleBase* Mirror = FindFieldmasterMirror(GetWorld(), Native);
+        if (!Mirror)
+        {
+            Economy->PushMessage(TEXT("Workshop: Native Fieldmaster compatibility mirror is unavailable."));
+            return;
+        }
+
+        const FGTTVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
+        const bool bNeedsRepair = State.ConditionPercent < 99.9f;
+        const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < Mirror->GetFuelCapacity();
+        if (!bNeedsRepair && !bNeedsFuel)
+        {
+            Economy->PushMessage(TEXT("Workshop: that machine is already ready to go."));
+            return;
+        }
+
+        if (!Economy->SpendCash(WorkshopServiceCost, FString::Printf(TEXT("Workshop service - $%d"), WorkshopServiceCost)))
+        {
+            return;
+        }
+
+        Mirror->RepairVehicle(100000.0f);
+        Mirror->RefuelVehicle(100000.0f);
+        FString ImportSummary;
+        if (!Native->ImportLegacyGameplayState(Mirror, ImportSummary))
+        {
+            Economy->AddCash(WorkshopServiceCost, TEXT("Workshop service rollback"));
+            Economy->PushMessage(TEXT("Workshop: Native Fieldmaster state refresh failed; payment returned."));
+            return;
+        }
+
+        Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled; Native Chaos state synchronized."), *Native->GetVehicleDisplayName().ToString()), 5.0f);
+        return;
+    }
+
     AGTTVehicleBase* Vehicle = FindNearestVehicle();
     if (!Vehicle)
     {
@@ -49,7 +146,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         return;
     }
 
-    const bool bNeedsRepair = Vehicle->GetConditionPercent() < 0.999f;
+    const bool bNeedsRepair = Vehicle->GetConditionPercent() < 99.9f;
     const bool bNeedsFuel = Vehicle->GetFuelPercent() < 0.999f;
     if (!bNeedsRepair && !bNeedsFuel)
     {
@@ -90,6 +187,23 @@ AGTTVehicleBase* AGTTServiceTerminal::FindNearestVehicle() const
         if (!IsValid(Vehicle))
         {
             continue;
+        }
+
+        if (Vehicle->GetPersistentVehicleId() == FieldmasterVehicleId)
+        {
+            bool bNativeTakeoverActive = false;
+            for (TActorIterator<AGTTFieldmasterNativePawn> NativeIt(GetWorld()); NativeIt; ++NativeIt)
+            {
+                if (IsValid(*NativeIt) && NativeIt->IsLegacyTakeoverActive())
+                {
+                    bNativeTakeoverActive = true;
+                    break;
+                }
+            }
+            if (bNativeTakeoverActive)
+            {
+                continue;
+            }
         }
 
         const float DistanceSquared = FVector::DistSquared(GetActorLocation(), Vehicle->GetActorLocation());
