@@ -78,3 +78,5 @@ jobs:
         run: python Scripts/verify_fieldmaster_native_takeover.py
       - name: Verify Fieldmaster native workshop and tuning
         run: python Scripts/verify_fieldmaster_native_service.py
+      - name: Verify Fieldmaster native terrain and heavy-haul
+        run: python Scripts/verify_fieldmaster_native_environment.py
