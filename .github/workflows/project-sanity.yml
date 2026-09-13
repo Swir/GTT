@@ -79,3 +79,6 @@ jobs:
 
       - name: Verify native rig acceptance gate
         run: python Scripts/verify_native_rig_acceptance.py
+
+      - name: Verify village presentation milestone
+        run: python Scripts/verify_village_presentation.py
