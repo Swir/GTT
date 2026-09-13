@@ -2,6 +2,42 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.36] - 2026-09-13
+
+### Added
+- **Native Rig Acceptance & Hitch Integration** milestone hardening the fleet Chaos bridge so an arbitrary skeletal mesh can no longer trigger native takeover.
+- Runtime validation of every required `FGTTChaosRigContract` root/wheel bone and driver/exit/hitch socket before native movement is considered ready.
+- Human-readable rig diagnostics through `GetRigValidationSummary()` plus rig-valid state in the existing Chaos bridge status summary.
+- Validated native `rear_hitch` world-transform handoff to the articulated farm trailer, while current greybox vehicles retain the proven legacy hitch fallback.
+- Dedicated `PLAYTEST_0.0.36.md` and `verify_native_rig_acceptance.py` CI coverage.
+
+### Changed
+- `UGTTChaosVehicleBridgeComponent` now requires canonical vehicle spec + `UChaosWheeledVehicleMovementComponent` + a complete matching skeletal rig contract before disabling `UGTTVehicleDynamicsComponent`.
+- Half-migrated or incorrectly named skeletal rigs remain safely on legacy dynamics instead of silently disabling the working drivetrain.
+- Trailer attachment now measures and anchors from the validated authored hitch socket when available rather than always using an approximate vehicle-relative point.
+- Roadmap remains exactly `125/130 (96.2%)`: runtime acceptance gating is substantial migration progress but does not substitute for authored skeletal/physics assets or a real UE 5.8 packaged runtime test.
+
+### Limitations / Next
+- The repository still lacks the final original GTT skeletal meshes/physics assets required to activate Native Chaos in an actual play session.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current sanity runner; no packaged EXE verification is claimed.
+- Next package should create/activate the first real Fieldmaster native pawn/rig path and then perform the same acceptance process for Rattleback and Mulebox.
+
+## [0.0.35] - 2026-09-13
+
+### Added
+- **Native Rig Architecture** milestone with six native `UChaosVehicleWheel` classes: front/rear classes for Rusty Fieldmaster 60, Rattleback 82 and Mulebox 1200.
+- Wheel geometry, suspension, friction and steering values sourced directly from the canonical `FGTTChaosVehicleSpec` profiles rather than duplicated tuning data.
+- Persistent-ID-aligned skeletal rig contracts defining `root`, four wheel bones, `driver_seat`, `driver_exit` and required `rear_hitch` sockets for Fieldmaster/Mulebox.
+- Dedicated `PLAYTEST_0.0.35.md` and `verify_native_chaos_rig.py` CI coverage.
+
+### Changed
+- Chaos migration now has concrete wheel classes and one canonical fleet skeletal naming contract ready for authored meshes/physics assets.
+- Roadmap intentionally stayed at `125/130 (96.2%)` because source architecture alone is not runtime acceptance.
+
+### Limitations / Next
+- No final skeletal/physics vehicle asset is present yet, so production Native Chaos handling is not claimed.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current sanity runner; no packaged EXE verification is claimed.
+
 ## [0.0.34] - 2026-09-13
 
 ### Added
@@ -162,7 +198,7 @@ All notable development steps for GTT are tracked here.
 ### Changed
 - Character camera input now consumes persistent GTT look sensitivity and invert-Y settings instead of hard-wiring raw input values.
 - Unreal now uses `UGTTGameUserSettings` as the project GameUserSettings implementation so player preferences live in the normal per-user configuration path and remain separate from campaign/world saves.
-- Roadmap advances from `115/130 (88.5%)` to exactly `117/130 (90.0%)`; the 20-segment bar remains mathematically correct at 18/20 and preserves `SWIR-ROADMAP-STANDARD:v1`.
+- Roadmap advances from `115/130 (88.5%)` to exactly `117/130 (90.0%)`; the 20-segment bar remains mathematically correct at 18/20 while preserving `SWIR-ROADMAP-STANDARD:v1`.
 
 ### Limitations / Next
 - The persistent settings API is ready for a polished settings menu, but this source milestone does not claim final menu art/layout or runtime validation of every controller model.

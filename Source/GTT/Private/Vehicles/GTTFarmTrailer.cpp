@@ -5,6 +5,7 @@
 #include "Engine/StaticMesh.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Vehicles/GTTChaosVehicleBridgeComponent.h"
 #include "Vehicles/GTTVehicleBase.h"
 
 AGTTFarmTrailer::AGTTFarmTrailer()
@@ -96,11 +97,21 @@ bool AGTTFarmTrailer::AttachToVehicle(AGTTVehicleBase* Vehicle)
     UPrimitiveComponent* VehicleRoot = Cast<UPrimitiveComponent>(Vehicle->GetRootComponent());
     if (!VehicleRoot || !VehicleRoot->IsSimulatingPhysics()) return false;
 
-    const float Distance = FVector::Distance(Vehicle->GetActorLocation(), GetActorLocation());
-    if (Distance > 620.0f) return false;
+    FVector HitchLocation = Vehicle->GetActorLocation() - Vehicle->GetActorForwardVector() * 285.0f;
+    if (const UGTTChaosVehicleBridgeComponent* ChaosBridge = Vehicle->FindComponentByClass<UGTTChaosVehicleBridgeComponent>())
+    {
+        FTransform NativeHitchTransform;
+        if (ChaosBridge->TryGetNativeHitchTransform(NativeHitchTransform))
+        {
+            HitchLocation = NativeHitchTransform.GetLocation();
+        }
+    }
+
+    const float HitchDistance = FVector::Distance(HitchLocation, GetActorLocation());
+    if (HitchDistance > 620.0f) return false;
 
     TowVehicle = Vehicle;
-    HitchConstraint->SetWorldLocation(GetActorLocation() - GetActorForwardVector() * 285.0f);
+    HitchConstraint->SetWorldLocation(HitchLocation);
     HitchConstraint->SetConstrainedComponents(VehicleRoot, NAME_None, TrailerBody, NAME_None);
     bAttached = true;
     HitchLoad = 0.0f;
