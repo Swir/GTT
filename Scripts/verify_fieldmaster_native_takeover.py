@@ -44,8 +44,10 @@ assert "IsLegacyTakeoverActive" in garage
 assert "RecallToTransform(Destination)" in garage
 
 assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
-assert "125/130" in roadmap
-assert "96.2%" in roadmap
+assert "ROADMAP-96.2%25" in roadmap
+assert "DONE-125%2F130" in roadmap
+assert "| **125** | **5** | **130** | **96.2%** |" in roadmap
+assert "███████████████████░ 96.2%" in roadmap
 assert "- [ ] Dedicated native Chaos wheeled tractor movement" in roadmap
 assert "- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup" in roadmap
 
