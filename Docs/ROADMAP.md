@@ -6,20 +6,20 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 <!-- ROADMAP-PROGRESS:START -->
 <p align="center">
   <a href="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml"><img alt="CI" src="https://github.com/Swir/GTT/actions/workflows/project-sanity.yml/badge.svg"></a>
-  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-92.3%25-2ea043?style=for-the-badge">
-  <img alt="Completed" src="https://img.shields.io/badge/DONE-120%2F130-1f6feb?style=for-the-badge">
+  <img alt="Roadmap progress" src="https://img.shields.io/badge/ROADMAP-94.6%25-2ea043?style=for-the-badge">
+  <img alt="Completed" src="https://img.shields.io/badge/DONE-123%2F130-1f6feb?style=for-the-badge">
   <img alt="Status" src="https://img.shields.io/badge/STATUS-IN%20PROGRESS-7c3aed?style=for-the-badge">
 </p>
 
 ## 📊 Overall progress
 
 ```text
-██████████████████░░ 92.3%
+███████████████████░ 94.6%
 ```
 
 | ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |
 |---:|---:|---:|---:|
-| **120** | **10** | **130** | **92.3%** |
+| **123** | **7** | **130** | **94.6%** |
 
 > **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
@@ -144,9 +144,9 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Mud zones consume tire integrity under load
 - [x] Engine/tire tuning feeds the shared drivetrain power/grip model
 - [x] Heavy-haul payout reacts to tow-vehicle condition
-- [ ] Tractor visual upgrades
-- [ ] Old-car visual/performance variants
-- [ ] Replacement body-panel economy
+- [x] Tractor visual upgrades
+- [x] Old-car visual/performance variants
+- [x] Replacement body-panel economy
 
 ## 0.9 — Content & Polish
 - [x] Main Story Arc 1: County Ledger / Backroad Deal / Final Farm Meet
