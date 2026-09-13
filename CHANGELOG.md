@@ -2,6 +2,26 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.38] - 2026-09-13
+
+### Added
+- **Demo HUD Presentation** milestone focused on turning the normal gameplay overlay from an always-visible debug-style telemetry wall into a cleaner player-facing interface before any public demo is considered.
+- Viewport-aware HUD layout with a compact persistent status line, a single prioritized `CURRENT OBJECTIVE` block and separate lower-screen vehicle/combat presentation.
+- Contextual vehicle/on-foot control hints plus severity-driven vehicle warnings for real faults, critically worn tires, low fuel and engine overheating.
+- Dedicated `PLAYTEST_0.0.38.md` and `verify_demo_hud.py` coverage, wired into Project sanity.
+
+### Changed
+- Police response and Warden information are now shown only when their existing gameplay alerts are active instead of consuming permanent HUD rows.
+- Simultaneous story arcs, jobs and activities are resolved into one highest-priority live objective so active gameplay no longer produces a wall of competing text.
+- Vehicle presentation is condensed to speed, fuel, condition, tire integrity and ownership state; raw drivetrain/contact/tuning debug telemetry is no longer permanently rendered on the player HUD.
+- Radio information is shown only while the existing radio is on, while combat status remains available contextually on foot.
+- Roadmap remains exactly `125/130 (96.2%)`: this presentation milestone improves demo readability but does not substitute for Native Chaos runtime acceptance, authored trailer assets or a verified Win64 build runner.
+
+### Limitations / Next
+- Source-level HUD integration and repository sanity checks are not a substitute for screenshot-based visual approval in a real packaged build.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current repository runner; no packaged EXE verification or demo Release is claimed.
+- Next large package should continue Native Chaos activation and runtime/visual acceptance work while preserving the cleaner demo-facing presentation baseline.
+
 ## [0.0.37] - 2026-09-13
 
 ### Added
