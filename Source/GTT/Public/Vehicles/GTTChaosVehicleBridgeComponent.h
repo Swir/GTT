@@ -2,12 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Vehicles/GTTChaosRigContract.h"
 #include "Vehicles/GTTChaosVehicleSpec.h"
 #include "GTTChaosVehicleBridgeComponent.generated.h"
 
 class AGTTVehicleBase;
 class UChaosWheeledVehicleMovementComponent;
 class UGTTVehicleDynamicsComponent;
+class USkeletalMeshComponent;
 
 UENUM(BlueprintType)
 enum class EGTTChaosBridgeState : uint8
@@ -42,16 +44,30 @@ public:
     bool IsNativeMovementReady() const { return bNativeMovementReady; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
+    bool IsNativeRigContractValid() const { return bRigContractValid; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     EGTTChaosBridgeState GetBridgeState() const { return BridgeState; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     FString GetBridgeStatusSummary() const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
+    FString GetRigValidationSummary() const { return RigValidationSummary; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     FGTTChaosVehicleSpec GetResolvedSpec() const { return ResolvedSpec; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
+    FGTTChaosRigContract GetResolvedRigContract() const { return ResolvedRigContract; }
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Chaos")
+    bool TryGetNativeHitchTransform(FTransform& OutTransform) const;
 
 private:
     void ResolveSpec();
+    void ResolveRigContract();
+    bool ValidateNativeRig();
     void UpdateRuntimeState();
     void RouteInputsToChaos();
     void DisableLegacyDynamicsIfNeeded();
@@ -59,10 +75,14 @@ private:
     UPROPERTY(Transient) TObjectPtr<AGTTVehicleBase> VehicleOwner;
     UPROPERTY(Transient) TObjectPtr<UChaosWheeledVehicleMovementComponent> NativeMovement;
     UPROPERTY(Transient) TObjectPtr<UGTTVehicleDynamicsComponent> LegacyDynamics;
+    UPROPERTY(Transient) TObjectPtr<USkeletalMeshComponent> NativeSkeletalBody;
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FGTTChaosVehicleSpec ResolvedSpec;
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FGTTChaosRigContract ResolvedRigContract;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") EGTTChaosBridgeState BridgeState = EGTTChaosBridgeState::WaitingForNativeRig;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bNativeMovementReady = false;
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") bool bRigContractValid = false;
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FString RigValidationSummary = TEXT("No native skeletal rig bound");
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") float EffectivePowerScale = 1.0f;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") float EffectiveGripScale = 1.0f;
 
