@@ -4,7 +4,9 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "GTTTractorPawn.generated.h"
 
+class UInputComponent;
 class UStaticMeshComponent;
+class UGTTChaosVehicleBridgeComponent;
 
 UCLASS(Blueprintable)
 class GTT_API AGTTTractorPawn : public AGTTVehicleBase
@@ -14,7 +16,12 @@ class GTT_API AGTTTractorPawn : public AGTTVehicleBase
 public:
     AGTTTractorPawn();
 
+    virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+
 protected:
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Tractor|Chaos")
+    TObjectPtr<UGTTChaosVehicleBridgeComponent> ChaosVehicleBridge;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Tractor")
     TObjectPtr<UStaticMeshComponent> HoodMesh;
 
@@ -35,4 +42,8 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Tractor")
     TObjectPtr<UStaticMeshComponent> RightRearWheel;
+
+private:
+    void CaptureChaosThrottle(float Value);
+    void CaptureChaosSteering(float Value);
 };
