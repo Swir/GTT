@@ -86,3 +86,5 @@ jobs:
         run: python Scripts/verify_trailer_axle_physics.py
       - name: Verify trailer roadside recovery
         run: python Scripts/verify_trailer_roadside_recovery.py
+      - name: Verify trailer presentation milestone
+        run: python Scripts/verify_trailer_presentation.py
