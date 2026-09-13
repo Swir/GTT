@@ -2,6 +2,26 @@
 
 All notable development steps for GTT are tracked here.
 
+## [0.0.39] - 2026-09-13
+
+### Added
+- **Vehicle Presentation & Road Readability** milestone adding a gameplay-driven runtime lighting layer to the full driveable fleet without external vehicle art or disconnected showcase logic.
+- Automatic night headlights and rear position lamps tied directly to the existing `AGTTDayNightCycle` and each vehicle's real engine-running state.
+- Dynamic brake-light response inferred from real vehicle deceleration, reversing lamps driven by actual backward world velocity, and vehicle-specific light placement for the Rusty Fieldmaster 60 and Mulebox 1200 with a compact default layout for the Rattleback 82.
+- Low-condition electrical instability below roughly 28% vehicle condition so severe mechanical damage now has a visible nighttime presentation consequence.
+- Dedicated `PLAYTEST_0.0.39.md` and `verify_vehicle_presentation.py` coverage wired into Project sanity.
+
+### Changed
+- Night driving now visually connects the 0.0.37 village street-light/reflector pass with the actual player vehicle instead of leaving vehicles unlit while the environment changes around them.
+- Fleet presentation consumes authoritative engine, condition, speed and velocity state and does not introduce duplicate save values, duplicate drivetrain logic or physics forces.
+- Vehicle lights deliberately disable shadow casting and use bounded attenuation so the presentation gain does not add an avoidable prototype performance spike.
+- Roadmap remains exactly `125/130 (96.2%)`: this is a real demo-facing gameplay presentation milestone, but it does not substitute for Native Chaos runtime acceptance, authored trailer assets or a verified Win64 Unreal runner.
+
+### Limitations / Next
+- Light placement and behavior are source-level implementation and still require packaged-build visual approval; no claim is made that final authored vehicle meshes/materials exist.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current repository runner, so no packaged EXE verification or demo Release is claimed.
+- Next large package should continue the Native Chaos activation path and/or remove another major visible prototype-art blocker while preserving the improved night-driving presentation baseline.
+
 ## [0.0.38] - 2026-09-13
 
 ### Added
@@ -92,7 +112,7 @@ All notable development steps for GTT are tracked here.
 
 ### Limitations / Next
 - The repository still lacks validated native skeletal/physics/wheel rigs for the fleet, so no vehicle is claimed to have switched to production Chaos handling yet.
-- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current sanity runner; no packaged EXE verification is claimed.
+- Full Unreal Engine 5.8 Win64 compile/package/runtime smoke validation remains unavailable on the current repository sanity runner; no packaged EXE verification is claimed.
 - Next package should author the first real Fieldmaster native rig/wheels/hitch path, then apply the same asset/runtime acceptance process to Rattleback and Mulebox.
 
 ## [0.0.33] - 2026-09-13

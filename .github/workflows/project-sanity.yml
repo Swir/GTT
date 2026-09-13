@@ -62,3 +62,5 @@ jobs:
         run: python Scripts/verify_village_presentation.py
       - name: Verify demo HUD presentation milestone
         run: python Scripts/verify_demo_hud.py
+      - name: Verify vehicle presentation milestone
+        run: python Scripts/verify_vehicle_presentation.py
