@@ -8,6 +8,7 @@
 #include "GameFramework/Pawn.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
+#include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 
 namespace
@@ -39,6 +40,50 @@ namespace
             }
         }
         return Best;
+    }
+
+    AGTTRoadVehicleNativePawn* FindActiveNativeRoadVehicle(UWorld* World, const FVector& Origin, float Radius)
+    {
+        if (!World)
+        {
+            return nullptr;
+        }
+
+        AGTTRoadVehicleNativePawn* Best = nullptr;
+        float BestDistanceSquared = FMath::Square(Radius);
+        for (TActorIterator<AGTTRoadVehicleNativePawn> It(World); It; ++It)
+        {
+            AGTTRoadVehicleNativePawn* Native = *It;
+            if (!IsValid(Native) || !Native->IsLegacyTakeoverActive())
+            {
+                continue;
+            }
+
+            const float DistanceSquared = FVector::DistSquared(Origin, Native->GetActorLocation());
+            if (DistanceSquared <= BestDistanceSquared)
+            {
+                BestDistanceSquared = DistanceSquared;
+                Best = Native;
+            }
+        }
+        return Best;
+    }
+
+    bool HasActiveNativeRoadTakeover(UWorld* World, FName VehicleId)
+    {
+        if (!World || VehicleId.IsNone())
+        {
+            return false;
+        }
+        for (TActorIterator<AGTTRoadVehicleNativePawn> It(World); It; ++It)
+        {
+            const AGTTRoadVehicleNativePawn* Native = *It;
+            if (IsValid(Native) && Native->IsLegacyTakeoverActive() && Native->GetPersistentVehicleId() == VehicleId)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     AGTTVehicleBase* FindFieldmasterMirror(UWorld* World, const AGTTFieldmasterNativePawn* Native)
@@ -99,6 +144,35 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     if (ServiceType == EGTTServiceType::FishBuyer)
     {
         Economy->SellAllFish(FishPricePerKg);
+        return;
+    }
+
+    if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
+    {
+        if (!NativeRoad->NeedsNativeWorkshopService())
+        {
+            Economy->PushMessage(TEXT("Workshop: that Native road vehicle is already ready to go."));
+            return;
+        }
+
+        const int32 DamageSurcharge = NativeRoad->GetBodyDamageRepairSurcharge();
+        const int32 TotalCost = WorkshopServiceCost + DamageSurcharge;
+        if (!Economy->SpendCash(TotalCost, FString::Printf(TEXT("Native road workshop service - $%d"), TotalCost)))
+        {
+            return;
+        }
+
+        if (!NativeRoad->ApplyNativeWorkshopService())
+        {
+            Economy->AddCash(TotalCost, TEXT("Native road workshop rollback"));
+            Economy->PushMessage(TEXT("Workshop: Native road state refresh failed; payment returned."));
+            return;
+        }
+
+        Economy->PushMessage(
+            FString::Printf(TEXT("%s repaired, panels restored, tires serviced and refuelled ($%d; body surcharge $%d)."),
+                *NativeRoad->GetVehicleDisplayName().ToString(), TotalCost, DamageSurcharge),
+            6.0f);
         return;
     }
 
@@ -168,7 +242,7 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
 {
     return ServiceType == EGTTServiceType::FishBuyer
         ? NSLOCTEXT("GTT", "SellFish", "Sell all fish")
-        : NSLOCTEXT("GTT", "WorkshopService", "Repair + refuel nearby vehicle ($75)");
+        : NSLOCTEXT("GTT", "WorkshopService", "Repair + refuel nearby vehicle ($75 + damage parts)");
 }
 
 AGTTVehicleBase* AGTTServiceTerminal::FindNearestVehicle() const
@@ -204,6 +278,11 @@ AGTTVehicleBase* AGTTServiceTerminal::FindNearestVehicle() const
             {
                 continue;
             }
+        }
+
+        if (HasActiveNativeRoadTakeover(GetWorld(), Vehicle->GetPersistentVehicleId()))
+        {
+            continue;
         }
 
         const float DistanceSquared = FVector::DistSquared(GetActorLocation(), Vehicle->GetActorLocation());
