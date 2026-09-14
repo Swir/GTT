@@ -136,3 +136,5 @@ jobs:
         run: python Scripts/verify_native_rollover_safety.py
       - name: Verify Native drivetrain authority and safe direction changes
         run: python Scripts/verify_native_drivetrain_authority.py
+      - name: Verify Native wheel/axle traction authority
+        run: python Scripts/verify_native_axle_traction.py
