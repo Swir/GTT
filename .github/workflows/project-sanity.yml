@@ -128,3 +128,5 @@ jobs:
         run: python Scripts/verify_native_road_body_damage.py
       - name: Verify Native roadside recovery and police impound
         run: python Scripts/verify_native_roadside_recovery.py
+      - name: Verify Native trailer authored-rig acceptance and hitch safety
+        run: python Scripts/verify_native_trailer_acceptance.py
