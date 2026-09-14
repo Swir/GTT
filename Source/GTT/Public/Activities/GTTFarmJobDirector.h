@@ -5,6 +5,7 @@
 #include "GTTFarmJobDirector.generated.h"
 
 class AGTTFarmVanPawn;
+class AGTTMuleboxNativePawn;
 
 UENUM(BlueprintType)
 enum class EGTTFarmJobStage : uint8
@@ -71,9 +72,11 @@ private:
     void PushMessage(APawn* Pawn, const FString& Message, float Duration = 4.0f) const;
     APawn* ResolvePlayerPawn() const;
     void ClearLoadedVehicleCargoState();
+    float ResolveCargoVehicleConditionRatio() const;
 
     EGTTFarmJobStage Stage = EGTTFarmJobStage::Idle;
     float TimeRemaining = 0.0f;
     float CargoIntegrity = 1.0f;
     TWeakObjectPtr<AGTTFarmVanPawn> LoadedMulebox;
+    TWeakObjectPtr<AGTTMuleboxNativePawn> LoadedNativeMulebox;
 };
