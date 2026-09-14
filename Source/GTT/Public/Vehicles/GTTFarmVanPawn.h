@@ -16,6 +16,12 @@ public:
     AGTTFarmVanPawn();
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|FarmVan|Cargo")
+    void SetCargoLoadFactor(float NewLoadFactor);
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|FarmVan|Cargo")
+    float GetCargoLoadFactor() const { return CargoLoadFactor; }
+
 protected:
     void CaptureChaosThrottle(float Value);
     void CaptureChaosSteering(float Value);
@@ -40,4 +46,7 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|FarmVan")
     TObjectPtr<UStaticMeshComponent> RightRearWheel;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="GTT|Vehicle|FarmVan|Cargo", meta=(ClampMin="0.0", ClampMax="1.0"))
+    float CargoLoadFactor = 0.0f;
 };
