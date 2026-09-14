@@ -134,3 +134,5 @@ jobs:
         run: python Scripts/verify_authored_trailer_runtime.py
       - name: Verify Native fleet rollover safety and emergency righting
         run: python Scripts/verify_native_rollover_safety.py
+      - name: Verify Native drivetrain authority and safe direction changes
+        run: python Scripts/verify_native_drivetrain_authority.py
