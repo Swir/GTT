@@ -120,3 +120,5 @@ jobs:
         run: python Scripts/verify_native_road_fleet_takeover.py
       - name: Verify Native road fleet collision and wheel-state control
         run: python Scripts/verify_native_road_damage_control.py
+      - name: Verify Native road traffic incidents and wanted escalation
+        run: python Scripts/verify_native_road_incidents.py
