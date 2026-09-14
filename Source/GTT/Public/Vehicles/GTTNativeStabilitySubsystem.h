@@ -8,10 +8,10 @@ class AGTTFarmTrailer;
 class AGTTFieldmasterNativePawn;
 
 /**
- * Contact-aware stability controller for the Native Chaos Fieldmaster.
+ * Contact-aware stability and traction controller for the Native Chaos Fieldmaster.
  * It combines authored wheel-ground evidence with heavy-haul load/sway state,
- * axle load-transfer and terrain grade so cargo mass, hitch stress, trailer
- * damage and uneven ground alter driving intervention without duplicating state.
+ * axle load-transfer, terrain grade, tire health and chassis slip so unsafe
+ * traction loss changes the live Chaos inputs without duplicating vehicle state.
  */
 UCLASS()
 class GTT_API UGTTNativeStabilitySubsystem : public UTickableWorldSubsystem
@@ -30,11 +30,16 @@ private:
         float LowContactSeconds = 0.0f;
         float TrailerSwaySeconds = 0.0f;
         float LoadTransferSeconds = 0.0f;
+        float TractionLossSeconds = 0.0f;
         int32 LastContacts = 4;
         float LastRisk = 0.0f;
         float LastTowLoad = 0.0f;
         float LastSwayRisk = 0.0f;
         float LastLoadTransferRisk = 0.0f;
+        float LastTractionRisk = 0.0f;
+        float LastSlipAngleDegrees = 0.0f;
+        float LastFrontTraction = 1.0f;
+        float LastRearTraction = 1.0f;
         float LastFrontRearBias = 0.0f;
         float LastSideBias = 0.0f;
     };
@@ -44,7 +49,8 @@ private:
     AGTTFarmTrailer* FindAttachedTrailer(const AGTTFieldmasterNativePawn* NativePawn) const;
     float ComputeTrailerSwayRisk(const AGTTFieldmasterNativePawn* NativePawn, const AGTTFarmTrailer* Trailer, float TowLoadFactor) const;
     float ComputeLoadTransferRisk(const AGTTFieldmasterNativePawn* NativePawn, const TArray<float>& ClearancesCm, float TowLoadFactor, float& OutFrontRearBias, float& OutSideBias) const;
-    float ComputeStabilityRisk(const AGTTFieldmasterNativePawn* NativePawn, int32 Contacts, float SpeedKmh, float TowLoadFactor, float SwayRisk, float LoadTransferRisk) const;
+    float ComputeTractionRisk(const AGTTFieldmasterNativePawn* NativePawn, int32 Contacts, float TowLoadFactor, float FrontRearBias, float SideBias, float& OutSlipAngleDegrees, float& OutFrontTraction, float& OutRearTraction) const;
+    float ComputeStabilityRisk(const AGTTFieldmasterNativePawn* NativePawn, int32 Contacts, float SpeedKmh, float TowLoadFactor, float SwayRisk, float LoadTransferRisk, float TractionRisk) const;
 
     TMap<TWeakObjectPtr<AGTTFieldmasterNativePawn>, FStabilityState> StabilityStates;
 };
