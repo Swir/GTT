@@ -5,6 +5,7 @@
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Vehicles/GTTFarmVanPawn.h"
+#include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "Core/GTTGameMode.h"
@@ -26,7 +27,7 @@ AGTTVehicleBase* FindNearbyWorkVehicle(const UObject* WorldContextObject, APawn*
     for (TActorIterator<AGTTVehicleBase> It(World); It; ++It)
     {
         AGTTVehicleBase* Vehicle = *It;
-        if (!Vehicle || Vehicle->GetConditionPercent() <= 0.0f) continue;
+        if (!Vehicle || Vehicle->GetConditionPercent() <= 0.0f || Vehicle->IsHidden()) continue;
         const float DistSq = FVector::DistSquared2D(PlayerPawn->GetActorLocation(), Vehicle->GetActorLocation());
         if (DistSq <= BestDistSq)
         {
@@ -59,11 +60,10 @@ void AGTTFarmJobDirector::Tick(float DeltaSeconds)
         return;
     }
 
-    AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn);
-    if (!Vehicle) Vehicle = FindNearbyWorkVehicle(this, PlayerPawn, 800.0f);
-    if (Vehicle)
+    const float ConditionRatio = ResolveCargoVehicleConditionRatio();
+    if (ConditionRatio >= 0.0f)
     {
-        const float DamageSeverity = 1.0f - Vehicle->GetConditionPercent();
+        const float DamageSeverity = 1.0f - ConditionRatio;
         if (DamageSeverity > 0.35f)
         {
             CargoIntegrity = FMath::Max(0.0f, CargoIntegrity - DamageSeverity * DamagedVehicleCargoLossPerSecond * DeltaSeconds);
@@ -108,15 +108,22 @@ bool AGTTFarmJobDirector::TryPickupCargo(APawn* PlayerPawn)
 {
     if (!PlayerPawn || Stage != EGTTFarmJobStage::ReachPickup) return false;
 
-    AGTTVehicleBase* Vehicle = FindNearbyWorkVehicle(this, PlayerPawn, 700.0f);
-    if (!Vehicle)
+    APawn* ControlledPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+    LoadedNativeMulebox = Cast<AGTTMuleboxNativePawn>(ControlledPawn);
+    AGTTVehicleBase* Vehicle = LoadedNativeMulebox.IsValid() ? nullptr : FindNearbyWorkVehicle(this, PlayerPawn, 700.0f);
+    if (!Vehicle && !LoadedNativeMulebox.IsValid())
     {
         PushMessage(PlayerPawn, TEXT("Park a working vehicle beside the feed depot, then load the pallets."));
         return false;
     }
 
     LoadedMulebox = Cast<AGTTFarmVanPawn>(Vehicle);
-    if (LoadedMulebox.IsValid())
+    if (LoadedNativeMulebox.IsValid())
+    {
+        LoadedNativeMulebox->SetCargoLoadFactor(1.0f);
+        PushMessage(PlayerPawn, TEXT("NATIVE MULEBOX LOADED: cargo weight now affects Chaos throttle and high-speed steering."), 5.0f);
+    }
+    else if (LoadedMulebox.IsValid())
     {
         LoadedMulebox->SetCargoLoadFactor(1.0f);
         PushMessage(PlayerPawn, TEXT("MULEBOX LOADED: cargo weight now affects throttle and high-speed steering."), 5.0f);
@@ -133,7 +140,8 @@ bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
 {
     if (!PlayerPawn || Stage != EGTTFarmJobStage::DeliverCargo) return false;
 
-    if (!FindNearbyWorkVehicle(this, PlayerPawn, 750.0f))
+    const bool bNativeMuleboxArrived = LoadedNativeMulebox.IsValid() && UGameplayStatics::GetPlayerPawn(this, 0) == LoadedNativeMulebox.Get();
+    if (!bNativeMuleboxArrived && !FindNearbyWorkVehicle(this, PlayerPawn, 750.0f))
     {
         PushMessage(PlayerPawn, TEXT("Park the cargo vehicle inside the delivery yard before unloading."));
         return false;
@@ -142,7 +150,7 @@ bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
     const float TimeRatio = DeliveryTimeLimit > 0.0f ? TimeRemaining / DeliveryTimeLimit : 0.0f;
     const int32 IntegrityReward = FMath::RoundToInt(BaseReward * FMath::Clamp(CargoIntegrity, 0.0f, 1.0f));
     const int32 Bonus = TimeRatio >= FastDeliveryThreshold ? FastDeliveryBonus : 0;
-    const int32 RoleBonus = LoadedMulebox.IsValid() ? MuleboxRoleBonus : 0;
+    const int32 RoleBonus = (LoadedMulebox.IsValid() || LoadedNativeMulebox.IsValid()) ? MuleboxRoleBonus : 0;
     const int32 TotalReward = FMath::Max(25, IntegrityReward + Bonus + RoleBonus);
 
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
@@ -171,7 +179,8 @@ FString AGTTFarmJobDirector::GetObjectiveText() const
         case EGTTFarmJobStage::ReachPickup:
             return TEXT("FARM JOB | Reach FEED DEPOT and load cargo");
         case EGTTFarmJobStage::DeliverCargo:
-            return FString::Printf(TEXT("FARM JOB | HILL FARM delivery | %.0fs | cargo %.0f%%%s"), TimeRemaining, CargoIntegrity * 100.0f, LoadedMulebox.IsValid() ? TEXT(" | MULEBOX LOADED") : TEXT(""));
+            return FString::Printf(TEXT("FARM JOB | HILL FARM delivery | %.0fs | cargo %.0f%%%s"), TimeRemaining, CargoIntegrity * 100.0f,
+                (LoadedMulebox.IsValid() || LoadedNativeMulebox.IsValid()) ? TEXT(" | MULEBOX LOADED") : TEXT(""));
         default:
             return FString();
     }
@@ -189,7 +198,18 @@ void AGTTFarmJobDirector::FailJob(APawn* PlayerPawn, const FString& Reason)
 void AGTTFarmJobDirector::ClearLoadedVehicleCargoState()
 {
     if (LoadedMulebox.IsValid()) LoadedMulebox->SetCargoLoadFactor(0.0f);
+    if (LoadedNativeMulebox.IsValid()) LoadedNativeMulebox->SetCargoLoadFactor(0.0f);
     LoadedMulebox.Reset();
+    LoadedNativeMulebox.Reset();
+}
+
+float AGTTFarmJobDirector::ResolveCargoVehicleConditionRatio() const
+{
+    if (LoadedNativeMulebox.IsValid()) return FMath::Clamp(LoadedNativeMulebox->GetMigrationSnapshot().ConditionPercent, 0.0f, 1.0f);
+    if (LoadedMulebox.IsValid()) return LoadedMulebox->GetConditionPercent();
+    APawn* ControlledPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+    if (AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn)) return Vehicle->GetConditionPercent();
+    return -1.0f;
 }
 
 void AGTTFarmJobDirector::PushMessage(APawn* Pawn, const FString& Message, float Duration) const
@@ -203,6 +223,10 @@ APawn* AGTTFarmJobDirector::ResolvePlayerPawn() const
     if (AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn))
     {
         if (Vehicle->GetDriverPawn()) return Vehicle->GetDriverPawn();
+    }
+    if (AGTTRoadVehicleNativePawn* NativeRoadVehicle = Cast<AGTTRoadVehicleNativePawn>(ControlledPawn))
+    {
+        if (NativeRoadVehicle->GetDriverPawn()) return NativeRoadVehicle->GetDriverPawn();
     }
     return ControlledPawn;
 }
