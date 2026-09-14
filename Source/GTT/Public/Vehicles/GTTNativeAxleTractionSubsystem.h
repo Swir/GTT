@@ -27,13 +27,17 @@ struct GTT_API FGTTNativeAxleTractionSnapshot
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float TractionAuthority = 1.0f;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float BrakeAssist = 0.0f;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bTorqueCut = false;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) bool bSuspensionRuntimeReady = false;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 SuspensionSamples = 0;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float MinSuspensionTravel = 0.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float MaxSuspensionTravel = 0.0f;
 };
 
 /**
- * Shared Native Chaos wheel/axle authority for the accepted Fieldmaster and road fleet.
- * Samples actual FWheelStatus data and only removes drive authority when wheel contact,
- * axle balance or slip evidence says the requested torque is unsafe. It never creates
- * grip, never teleports the vehicle and never replaces the existing drivetrain authority.
+ * Shared Native Chaos wheel/axle evidence service for the accepted Fieldmaster and road fleet.
+ * Samples actual FWheelStatus data and produces bounded torque/brake/steering recommendations.
+ * Final throttle/brake/steering/gear composition is owned by UGTTNativeDriveDynamicsSubsystem
+ * so multiple safety systems cannot overwrite each other according to subsystem tick order.
  */
 UCLASS()
 class GTT_API UGTTNativeAxleTractionSubsystem : public UTickableWorldSubsystem
@@ -47,6 +51,12 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Axle")
     FGTTNativeAxleTractionSnapshot GetSnapshot(const AWheeledVehiclePawn* Vehicle) const;
+
+    /** Same-frame sampler used by the final command composer. It does not mutate movement input. */
+    FGTTNativeAxleTractionSnapshot SampleSnapshot(
+        UChaosWheeledVehicleMovementComponent* Movement,
+        float TireIntegrity,
+        int32 TireUpgradeLevel) const;
 
 private:
     struct FRuntimeState
@@ -65,11 +75,6 @@ private:
         float TireIntegrity,
         int32 TireUpgradeLevel,
         float DeltaSeconds);
-
-    FGTTNativeAxleTractionSnapshot BuildSnapshot(
-        UChaosWheeledVehicleMovementComponent* Movement,
-        float TireIntegrity,
-        int32 TireUpgradeLevel) const;
 
     TMap<TWeakObjectPtr<AWheeledVehiclePawn>, FRuntimeState> RuntimeByVehicle;
 };
