@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "GTTFarmJobDirector.generated.h"
 
+class AGTTFarmVanPawn;
+
 UENUM(BlueprintType)
 enum class EGTTFarmJobStage : uint8
 {
@@ -61,12 +63,17 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0.0"))
     float DamagedVehicleCargoLossPerSecond = 0.035f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0"))
+    int32 MuleboxRoleBonus = 45;
+
 private:
     void FailJob(APawn* PlayerPawn, const FString& Reason);
     void PushMessage(APawn* Pawn, const FString& Message, float Duration = 4.0f) const;
     APawn* ResolvePlayerPawn() const;
+    void ClearLoadedVehicleCargoState();
 
     EGTTFarmJobStage Stage = EGTTFarmJobStage::Idle;
     float TimeRemaining = 0.0f;
     float CargoIntegrity = 1.0f;
+    TWeakObjectPtr<AGTTFarmVanPawn> LoadedMulebox;
 };
