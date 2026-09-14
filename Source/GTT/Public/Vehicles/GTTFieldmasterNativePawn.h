@@ -79,6 +79,12 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Damage")
     void ApplyNativeImpactDamage(float ImpactSpeedKmh, float DamageScale = 1.0f);
 
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Terrain")
+    float GetNativeMudSeverity() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Terrain")
+    float GetNativeTerrainGripFactor() const;
+
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Trailer")
     bool TryGetRearHitchTransform(FTransform& OutTransform) const;
 
@@ -147,4 +153,6 @@ private:
     float MirrorSyncAccumulator = 0.0f;
     float TakeoverRetryAccumulator = 0.0f;
     float LastImpactDamageTimeSeconds = -100.0f;
+    float LastNativeMudResponseTimeSeconds = -100.0f;
+    float LastNativeMudSeverity = 0.0f;
 };
