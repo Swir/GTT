@@ -4,6 +4,7 @@
 #include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
 #include "World/GTTWorldPerformanceSubsystem.h"
+#include "GTT.h"
 
 AGTTTrafficCarPawn::AGTTTrafficCarPawn()
 {
@@ -38,6 +39,50 @@ void AGTTTrafficCarPawn::InitializeRoute(const TArray<FVector>& InRoute, int32 S
     }
 }
 
+void AGTTTrafficCarPawn::RegisterCollisionIncident(float ImpactSpeedKmh, FVector SourceLocation)
+{
+    const float Severity = FMath::Clamp((ImpactSpeedKmh - 12.0f) / 58.0f, 0.0f, 1.0f);
+    IncidentStopRemaining = FMath::Max(IncidentStopRemaining, FMath::Lerp(CollisionStopSeconds * 0.65f, CollisionStopSeconds * 1.65f, Severity));
+    IncidentLimpRemaining = FMath::Max(IncidentLimpRemaining, FMath::Lerp(IncidentLimpSeconds * 0.55f, IncidentLimpSeconds * 1.25f, Severity));
+
+    const FVector Away = (GetActorLocation() - SourceLocation).GetSafeNormal2D();
+    IncidentSteerBias = FMath::Clamp(FVector::DotProduct(GetActorRightVector().GetSafeNormal2D(), Away), -1.0f, 1.0f);
+    bIncidentDisabled = GetConditionPercent() <= DisableConditionThreshold;
+
+    if (HornText)
+    {
+        HornText->SetText(bIncidentDisabled
+            ? NSLOCTEXT("GTT", "TrafficDisabled", "HAZARD")
+            : NSLOCTEXT("GTT", "TrafficCrashHazard", "CAUTION"));
+        HornVisualRemaining = FMath::Max(HornVisualRemaining, IncidentStopRemaining);
+    }
+
+    UE_LOG(LogGTT, Warning,
+        TEXT("TRAFFIC_CRASH_RESPONSE car=%s impact_speed_kmh=%.1f severity=%.2f stop_s=%.1f limp_s=%.1f disabled=%s condition=%.2f"),
+        *GetName(), ImpactSpeedKmh, Severity, IncidentStopRemaining, IncidentLimpRemaining,
+        bIncidentDisabled ? TEXT("YES") : TEXT("NO"), GetConditionPercent());
+}
+
+void AGTTTrafficCarPawn::ReactToNearbyIncident(FVector SourceLocation, float Severity)
+{
+    if (bIncidentDisabled)
+    {
+        return;
+    }
+
+    const float ClampedSeverity = FMath::Clamp(Severity, 0.0f, 1.0f);
+    IncidentStopRemaining = FMath::Max(IncidentStopRemaining, NearbyIncidentStopSeconds * FMath::Lerp(0.55f, 1.35f, ClampedSeverity));
+    const FVector Away = (GetActorLocation() - SourceLocation).GetSafeNormal2D();
+    IncidentSteerBias = FMath::Clamp(FVector::DotProduct(GetActorRightVector().GetSafeNormal2D(), Away), -1.0f, 1.0f);
+    HornCooldownRemaining = FMath::Max(HornCooldownRemaining, 0.75f);
+
+    if (HornText)
+    {
+        HornText->SetText(NSLOCTEXT("GTT", "TrafficIncidentWarning", "SLOW"));
+        HornVisualRemaining = FMath::Max(HornVisualRemaining, 1.1f);
+    }
+}
+
 void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
@@ -47,26 +92,52 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
     {
         if (UGTTWorldPerformanceSubsystem* Performance = GetWorld()->GetSubsystem<UGTTWorldPerformanceSubsystem>())
         {
-            // Traffic remains physically smooth enough to move on the shared road graph,
-            // but far-away cars no longer execute full-rate AI or obstacle traces.
-            const bool bForceCritical = IsOccupied();
+            const bool bForceCritical = IsOccupied() || IncidentStopRemaining > 0.0f || bIncidentDisabled;
             const float BudgetInterval = Performance->GetRecommendedTickInterval(this, bForceCritical);
             const float TrafficInterval = bForceCritical ? 0.0f : FMath::Min(BudgetInterval, 0.35f);
             if (!FMath::IsNearlyEqual(GetActorTickInterval(), TrafficInterval, 0.01f))
+            {
                 SetActorTickInterval(TrafficInterval);
+            }
             bAllowExpensiveQueries = Performance->AllowsExpensiveQueries(this, bForceCritical);
         }
     }
 
     HornCooldownRemaining = FMath::Max(0.0f, HornCooldownRemaining - DeltaSeconds);
     HornVisualRemaining = FMath::Max(0.0f, HornVisualRemaining - DeltaSeconds);
+    IncidentStopRemaining = FMath::Max(0.0f, IncidentStopRemaining - DeltaSeconds);
+    IncidentLimpRemaining = FMath::Max(0.0f, IncidentLimpRemaining - DeltaSeconds);
+
     if (HornText)
     {
-        HornText->SetVisibility(HornVisualRemaining > 0.0f, true);
+        HornText->SetVisibility(HornVisualRemaining > 0.0f || bIncidentDisabled, true);
+        if (HornVisualRemaining <= 0.0f && !bIncidentDisabled)
+        {
+            HornText->SetText(NSLOCTEXT("GTT", "TrafficHorn", "BEEP!"));
+        }
     }
 
     if (!VehicleMesh || RoutePoints.Num() < 2 || IsOccupied())
     {
+        return;
+    }
+
+    if (bIncidentDisabled || IncidentStopRemaining > 0.0f)
+    {
+        if (VehicleMesh->IsSimulatingPhysics())
+        {
+            FVector FlatVelocity = VehicleMesh->GetPhysicsLinearVelocity();
+            FlatVelocity.Z = 0.0f;
+            if (!FlatVelocity.IsNearlyZero())
+            {
+                VehicleMesh->AddForce(-FlatVelocity.GetSafeNormal() * TrafficDriveForce * (bIncidentDisabled ? 1.8f : 1.25f), NAME_None, true);
+            }
+            if (!bIncidentDisabled && FMath::Abs(IncidentSteerBias) > 0.08f)
+            {
+                VehicleMesh->AddTorqueInRadians(FVector::UpVector * IncidentSteerBias * TrafficSteeringTorque * 0.45f, NAME_None, true);
+            }
+        }
+        StuckTime = 0.0f;
         return;
     }
 
@@ -90,6 +161,7 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
     const float ForwardAlignment = FVector::DotProduct(Forward, DesiredDirection);
     float Steering = FMath::Clamp(FVector::DotProduct(Right, DesiredDirection) * 2.1f, -1.0f, 1.0f);
     const float Speed = GetVelocity().Size2D();
+    const float EffectiveCruiseSpeedCm = IncidentLimpRemaining > 0.0f ? TargetCruiseSpeedCm * 0.52f : TargetCruiseSpeedCm;
 
     bool bObstacleAhead = false;
     FHitResult ObstacleHit;
@@ -102,9 +174,14 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
         bObstacleAhead = GetWorld()->LineTraceSingleByChannel(ObstacleHit, ProbeStart, ProbeEnd, ECC_Visibility, Params);
     }
 
-    float Throttle = Speed < TargetCruiseSpeedCm
-        ? FMath::Clamp(0.35f + ForwardAlignment * 0.35f, 0.12f, 0.72f)
+    float Throttle = Speed < EffectiveCruiseSpeedCm
+        ? FMath::Clamp(0.35f + ForwardAlignment * 0.35f, 0.12f, IncidentLimpRemaining > 0.0f ? 0.42f : 0.72f)
         : 0.05f;
+
+    if (IncidentLimpRemaining > 0.0f)
+    {
+        Steering *= 0.72f;
+    }
 
     if (bObstacleAhead)
     {
@@ -149,5 +226,13 @@ void AGTTTrafficCarPawn::Interact_Implementation(AActor* Interactor)
 
 FText AGTTTrafficCarPawn::GetInteractionText_Implementation() const
 {
+    if (bIncidentDisabled)
+    {
+        return NSLOCTEXT("GTT", "TrafficCarDisabled", "Traffic vehicle - disabled after collision");
+    }
+    if (IncidentStopRemaining > 0.0f)
+    {
+        return NSLOCTEXT("GTT", "TrafficCarIncident", "Traffic vehicle - crash response");
+    }
     return NSLOCTEXT("GTT", "TrafficCarBusy", "Traffic vehicle - driver inside");
 }

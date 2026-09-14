@@ -14,18 +14,17 @@ namespace
     constexpr float TrafficIncidentRadiusCm = 575.0f;
     constexpr float TrafficCrimeMinimumImpactKmh = 16.0f;
     constexpr float SevereTrafficImpactKmh = 38.0f;
+    constexpr float NearbyReactionRadiusCm = 1800.0f;
+    constexpr float HitAndRunEscapeRadiusCm = 1700.0f;
+    constexpr float HitAndRunWindowSeconds = 7.0f;
 }
 
 void UGTTNativeRoadIncidentSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
     Super::OnWorldBeginPlay(InWorld);
-    InWorld.GetTimerManager().SetTimer(
-        IncidentScanTimer,
-        this,
+    InWorld.GetTimerManager().SetTimer(IncidentScanTimer, this,
         &UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents,
-        IncidentScanIntervalSeconds,
-        true,
-        0.20f);
+        IncidentScanIntervalSeconds, true, 0.20f);
 }
 
 void UGTTNativeRoadIncidentSubsystem::Deinitialize()
@@ -35,7 +34,49 @@ void UGTTNativeRoadIncidentSubsystem::Deinitialize()
         World->GetTimerManager().ClearTimer(IncidentScanTimer);
     }
     LastSeenImpactCounts.Reset();
+    ActiveIncidents.Reset();
     Super::Deinitialize();
+}
+
+void UGTTNativeRoadIncidentSubsystem::UpdateActiveIncidents(float NowSeconds)
+{
+    for (int32 Index = ActiveIncidents.Num() - 1; Index >= 0; --Index)
+    {
+        FActiveTrafficIncident& Incident = ActiveIncidents[Index];
+        AGTTRoadVehicleNativePawn* NativeVehicle = Incident.NativeVehicle.Get();
+        AGTTTrafficCarPawn* Victim = Incident.Victim.Get();
+        if (!NativeVehicle || !Victim || NowSeconds >= Incident.ExpiresAtSeconds)
+        {
+            ActiveIncidents.RemoveAtSwap(Index);
+            continue;
+        }
+
+        if (Incident.bHitAndRunEscalated || !NativeVehicle->IsLegacyTakeoverActive() || !NativeVehicle->GetDriverPawn())
+        {
+            continue;
+        }
+
+        const float DistanceSq = FVector::DistSquared2D(NativeVehicle->GetActorLocation(), Incident.Origin);
+        if (DistanceSq < FMath::Square(HitAndRunEscapeRadiusCm))
+        {
+            continue;
+        }
+
+        APawn* DriverPawn = NativeVehicle->GetDriverPawn();
+        UGTTWantedComponent* Wanted = DriverPawn ? DriverPawn->FindComponentByClass<UGTTWantedComponent>() : nullptr;
+        if (!Wanted)
+        {
+            continue;
+        }
+
+        const float EscapeHeat = FMath::Clamp(6.0f + Incident.ImpactSpeedKmh * 0.12f, 7.0f, 18.0f);
+        Wanted->AddHeat(EscapeHeat);
+        Incident.bHitAndRunEscalated = true;
+        UE_LOG(LogGTT, Warning,
+            TEXT("NATIVE_ROAD_HIT_AND_RUN vehicle=%s victim=%s escape_distance=%.0f heat_added=%.1f wanted_level=%d"),
+            *NativeVehicle->GetPersistentVehicleId().ToString(), *Victim->GetName(),
+            FMath::Sqrt(DistanceSq), EscapeHeat, Wanted->GetWantedLevel());
+    }
 }
 
 void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
@@ -45,6 +86,9 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
     {
         return;
     }
+
+    const float NowSeconds = World->GetTimeSeconds();
+    UpdateActiveIncidents(NowSeconds);
 
     for (TActorIterator<AGTTRoadVehicleNativePawn> It(World); It; ++It)
     {
@@ -56,13 +100,11 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
 
         const int32 CurrentImpactCount = NativeVehicle->GetNativeImpactCount();
         int32& LastSeenCount = LastSeenImpactCounts.FindOrAdd(NativeVehicle);
-
         if (!NativeVehicle->IsLegacyTakeoverActive() || !NativeVehicle->GetDriverPawn())
         {
             LastSeenCount = CurrentImpactCount;
             continue;
         }
-
         if (CurrentImpactCount <= LastSeenCount)
         {
             continue;
@@ -84,7 +126,6 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
             {
                 continue;
             }
-
             const float DistanceSq = FVector::DistSquared(NativeVehicle->GetActorLocation(), TrafficCar->GetActorLocation());
             if (DistanceSq <= ClosestDistanceSq)
             {
@@ -95,8 +136,7 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
 
         if (!ClosestTraffic)
         {
-            UE_LOG(LogGTT, Verbose,
-                TEXT("NATIVE_ROAD_INCIDENT_NO_TRAFFIC vehicle=%s impact_speed_kmh=%.1f"),
+            UE_LOG(LogGTT, Verbose, TEXT("NATIVE_ROAD_INCIDENT_NO_TRAFFIC vehicle=%s impact_speed_kmh=%.1f"),
                 *NativeVehicle->GetPersistentVehicleId().ToString(), ImpactSpeedKmh);
             continue;
         }
@@ -112,6 +152,23 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
             ClosestTraffic->ApplyTireDamage(VictimTireDamage);
         }
 
+        ClosestTraffic->RegisterCollisionIncident(ImpactSpeedKmh, NativeVehicle->GetActorLocation());
+
+        int32 NearbyReactors = 0;
+        for (TActorIterator<AGTTTrafficCarPawn> TrafficIt(World); TrafficIt; ++TrafficIt)
+        {
+            AGTTTrafficCarPawn* TrafficCar = *TrafficIt;
+            if (!TrafficCar || TrafficCar == ClosestTraffic || TrafficCar->IsActorHiddenInGame())
+            {
+                continue;
+            }
+            if (FVector::DistSquared2D(TrafficCar->GetActorLocation(), ClosestTraffic->GetActorLocation()) <= FMath::Square(NearbyReactionRadiusCm))
+            {
+                TrafficCar->ReactToNearbyIncident(ClosestTraffic->GetActorLocation(), FMath::Clamp(Severity, 0.0f, 1.0f));
+                ++NearbyReactors;
+            }
+        }
+
         APawn* DriverPawn = NativeVehicle->GetDriverPawn();
         UGTTWantedComponent* Wanted = DriverPawn ? DriverPawn->FindComponentByClass<UGTTWantedComponent>() : nullptr;
         const float CargoHeat = NativeVehicle->GetCargoLoadFactor() * 2.5f;
@@ -121,23 +178,30 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
             Wanted->AddHeat(CrimeHeat);
         }
 
+        FActiveTrafficIncident ActiveIncident;
+        ActiveIncident.NativeVehicle = NativeVehicle;
+        ActiveIncident.Victim = ClosestTraffic;
+        ActiveIncident.Origin = ClosestTraffic->GetActorLocation();
+        ActiveIncident.ImpactSpeedKmh = ImpactSpeedKmh;
+        ActiveIncident.ExpiresAtSeconds = NowSeconds + HitAndRunWindowSeconds;
+        ActiveIncidents.Add(ActiveIncident);
+
+        const FVector LocalVictim = NativeVehicle->GetActorTransform().InverseTransformPosition(ClosestTraffic->GetActorLocation());
+        const TCHAR* ImpactZone = FMath::Abs(LocalVictim.X) >= FMath::Abs(LocalVictim.Y)
+            ? (LocalVictim.X >= 0.0f ? TEXT("FRONT") : TEXT("REAR"))
+            : (LocalVictim.Y >= 0.0f ? TEXT("RIGHT") : TEXT("LEFT"));
+
         UE_LOG(LogGTT, Warning,
-            TEXT("NATIVE_ROAD_TRAFFIC_INCIDENT vehicle=%s victim=%s impact_speed_kmh=%.1f victim_damage=%.1f victim_tire_damage=%.3f cargo=%.2f"),
-            *NativeVehicle->GetPersistentVehicleId().ToString(),
-            *ClosestTraffic->GetName(),
-            ImpactSpeedKmh,
-            VictimBodyDamage,
-            VictimTireDamage,
-            NativeVehicle->GetCargoLoadFactor());
+            TEXT("NATIVE_ROAD_TRAFFIC_INCIDENT vehicle=%s victim=%s zone=%s impact_speed_kmh=%.1f victim_damage=%.1f victim_tire_damage=%.3f nearby_reactors=%d cargo=%.2f"),
+            *NativeVehicle->GetPersistentVehicleId().ToString(), *ClosestTraffic->GetName(), ImpactZone,
+            ImpactSpeedKmh, VictimBodyDamage, VictimTireDamage, NearbyReactors, NativeVehicle->GetCargoLoadFactor());
 
         if (Wanted)
         {
             UE_LOG(LogGTT, Warning,
                 TEXT("NATIVE_ROAD_CRIME_ESCALATION vehicle=%s heat_added=%.1f wanted_level=%d total_heat=%.1f"),
-                *NativeVehicle->GetPersistentVehicleId().ToString(),
-                CrimeHeat,
-                Wanted->GetWantedLevel(),
-                Wanted->GetHeat());
+                *NativeVehicle->GetPersistentVehicleId().ToString(), CrimeHeat,
+                Wanted->GetWantedLevel(), Wanted->GetHeat());
         }
     }
 }
