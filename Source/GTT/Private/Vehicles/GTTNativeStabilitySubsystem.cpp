@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Vehicles/GTTChaosRigContract.h"
+#include "Vehicles/GTTFarmTrailer.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "GTT.h"
 
@@ -14,8 +15,10 @@ namespace
     constexpr float ProbeStartLiftCm = 30.0f;
     constexpr float ProbeDepthCm = 155.0f;
     constexpr float LowContactGraceSeconds = 0.28f;
+    constexpr float TrailerSwayGraceSeconds = 0.35f;
     constexpr float EvidenceIntervalSeconds = 4.0f;
     constexpr float InterventionSpeedKmh = 14.0f;
+    constexpr float LoadedInterventionSpeedKmh = 11.0f;
     constexpr float SevereRollDegrees = 30.0f;
     constexpr float SeverePitchDegrees = 32.0f;
 }
@@ -69,14 +72,20 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
     TArray<float> ClearancesCm;
     const int32 Contacts = SampleWheelContacts(NativePawn, ClearancesCm);
     const float SpeedKmh = NativePawn->GetVelocity().Size() * 0.036f;
-    const float Risk = ComputeStabilityRisk(NativePawn, Contacts, SpeedKmh);
+    const AGTTFarmTrailer* Trailer = FindAttachedTrailer(NativePawn);
+    const float TowLoadFactor = Trailer ? Trailer->GetTowLoadFactor() : 0.0f;
+    const float SwayRisk = Trailer ? ComputeTrailerSwayRisk(NativePawn, Trailer, TowLoadFactor) : 0.0f;
+    const float Risk = ComputeStabilityRisk(NativePawn, Contacts, SpeedKmh, TowLoadFactor, SwayRisk);
     const FGTTVehicleMigrationSnapshot VehicleState = NativePawn->GetMigrationSnapshot();
     const int32 TireLevel = FMath::Clamp(VehicleState.TireUpgradeLevel, 0, 3);
 
     State.LastContacts = Contacts;
     State.LastRisk = Risk;
+    State.LastTowLoad = TowLoadFactor;
+    State.LastSwayRisk = SwayRisk;
 
-    if (Contacts <= 2 && SpeedKmh >= InterventionSpeedKmh)
+    const float ActiveInterventionSpeed = TowLoadFactor >= 0.50f ? LoadedInterventionSpeedKmh : InterventionSpeedKmh;
+    if (Contacts <= 2 && SpeedKmh >= ActiveInterventionSpeed)
     {
         State.LowContactSeconds += DeltaTime;
     }
@@ -85,22 +94,32 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
         State.LowContactSeconds = 0.0f;
     }
 
+    if (Trailer && SwayRisk >= 0.50f && SpeedKmh >= LoadedInterventionSpeedKmh)
+    {
+        State.TrailerSwaySeconds += DeltaTime;
+    }
+    else
+    {
+        State.TrailerSwaySeconds = 0.0f;
+    }
+
     const FRotator Rotation = NativePawn->GetActorRotation();
     const float AbsRoll = FMath::Abs(FMath::UnwindDegrees(Rotation.Roll));
     const float AbsPitch = FMath::Abs(FMath::UnwindDegrees(Rotation.Pitch));
     const bool bSevereAttitude = AbsRoll >= SevereRollDegrees || AbsPitch >= SeverePitchDegrees;
     const bool bSustainedLowContact = State.LowContactSeconds >= LowContactGraceSeconds;
-    const bool bIntervention = SpeedKmh >= InterventionSpeedKmh && (Risk >= 0.58f || bSustainedLowContact || bSevereAttitude);
+    const bool bSustainedTrailerSway = State.TrailerSwaySeconds >= TrailerSwayGraceSeconds;
+    const bool bIntervention = SpeedKmh >= ActiveInterventionSpeed && (Risk >= 0.58f || bSustainedLowContact || bSevereAttitude || bSustainedTrailerSway);
 
     float AppliedBrake = 0.0f;
     if (bIntervention)
     {
         const float TireAssist = TireLevel * 0.03f;
-        AppliedBrake = FMath::Clamp(0.18f + Risk * 0.42f - TireAssist, 0.16f, 0.65f);
+        AppliedBrake = FMath::Clamp(0.18f + Risk * 0.36f + TowLoadFactor * 0.13f + SwayRisk * 0.16f - TireAssist, 0.16f, 0.78f);
         Movement->SetThrottleInput(0.0f);
         Movement->SetBrakeInput(AppliedBrake);
 
-        if (bSevereAttitude || Contacts <= 1)
+        if (bSevereAttitude || Contacts <= 1 || (bSustainedTrailerSway && SwayRisk >= 0.72f))
         {
             Movement->SetSteeringInput(0.0f);
         }
@@ -119,17 +138,21 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
     }
 
     UE_LOG(LogGTT, Log,
-        TEXT("NATIVE_STABILITY_EVIDENCE vehicle=RustyFieldmaster60 speed_kmh=%.1f contacts=%d/4 clearances_cm=[%.1f,%.1f,%.1f,%.1f] roll=%.1f pitch=%.1f risk=%.2f low_contact_s=%.2f intervention=%s brake=%.2f tire_level=%d"),
+        TEXT("NATIVE_STABILITY_EVIDENCE vehicle=RustyFieldmaster60 speed_kmh=%.1f contacts=%d/4 clearances_cm=[%.1f,%.1f,%.1f,%.1f] roll=%.1f pitch=%.1f risk=%.2f tow_load=%.2f sway_risk=%.2f sway_s=%.2f low_contact_s=%.2f intervention=%s brake=%.2f tire_level=%d trailer=%s"),
         SpeedKmh,
         Contacts,
         ClearancesCm[0], ClearancesCm[1], ClearancesCm[2], ClearancesCm[3],
         Rotation.Roll,
         Rotation.Pitch,
         Risk,
+        TowLoadFactor,
+        SwayRisk,
+        State.TrailerSwaySeconds,
         State.LowContactSeconds,
         bIntervention ? TEXT("YES") : TEXT("NO"),
         AppliedBrake,
-        TireLevel);
+        TireLevel,
+        Trailer ? TEXT("ATTACHED") : TEXT("NONE"));
 }
 
 int32 UGTTNativeStabilitySubsystem::SampleWheelContacts(AGTTFieldmasterNativePawn* NativePawn, TArray<float>& OutClearancesCm) const
@@ -181,7 +204,42 @@ int32 UGTTNativeStabilitySubsystem::SampleWheelContacts(AGTTFieldmasterNativePaw
     return Contacts;
 }
 
-float UGTTNativeStabilitySubsystem::ComputeStabilityRisk(const AGTTFieldmasterNativePawn* NativePawn, int32 Contacts, float SpeedKmh) const
+AGTTFarmTrailer* UGTTNativeStabilitySubsystem::FindAttachedTrailer(const AGTTFieldmasterNativePawn* NativePawn) const
+{
+    UWorld* World = GetWorld();
+    if (!World || !NativePawn)
+    {
+        return nullptr;
+    }
+
+    for (TActorIterator<AGTTFarmTrailer> It(World); It; ++It)
+    {
+        AGTTFarmTrailer* Trailer = *It;
+        if (Trailer && Trailer->IsAttachedToNativeFieldmaster() && Trailer->GetTowActor() == NativePawn)
+        {
+            return Trailer;
+        }
+    }
+    return nullptr;
+}
+
+float UGTTNativeStabilitySubsystem::ComputeTrailerSwayRisk(const AGTTFieldmasterNativePawn* NativePawn, const AGTTFarmTrailer* Trailer, float TowLoadFactor) const
+{
+    if (!NativePawn || !Trailer || TowLoadFactor <= KINDA_SMALL_NUMBER)
+    {
+        return 0.0f;
+    }
+
+    const float YawDelta = FMath::Abs(FMath::FindDeltaAngleDegrees(NativePawn->GetActorRotation().Yaw, Trailer->GetActorRotation().Yaw));
+    const FVector RelativeVelocity = Trailer->GetVelocity() - NativePawn->GetVelocity();
+    const float LateralRelativeKmh = FMath::Abs(FVector::DotProduct(RelativeVelocity, NativePawn->GetActorRightVector())) * 0.036f;
+    const float YawRisk = FMath::Clamp((YawDelta - 7.0f) / 34.0f, 0.0f, 1.0f);
+    const float LateralRisk = FMath::Clamp((LateralRelativeKmh - 2.0f) / 18.0f, 0.0f, 1.0f);
+    const float LoadAmplifier = FMath::Lerp(0.55f, 1.25f, FMath::Clamp(TowLoadFactor, 0.0f, 1.0f));
+    return FMath::Clamp(FMath::Max(YawRisk, LateralRisk) * LoadAmplifier, 0.0f, 1.0f);
+}
+
+float UGTTNativeStabilitySubsystem::ComputeStabilityRisk(const AGTTFieldmasterNativePawn* NativePawn, int32 Contacts, float SpeedKmh, float TowLoadFactor, float SwayRisk) const
 {
     if (!NativePawn)
     {
@@ -193,6 +251,8 @@ float UGTTNativeStabilitySubsystem::ComputeStabilityRisk(const AGTTFieldmasterNa
     const float PitchRisk = FMath::Clamp(FMath::Abs(FMath::UnwindDegrees(Rotation.Pitch)) / 42.0f, 0.0f, 1.0f);
     const float ContactRisk = FMath::Clamp((4.0f - static_cast<float>(Contacts)) / 3.0f, 0.0f, 1.0f);
     const float SpeedRisk = FMath::Clamp((SpeedKmh - 10.0f) / 32.0f, 0.0f, 1.0f);
+    const float GroundRisk = FMath::Max3(RollRisk, PitchRisk, ContactRisk * (0.55f + 0.45f * SpeedRisk));
+    const float HeavyHaulRisk = TowLoadFactor * (0.10f + 0.10f * SpeedRisk) + SwayRisk * (0.30f + 0.18f * SpeedRisk);
 
-    return FMath::Clamp(FMath::Max3(RollRisk, PitchRisk, ContactRisk * (0.55f + 0.45f * SpeedRisk)), 0.0f, 1.0f);
+    return FMath::Clamp(FMath::Max(GroundRisk, HeavyHaulRisk), 0.0f, 1.0f);
 }
