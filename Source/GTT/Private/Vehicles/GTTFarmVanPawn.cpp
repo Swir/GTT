@@ -5,6 +5,7 @@
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTChaosVehicleBridgeComponent.h"
+#include "GTT.h"
 
 namespace
 {
@@ -146,12 +147,25 @@ void AGTTFarmVanPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
     PlayerInputComponent->BindAxis(TEXT("VehicleSteer"), this, &AGTTFarmVanPawn::CaptureChaosSteering);
 }
 
+void AGTTFarmVanPawn::SetCargoLoadFactor(float NewLoadFactor)
+{
+    CargoLoadFactor = FMath::Clamp(NewLoadFactor, 0.0f, 1.0f);
+    UE_LOG(LogGTT, Log, TEXT("MULEBOX_CARGO_LOAD vehicle=Mulebox1200 load=%.2f"), CargoLoadFactor);
+}
+
 void AGTTFarmVanPawn::CaptureChaosThrottle(float Value)
 {
-    if (ChaosVehicleBridge) ChaosVehicleBridge->CaptureThrottleInput(Value);
+    if (!ChaosVehicleBridge) return;
+    const float SpeedKmh = GetVelocity().Size() * 0.036f;
+    const float CargoPowerLimit = FMath::Lerp(1.0f, SpeedKmh > 75.0f ? 0.74f : 0.88f, CargoLoadFactor);
+    ChaosVehicleBridge->CaptureThrottleInput(Value * CargoPowerLimit);
 }
 
 void AGTTFarmVanPawn::CaptureChaosSteering(float Value)
 {
-    if (ChaosVehicleBridge) ChaosVehicleBridge->CaptureSteeringInput(Value);
+    if (!ChaosVehicleBridge) return;
+    const float SpeedKmh = GetVelocity().Size() * 0.036f;
+    const float SpeedRisk = FMath::Clamp((SpeedKmh - 45.0f) / 55.0f, 0.0f, 1.0f);
+    const float CargoSteerLimit = 1.0f - CargoLoadFactor * SpeedRisk * 0.42f;
+    ChaosVehicleBridge->CaptureSteeringInput(Value * CargoSteerLimit);
 }
