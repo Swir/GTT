@@ -5,7 +5,9 @@
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
+#include "Vehicles/GTTNativeAxleTractionSubsystem.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
+#include "WheeledVehiclePawn.h"
 #include "GTT.h"
 
 namespace
@@ -25,6 +27,7 @@ namespace
     constexpr float StationaryHoldSpeedKmh = 1.6f;
     constexpr float StationaryHoldBrake = 0.24f;
     constexpr float DrivetrainEvidenceIntervalSeconds = 4.0f;
+    constexpr float MinimumAxleSteeringScale = 0.55f;
 
     int32 SignToDirection(float Value)
     {
@@ -35,10 +38,7 @@ namespace
 void UGTTNativeDriveDynamicsSubsystem::Tick(float DeltaTime)
 {
     UWorld* World = GetWorld();
-    if (!World || !World->IsGameWorld())
-    {
-        return;
-    }
+    if (!World || !World->IsGameWorld()) return;
 
     for (TActorIterator<AGTTFieldmasterNativePawn> It(World); It; ++It)
     {
@@ -46,41 +46,25 @@ void UGTTNativeDriveDynamicsSubsystem::Tick(float DeltaTime)
         ApplyDriveDynamics(NativePawn, DeltaTime);
 
         UChaosWheeledVehicleMovementComponent* Movement = NativePawn
-            ? Cast<UChaosWheeledVehicleMovementComponent>(NativePawn->GetVehicleMovementComponent())
-            : nullptr;
-        const FGTTVehicleMigrationSnapshot State = NativePawn
-            ? NativePawn->GetMigrationSnapshot()
-            : FGTTVehicleMigrationSnapshot();
-        const bool bEligible = NativePawn &&
-            NativePawn->IsLegacyTakeoverActive() &&
-            NativePawn->IsNativeFieldmasterReady() &&
-            NativePawn->IsOccupied() &&
-            State.ConditionPercent > CriticalConditionPercent &&
-            State.FuelLiters > KINDA_SMALL_NUMBER;
-        ApplyDrivetrainAuthority(NativePawn, Movement, TEXT("RustyFieldmaster60"), bEligible, DeltaTime);
+            ? Cast<UChaosWheeledVehicleMovementComponent>(NativePawn->GetVehicleMovementComponent()) : nullptr;
+        const FGTTVehicleMigrationSnapshot State = NativePawn ? NativePawn->GetMigrationSnapshot() : FGTTVehicleMigrationSnapshot();
+        const bool bEligible = NativePawn && NativePawn->IsLegacyTakeoverActive() && NativePawn->IsNativeFieldmasterReady()
+            && NativePawn->IsOccupied() && State.ConditionPercent > CriticalConditionPercent && State.FuelLiters > KINDA_SMALL_NUMBER;
+        ApplyDrivetrainAuthority(NativePawn, Movement, TEXT("RustyFieldmaster60"), bEligible,
+            State.TireIntegrity, State.TireUpgradeLevel, DeltaTime);
     }
 
     for (TActorIterator<AGTTRoadVehicleNativePawn> It(World); It; ++It)
     {
         AGTTRoadVehicleNativePawn* NativePawn = *It;
         UChaosWheeledVehicleMovementComponent* Movement = NativePawn
-            ? Cast<UChaosWheeledVehicleMovementComponent>(NativePawn->GetVehicleMovementComponent())
-            : nullptr;
-        const FGTTRoadVehicleMigrationSnapshot State = NativePawn
-            ? NativePawn->GetMigrationSnapshot()
-            : FGTTRoadVehicleMigrationSnapshot();
-        const bool bEligible = NativePawn &&
-            NativePawn->IsLegacyTakeoverActive() &&
-            NativePawn->IsNativeReady() &&
-            NativePawn->GetDriverPawn() != nullptr &&
-            State.ConditionPercent > KINDA_SMALL_NUMBER &&
-            State.FuelLiters > KINDA_SMALL_NUMBER;
-        ApplyDrivetrainAuthority(
-            NativePawn,
-            Movement,
+            ? Cast<UChaosWheeledVehicleMovementComponent>(NativePawn->GetVehicleMovementComponent()) : nullptr;
+        const FGTTRoadVehicleMigrationSnapshot State = NativePawn ? NativePawn->GetMigrationSnapshot() : FGTTRoadVehicleMigrationSnapshot();
+        const bool bEligible = NativePawn && NativePawn->IsLegacyTakeoverActive() && NativePawn->IsNativeReady()
+            && NativePawn->GetDriverPawn() != nullptr && State.ConditionPercent > KINDA_SMALL_NUMBER && State.FuelLiters > KINDA_SMALL_NUMBER;
+        ApplyDrivetrainAuthority(NativePawn, Movement,
             NativePawn ? NativePawn->GetPersistentVehicleId() : NAME_None,
-            bEligible,
-            DeltaTime);
+            bEligible, State.TireIntegrity, State.TireUpgradeLevel, DeltaTime);
     }
 }
 
@@ -97,10 +81,7 @@ bool UGTTNativeDriveDynamicsSubsystem::IsTickable() const
 
 void UGTTNativeDriveDynamicsSubsystem::ApplyDriveDynamics(AGTTFieldmasterNativePawn* NativePawn, float DeltaTime)
 {
-    if (!NativePawn)
-    {
-        return;
-    }
+    if (!NativePawn) return;
 
     const TWeakObjectPtr<AGTTFieldmasterNativePawn> Key(NativePawn);
     if (!NativePawn->IsLegacyTakeoverActive() || !NativePawn->IsNativeFieldmasterReady())
@@ -110,10 +91,7 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDriveDynamics(AGTTFieldmasterNativeP
     }
 
     UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(NativePawn->GetVehicleMovementComponent());
-    if (!Movement || !Movement->IsActive())
-    {
-        return;
-    }
+    if (!Movement || !Movement->IsActive()) return;
 
     const FGTTVehicleMigrationSnapshot State = NativePawn->GetMigrationSnapshot();
     const float ConditionAlpha = FMath::Clamp(State.ConditionPercent / 100.0f, 0.0f, 1.0f);
@@ -129,7 +107,7 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDriveDynamics(AGTTFieldmasterNativeP
 
     float AppliedBrake = 0.0f;
     bool bGovernorActive = false;
-    bool bCriticalBreakdown = State.ConditionPercent <= CriticalConditionPercent || State.FuelLiters <= KINDA_SMALL_NUMBER;
+    const bool bCriticalBreakdown = State.ConditionPercent <= CriticalConditionPercent || State.FuelLiters <= KINDA_SMALL_NUMBER;
 
     if (bCriticalBreakdown)
     {
@@ -148,7 +126,6 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDriveDynamics(AGTTFieldmasterNativeP
             Movement->SetThrottleInput(0.0f);
             Movement->SetBrakeInput(AppliedBrake);
         }
-
         if (TireAlpha < LowTireIntegrityThreshold && SpeedKmh > 12.0f)
         {
             const float TireDeficit = 1.0f - TireAlpha / LowTireIntegrityThreshold;
@@ -165,15 +142,8 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDriveDynamics(AGTTFieldmasterNativeP
         LogSeconds = 0.0f;
         UE_LOG(LogGTT, Log,
             TEXT("NATIVE_DRIVE_DYNAMICS vehicle=RustyFieldmaster60 speed_kmh=%.1f cap_kmh=%.1f condition=%.1f tire=%.2f engine_level=%d tire_level=%d governor=%s brake=%.2f critical=%s"),
-            SpeedKmh,
-            EffectiveTopSpeedKmh,
-            State.ConditionPercent,
-            State.TireIntegrity,
-            EngineLevel,
-            TireLevel,
-            bGovernorActive ? TEXT("YES") : TEXT("NO"),
-            AppliedBrake,
-            bCriticalBreakdown ? TEXT("YES") : TEXT("NO"));
+            SpeedKmh, EffectiveTopSpeedKmh, State.ConditionPercent, State.TireIntegrity, EngineLevel, TireLevel,
+            bGovernorActive ? TEXT("YES") : TEXT("NO"), AppliedBrake, bCriticalBreakdown ? TEXT("YES") : TEXT("NO"));
     }
 }
 
@@ -182,6 +152,8 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
     UChaosWheeledVehicleMovementComponent* Movement,
     FName VehicleId,
     bool bAuthorityEligible,
+    float TireIntegrity,
+    int32 TireUpgradeLevel,
     float DeltaTime)
 {
     if (!NativePawn || !Movement || !Movement->IsActive() || !bAuthorityEligible)
@@ -210,14 +182,18 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
     if (!Authority.bInitialized)
     {
         Authority.StableDirection = AbsoluteSpeedKmh > DirectionShiftReleaseSpeedKmh
-            ? MotionDirection
-            : (Movement->GetCurrentGear() < 0 ? -1 : 1);
+            ? MotionDirection : (Movement->GetCurrentGear() < 0 ? -1 : 1);
         Authority.bInitialized = true;
     }
 
     Authority.bDirectionInterlock = false;
     Authority.bEngineBrakeActive = false;
-    float AuthorityBrake = 0.0f;
+    Authority.bAxleTorqueCut = false;
+
+    float FinalThrottle = Movement->GetThrottleInput();
+    float FinalBrake = Movement->GetBrakeInput();
+    float FinalSteering = Movement->GetSteeringInput();
+    float DrivetrainBrake = 0.0f;
 
     if (bDirectionRequested)
     {
@@ -227,70 +203,112 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
         {
             Authority.bDirectionInterlock = true;
             Movement->SetTargetGear(Authority.StableDirection, true);
-            Movement->SetThrottleInput(0.0f);
-            Movement->SetSteeringInput(RequestedSteering * 0.45f);
-            AuthorityBrake = FMath::Clamp(
-                DirectionInterlockBrakeMin + AbsoluteSpeedKmh / 120.0f,
-                DirectionInterlockBrakeMin,
-                DirectionInterlockBrakeMax);
-            Movement->SetBrakeInput(AuthorityBrake);
+            FinalThrottle = 0.0f;
+            FinalSteering = FMath::Clamp(FinalSteering, -0.45f, 0.45f);
+            DrivetrainBrake = FMath::Clamp(DirectionInterlockBrakeMin + AbsoluteSpeedKmh / 120.0f,
+                DirectionInterlockBrakeMin, DirectionInterlockBrakeMax);
         }
         else
         {
             if (RequestedDirection != Authority.StableDirection)
             {
                 Authority.StableDirection = RequestedDirection;
-                UE_LOG(LogGTT, Log,
-                    TEXT("NATIVE_DIRECTION_SHIFT_COMMIT vehicle=%s direction=%s speed_kmh=%.2f"),
-                    *VehicleId.ToString(),
-                    Authority.StableDirection < 0 ? TEXT("REVERSE") : TEXT("FORWARD"),
-                    SignedSpeedKmh);
+                UE_LOG(LogGTT, Log, TEXT("NATIVE_DIRECTION_SHIFT_COMMIT vehicle=%s direction=%s speed_kmh=%.2f"),
+                    *VehicleId.ToString(), Authority.StableDirection < 0 ? TEXT("REVERSE") : TEXT("FORWARD"), SignedSpeedKmh);
             }
             Movement->SetTargetGear(Authority.StableDirection, true);
         }
     }
     else
     {
-        Movement->SetThrottleInput(0.0f);
+        FinalThrottle = 0.0f;
         Authority.bEngineBrakeActive = true;
-        AuthorityBrake = AbsoluteSpeedKmh <= StationaryHoldSpeedKmh
+        DrivetrainBrake = AbsoluteSpeedKmh <= StationaryHoldSpeedKmh
             ? StationaryHoldBrake
-            : FMath::Clamp(
-                NeutralEngineBrakeMin + AbsoluteSpeedKmh / 180.0f,
-                NeutralEngineBrakeMin,
-                NeutralEngineBrakeMax);
-        Movement->SetBrakeInput(AuthorityBrake);
+            : FMath::Clamp(NeutralEngineBrakeMin + AbsoluteSpeedKmh / 180.0f, NeutralEngineBrakeMin, NeutralEngineBrakeMax);
     }
+
+    FGTTNativeAxleTractionSnapshot AxleSnapshot;
+    if (UWorld* World = GetWorld())
+    {
+        if (UGTTNativeAxleTractionSubsystem* AxleSubsystem = World->GetSubsystem<UGTTNativeAxleTractionSubsystem>())
+        {
+            AxleSnapshot = AxleSubsystem->SampleSnapshot(Movement, TireIntegrity, TireUpgradeLevel);
+        }
+    }
+
+    float AxleBrake = 0.0f;
+    if (AxleSnapshot.bActive)
+    {
+        Authority.bAxleTorqueCut = AxleSnapshot.bTorqueCut;
+        Authority.bSuspensionRuntimeReady = AxleSnapshot.bSuspensionRuntimeReady;
+        if (AxleSnapshot.bTorqueCut) FinalThrottle = 0.0f;
+        AxleBrake = AxleSnapshot.BrakeAssist;
+
+        const float TractionSteeringScale = FMath::Clamp(
+            MinimumAxleSteeringScale + (1.0f - MinimumAxleSteeringScale) * AxleSnapshot.TractionAuthority,
+            MinimumAxleSteeringScale, 1.0f);
+        const float ImbalanceSteeringScale = FMath::Clamp(1.0f - AxleSnapshot.AxleImbalance * 0.35f, 0.68f, 1.0f);
+        FinalSteering *= FMath::Min(TractionSteeringScale, ImbalanceSteeringScale);
+    }
+    else
+    {
+        Authority.bSuspensionRuntimeReady = false;
+    }
+
+    FinalBrake = FMath::Max3(FinalBrake, DrivetrainBrake, AxleBrake);
+    FinalThrottle = FMath::Clamp(FinalThrottle, -1.0f, 1.0f);
+    FinalBrake = FMath::Clamp(FinalBrake, 0.0f, 1.0f);
+    FinalSteering = FMath::Clamp(FinalSteering, -1.0f, 1.0f);
+
+    Movement->SetThrottleInput(FinalThrottle);
+    Movement->SetBrakeInput(FinalBrake);
+    Movement->SetSteeringInput(FinalSteering);
+
+    Authority.FinalThrottle = FinalThrottle;
+    Authority.FinalBrake = FinalBrake;
+    Authority.FinalSteering = FinalSteering;
 
     Authority.EvidenceSeconds += DeltaTime;
     if (Authority.EvidenceSeconds >= DrivetrainEvidenceIntervalSeconds)
     {
         Authority.EvidenceSeconds = 0.0f;
         UE_LOG(LogGTT, Log,
-            TEXT("NATIVE_DRIVETRAIN_AUTHORITY_EVIDENCE vehicle=%s speed_kmh=%.2f raw_throttle=%.2f raw_steer=%.2f current_gear=%d stable_direction=%d interlock=%s engine_brake=%s authority_brake=%.2f"),
-            *VehicleId.ToString(),
-            SignedSpeedKmh,
-            RequestedThrottle,
-            RequestedSteering,
-            Movement->GetCurrentGear(),
-            Authority.StableDirection,
+            TEXT("NATIVE_COMMAND_COMPOSITION_EVIDENCE vehicle=%s speed_kmh=%.2f raw_throttle=%.2f final_throttle=%.2f final_brake=%.2f final_steer=%.2f current_gear=%d stable_direction=%d interlock=%s engine_brake=%s axle_cut=%s axle_authority=%.2f suspension_ready=%s"),
+            *VehicleId.ToString(), SignedSpeedKmh, RequestedThrottle, FinalThrottle, FinalBrake, FinalSteering,
+            Movement->GetCurrentGear(), Authority.StableDirection,
             Authority.bDirectionInterlock ? TEXT("YES") : TEXT("NO"),
             Authority.bEngineBrakeActive ? TEXT("YES") : TEXT("NO"),
-            AuthorityBrake);
+            Authority.bAxleTorqueCut ? TEXT("YES") : TEXT("NO"),
+            AxleSnapshot.TractionAuthority,
+            Authority.bSuspensionRuntimeReady ? TEXT("YES") : TEXT("NO"));
+
+        // Keep the 0.0.75 telemetry contract alive for existing playtests/log parsers while
+        // 0.0.77 adds the richer command-composition evidence above.
+        UE_LOG(LogGTT, Log,
+            TEXT("NATIVE_DRIVETRAIN_AUTHORITY_EVIDENCE vehicle=%s speed_kmh=%.2f raw_throttle=%.2f raw_steer=%.2f current_gear=%d stable_direction=%d interlock=%s engine_brake=%s authority_brake=%.2f"),
+            *VehicleId.ToString(), SignedSpeedKmh, RequestedThrottle, RequestedSteering,
+            Movement->GetCurrentGear(), Authority.StableDirection,
+            Authority.bDirectionInterlock ? TEXT("YES") : TEXT("NO"),
+            Authority.bEngineBrakeActive ? TEXT("YES") : TEXT("NO"),
+            FinalBrake);
     }
 
     if (Authority.bDirectionInterlock)
     {
+        UE_LOG(LogGTT, Verbose, TEXT("NATIVE_DIRECTION_INTERLOCK vehicle=%s requested=%d stable=%d speed_kmh=%.2f brake=%.2f"),
+            *VehicleId.ToString(), RequestedDirection, Authority.StableDirection, SignedSpeedKmh, FinalBrake);
+    }
+    if (Authority.bAxleTorqueCut || AxleBrake > 0.0f)
+    {
         UE_LOG(LogGTT, Verbose,
-            TEXT("NATIVE_DIRECTION_INTERLOCK vehicle=%s requested=%d stable=%d speed_kmh=%.2f brake=%.2f"),
-            *VehicleId.ToString(), RequestedDirection, Authority.StableDirection, SignedSpeedKmh, AuthorityBrake);
+            TEXT("NATIVE_COMMAND_COMPOSITION_LIMIT vehicle=%s axle_cut=%s axle_brake=%.2f drivetrain_brake=%.2f final_brake=%.2f final_throttle=%.2f final_steer=%.2f"),
+            *VehicleId.ToString(), Authority.bAxleTorqueCut ? TEXT("YES") : TEXT("NO"), AxleBrake, DrivetrainBrake,
+            FinalBrake, FinalThrottle, FinalSteering);
     }
 }
 
 void UGTTNativeDriveDynamicsSubsystem::RemoveAuthorityState(APawn* NativePawn)
 {
-    if (NativePawn)
-    {
-        AuthorityStates.Remove(TWeakObjectPtr<APawn>(NativePawn));
-    }
+    if (NativePawn) AuthorityStates.Remove(TWeakObjectPtr<APawn>(NativePawn));
 }
