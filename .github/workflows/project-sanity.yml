@@ -110,3 +110,5 @@ jobs:
         run: python Scripts/verify_native_per_wheel_load.py
       - name: Verify Native authored wheel and suspension acceptance
         run: python Scripts/verify_native_authored_wheel_acceptance.py
+      - name: Verify Native Chaos wheel-state runtime control
+        run: python Scripts/verify_native_chaos_wheel_state.py

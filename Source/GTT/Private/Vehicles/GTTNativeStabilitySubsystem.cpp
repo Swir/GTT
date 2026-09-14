@@ -24,6 +24,97 @@ namespace
     constexpr float TractionControlSpeedKmh = 9.0f;
     constexpr float SevereRollDegrees = 30.0f;
     constexpr float SeverePitchDegrees = 32.0f;
+
+    struct FGTTRuntimeWheelEvidence
+    {
+        bool bComplete = false;
+        int32 ValidWheels = 0;
+        int32 Contacts = 0;
+        int32 SlippingWheels = 0;
+        int32 SkiddingWheels = 0;
+        float MaxSlipMagnitude = 0.0f;
+        float MaxSlipAngle = 0.0f;
+        TArray<uint8> InContact;
+        TArray<uint8> IsSlipping;
+        TArray<uint8> IsSkidding;
+        TArray<float> SuspensionLength;
+        TArray<float> SpringForce;
+        TArray<float> DriveTorque;
+        TArray<float> BrakeTorque;
+    };
+
+    bool SampleChaosWheelRuntime(const UChaosWheeledVehicleMovementComponent* Movement, FGTTRuntimeWheelEvidence& OutEvidence)
+    {
+        OutEvidence = FGTTRuntimeWheelEvidence();
+        OutEvidence.InContact.Init(0, 4);
+        OutEvidence.IsSlipping.Init(0, 4);
+        OutEvidence.IsSkidding.Init(0, 4);
+        OutEvidence.SuspensionLength.Init(-1.0f, 4);
+        OutEvidence.SpringForce.Init(0.0f, 4);
+        OutEvidence.DriveTorque.Init(0.0f, 4);
+        OutEvidence.BrakeTorque.Init(0.0f, 4);
+
+        if (!Movement || Movement->GetNumWheels() != 4)
+        {
+            return false;
+        }
+
+        for (int32 WheelIndex = 0; WheelIndex < 4; ++WheelIndex)
+        {
+            const FWheelStatus& WheelState = Movement->GetWheelState(WheelIndex);
+            if (!WheelState.bIsValid)
+            {
+                continue;
+            }
+
+            ++OutEvidence.ValidWheels;
+            OutEvidence.InContact[WheelIndex] = WheelState.bInContact ? 1 : 0;
+            OutEvidence.IsSlipping[WheelIndex] = WheelState.bIsSlipping ? 1 : 0;
+            OutEvidence.IsSkidding[WheelIndex] = WheelState.bIsSkidding ? 1 : 0;
+            OutEvidence.Contacts += WheelState.bInContact ? 1 : 0;
+            OutEvidence.SlippingWheels += WheelState.bIsSlipping ? 1 : 0;
+            OutEvidence.SkiddingWheels += WheelState.bIsSkidding ? 1 : 0;
+            OutEvidence.MaxSlipMagnitude = FMath::Max(OutEvidence.MaxSlipMagnitude, FMath::Abs(WheelState.SlipMagnitude));
+            OutEvidence.MaxSlipAngle = FMath::Max(OutEvidence.MaxSlipAngle, FMath::Abs(WheelState.SlipAngle));
+            OutEvidence.SuspensionLength[WheelIndex] = WheelState.NormalizedSuspensionLength;
+            OutEvidence.SpringForce[WheelIndex] = WheelState.SpringForce;
+            OutEvidence.DriveTorque[WheelIndex] = WheelState.DriveTorque;
+            OutEvidence.BrakeTorque[WheelIndex] = WheelState.BrakeTorque;
+        }
+
+        OutEvidence.bComplete = OutEvidence.ValidWheels == 4;
+        return OutEvidence.bComplete;
+    }
+
+    float ComputeChaosSlipRisk(const FGTTRuntimeWheelEvidence& Evidence)
+    {
+        if (!Evidence.bComplete)
+        {
+            return 0.0f;
+        }
+
+        const float SlipFlagRisk = FMath::Clamp(static_cast<float>(Evidence.SlippingWheels) / 3.0f, 0.0f, 1.0f);
+        const float SkidFlagRisk = FMath::Clamp(static_cast<float>(Evidence.SkiddingWheels) / 2.0f, 0.0f, 1.0f);
+        const float MagnitudeRisk = FMath::Clamp(Evidence.MaxSlipMagnitude / 650.0f, 0.0f, 1.0f);
+        return FMath::Clamp(FMath::Max3(SlipFlagRisk, SkidFlagRisk, MagnitudeRisk), 0.0f, 1.0f);
+    }
+
+    float ComputeAxleRuntimeGrip(const FGTTRuntimeWheelEvidence& Evidence, int32 FirstWheel)
+    {
+        if (!Evidence.bComplete || FirstWheel < 0 || FirstWheel + 1 >= 4)
+        {
+            return 1.0f;
+        }
+
+        float Grip = 1.0f;
+        for (int32 WheelIndex = FirstWheel; WheelIndex <= FirstWheel + 1; ++WheelIndex)
+        {
+            if (Evidence.InContact[WheelIndex] == 0) Grip -= 0.45f;
+            if (Evidence.IsSlipping[WheelIndex] != 0) Grip -= 0.22f;
+            if (Evidence.IsSkidding[WheelIndex] != 0) Grip -= 0.28f;
+        }
+        return FMath::Clamp(Grip, 0.10f, 1.0f);
+    }
 }
 
 void UGTTNativeStabilitySubsystem::Tick(float DeltaTime)
@@ -59,7 +150,10 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
 
     FStabilityState& State = StabilityStates.FindOrAdd(Key);
     TArray<float> ClearancesCm;
-    const int32 Contacts = SampleWheelContacts(NativePawn, ClearancesCm);
+    const int32 TraceContacts = SampleWheelContacts(NativePawn, ClearancesCm);
+    FGTTRuntimeWheelEvidence ChaosWheelEvidence;
+    const bool bChaosWheelEvidenceValid = SampleChaosWheelRuntime(Movement, ChaosWheelEvidence);
+    const int32 Contacts = bChaosWheelEvidenceValid ? ChaosWheelEvidence.Contacts : TraceContacts;
     const float SpeedKmh = NativePawn->GetVelocity().Size() * 0.036f;
     const AGTTFarmTrailer* Trailer = FindAttachedTrailer(NativePawn);
     const float TowLoadFactor = Trailer ? Trailer->GetTowLoadFactor() : 0.0f;
@@ -70,7 +164,15 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
     float SlipAngleDegrees = 0.0f;
     float FrontTraction = 1.0f;
     float RearTraction = 1.0f;
-    const float TractionRisk = ComputeTractionRisk(NativePawn, Contacts, TowLoadFactor, FrontRearBias, SideBias, SlipAngleDegrees, FrontTraction, RearTraction);
+    float TractionRisk = ComputeTractionRisk(NativePawn, Contacts, TowLoadFactor, FrontRearBias, SideBias, SlipAngleDegrees, FrontTraction, RearTraction);
+    const float ChaosSlipRisk = ComputeChaosSlipRisk(ChaosWheelEvidence);
+    if (bChaosWheelEvidenceValid)
+    {
+        TractionRisk = FMath::Max(TractionRisk, ChaosSlipRisk);
+        FrontTraction = FMath::Min(FrontTraction, ComputeAxleRuntimeGrip(ChaosWheelEvidence, 0));
+        RearTraction = FMath::Min(RearTraction, ComputeAxleRuntimeGrip(ChaosWheelEvidence, 2));
+        TractionRisk = FMath::Max(TractionRisk, 1.0f - FMath::Min(FrontTraction, RearTraction));
+    }
     const float Risk = ComputeStabilityRisk(NativePawn, Contacts, SpeedKmh, TowLoadFactor, SwayRisk, LoadTransferRisk, TractionRisk);
     const FGTTVehicleMigrationSnapshot VehicleState = NativePawn->GetMigrationSnapshot();
     const int32 TireLevel = FMath::Clamp(VehicleState.TireUpgradeLevel, 0, 3);
@@ -116,7 +218,7 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
         Movement->SetThrottleInput(0.0f);
         Movement->SetBrakeInput(AppliedBrake);
 
-        if (bSevereAttitude || Contacts <= 1 || (bSustainedTrailerSway && SwayRisk >= 0.72f) || (bSustainedLoadTransfer && FMath::Abs(SideBias) >= 0.62f) || (bSustainedTractionLoss && SlipAngleDegrees >= 32.0f))
+        if (bSevereAttitude || Contacts <= 1 || (bSustainedTrailerSway && SwayRisk >= 0.72f) || (bSustainedLoadTransfer && FMath::Abs(SideBias) >= 0.62f) || (bSustainedTractionLoss && (SlipAngleDegrees >= 32.0f || ChaosSlipRisk >= 0.82f)))
         {
             Movement->SetSteeringInput(0.0f);
         }
@@ -137,12 +239,25 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
     while (ClearancesCm.Num() < 4) ClearancesCm.Add(-1.0f);
 
     UE_LOG(LogGTT, Log,
-        TEXT("NATIVE_STABILITY_EVIDENCE vehicle=RustyFieldmaster60 speed_kmh=%.1f contacts=%d/4 clearances_cm=[%.1f,%.1f,%.1f,%.1f] roll=%.1f pitch=%.1f risk=%.2f tow_load=%.2f sway_risk=%.2f load_transfer=%.2f traction_risk=%.2f slip_deg=%.1f front_traction=%.2f rear_traction=%.2f front_rear_bias=%.2f side_bias=%.2f sway_s=%.2f load_transfer_s=%.2f traction_loss_s=%.2f low_contact_s=%.2f traction_control=%s throttle_limit=%.2f intervention=%s brake=%.2f tire_level=%d tire_integrity=%.2f trailer=%s"),
-        SpeedKmh, Contacts, ClearancesCm[0], ClearancesCm[1], ClearancesCm[2], ClearancesCm[3], Rotation.Roll, Rotation.Pitch,
-        Risk, TowLoadFactor, SwayRisk, LoadTransferRisk, TractionRisk, SlipAngleDegrees, FrontTraction, RearTraction, FrontRearBias, SideBias,
+        TEXT("NATIVE_STABILITY_EVIDENCE vehicle=RustyFieldmaster60 speed_kmh=%.1f contacts=%d/4 contact_source=%s trace_contacts=%d/4 clearances_cm=[%.1f,%.1f,%.1f,%.1f] roll=%.1f pitch=%.1f risk=%.2f tow_load=%.2f sway_risk=%.2f load_transfer=%.2f traction_risk=%.2f chaos_slip_risk=%.2f slip_deg=%.1f front_traction=%.2f rear_traction=%.2f front_rear_bias=%.2f side_bias=%.2f sway_s=%.2f load_transfer_s=%.2f traction_loss_s=%.2f low_contact_s=%.2f traction_control=%s throttle_limit=%.2f intervention=%s brake=%.2f tire_level=%d tire_integrity=%.2f trailer=%s"),
+        SpeedKmh, Contacts, bChaosWheelEvidenceValid ? TEXT("CHAOS") : TEXT("TRACE_FALLBACK"), TraceContacts,
+        ClearancesCm[0], ClearancesCm[1], ClearancesCm[2], ClearancesCm[3], Rotation.Roll, Rotation.Pitch,
+        Risk, TowLoadFactor, SwayRisk, LoadTransferRisk, TractionRisk, ChaosSlipRisk, SlipAngleDegrees, FrontTraction, RearTraction, FrontRearBias, SideBias,
         State.TrailerSwaySeconds, State.LoadTransferSeconds, State.TractionLossSeconds, State.LowContactSeconds,
         bTractionControl ? TEXT("YES") : TEXT("NO"), ThrottleLimit, bIntervention ? TEXT("YES") : TEXT("NO"), AppliedBrake,
         TireLevel, VehicleState.TireIntegrity, Trailer ? TEXT("ATTACHED") : TEXT("NONE"));
+
+    if (bChaosWheelEvidenceValid)
+    {
+        UE_LOG(LogGTT, Log,
+            TEXT("NATIVE_CHAOS_WHEEL_STATE_EVIDENCE vehicle=RustyFieldmaster60 valid=%d/4 contacts=%d/4 suspension=[%.3f,%.3f,%.3f,%.3f] spring_force=[%.1f,%.1f,%.1f,%.1f] drive_torque=[%.1f,%.1f,%.1f,%.1f] brake_torque=[%.1f,%.1f,%.1f,%.1f] slipping=%d skidding=%d max_slip_magnitude=%.1f max_slip_angle=%.3f chaos_slip_risk=%.2f"),
+            ChaosWheelEvidence.ValidWheels, ChaosWheelEvidence.Contacts,
+            ChaosWheelEvidence.SuspensionLength[0], ChaosWheelEvidence.SuspensionLength[1], ChaosWheelEvidence.SuspensionLength[2], ChaosWheelEvidence.SuspensionLength[3],
+            ChaosWheelEvidence.SpringForce[0], ChaosWheelEvidence.SpringForce[1], ChaosWheelEvidence.SpringForce[2], ChaosWheelEvidence.SpringForce[3],
+            ChaosWheelEvidence.DriveTorque[0], ChaosWheelEvidence.DriveTorque[1], ChaosWheelEvidence.DriveTorque[2], ChaosWheelEvidence.DriveTorque[3],
+            ChaosWheelEvidence.BrakeTorque[0], ChaosWheelEvidence.BrakeTorque[1], ChaosWheelEvidence.BrakeTorque[2], ChaosWheelEvidence.BrakeTorque[3],
+            ChaosWheelEvidence.SlippingWheels, ChaosWheelEvidence.SkiddingWheels, ChaosWheelEvidence.MaxSlipMagnitude, ChaosWheelEvidence.MaxSlipAngle, ChaosSlipRisk);
+    }
 }
 
 int32 UGTTNativeStabilitySubsystem::SampleWheelContacts(AGTTFieldmasterNativePawn* NativePawn, TArray<float>& OutClearancesCm) const

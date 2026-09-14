@@ -28,6 +28,14 @@ The profile includes target mass, engine torque/RPM, idle RPM, final-drive ratio
 8. Migrate Rattleback and Mulebox after the tractor passes runtime acceptance.
 9. Run full UE 5.8 Development and Shipping Win64 compile/package tests and the dedicated driving matrix before changing the two Native Chaos roadmap tasks to `[x]`.
 
+## Runtime wheel-state evidence
+
+From 0.0.63 onward the Native Fieldmaster stability controller can consume the simulation state produced directly by Chaos rather than treating source-authored ground traces as the final truth. When all four canonical wheel states are valid, `UChaosWheeledVehicleMovementComponent::GetWheelState()` supplies contact, suspension, spring-force, drive/brake torque and slip/skid information to the existing traction/stability loop.
+
+`NATIVE_CHAOS_WHEEL_STATE_EVIDENCE` records that data during a real playtest. `NATIVE_STABILITY_EVIDENCE` also identifies whether contact decisions came from `CHAOS` or from `TRACE_FALLBACK`. The fallback deliberately remains available so an incomplete runtime wheel-state does not make the tractor unplayable or fabricate successful Chaos acceptance.
+
+This evidence is stronger than static configuration validation, but it only becomes proof after the code is compiled and exercised in the intended Unreal Engine version. Source-level CI must never convert the runtime-only roadmap tasks to complete by itself.
+
 ## Acceptance rules
 
 Native Chaos cannot be declared complete from static source inspection alone. Completion requires real skeletal/physics assets, a working Chaos movement pawn, all three vehicle profiles connected to gameplay, successful Unreal compile/package, and runtime driving checks covering fuel, damage, tires, mud, tuning, towing, police spikes, garage save/load and controller input.
