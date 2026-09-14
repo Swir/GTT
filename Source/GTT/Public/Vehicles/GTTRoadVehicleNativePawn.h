@@ -54,6 +54,8 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Migration") FGTTRoadVehicleMigrationSnapshot GetMigrationSnapshot() const { return MigrationSnapshot; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") float GetRuntimeWheelRisk() const { return RuntimeWheelRisk; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") int32 GetRuntimeWheelContacts() const { return RuntimeWheelContacts; }
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") float GetLastImpactSpeedKmh() const { return LastImpactSpeedKmh; }
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") int32 GetNativeImpactCount() const { return NativeImpactCount; }
 
 protected:
     virtual void BeginPlay() override;
