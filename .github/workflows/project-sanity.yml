@@ -124,3 +124,5 @@ jobs:
         run: python Scripts/verify_native_road_incidents.py
       - name: Verify Native road crash-scene AI and hit-and-run escalation
         run: python Scripts/verify_native_road_crash_scene.py
+      - name: Verify Native road body damage and workshop integration
+        run: python Scripts/verify_native_road_body_damage.py

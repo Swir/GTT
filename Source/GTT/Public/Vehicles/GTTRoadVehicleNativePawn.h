@@ -10,6 +10,16 @@ class UCameraComponent;
 class UChaosWheeledVehicleMovementComponent;
 class UPrimitiveComponent;
 class USpringArmComponent;
+class UStaticMeshComponent;
+
+UENUM(BlueprintType)
+enum class EGTTRoadDamageZone : uint8
+{
+    Front,
+    Rear,
+    Left,
+    Right
+};
 
 USTRUCT(BlueprintType)
 struct GTT_API FGTTRoadVehicleMigrationSnapshot
@@ -22,6 +32,19 @@ struct GTT_API FGTTRoadVehicleMigrationSnapshot
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 EngineUpgradeLevel = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 TireUpgradeLevel = 0;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) float TireIntegrity = 1.0f;
+};
+
+USTRUCT(BlueprintType)
+struct GTT_API FGTTRoadBodyDamageSnapshot
+{
+    GENERATED_BODY()
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float FrontHealth = 1.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float RearHealth = 1.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float LeftHealth = 1.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float RightHealth = 1.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float CoolingStress = 0.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) int32 DetachedPanelCount = 0;
 };
 
 UCLASS(Abstract, Blueprintable)
@@ -44,6 +67,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Fleet") void DeactivateLegacyTakeover();
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle") void ExitNativeVehicle();
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Cargo") virtual void SetCargoLoadFactor(float NewLoadFactor);
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Workshop") bool ApplyNativeWorkshopService();
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fleet") bool IsNativeReady() const { return bNativeReady; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fleet") bool IsLegacyTakeoverActive() const { return bTakeoverActive; }
@@ -56,6 +80,10 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") int32 GetRuntimeWheelContacts() const { return RuntimeWheelContacts; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") float GetLastImpactSpeedKmh() const { return LastImpactSpeedKmh; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") int32 GetNativeImpactCount() const { return NativeImpactCount; }
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") EGTTRoadDamageZone GetLastImpactZone() const { return LastImpactZone; }
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") FGTTRoadBodyDamageSnapshot GetBodyDamageSnapshot() const { return BodyDamage; }
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Workshop") bool NeedsNativeWorkshopService() const;
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Workshop") int32 GetBodyDamageRepairSurcharge() const;
 
 protected:
     virtual void BeginPlay() override;
@@ -65,6 +93,10 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera") TObjectPtr<USpringArmComponent> CameraBoom;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera") TObjectPtr<UCameraComponent> VehicleCamera;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> FrontDamageDebris;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> RearDamageDebris;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> LeftDamageDebris;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> RightDamageDebris;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Chaos|Fleet") FName NativeVehicleId = NAME_None;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Chaos|Fleet") FText NativeDisplayName;
@@ -81,8 +113,16 @@ private:
     void SyncLegacyMirror();
     void RuntimeAcceptanceGuard();
     void UpdateNativeWheelRuntime(float DeltaSeconds);
-    void ApplyNativeImpactDamage(float ImpactSpeedKmh);
+    void UpdateDamageConsequences(float DeltaSeconds);
+    void ApplyNativeImpactDamage(float ImpactSpeedKmh, EGTTRoadDamageZone Zone, const FVector& HitLocation, const FVector& NormalImpulse);
+    EGTTRoadDamageZone DetermineImpactZone(const FVector& HitLocation) const;
+    float& ResolveDamageZoneHealth(EGTTRoadDamageZone Zone);
+    float GetDamageZoneHealth(EGTTRoadDamageZone Zone) const;
+    void TryDetachDamagePanel(EGTTRoadDamageZone Zone, const FVector& HitLocation, const FVector& NormalImpulse, float ImpactSpeedKmh);
+    void ConfigureDamageDebrisLayout();
+    void RestoreNativeBodyDamage();
     void StopNativeDriveForBreakdown();
+    static const TCHAR* DamageZoneToString(EGTTRoadDamageZone Zone);
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bNativeReady = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bTakeoverActive = false;
@@ -94,6 +134,8 @@ private:
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Runtime") int32 RuntimeWheelContacts = 0;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Damage") float LastImpactSpeedKmh = 0.0f;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Damage") int32 NativeImpactCount = 0;
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Damage") EGTTRoadDamageZone LastImpactZone = EGTTRoadDamageZone::Front;
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Damage") FGTTRoadBodyDamageSnapshot BodyDamage;
 
     TWeakObjectPtr<APawn> PreviousPawn;
     TWeakObjectPtr<AGTTVehicleBase> LegacyMirror;
@@ -101,11 +143,19 @@ private:
     float RuntimeThrottleLimit = 1.0f;
     float RuntimeSteeringLimit = 1.0f;
     float RuntimeBrakeAssist = 0.0f;
+    float DamageThrottleLimit = 1.0f;
+    float DamageSteeringLimit = 1.0f;
+    float DamageSteeringBias = 0.0f;
     float MirrorSyncAccumulator = 0.0f;
     float TakeoverRetryAccumulator = 0.0f;
     float RuntimeGuardAccumulator = 0.0f;
     float WheelEvidenceAccumulator = 0.0f;
+    float DamageEvidenceAccumulator = 0.0f;
     float LastImpactDamageTimeSeconds = -1000.0f;
+    bool bFrontPanelDetached = false;
+    bool bRearPanelDetached = false;
+    bool bLeftPanelDetached = false;
+    bool bRightPanelDetached = false;
 };
 
 UCLASS(Blueprintable)
