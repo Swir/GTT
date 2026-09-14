@@ -108,3 +108,5 @@ jobs:
         run: python Scripts/verify_native_terrain_load_control.py
       - name: Verify Native per-wheel load and cross-axle control
         run: python Scripts/verify_native_per_wheel_load.py
+      - name: Verify Native authored wheel and suspension acceptance
+        run: python Scripts/verify_native_authored_wheel_acceptance.py
