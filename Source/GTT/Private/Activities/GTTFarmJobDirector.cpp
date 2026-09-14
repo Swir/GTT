@@ -4,6 +4,7 @@
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
+#include "Vehicles/GTTFarmVanPawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "Core/GTTGameMode.h"
@@ -95,10 +96,11 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
         }
     }
 
+    ClearLoadedVehicleCargoState();
     Stage = EGTTFarmJobStage::ReachPickup;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
-    PushMessage(PlayerPawn, TEXT("FARM CONTRACT: drive to FEED DEPOT and collect the cargo."), 6.0f);
+    PushMessage(PlayerPawn, TEXT("FARM CONTRACT: drive to FEED DEPOT and collect the cargo. Mulebox 1200 gets a role bonus."), 6.0f);
     return true;
 }
 
@@ -111,6 +113,13 @@ bool AGTTFarmJobDirector::TryPickupCargo(APawn* PlayerPawn)
     {
         PushMessage(PlayerPawn, TEXT("Park a working vehicle beside the feed depot, then load the pallets."));
         return false;
+    }
+
+    LoadedMulebox = Cast<AGTTFarmVanPawn>(Vehicle);
+    if (LoadedMulebox.IsValid())
+    {
+        LoadedMulebox->SetCargoLoadFactor(1.0f);
+        PushMessage(PlayerPawn, TEXT("MULEBOX LOADED: cargo weight now affects throttle and high-speed steering."), 5.0f);
     }
 
     Stage = EGTTFarmJobStage::DeliverCargo;
@@ -133,17 +142,21 @@ bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
     const float TimeRatio = DeliveryTimeLimit > 0.0f ? TimeRemaining / DeliveryTimeLimit : 0.0f;
     const int32 IntegrityReward = FMath::RoundToInt(BaseReward * FMath::Clamp(CargoIntegrity, 0.0f, 1.0f));
     const int32 Bonus = TimeRatio >= FastDeliveryThreshold ? FastDeliveryBonus : 0;
-    const int32 TotalReward = FMath::Max(25, IntegrityReward + Bonus);
+    const int32 RoleBonus = LoadedMulebox.IsValid() ? MuleboxRoleBonus : 0;
+    const int32 TotalReward = FMath::Max(25, IntegrityReward + Bonus + RoleBonus);
 
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
     {
         Economy->AddCash(TotalReward, FString::Printf(TEXT("Farm cargo delivery: +$%d"), TotalReward));
         Economy->PushMessage(
-            FString::Printf(TEXT("DELIVERY COMPLETE: $%d | cargo %.0f%% | %.0fs left%s"),
-                TotalReward, CargoIntegrity * 100.0f, TimeRemaining, Bonus > 0 ? TEXT(" | FAST BONUS") : TEXT("")),
+            FString::Printf(TEXT("DELIVERY COMPLETE: $%d | cargo %.0f%% | %.0fs left%s%s"),
+                TotalReward, CargoIntegrity * 100.0f, TimeRemaining,
+                Bonus > 0 ? TEXT(" | FAST BONUS") : TEXT(""),
+                RoleBonus > 0 ? TEXT(" | MULEBOX ROLE BONUS") : TEXT("")),
             7.0f);
     }
 
+    ClearLoadedVehicleCargoState();
     Stage = EGTTFarmJobStage::Idle;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
@@ -158,7 +171,7 @@ FString AGTTFarmJobDirector::GetObjectiveText() const
         case EGTTFarmJobStage::ReachPickup:
             return TEXT("FARM JOB | Reach FEED DEPOT and load cargo");
         case EGTTFarmJobStage::DeliverCargo:
-            return FString::Printf(TEXT("FARM JOB | HILL FARM delivery | %.0fs | cargo %.0f%%"), TimeRemaining, CargoIntegrity * 100.0f);
+            return FString::Printf(TEXT("FARM JOB | HILL FARM delivery | %.0fs | cargo %.0f%%%s"), TimeRemaining, CargoIntegrity * 100.0f, LoadedMulebox.IsValid() ? TEXT(" | MULEBOX LOADED") : TEXT(""));
         default:
             return FString();
     }
@@ -166,10 +179,17 @@ FString AGTTFarmJobDirector::GetObjectiveText() const
 
 void AGTTFarmJobDirector::FailJob(APawn* PlayerPawn, const FString& Reason)
 {
+    ClearLoadedVehicleCargoState();
     Stage = EGTTFarmJobStage::Idle;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
     PushMessage(PlayerPawn, FString::Printf(TEXT("FARM JOB FAILED: %s"), *Reason), 6.0f);
+}
+
+void AGTTFarmJobDirector::ClearLoadedVehicleCargoState()
+{
+    if (LoadedMulebox.IsValid()) LoadedMulebox->SetCargoLoadFactor(0.0f);
+    LoadedMulebox.Reset();
 }
 
 void AGTTFarmJobDirector::PushMessage(APawn* Pawn, const FString& Message, float Duration) const
