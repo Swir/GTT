@@ -85,6 +85,9 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Migration")
     FGTTVehicleMigrationSnapshot GetMigrationSnapshot() const { return MigrationSnapshot; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Input")
+    float GetRequestedThrottleInput() const { return LastThrottleInput; }
+
     UFUNCTION(BlueprintPure, Category="GTT|Chaos")
     bool IsNativeFieldmasterReady() const { return bNativeReady; }
 
