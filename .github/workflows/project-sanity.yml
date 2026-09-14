@@ -94,3 +94,5 @@ jobs:
         run: python Scripts/verify_native_drive_dynamics.py
       - name: Verify Native Physics acceptance and ground contacts
         run: python Scripts/verify_native_physics_acceptance.py
+      - name: Verify Native stability and contact control
+        run: python Scripts/verify_native_stability.py
