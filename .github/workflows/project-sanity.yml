@@ -106,3 +106,5 @@ jobs:
         run: python Scripts/verify_native_terrain_damage_contract.py
       - name: Verify Native terrain-load and hill control
         run: python Scripts/verify_native_terrain_load_control.py
+      - name: Verify Native per-wheel load and cross-axle control
+        run: python Scripts/verify_native_per_wheel_load.py

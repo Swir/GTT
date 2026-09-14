@@ -11,12 +11,19 @@ changelog = (root / "CHANGELOG.d/0.0.60.md").read_text(encoding="utf-8")
 for token in [
     "UGTTNativeTerrainLoadSubsystem",
     "FTerrainLoadState",
-    "SampleAxleClearance",
     "FindAttachedTrailer",
     "RollbackSeconds",
 ]:
     if token not in header:
         raise SystemExit(f"Native terrain-load header missing token: {token}")
+
+# 0.0.61 supersedes the original two-axle clearance sampler with richer
+# four-wheel evidence. The hill/rollback contract remains valid as long as one
+# of those source paths exists and still feeds front/rear clearance evidence.
+if "SampleAxleClearance" not in header and "SampleWheelLoadEvidence" not in header:
+    raise SystemExit("Native terrain-load header has no axle/wheel clearance sampling path")
+if "SampleAxleClearance" not in cpp and "SampleWheelLoadEvidence" not in cpp:
+    raise SystemExit("Native terrain-load implementation has no axle/wheel clearance sampling path")
 
 for token in [
     "GetNativeMudSeverity()",
@@ -24,8 +31,10 @@ for token in [
     "GetTowLoadFactor()",
     "FrontLeftWheelBone",
     "RearRightWheelBone",
-    "rear_load_bias",
-    "launch_grip",
+    "FrontClearanceCm",
+    "RearClearanceCm",
+    "RearLoadBias",
+    "LaunchGrip",
     "NATIVE_TERRAIN_LOAD_EVIDENCE",
     "Movement->SetThrottleInput",
     "Movement->SetBrakeInput",
