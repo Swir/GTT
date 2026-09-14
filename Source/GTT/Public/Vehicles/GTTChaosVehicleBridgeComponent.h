@@ -20,6 +20,28 @@ enum class EGTTChaosBridgeState : uint8
     NativeBlocked
 };
 
+USTRUCT(BlueprintType)
+struct GTT_API FGTTChaosWheelRuntimeSnapshot
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly) bool bComplete = false;
+    UPROPERTY(BlueprintReadOnly) int32 ValidWheels = 0;
+    UPROPERTY(BlueprintReadOnly) int32 Contacts = 0;
+    UPROPERTY(BlueprintReadOnly) int32 SlippingWheels = 0;
+    UPROPERTY(BlueprintReadOnly) int32 SkiddingWheels = 0;
+    UPROPERTY(BlueprintReadOnly) float MaxSlipMagnitude = 0.0f;
+    UPROPERTY(BlueprintReadOnly) float MaxSlipAngle = 0.0f;
+    UPROPERTY(BlueprintReadOnly) float RuntimeRisk = 0.0f;
+    UPROPERTY(BlueprintReadOnly) float ThrottleLimit = 1.0f;
+    UPROPERTY(BlueprintReadOnly) float BrakeAssist = 0.0f;
+    UPROPERTY(BlueprintReadOnly) float SteeringLimit = 1.0f;
+    UPROPERTY(BlueprintReadOnly) TArray<float> SuspensionLength;
+    UPROPERTY(BlueprintReadOnly) TArray<float> SpringForce;
+    UPROPERTY(BlueprintReadOnly) TArray<float> DriveTorque;
+    UPROPERTY(BlueprintReadOnly) TArray<float> BrakeTorque;
+};
+
 UCLASS(ClassGroup=(GTT), meta=(BlueprintSpawnableComponent))
 class GTT_API UGTTChaosVehicleBridgeComponent : public UActorComponent
 {
@@ -76,6 +98,9 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     FGTTChaosRigContract GetResolvedRigContract() const { return ResolvedRigContract; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
+    FGTTChaosWheelRuntimeSnapshot GetWheelRuntimeSnapshot() const { return WheelRuntimeSnapshot; }
+
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Chaos")
     bool TryGetNativeHitchTransform(FTransform& OutTransform) const;
 
@@ -86,6 +111,7 @@ private:
     bool ValidateNativeWheelSetup();
     bool ValidateNativePowertrain();
     void UpdateRuntimeState();
+    void UpdateFleetWheelRuntime(float DeltaTime);
     void RouteInputsToChaos();
     void DisableLegacyDynamicsIfNeeded();
 
@@ -106,9 +132,11 @@ private:
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FString PowertrainValidationSummary = TEXT("No native powertrain bound");
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") float EffectivePowerScale = 1.0f;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") float EffectiveGripScale = 1.0f;
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Chaos") FGTTChaosWheelRuntimeSnapshot WheelRuntimeSnapshot;
 
     float RawThrottleInput = 0.0f;
     float RawSteeringInput = 0.0f;
     float RebindCountdown = 0.0f;
+    float WheelEvidenceCountdown = 0.0f;
     bool bLegacyDynamicsDisabled = false;
 };
