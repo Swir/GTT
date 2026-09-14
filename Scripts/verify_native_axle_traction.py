@@ -5,17 +5,19 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 HEADER = ROOT / "Source/GTT/Public/Vehicles/GTTNativeAxleTractionSubsystem.h"
 CPP = ROOT / "Source/GTT/Private/Vehicles/GTTNativeAxleTractionSubsystem.cpp"
+DRIVE_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp"
 WORKFLOW = ROOT / ".github/workflows/project-sanity.yml"
 ROADMAP = ROOT / "Docs/ROADMAP.md"
 PLAYTEST = ROOT / "Docs/PLAYTEST_0.0.76.md"
 CHANGELOG = ROOT / "CHANGELOG.d/0.0.76.md"
 
-for path in (HEADER, CPP, WORKFLOW, ROADMAP, PLAYTEST, CHANGELOG):
+for path in (HEADER, CPP, DRIVE_CPP, WORKFLOW, ROADMAP, PLAYTEST, CHANGELOG):
     if not path.exists():
         raise SystemExit(f"missing required file: {path.relative_to(ROOT)}")
 
 header = HEADER.read_text(encoding="utf-8")
 cpp = CPP.read_text(encoding="utf-8")
+drive_cpp = DRIVE_CPP.read_text(encoding="utf-8")
 workflow = WORKFLOW.read_text(encoding="utf-8")
 roadmap = ROADMAP.read_text(encoding="utf-8")
 playtest = PLAYTEST.read_text(encoding="utf-8")
@@ -31,20 +33,19 @@ required = [
     (cpp, "TActorIterator<AGTTFieldmasterNativePawn>"),
     (cpp, "TActorIterator<AGTTRoadVehicleNativePawn>"),
     (cpp, "GetWheelState(WheelIndex)"),
-    (cpp, "WheelState" if False else "FWheelStatus"),
+    (cpp, "FWheelStatus"),
     (cpp, "bIsValid"),
     (cpp, "bInContact"),
     (cpp, "bIsSlipping"),
     (cpp, "bIsSkidding"),
     (cpp, "NormalizedSuspensionLength"),
     (cpp, "Snapshot.FrontContacts == 0 || Snapshot.RearContacts == 0"),
-    (cpp, "Movement->SetThrottleInput(0.0f)"),
-    (cpp, "Movement->SetBrakeInput(Snapshot.BrakeAssist)"),
-    (cpp, "AddTorqueInRadians"),
+    (cpp, "Snapshot.ContactWheels <= 1"),
     (cpp, "Migration.TireIntegrity"),
     (cpp, "Migration.TireUpgradeLevel"),
-    (cpp, "NATIVE_AXLE_TRACTION_INTERVENTION"),
     (cpp, "NATIVE_AXLE_TRACTION_EVIDENCE"),
+    (drive_cpp, "if (AxleSnapshot.bTorqueCut) FinalThrottle = 0.0f"),
+    (drive_cpp, "AxleBrake = AxleSnapshot.BrakeAssist"),
     (workflow, "Verify Native wheel/axle traction authority"),
     (workflow, "python Scripts/verify_native_axle_traction.py"),
     (playtest, "0.0.76"),
@@ -54,12 +55,10 @@ missing = [token for text, token in required if token not in text]
 if missing:
     raise SystemExit("missing Native axle traction contract tokens: " + ", ".join(missing))
 
-if "Snapshot.ContactWheels <= 1" not in cpp:
-    raise SystemExit("torque cut must hard-gate severe loss of wheel contact")
-if "SpeedKmh >= MinimumInterventionSpeedKmh" not in cpp:
-    raise SystemExit("axle intervention must remain speed-gated")
-if "Snapshot.ContactWheels >= 2" not in cpp:
-    raise SystemExit("yaw correction must require grounded wheel support")
+# 0.0.77 deliberately moves movement-input ownership into the final command composer.
+for forbidden in ("Movement->SetThrottleInput(0.0f)", "Movement->SetBrakeInput(Snapshot.BrakeAssist)"):
+    if forbidden in cpp:
+        raise SystemExit("axle evidence subsystem regained competing movement-input ownership: " + forbidden)
 
 for token in (
     "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
@@ -103,5 +102,5 @@ for open_item in (
 print("[OK] Native wheel/axle traction authority verified")
 print(" - actual Chaos wheel-state contact/slip/suspension evidence is sampled")
 print(" - Fieldmaster, Rattleback and Mulebox share the authority")
-print(" - torque cut, brake assist and grounded axle-balance intervention are present")
+print(" - torque cut and brake assist are consumed by the final command composer")
 print(f" - roadmap remains honest at {done}/{total} ({progress:.1f}%)")
