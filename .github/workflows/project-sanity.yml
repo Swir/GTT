@@ -126,3 +126,5 @@ jobs:
         run: python Scripts/verify_native_road_crash_scene.py
       - name: Verify Native road body damage and workshop integration
         run: python Scripts/verify_native_road_body_damage.py
+      - name: Verify Native roadside recovery and police impound
+        run: python Scripts/verify_native_roadside_recovery.py
