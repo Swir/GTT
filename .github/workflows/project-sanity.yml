@@ -130,3 +130,5 @@ jobs:
         run: python Scripts/verify_native_roadside_recovery.py
       - name: Verify Native trailer authored-rig acceptance and hitch safety
         run: python Scripts/verify_native_trailer_acceptance.py
+      - name: Verify authored trailer runtime takeover and wheel-contact dynamics
+        run: python Scripts/verify_authored_trailer_runtime.py
