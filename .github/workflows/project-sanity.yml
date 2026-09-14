@@ -118,3 +118,5 @@ jobs:
         run: python Scripts/verify_mulebox_cargo_dynamics.py
       - name: Verify Native road fleet takeover foundation
         run: python Scripts/verify_native_road_fleet_takeover.py
+      - name: Verify Native road fleet collision and wheel-state control
+        run: python Scripts/verify_native_road_damage_control.py

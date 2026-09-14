@@ -3,7 +3,9 @@
 #include "Camera/CameraComponent.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -18,6 +20,11 @@ namespace
     constexpr float MirrorSyncIntervalSeconds = 0.5f;
     constexpr float TakeoverRetryIntervalSeconds = 1.0f;
     constexpr float RuntimeGuardIntervalSeconds = 2.0f;
+    constexpr float WheelEvidenceIntervalSeconds = 4.0f;
+    constexpr float RuntimeTractionRiskThreshold = 0.34f;
+    constexpr float ImpactDamageCooldownSeconds = 0.30f;
+    constexpr float MinimumImpactSpeedKmh = 14.0f;
+    constexpr float SevereImpactSpeedKmh = 38.0f;
 }
 
 AGTTRoadVehicleNativePawn::AGTTRoadVehicleNativePawn()
@@ -86,7 +93,13 @@ void AGTTRoadVehicleNativePawn::Tick(float DeltaSeconds)
         return;
     }
 
-    if (bOccupied && MigrationSnapshot.FuelLiters > 0.0f)
+    UpdateNativeWheelRuntime(DeltaSeconds);
+
+    if (bOccupied && MigrationSnapshot.ConditionPercent <= KINDA_SMALL_NUMBER)
+    {
+        StopNativeDriveForBreakdown();
+    }
+    else if (bOccupied && MigrationSnapshot.FuelLiters > 0.0f)
     {
         const float ThrottleAlpha = FMath::Clamp(FMath::Abs(LastThrottleInput), 0.0f, 1.0f);
         const float EfficiencyBonus = 1.0f - FMath::Clamp(MigrationSnapshot.EngineUpgradeLevel, 0, 3) * 0.035f;
@@ -94,12 +107,7 @@ void AGTTRoadVehicleNativePawn::Tick(float DeltaSeconds)
         MigrationSnapshot.FuelLiters = FMath::Max(0.0f, MigrationSnapshot.FuelLiters - BurnRate * DeltaSeconds);
         if (MigrationSnapshot.FuelLiters <= KINDA_SMALL_NUMBER)
         {
-            LastThrottleInput = 0.0f;
-            if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
-            {
-                Movement->SetThrottleInput(0.0f);
-                Movement->SetBrakeInput(1.0f);
-            }
+            StopNativeDriveForBreakdown();
         }
     }
 
@@ -109,6 +117,7 @@ void AGTTRoadVehicleNativePawn::Tick(float DeltaSeconds)
         MirrorSyncAccumulator = 0.0f;
         SyncLegacyMirror();
     }
+
     RuntimeGuardAccumulator += DeltaSeconds;
     if (RuntimeGuardAccumulator >= RuntimeGuardIntervalSeconds)
     {
@@ -184,6 +193,61 @@ void AGTTRoadVehicleNativePawn::ExitNativeVehicle()
     UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_DRIVER_EXIT vehicle=%s"), *NativeVehicleId.ToString());
 }
 
+void AGTTRoadVehicleNativePawn::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved,
+    FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
+{
+    Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
+
+    if (!bNativeReady || !bTakeoverActive || !GetWorld() || Other == this)
+    {
+        return;
+    }
+
+    const float Now = GetWorld()->GetTimeSeconds();
+    if (Now - LastImpactDamageTimeSeconds < ImpactDamageCooldownSeconds)
+    {
+        return;
+    }
+
+    const float VehicleSpeedKmh = GetVelocity().Size() * 0.036f;
+    float ImpulseEquivalentKmh = 0.0f;
+    if (GetMesh() && GetMesh()->GetMass() > KINDA_SMALL_NUMBER)
+    {
+        ImpulseEquivalentKmh = (NormalImpulse.Size() / GetMesh()->GetMass()) * 0.036f;
+    }
+
+    const float ImpactSpeedKmh = FMath::Max(VehicleSpeedKmh, ImpulseEquivalentKmh);
+    if (ImpactSpeedKmh < MinimumImpactSpeedKmh)
+    {
+        return;
+    }
+
+    LastImpactDamageTimeSeconds = Now;
+    LastImpactSpeedKmh = ImpactSpeedKmh;
+    ++NativeImpactCount;
+
+    const float PreviousCondition = MigrationSnapshot.ConditionPercent;
+    const float PreviousTires = MigrationSnapshot.TireIntegrity;
+    ApplyNativeImpactDamage(ImpactSpeedKmh);
+
+    if (!FMath::IsNearlyEqual(PreviousCondition, MigrationSnapshot.ConditionPercent) ||
+        !FMath::IsNearlyEqual(PreviousTires, MigrationSnapshot.TireIntegrity))
+    {
+        SyncLegacyMirror();
+        UE_LOG(LogGTT, Log,
+            TEXT("NATIVE_ROAD_IMPACT_DAMAGE vehicle=%s speed_kmh=%.1f condition=%.1f%% tire_integrity=%.2f condition_delta=%.3f tire_delta=%.3f cargo=%.2f impacts=%d other=%s"),
+            *NativeVehicleId.ToString(),
+            ImpactSpeedKmh,
+            MigrationSnapshot.ConditionPercent * 100.0f,
+            MigrationSnapshot.TireIntegrity,
+            PreviousCondition - MigrationSnapshot.ConditionPercent,
+            PreviousTires - MigrationSnapshot.TireIntegrity,
+            CargoLoadFactor,
+            NativeImpactCount,
+            Other ? *Other->GetName() : TEXT("WORLD"));
+    }
+}
+
 bool AGTTRoadVehicleNativePawn::ValidateRigContract(FString& OutSummary) const
 {
     if (!GetMesh()) { OutSummary = TEXT("No skeletal mesh component"); return false; }
@@ -255,6 +319,7 @@ bool AGTTRoadVehicleNativePawn::TryActivateLegacyTakeover()
         SetActorEnableCollision(true);
         bTakeoverActive = true;
         MirrorSyncAccumulator = 0.0f;
+        WheelEvidenceAccumulator = 0.0f;
         UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_TAKEOVER_ACTIVE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
         return true;
     }
@@ -274,6 +339,11 @@ void AGTTRoadVehicleNativePawn::DeactivateLegacyTakeover()
     }
     LegacyMirror.Reset();
     bTakeoverActive = false;
+    RuntimeWheelRisk = 0.0f;
+    RuntimeWheelContacts = 0;
+    RuntimeThrottleLimit = 1.0f;
+    RuntimeSteeringLimit = 1.0f;
+    RuntimeBrakeAssist = 0.0f;
     SetActorHiddenInGame(true);
     SetActorEnableCollision(false);
 }
@@ -297,18 +367,157 @@ void AGTTRoadVehicleNativePawn::RuntimeAcceptanceGuard()
     }
 }
 
+void AGTTRoadVehicleNativePawn::UpdateNativeWheelRuntime(float DeltaSeconds)
+{
+    RuntimeWheelRisk = 0.0f;
+    RuntimeWheelContacts = 0;
+    RuntimeThrottleLimit = 1.0f;
+    RuntimeSteeringLimit = 1.0f;
+    RuntimeBrakeAssist = 0.0f;
+
+    UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent());
+    if (!Movement || Movement->GetNumWheels() != 4)
+    {
+        return;
+    }
+
+    int32 ValidWheels = 0;
+    int32 SlippingWheels = 0;
+    int32 SkiddingWheels = 0;
+    float MaxSlipMagnitude = 0.0f;
+    float MaxSlipAngle = 0.0f;
+    float MinSuspensionLength = 1.0f;
+    float MaxSuspensionLength = 0.0f;
+
+    for (int32 WheelIndex = 0; WheelIndex < 4; ++WheelIndex)
+    {
+        const FWheelStatus& WheelState = Movement->GetWheelState(WheelIndex);
+        if (!WheelState.bIsValid)
+        {
+            continue;
+        }
+
+        ++ValidWheels;
+        RuntimeWheelContacts += WheelState.bInContact ? 1 : 0;
+        SlippingWheels += WheelState.bIsSlipping ? 1 : 0;
+        SkiddingWheels += WheelState.bIsSkidding ? 1 : 0;
+        MaxSlipMagnitude = FMath::Max(MaxSlipMagnitude, FMath::Abs(WheelState.SlipMagnitude));
+        MaxSlipAngle = FMath::Max(MaxSlipAngle, FMath::Abs(WheelState.SlipAngle));
+        if (WheelState.NormalizedSuspensionLength >= 0.0f)
+        {
+            MinSuspensionLength = FMath::Min(MinSuspensionLength, WheelState.NormalizedSuspensionLength);
+            MaxSuspensionLength = FMath::Max(MaxSuspensionLength, WheelState.NormalizedSuspensionLength);
+        }
+    }
+
+    if (ValidWheels != 4)
+    {
+        return;
+    }
+
+    const float ContactRisk = FMath::Clamp((4.0f - static_cast<float>(RuntimeWheelContacts)) / 3.0f, 0.0f, 1.0f);
+    const float SlipRisk = FMath::Clamp(static_cast<float>(SlippingWheels) / 3.0f, 0.0f, 1.0f);
+    const float SkidRisk = FMath::Clamp(static_cast<float>(SkiddingWheels) / 2.0f, 0.0f, 1.0f);
+    const float MagnitudeRisk = FMath::Clamp(MaxSlipMagnitude / 650.0f, 0.0f, 1.0f);
+    const float AngleRisk = FMath::Clamp(MaxSlipAngle / 32.0f, 0.0f, 1.0f);
+    const float SuspensionRisk = FMath::Clamp((MaxSuspensionLength - MinSuspensionLength) / 0.55f, 0.0f, 1.0f) * 0.72f;
+    const float RawRisk = FMath::Max3(ContactRisk, SkidRisk,
+        FMath::Max(SlipRisk, FMath::Max(MagnitudeRisk, FMath::Max(AngleRisk, SuspensionRisk))));
+    const float TirePenalty = 1.0f - FMath::Clamp(MigrationSnapshot.TireIntegrity, 0.0f, 1.0f);
+    const float TuneAssist = FMath::Clamp(static_cast<float>(MigrationSnapshot.TireUpgradeLevel) * 0.035f, 0.0f, 0.105f);
+    RuntimeWheelRisk = FMath::Clamp(RawRisk + TirePenalty * 0.22f - TuneAssist, 0.0f, 1.0f);
+
+    if (RuntimeWheelRisk >= RuntimeTractionRiskThreshold)
+    {
+        RuntimeThrottleLimit = FMath::Clamp(0.96f - RuntimeWheelRisk * 0.62f + TuneAssist, 0.24f, 0.90f);
+        RuntimeBrakeAssist = RuntimeWheelRisk >= 0.62f
+            ? FMath::Clamp(0.03f + RuntimeWheelRisk * 0.18f, 0.0f, 0.22f)
+            : 0.0f;
+        RuntimeSteeringLimit = RuntimeWheelRisk >= 0.78f
+            ? FMath::Clamp(1.20f - RuntimeWheelRisk * 0.55f, 0.55f, 1.0f)
+            : 1.0f;
+    }
+
+    WheelEvidenceAccumulator += DeltaSeconds;
+    if (WheelEvidenceAccumulator >= WheelEvidenceIntervalSeconds)
+    {
+        WheelEvidenceAccumulator = 0.0f;
+        UE_LOG(LogGTT, Log,
+            TEXT("NATIVE_ROAD_WHEEL_STATE_EVIDENCE vehicle=%s contacts=%d/4 slipping=%d skidding=%d slip_mag=%.2f slip_angle=%.2f suspension_spread=%.2f risk=%.2f throttle_limit=%.2f brake_assist=%.2f steering_limit=%.2f tire_integrity=%.2f tire_level=%d"),
+            *NativeVehicleId.ToString(),
+            RuntimeWheelContacts,
+            SlippingWheels,
+            SkiddingWheels,
+            MaxSlipMagnitude,
+            MaxSlipAngle,
+            MaxSuspensionLength - MinSuspensionLength,
+            RuntimeWheelRisk,
+            RuntimeThrottleLimit,
+            RuntimeBrakeAssist,
+            RuntimeSteeringLimit,
+            MigrationSnapshot.TireIntegrity,
+            MigrationSnapshot.TireUpgradeLevel);
+    }
+}
+
+void AGTTRoadVehicleNativePawn::ApplyNativeImpactDamage(float ImpactSpeedKmh)
+{
+    if (!bNativeReady || !bTakeoverActive || ImpactSpeedKmh < MinimumImpactSpeedKmh)
+    {
+        return;
+    }
+
+    const float Severity = FMath::Clamp((ImpactSpeedKmh - MinimumImpactSpeedKmh) / 70.0f, 0.0f, 1.6f);
+    const float CargoInertia = 1.0f + CargoLoadFactor * 0.25f;
+    const float DamageScale = FMath::Max(0.1f, GetImpactDamageScale()) * CargoInertia;
+    const float BodyDamageRatio = Severity * 0.18f * DamageScale;
+    MigrationSnapshot.ConditionPercent = FMath::Clamp(MigrationSnapshot.ConditionPercent - BodyDamageRatio, 0.0f, 1.0f);
+
+    if (ImpactSpeedKmh > SevereImpactSpeedKmh)
+    {
+        const float TireDamage = Severity * 0.075f * DamageScale;
+        MigrationSnapshot.TireIntegrity = FMath::Clamp(MigrationSnapshot.TireIntegrity - TireDamage, 0.0f, 1.0f);
+    }
+
+    if (MigrationSnapshot.ConditionPercent <= KINDA_SMALL_NUMBER)
+    {
+        StopNativeDriveForBreakdown();
+        UE_LOG(LogGTT, Warning, TEXT("NATIVE_ROAD_BREAKDOWN vehicle=%s impact_speed_kmh=%.1f"), *NativeVehicleId.ToString(), ImpactSpeedKmh);
+    }
+}
+
+void AGTTRoadVehicleNativePawn::StopNativeDriveForBreakdown()
+{
+    LastThrottleInput = 0.0f;
+    if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
+    {
+        Movement->SetThrottleInput(0.0f);
+        Movement->SetSteeringInput(0.0f);
+        Movement->SetBrakeInput(1.0f);
+    }
+}
+
 void AGTTRoadVehicleNativePawn::HandleNativeThrottle(float Value)
 {
     LastThrottleInput = FMath::Clamp(Value, -1.0f, 1.0f);
-    if (!bNativeReady || !bTakeoverActive || !bOccupied || MigrationSnapshot.FuelLiters <= KINDA_SMALL_NUMBER || MigrationSnapshot.ConditionPercent <= 0.0f) { LastThrottleInput = 0.0f; return; }
+    if (!bNativeReady || !bTakeoverActive || !bOccupied || MigrationSnapshot.FuelLiters <= KINDA_SMALL_NUMBER || MigrationSnapshot.ConditionPercent <= 0.0f)
+    {
+        LastThrottleInput = 0.0f;
+        StopNativeDriveForBreakdown();
+        return;
+    }
+
     if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
     {
         const float SpeedKmh = GetVelocity().Size() * 0.036f;
         const float TunePower = 1.0f + FMath::Clamp(MigrationSnapshot.EngineUpgradeLevel, 0, 3) * 0.08f;
         const float ConditionPower = FMath::Lerp(0.35f, 1.0f, FMath::Clamp(MigrationSnapshot.ConditionPercent, 0.0f, 1.0f));
         const float Requested = LastThrottleInput;
-        const float Scaled = FMath::Clamp(FMath::Abs(Requested) * TunePower * ConditionPower * GetCargoPowerLimit(SpeedKmh), 0.0f, 1.0f);
-        Movement->SetBrakeInput(FMath::IsNearlyZero(Requested) ? 0.15f : 0.0f);
+        const float Scaled = FMath::Clamp(
+            FMath::Abs(Requested) * TunePower * ConditionPower * GetCargoPowerLimit(SpeedKmh) * RuntimeThrottleLimit,
+            0.0f,
+            1.0f);
+        Movement->SetBrakeInput(FMath::Max(FMath::IsNearlyZero(Requested) ? 0.15f : 0.0f, RuntimeBrakeAssist));
         Movement->SetThrottleInput(Scaled);
         Movement->SetTargetGear(Requested < -KINDA_SMALL_NUMBER ? -1 : 1, true);
     }
@@ -322,7 +531,10 @@ void AGTTRoadVehicleNativePawn::HandleNativeSteering(float Value)
         const float SpeedKmh = GetVelocity().Size() * 0.036f;
         const float TireGrip = FMath::Lerp(0.45f, 1.0f, FMath::Clamp(MigrationSnapshot.TireIntegrity, 0.0f, 1.0f));
         const float TuneGrip = 1.0f + FMath::Clamp(MigrationSnapshot.TireUpgradeLevel, 0, 3) * 0.05f;
-        Movement->SetSteeringInput(FMath::Clamp(Value * TireGrip * TuneGrip * GetCargoSteeringLimit(SpeedKmh), -1.0f, 1.0f));
+        Movement->SetSteeringInput(FMath::Clamp(
+            Value * TireGrip * TuneGrip * GetCargoSteeringLimit(SpeedKmh) * RuntimeSteeringLimit,
+            -1.0f,
+            1.0f));
     }
 }
 
@@ -334,6 +546,12 @@ void AGTTRoadVehicleNativePawn::SetCargoLoadFactor(float NewLoadFactor)
 
 float AGTTRoadVehicleNativePawn::GetCargoPowerLimit(float SpeedKmh) const { return 1.0f; }
 float AGTTRoadVehicleNativePawn::GetCargoSteeringLimit(float SpeedKmh) const { return 1.0f; }
+float AGTTRoadVehicleNativePawn::GetImpactDamageScale() const { return 1.0f; }
+
+float AGTTRattlebackNativePawn::GetImpactDamageScale() const
+{
+    return 1.05f;
+}
 
 float AGTTMuleboxNativePawn::GetCargoPowerLimit(float SpeedKmh) const
 {
@@ -344,4 +562,9 @@ float AGTTMuleboxNativePawn::GetCargoSteeringLimit(float SpeedKmh) const
 {
     const float SpeedRisk = FMath::Clamp((SpeedKmh - 45.0f) / 55.0f, 0.0f, 1.0f);
     return 1.0f - GetCargoLoadFactor() * SpeedRisk * 0.42f;
+}
+
+float AGTTMuleboxNativePawn::GetImpactDamageScale() const
+{
+    return 0.92f;
 }
