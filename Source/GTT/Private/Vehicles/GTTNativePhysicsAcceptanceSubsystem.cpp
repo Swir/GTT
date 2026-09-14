@@ -1,10 +1,12 @@
 #include "Vehicles/GTTNativePhysicsAcceptanceSubsystem.h"
 
+#include "ChaosVehicleWheel.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Vehicles/GTTChaosNativeSetupLibrary.h"
 #include "Vehicles/GTTChaosRigContract.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "GTT.h"
@@ -100,6 +102,12 @@ void UGTTNativePhysicsAcceptanceSubsystem::EvaluateNativeFieldmaster(AGTTFieldma
     const USkeletalMeshComponent* Mesh = NativePawn->GetMesh();
     const UPhysicsAsset* PhysicsAsset = Mesh ? Mesh->GetPhysicsAsset() : nullptr;
 
+    FString WheelRuntimeSummary(TEXT("UNAVAILABLE"));
+    if (Movement)
+    {
+        UGTTChaosNativeSetupLibrary::ValidateCanonicalWheelSetups(Movement, FieldmasterVehicleId, WheelRuntimeSummary);
+    }
+
     UE_LOG(LogGTT, Log,
         TEXT("NATIVE_PHYSICS_EVIDENCE vehicle=RustyFieldmaster60 accepted=%s contacts=%d/4 clearances_cm=[%.1f,%.1f,%.1f,%.1f] physics_asset=%s body_count=%d movement=%s collision=%d reason=\"%s\""),
         bAuthoredPhysicsValid ? TEXT("YES") : TEXT("NO"),
@@ -110,6 +118,27 @@ void UGTTNativePhysicsAcceptanceSubsystem::EvaluateNativeFieldmaster(AGTTFieldma
         Movement && Movement->IsActive() ? TEXT("ACTIVE") : TEXT("INACTIVE"),
         Mesh ? static_cast<int32>(Mesh->GetCollisionEnabled()) : -1,
         *ValidationReason);
+
+    if (Movement && Movement->WheelSetups.Num() == 4)
+    {
+        const UChaosVehicleWheel* FrontWheel = Movement->WheelSetups[0].WheelClass ? Cast<UChaosVehicleWheel>(Movement->WheelSetups[0].WheelClass->GetDefaultObject()) : nullptr;
+        const UChaosVehicleWheel* RearWheel = Movement->WheelSetups[2].WheelClass ? Cast<UChaosVehicleWheel>(Movement->WheelSetups[2].WheelClass->GetDefaultObject()) : nullptr;
+        UE_LOG(LogGTT, Log,
+            TEXT("NATIVE_WHEEL_SETUP_EVIDENCE vehicle=RustyFieldmaster60 setup=%s front_class=%s rear_class=%s front_radius=%.1f rear_radius=%.1f front_travel=[%.1f,%.1f] rear_travel=[%.1f,%.1f] front_spring=%.1f rear_spring=%.1f front_damping=%.2f rear_damping=%.2f"),
+            *WheelRuntimeSummary,
+            *Movement->WheelSetups[0].WheelClass->GetName(),
+            *Movement->WheelSetups[2].WheelClass->GetName(),
+            FrontWheel ? FrontWheel->WheelRadius : -1.0f,
+            RearWheel ? RearWheel->WheelRadius : -1.0f,
+            FrontWheel ? FrontWheel->SuspensionMaxRaise : -1.0f,
+            FrontWheel ? FrontWheel->SuspensionMaxDrop : -1.0f,
+            RearWheel ? RearWheel->SuspensionMaxRaise : -1.0f,
+            RearWheel ? RearWheel->SuspensionMaxDrop : -1.0f,
+            FrontWheel ? FrontWheel->SpringRate : -1.0f,
+            RearWheel ? RearWheel->SpringRate : -1.0f,
+            FrontWheel ? FrontWheel->SuspensionDampingRatio : -1.0f,
+            RearWheel ? RearWheel->SuspensionDampingRatio : -1.0f);
+    }
 }
 
 bool UGTTNativePhysicsAcceptanceSubsystem::ValidateAuthoredPhysics(AGTTFieldmasterNativePawn* NativePawn, FString& OutReason) const
@@ -131,6 +160,13 @@ bool UGTTNativePhysicsAcceptanceSubsystem::ValidateAuthoredPhysics(AGTTFieldmast
     if (!Movement || !Movement->IsActive())
     {
         OutReason = TEXT("Chaos wheeled movement inactive");
+        return false;
+    }
+
+    FString WheelSetupSummary;
+    if (!UGTTChaosNativeSetupLibrary::ValidateCanonicalWheelSetups(Movement, FieldmasterVehicleId, WheelSetupSummary))
+    {
+        OutReason = FString::Printf(TEXT("authored wheel/suspension setup invalid: %s"), *WheelSetupSummary);
         return false;
     }
 
@@ -191,8 +227,8 @@ bool UGTTNativePhysicsAcceptanceSubsystem::ValidateAuthoredPhysics(AGTTFieldmast
         return false;
     }
 
-    OutReason = FString::Printf(TEXT("authored physics valid bodies=%d front_track=%.1f rear_track=%.1f wheelbase=%.1f"),
-        PhysicsAsset->SkeletalBodySetups.Num(), FrontTrack, RearTrack, Wheelbase);
+    OutReason = FString::Printf(TEXT("authored physics valid bodies=%d front_track=%.1f rear_track=%.1f wheelbase=%.1f wheels=\"%s\""),
+        PhysicsAsset->SkeletalBodySetups.Num(), FrontTrack, RearTrack, Wheelbase, *WheelSetupSummary);
     return true;
 }
 
