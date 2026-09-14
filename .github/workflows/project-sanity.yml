@@ -138,3 +138,5 @@ jobs:
         run: python Scripts/verify_native_drivetrain_authority.py
       - name: Verify Native wheel/axle traction authority
         run: python Scripts/verify_native_axle_traction.py
+      - name: Verify Native command composition and suspension runtime evidence
+        run: python Scripts/verify_native_command_composition.py
