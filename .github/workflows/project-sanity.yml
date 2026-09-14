@@ -100,3 +100,5 @@ jobs:
         run: python Scripts/verify_native_heavy_haul_dynamics.py
       - name: Verify Native load-transfer and grade response
         run: python Scripts/verify_native_load_transfer.py
+      - name: Verify Native traction and slip control
+        run: python Scripts/verify_native_traction_control.py
