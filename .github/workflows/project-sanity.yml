@@ -96,3 +96,5 @@ jobs:
         run: python Scripts/verify_native_physics_acceptance.py
       - name: Verify Native stability and contact control
         run: python Scripts/verify_native_stability.py
+      - name: Verify Native heavy-haul load and sway dynamics
+        run: python Scripts/verify_native_heavy_haul_dynamics.py
