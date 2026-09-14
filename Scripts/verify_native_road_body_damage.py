@@ -40,7 +40,10 @@ missing = [token for text, token in required if token not in text]
 if missing:
     raise SystemExit('Missing required tokens: ' + ', '.join(missing))
 
-checks = re.findall(r'\[(x|X| )\]', roadmap)
+# Count only actual roadmap checklist task lines. The dashboard's explanatory
+# progress-rule example also contains literal [x]/[ ] text and must not inflate
+# the real task total.
+checks = re.findall(r'^- \[(x|X| )\]', roadmap, flags=re.MULTILINE)
 done = sum(1 for value in checks if value.lower() == 'x')
 total = len(checks)
 remaining = total - done
@@ -48,9 +51,10 @@ if (done, total, remaining) != (125, 130, 5):
     raise SystemExit(f'Roadmap checkbox drift: done={done} total={total} remaining={remaining}; expected 125/130/5')
 
 expected_dashboard_tokens = [
-    '125/130',
-    '96.2%',
+    'ROADMAP-96.2%25',
+    'DONE-125%2F130',
     '███████████████████░ 96.2%',
+    '| **125** | **5** | **130** | **96.2%** |',
 ]
 missing_dashboard = [token for token in expected_dashboard_tokens if token not in roadmap]
 if missing_dashboard:
@@ -59,7 +63,9 @@ if missing_dashboard:
 if road_cpp.find('UpdateNativeWheelRuntime(DeltaSeconds);') > road_cpp.find('UpdateDamageConsequences(DeltaSeconds);'):
     raise SystemExit('Damage consequences must run after wheel-state refresh so both control layers compose predictably.')
 
-if service_cpp.find('FindActiveNativeRoadVehicle') > service_cpp.find('FindNearestVehicle();'):
+native_service_pos = service_cpp.find('if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle')
+legacy_service_pos = service_cpp.find('AGTTVehicleBase* Vehicle = FindNearestVehicle();')
+if native_service_pos < 0 or legacy_service_pos < 0 or native_service_pos > legacy_service_pos:
     raise SystemExit('Native road workshop handling must precede generic legacy vehicle servicing.')
 
 print('[OK] Native road body zones, detachable debris, handling/cooling consequences, workshop integration and roadmap lock verified.')
