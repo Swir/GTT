@@ -282,6 +282,16 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
             Authority.bAxleTorqueCut ? TEXT("YES") : TEXT("NO"),
             AxleSnapshot.TractionAuthority,
             Authority.bSuspensionRuntimeReady ? TEXT("YES") : TEXT("NO"));
+
+        // Keep the 0.0.75 telemetry contract alive for existing playtests/log parsers while
+        // 0.0.77 adds the richer command-composition evidence above.
+        UE_LOG(LogGTT, Log,
+            TEXT("NATIVE_DRIVETRAIN_AUTHORITY_EVIDENCE vehicle=%s speed_kmh=%.2f raw_throttle=%.2f raw_steer=%.2f current_gear=%d stable_direction=%d interlock=%s engine_brake=%s authority_brake=%.2f"),
+            *VehicleId.ToString(), SignedSpeedKmh, RequestedThrottle, RequestedSteering,
+            Movement->GetCurrentGear(), Authority.StableDirection,
+            Authority.bDirectionInterlock ? TEXT("YES") : TEXT("NO"),
+            Authority.bEngineBrakeActive ? TEXT("YES") : TEXT("NO"),
+            FinalBrake);
     }
 
     if (Authority.bDirectionInterlock)
