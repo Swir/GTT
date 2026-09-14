@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parents[1]
 cpp = (root / "Source/GTT/Private/Vehicles/GTTNativeStabilitySubsystem.cpp").read_text(encoding="utf-8")
@@ -29,7 +30,16 @@ if missing:
 
 if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
     raise SystemExit("SWIR roadmap style lock marker missing")
-if "125 / 130" not in roadmap and "125/130" not in roadmap:
-    raise SystemExit("Roadmap progress unexpectedly changed; runtime-only acceptance must remain honest")
+
+completed = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
+remaining = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
+total = completed + remaining
+if (completed, remaining, total) != (125, 5, 130):
+    raise SystemExit(
+        f"Roadmap progress unexpectedly changed: {completed}/{total} with {remaining} remaining; "
+        "runtime-only acceptance must remain honest"
+    )
+if "DONE-125%2F130" not in roadmap or "96.2%" not in roadmap or "███████████████████░ 96.2%" not in roadmap:
+    raise SystemExit("ROADMAP-PROGRESS dashboard is not synchronized with the 125/130 checklist")
 
 print("Native load-transfer / grade / heavy-haul chassis-response milestone verified.")
