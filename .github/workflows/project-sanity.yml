@@ -144,3 +144,5 @@ jobs:
         run: python Scripts/verify_native_runtime_acceptance.py
       - name: Verify Native Chaos acceptance matrix and runtime smoke evidence
         run: python Scripts/verify_native_acceptance_matrix.py
+      - name: Verify packaged gameplay smoke and demo gate integration
+        run: python Scripts/verify_packaged_gameplay_smoke.py
