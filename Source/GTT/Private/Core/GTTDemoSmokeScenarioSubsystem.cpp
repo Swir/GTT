@@ -11,6 +11,7 @@
 #include "Missions/GTTMissionComponent.h"
 #include "NPC/GTTCitizenPawn.h"
 #include "Police/GTTPoliceDirector.h"
+#include "Police/GTTPolicePursuitVehicle.h"
 #include "Traffic/GTTTrafficDirector.h"
 #include "UI/GTTGameHUD.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
@@ -24,64 +25,62 @@ bool HasLiveNativeMotion(AWheeledVehiclePawn* Pawn)
     if (!Pawn) return false;
     UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(Pawn->GetVehicleMovementComponent());
     if (!Movement || !Movement->IsActive()) return false;
-    int32 Valid = 0, Contacts = 0, Suspension = 0;
-    for (int32 Index = 0; Index < 4; ++Index)
+    int32 Valid=0, Contacts=0, Suspension=0;
+    for(int32 Index=0;Index<4;++Index){const FWheelStatus Wheel=Movement->GetWheelState(Index);if(!Wheel.bIsValid)continue;++Valid;if(Wheel.bInContact)++Contacts;if(FMath::IsFinite(Wheel.NormalizedSuspensionLength)&&Wheel.NormalizedSuspensionLength>=0.f&&Wheel.NormalizedSuspensionLength<=1.f)++Suspension;}
+    return Valid==4 && Contacts>=2 && Suspension==4 && Pawn->GetVelocity().SizeSquared2D()>FMath::Square(10.f);
+}
+
+bool ExerciseNativeControls(AWheeledVehiclePawn* Pawn,float Elapsed,const TCHAR* VehicleId)
+{
+    if(!Pawn) return false;
+    UChaosWheeledVehicleMovementComponent* Movement=Cast<UChaosWheeledVehicleMovementComponent>(Pawn->GetVehicleMovementComponent());
+    if(!Movement||!Movement->IsActive()) return false;
+    const float Phase=FMath::Fmod(Elapsed,6.f);
+    const float Throttle=Phase<4.5f?0.72f:0.f;
+    const float Steering=Phase<2.f?0.35f:(Phase<4.f?-0.35f:0.f);
+    const float Brake=Phase>=4.5f?0.65f:0.f;
+    Movement->SetThrottleInput(Throttle); Movement->SetSteeringInput(Steering); Movement->SetBrakeInput(Brake);
+    if(HasLiveNativeMotion(Pawn))
     {
-        const FWheelStatus Wheel = Movement->GetWheelState(Index);
-        if (!Wheel.bIsValid) continue;
-        ++Valid;
-        if (Wheel.bInContact) ++Contacts;
-        if (FMath::IsFinite(Wheel.NormalizedSuspensionLength) && Wheel.NormalizedSuspensionLength >= 0.f && Wheel.NormalizedSuspensionLength <= 1.f) ++Suspension;
+        UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_CONTROL vehicle=%s throttle=%.2f steering=%.2f brake=%.2f speed_cm_s=%.1f"),VehicleId,Throttle,Steering,Brake,Pawn->GetVelocity().Size2D());
+        return true;
     }
-    return Valid == 4 && Contacts >= 2 && Suspension == 4 && Pawn->GetVelocity().SizeSquared2D() > FMath::Square(10.f);
+    return false;
 }
 }
 
 void UGTTDemoSmokeScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-    Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
-    if (bEnabled) UE_LOG(LogTemp, Display, TEXT("DEMO_SCENARIO_BEGIN version=3 mode=native-motion-pursuit-route"));
+    Super::Initialize(Collection); bEnabled=FParse::Param(FCommandLine::Get(),TEXT("GTTDemoSmokeScenario"));
+    if(bEnabled) UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_BEGIN version=4 mode=vehicle-control-pursuit-interaction"));
 }
-
-void UGTTDemoSmokeScenarioSubsystem::Pass(const TCHAR* Step)
-{
-    const FName Key(Step); if (Passed.Contains(Key)) return; Passed.Add(Key);
-    UE_LOG(LogTemp, Display, TEXT("DEMO_SCENARIO_STEP step=%s result=PASS elapsed=%.2f"), Step, Elapsed);
-}
+void UGTTDemoSmokeScenarioSubsystem::Pass(const TCHAR* Step){const FName Key(Step);if(Passed.Contains(Key))return;Passed.Add(Key);UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_STEP step=%s result=PASS elapsed=%.2f"),Step,Elapsed);}
 
 void UGTTDemoSmokeScenarioSubsystem::Tick(float DeltaTime)
 {
-    Elapsed += DeltaTime; UWorld* World = GetWorld(); if (!World) return;
-    AGTTGameMode* GM = World->GetAuthGameMode<AGTTGameMode>();
-    APlayerController* PC = World->GetFirstPlayerController(); APawn* PlayerPawn = PC ? PC->GetPawn() : nullptr;
-    if (GM) Pass(TEXT("WORLD")); if (PC && Cast<AGTTGameHUD>(PC->GetHUD())) Pass(TEXT("HUD"));
-    if (GM) if (UGTTMissionComponent* Mission = GM->GetMissionComponent()) if (!Mission->GetActiveMissionId().IsNone()) Pass(TEXT("MISSION"));
-    for (TActorIterator<AGTTTrafficDirector> It(World); It; ++It) { Pass(TEXT("TRAFFIC")); break; }
-    for (TActorIterator<AGTTCitizenPawn> It(World); It; ++It) { Pass(TEXT("NPC")); break; }
-    if (PlayerPawn && PlayerPawn->FindComponentByClass<UGTTCombatComponent>()) Pass(TEXT("COMBAT"));
+    Elapsed+=DeltaTime;UWorld* World=GetWorld();if(!World)return;AGTTGameMode* GM=World->GetAuthGameMode<AGTTGameMode>();APlayerController* PC=World->GetFirstPlayerController();APawn* PlayerPawn=PC?PC->GetPawn():nullptr;
+    if(GM)Pass(TEXT("WORLD"));if(PC&&Cast<AGTTGameHUD>(PC->GetHUD()))Pass(TEXT("HUD"));if(GM)if(UGTTMissionComponent* Mission=GM->GetMissionComponent())if(!Mission->GetActiveMissionId().IsNone())Pass(TEXT("MISSION"));
+    for(TActorIterator<AGTTTrafficDirector> It(World);It;++It){Pass(TEXT("TRAFFIC"));break;}for(TActorIterator<AGTTCitizenPawn> It(World);It;++It){Pass(TEXT("NPC"));break;}if(PlayerPawn&&PlayerPawn->FindComponentByClass<UGTTCombatComponent>())Pass(TEXT("COMBAT"));
 
-    for (TActorIterator<AGTTFieldmasterNativePawn> It(World); It; ++It) { if (It->IsNativeFieldmasterReady() && It->IsLegacyTakeoverActive()) Pass(TEXT("FIELDMASTER")); if (HasLiveNativeMotion(*It)) Pass(TEXT("FIELDMASTER_MOTION")); break; }
-    for (TActorIterator<AGTTRattlebackNativePawn> It(World); It; ++It) { if (It->IsNativeReady() && It->IsLegacyTakeoverActive()) Pass(TEXT("RATTLEBACK")); if (HasLiveNativeMotion(*It)) Pass(TEXT("RATTLEBACK_MOTION")); break; }
-    for (TActorIterator<AGTTMuleboxNativePawn> It(World); It; ++It) { if (It->IsNativeReady() && It->IsLegacyTakeoverActive()) Pass(TEXT("MULEBOX")); if (HasLiveNativeMotion(*It)) Pass(TEXT("MULEBOX_MOTION")); break; }
+    for(TActorIterator<AGTTFieldmasterNativePawn> It(World);It;++It){if(It->IsNativeFieldmasterReady()&&It->IsLegacyTakeoverActive())Pass(TEXT("FIELDMASTER"));if(HasLiveNativeMotion(*It))Pass(TEXT("FIELDMASTER_MOTION"));if(Elapsed>=4.f&&ExerciseNativeControls(*It,Elapsed,TEXT("Fieldmaster")))Pass(TEXT("FIELDMASTER_CONTROL"));break;}
+    for(TActorIterator<AGTTRattlebackNativePawn> It(World);It;++It){if(It->IsNativeReady()&&It->IsLegacyTakeoverActive())Pass(TEXT("RATTLEBACK"));if(HasLiveNativeMotion(*It))Pass(TEXT("RATTLEBACK_MOTION"));if(Elapsed>=5.f&&ExerciseNativeControls(*It,Elapsed+1.f,TEXT("Rattleback82")))Pass(TEXT("RATTLEBACK_CONTROL"));break;}
+    for(TActorIterator<AGTTMuleboxNativePawn> It(World);It;++It){if(It->IsNativeReady()&&It->IsLegacyTakeoverActive())Pass(TEXT("MULEBOX"));if(HasLiveNativeMotion(*It))Pass(TEXT("MULEBOX_MOTION"));if(Elapsed>=6.f&&ExerciseNativeControls(*It,Elapsed+2.f,TEXT("Mulebox1200")))Pass(TEXT("MULEBOX_CONTROL"));break;}
 
-    UGTTWantedComponent* Wanted = PlayerPawn ? UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn) : nullptr;
-    if (Wanted)
+    UGTTWantedComponent* Wanted=PlayerPawn?UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn):nullptr;
+    if(Wanted){Pass(TEXT("WANTED_COMPONENT"));if(Elapsed>=10.f&&!bCrimeInjected){bCrimeInjected=true;Wanted->AddHeat(80.f);UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_ACTION action=INJECT_TEST_CRIME heat=80.0 target_wanted=3"));}if(bCrimeInjected&&Wanted->GetWantedLevel()>=3)Pass(TEXT("WANTED_ESCALATION"));}
+    if(Passed.Contains(TEXT("WANTED_ESCALATION")))for(TActorIterator<AGTTPoliceDirector> It(World);It;++It){if(It->GetActiveFootUnitCount()>0)Pass(TEXT("POLICE_RESPONSE"));if(It->GetActivePursuitVehicleCount()>0)Pass(TEXT("PURSUIT_ACTIVE"));break;}
+
+    if(PlayerPawn&&Passed.Contains(TEXT("PURSUIT_ACTIVE")))
     {
-        Pass(TEXT("WANTED_COMPONENT"));
-        if (Elapsed >= 10.f && !bCrimeInjected) { bCrimeInjected = true; Wanted->AddHeat(80.f); UE_LOG(LogTemp, Display, TEXT("DEMO_SCENARIO_ACTION action=INJECT_TEST_CRIME heat=80.0 target_wanted=3")); }
-        if (bCrimeInjected && Wanted->GetWantedLevel() >= 3) Pass(TEXT("WANTED_ESCALATION"));
+        for(TActorIterator<AGTTPolicePursuitVehicle> It(World);It;++It)
+        {
+            const float Distance=FVector::Dist2D(It->GetActorLocation(),PlayerPawn->GetActorLocation());
+            if(!ObservedPursuitVehicle.IsValid()){ObservedPursuitVehicle=*It;PursuitStartDistance=Distance;UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_PURSUIT baseline_cm=%.1f tier=%d"),Distance,It->GetResponseTier());}
+            if(ObservedPursuitVehicle.Get()==*It&&PursuitStartDistance>0.f&&Distance+250.f<PursuitStartDistance){Pass(TEXT("PURSUIT_CLOSING"));UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_PURSUIT closing=PASS baseline_cm=%.1f current_cm=%.1f delta_cm=%.1f"),PursuitStartDistance,Distance,PursuitStartDistance-Distance);}
+            break;
+        }
     }
-    if (Passed.Contains(TEXT("WANTED_ESCALATION"))) for (TActorIterator<AGTTPoliceDirector> It(World); It; ++It)
-    {
-        if (It->GetActiveFootUnitCount() > 0) Pass(TEXT("POLICE_RESPONSE"));
-        if (It->GetActivePursuitVehicleCount() > 0) Pass(TEXT("PURSUIT_ACTIVE"));
-        break;
-    }
-    if (Elapsed >= 24.f && !Passed.Contains(TEXT("SAVE")) && GM) if (GM->SaveProgress()) Pass(TEXT("SAVE"));
-
-    static const FName Required[] = { TEXT("WORLD"),TEXT("HUD"),TEXT("TRAFFIC"),TEXT("NPC"),TEXT("MISSION"),TEXT("COMBAT"),TEXT("FIELDMASTER"),TEXT("FIELDMASTER_MOTION"),TEXT("RATTLEBACK"),TEXT("RATTLEBACK_MOTION"),TEXT("MULEBOX"),TEXT("MULEBOX_MOTION"),TEXT("WANTED_COMPONENT"),TEXT("WANTED_ESCALATION"),TEXT("POLICE_RESPONSE"),TEXT("PURSUIT_ACTIVE"),TEXT("SAVE") };
-    bool bAll=true; for(const FName& Step:Required) bAll &= Passed.Contains(Step);
-    if(bAll){ UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_COMPLETE result=PASS steps=17 elapsed=%.2f"),Elapsed); bFinished=true; }
-    else if(Elapsed>45.f){ FString Missing; for(const FName& Step:Required) if(!Passed.Contains(Step)){ if(!Missing.IsEmpty()) Missing+=TEXT(","); Missing+=Step.ToString(); } UE_LOG(LogTemp,Error,TEXT("DEMO_SCENARIO_COMPLETE result=FAIL missing=%s elapsed=%.2f"),*Missing,Elapsed); bFinished=true; }
+    if(Elapsed>=30.f&&!Passed.Contains(TEXT("SAVE"))&&GM)if(GM->SaveProgress())Pass(TEXT("SAVE"));
+    static const FName Required[]={TEXT("WORLD"),TEXT("HUD"),TEXT("TRAFFIC"),TEXT("NPC"),TEXT("MISSION"),TEXT("COMBAT"),TEXT("FIELDMASTER"),TEXT("FIELDMASTER_MOTION"),TEXT("FIELDMASTER_CONTROL"),TEXT("RATTLEBACK"),TEXT("RATTLEBACK_MOTION"),TEXT("RATTLEBACK_CONTROL"),TEXT("MULEBOX"),TEXT("MULEBOX_MOTION"),TEXT("MULEBOX_CONTROL"),TEXT("WANTED_COMPONENT"),TEXT("WANTED_ESCALATION"),TEXT("POLICE_RESPONSE"),TEXT("PURSUIT_ACTIVE"),TEXT("PURSUIT_CLOSING"),TEXT("SAVE")};
+    bool bAll=true;for(const FName& Step:Required)bAll&=Passed.Contains(Step);if(bAll){UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_COMPLETE result=PASS steps=21 elapsed=%.2f"),Elapsed);bFinished=true;}else if(Elapsed>60.f){FString Missing;for(const FName& Step:Required)if(!Passed.Contains(Step)){if(!Missing.IsEmpty())Missing+=TEXT(",");Missing+=Step.ToString();}UE_LOG(LogTemp,Error,TEXT("DEMO_SCENARIO_COMPLETE result=FAIL missing=%s elapsed=%.2f"),*Missing,Elapsed);bFinished=true;}
 }
