@@ -6,14 +6,12 @@ on:
       version:
         description: 'GTT version label for the package'
         required: true
-        default: '0.0.43'
+        default: '0.0.80'
       configuration:
         description: 'Unreal build configuration'
         required: true
         type: choice
-        options:
-          - Shipping
-          - Development
+        options: [Shipping, Development]
         default: Shipping
       engine_root:
         description: 'UE 5.8 installation root on the self-hosted runner'
@@ -52,31 +50,23 @@ jobs:
       - name: Package Win64
         shell: pwsh
         run: |
-          ./Scripts/package_windows.ps1 `
-            -EngineRoot "$env:GTT_ENGINE_ROOT" `
-            -Configuration "$env:GTT_CONFIGURATION" `
-            -ArchiveDirectory "$env:GTT_PACKAGE_DIR" `
-            -Version "$env:GTT_VERSION" `
-            -SkipZip
+          ./Scripts/package_windows.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -Configuration "$env:GTT_CONFIGURATION" -ArchiveDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -SkipZip
 
       - name: Runtime smoke test packaged EXE
         shell: pwsh
         run: |
-          ./Scripts/smoke_test_windows.ps1 `
-            -PackageDirectory "$env:GTT_PACKAGE_DIR" `
-            -Version "$env:GTT_VERSION" `
-            -MinimumAliveSeconds 20
+          ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 20
 
       - name: Re-validate evidence bundle
         shell: pwsh
         run: |
-          ./Scripts/validate_windows_package.ps1 `
-            -PackageDirectory "$env:GTT_PACKAGE_DIR" `
-            -Configuration "$env:GTT_CONFIGURATION" `
-            -Version "$env:GTT_VERSION"
-          if (-not (Test-Path (Join-Path $env:GTT_PACKAGE_DIR 'RUNTIME_SMOKE.json'))) {
-            throw 'RUNTIME_SMOKE.json missing after smoke test.'
-          }
+          ./Scripts/validate_windows_package.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Configuration "$env:GTT_CONFIGURATION" -Version "$env:GTT_VERSION"
+          if (-not (Test-Path (Join-Path $env:GTT_PACKAGE_DIR 'RUNTIME_SMOKE.json'))) { throw 'RUNTIME_SMOKE.json missing after smoke test.' }
+
+      - name: Evaluate demo technical candidate
+        shell: pwsh
+        run: |
+          ./Scripts/evaluate_demo_candidate.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
 
       - name: Build final ZIP and hash
         shell: pwsh
@@ -90,12 +80,14 @@ jobs:
       - name: Upload verified Win64 evidence
         uses: actions/upload-artifact@v4
         with:
-          name: GTT-${{ inputs.version }}-Win64-verified
+          name: GTT-${{ inputs.version }}-Win64-technical-candidate
           path: |
             ${{ env.GTT_PACKAGE_DIR }}.zip
             ${{ env.GTT_PACKAGE_DIR }}.zip.sha256
             ${{ env.GTT_PACKAGE_DIR }}\BUILD_INFO.json
             ${{ env.GTT_PACKAGE_DIR }}\PACKAGE_VALIDATION.json
             ${{ env.GTT_PACKAGE_DIR }}\RUNTIME_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
+            ${{ env.GTT_PACKAGE_DIR }}\DEMO_TECHNICAL_GATE.json
           if-no-files-found: error
           retention-days: 14
