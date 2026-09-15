@@ -142,3 +142,5 @@ jobs:
         run: python Scripts/verify_native_command_composition.py
       - name: Verify fleet-wide Native Chaos runtime acceptance
         run: python Scripts/verify_native_runtime_acceptance.py
+      - name: Verify Native Chaos acceptance matrix and runtime smoke evidence
+        run: python Scripts/verify_native_acceptance_matrix.py
