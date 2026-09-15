@@ -13,19 +13,12 @@ class USpringArmComponent;
 class UStaticMeshComponent;
 
 UENUM(BlueprintType)
-enum class EGTTRoadDamageZone : uint8
-{
-    Front,
-    Rear,
-    Left,
-    Right
-};
+enum class EGTTRoadDamageZone : uint8 { Front, Rear, Left, Right };
 
 USTRUCT(BlueprintType)
 struct GTT_API FGTTRoadVehicleMigrationSnapshot
 {
     GENERATED_BODY()
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite) float ConditionPercent = 1.0f;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) float FuelLiters = 0.0f;
     UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bOwnedByPlayer = false;
@@ -38,7 +31,6 @@ USTRUCT(BlueprintType)
 struct GTT_API FGTTRoadBodyDamageSnapshot
 {
     GENERATED_BODY()
-
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float FrontHealth = 1.0f;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float RearHealth = 1.0f;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float LeftHealth = 1.0f;
@@ -51,16 +43,13 @@ UCLASS(Abstract, Blueprintable)
 class GTT_API AGTTRoadVehicleNativePawn : public AWheeledVehiclePawn, public IGTTInteractable
 {
     GENERATED_BODY()
-
 public:
     AGTTRoadVehicleNativePawn();
-
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual void Interact_Implementation(AActor* Interactor) override;
     virtual FText GetInteractionText_Implementation() const override;
-    virtual void NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved,
-        FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
+    virtual void NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Fleet") bool ConfigureAndValidateNativeRoadVehicle(FString& OutSummary);
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Fleet") bool TryActivateLegacyTakeover();
@@ -68,6 +57,15 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle") void ExitNativeVehicle();
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Cargo") virtual void SetCargoLoadFactor(float NewLoadFactor);
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Workshop") bool ApplyNativeWorkshopService();
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Damage") bool ApplyPoliceSpikeDamage(float TireDamage, float ConditionDamage)
+    {
+        if (!bNativeReady || !bTakeoverActive) return false;
+        const float PreviousTires = MigrationSnapshot.TireIntegrity;
+        MigrationSnapshot.TireIntegrity = FMath::Clamp(MigrationSnapshot.TireIntegrity - FMath::Max(0.0f, TireDamage), 0.0f, 1.0f);
+        MigrationSnapshot.ConditionPercent = FMath::Clamp(MigrationSnapshot.ConditionPercent - FMath::Max(0.0f, ConditionDamage), 0.0f, 1.0f);
+        SyncLegacyMirror();
+        return MigrationSnapshot.TireIntegrity < PreviousTires;
+    }
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fleet") bool IsNativeReady() const { return bNativeReady; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fleet") bool IsLegacyTakeoverActive() const { return bTakeoverActive; }
@@ -90,14 +88,12 @@ protected:
     virtual float GetCargoPowerLimit(float SpeedKmh) const;
     virtual float GetCargoSteeringLimit(float SpeedKmh) const;
     virtual float GetImpactDamageScale() const;
-
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera") TObjectPtr<USpringArmComponent> CameraBoom;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera") TObjectPtr<UCameraComponent> VehicleCamera;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> FrontDamageDebris;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> RearDamageDebris;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> LeftDamageDebris;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> RightDamageDebris;
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Chaos|Fleet") FName NativeVehicleId = NAME_None;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Chaos|Fleet") FText NativeDisplayName;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Chaos|Fleet") float FuelCapacityLiters = 45.0f;
@@ -123,7 +119,6 @@ private:
     void RestoreNativeBodyDamage();
     void StopNativeDriveForBreakdown();
     static const TCHAR* DamageZoneToString(EGTTRoadDamageZone Zone);
-
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bNativeReady = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bTakeoverActive = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bOccupied = false;
@@ -136,7 +131,6 @@ private:
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Damage") int32 NativeImpactCount = 0;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Damage") EGTTRoadDamageZone LastImpactZone = EGTTRoadDamageZone::Front;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Damage") FGTTRoadBodyDamageSnapshot BodyDamage;
-
     TWeakObjectPtr<APawn> PreviousPawn;
     TWeakObjectPtr<AGTTVehicleBase> LegacyMirror;
     float LastThrottleInput = 0.0f;
@@ -162,18 +156,15 @@ UCLASS(Blueprintable)
 class GTT_API AGTTRattlebackNativePawn : public AGTTRoadVehicleNativePawn
 {
     GENERATED_BODY()
-public:
-    AGTTRattlebackNativePawn();
-protected:
-    virtual float GetImpactDamageScale() const override;
+public: AGTTRattlebackNativePawn();
+protected: virtual float GetImpactDamageScale() const override;
 };
 
 UCLASS(Blueprintable)
 class GTT_API AGTTMuleboxNativePawn : public AGTTRoadVehicleNativePawn
 {
     GENERATED_BODY()
-public:
-    AGTTMuleboxNativePawn();
+public: AGTTMuleboxNativePawn();
 protected:
     virtual float GetCargoPowerLimit(float SpeedKmh) const override;
     virtual float GetCargoSteeringLimit(float SpeedKmh) const override;
