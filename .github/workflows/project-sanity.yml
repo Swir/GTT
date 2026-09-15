@@ -73,5 +73,6 @@ jobs:
       - { name: Verify Native command composition and suspension runtime evidence, run: 'python Scripts/verify_native_command_composition.py' }
       - { name: Verify fleet-wide Native Chaos runtime acceptance, run: 'python Scripts/verify_native_runtime_acceptance.py' }
       - { name: Verify Native Chaos acceptance matrix and runtime smoke evidence, run: 'python Scripts/verify_native_acceptance_matrix.py' }
+      - { name: Verify roadblock spike consequences, run: 'python Scripts/verify_roadblock_spike_consequences.py' }
       - { name: Verify packaged gameplay smoke and demo gate integration, run: 'python Scripts/verify_packaged_gameplay_smoke.py' }
       - { name: Verify deterministic packaged demo scenario, run: 'python Scripts/verify_deterministic_demo_scenario.py' }
