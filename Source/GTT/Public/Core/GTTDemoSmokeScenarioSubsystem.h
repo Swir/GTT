@@ -4,6 +4,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "GTTDemoSmokeScenarioSubsystem.generated.h"
 
+class AGTTPolicePursuitVehicle;
+
 UCLASS()
 class GTT_API UGTTDemoSmokeScenarioSubsystem : public UTickableWorldSubsystem
 {
@@ -18,6 +20,9 @@ private:
     bool bEnabled = false;
     bool bFinished = false;
     bool bCrimeInjected = false;
+    bool bControlActionLogged = false;
     float Elapsed = 0.0f;
+    float PursuitStartDistance = -1.0f;
+    TWeakObjectPtr<AGTTPolicePursuitVehicle> ObservedPursuitVehicle;
     TSet<FName> Passed;
 };
