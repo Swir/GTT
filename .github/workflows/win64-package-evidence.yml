@@ -1,12 +1,11 @@
 name: Win64 package evidence
-
 on:
   workflow_dispatch:
     inputs:
       version:
         description: 'GTT version label for the package'
         required: true
-        default: '0.0.81'
+        default: '0.0.82'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -17,11 +16,10 @@ on:
         description: 'UE 5.8 installation root on the self-hosted runner'
         required: true
         default: 'C:\Program Files\Epic Games\UE_5.8'
-permissions:
-  contents: read
+permissions: { contents: read }
 jobs:
   package-and-smoke:
-    name: UE 5.8 Win64 package + gameplay evidence
+    name: UE 5.8 Win64 package + deterministic gameplay evidence
     runs-on: [self-hosted, windows, x64, unreal-5.8]
     timeout-minutes: 90
     env:
@@ -36,15 +34,16 @@ jobs:
       - name: Verify UE 5.8 runner contract
         shell: pwsh
         run: |
-          $uat = Join-Path $env:GTT_ENGINE_ROOT 'Engine\Build\BatchFiles\RunUAT.bat'
-          if (-not (Test-Path $uat)) { throw "RunUAT.bat missing: $uat" }
-          & $uat -Help | Select-Object -First 20
+          $uat=Join-Path $env:GTT_ENGINE_ROOT 'Engine\Build\BatchFiles\RunUAT.bat'; if(-not(Test-Path $uat)){throw "RunUAT.bat missing: $uat"}; & $uat -Help | Select-Object -First 20
       - name: Package Win64
         shell: pwsh
         run: ./Scripts/package_windows.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -Configuration "$env:GTT_CONFIGURATION" -ArchiveDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -SkipZip
-      - name: Runtime smoke test packaged EXE
+      - name: Runtime smoke test packaged EXE with deterministic scenario
         shell: pwsh
         run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 20
+      - name: Evaluate deterministic core gameplay scenario
+        shell: pwsh
+        run: ./Scripts/evaluate_demo_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Evaluate packaged gameplay smoke
         shell: pwsh
         run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 20
@@ -52,16 +51,14 @@ jobs:
         shell: pwsh
         run: |
           ./Scripts/validate_windows_package.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Configuration "$env:GTT_CONFIGURATION" -Version "$env:GTT_VERSION"
-          foreach($f in @('RUNTIME_SMOKE.json','GAMEPLAY_SMOKE.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
+          foreach($f in @('RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
       - name: Evaluate demo technical candidate
         shell: pwsh
         run: ./Scripts/evaluate_demo_candidate.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Build final ZIP and hash
         shell: pwsh
         run: |
-          $zip="$env:GTT_PACKAGE_DIR.zip"; if(Test-Path $zip){Remove-Item -Force $zip}
-          Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal
-          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant(); Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
+          $zip="$env:GTT_PACKAGE_DIR.zip";if(Test-Path $zip){Remove-Item -Force $zip};Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal;$hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant();Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
       - name: Upload verified Win64 evidence
         uses: actions/upload-artifact@v4
         with:
@@ -72,6 +69,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\BUILD_INFO.json
             ${{ env.GTT_PACKAGE_DIR }}\PACKAGE_VALIDATION.json
             ${{ env.GTT_PACKAGE_DIR }}\RUNTIME_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\DEMO_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\GAMEPLAY_SMOKE.json
             ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_TECHNICAL_GATE.json
