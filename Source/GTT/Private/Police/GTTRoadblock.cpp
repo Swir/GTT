@@ -6,6 +6,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "GTT.h"
 
@@ -31,13 +32,35 @@ void AGTTRoadblock::SetResponseTier(int32 NewTier)
 
 void AGTTRoadblock::HandleSpikeHit(UPrimitiveComponent*,AActor* OtherActor,UPrimitiveComponent*,FVector,const FHitResult&)
 {
-    AGTTVehicleBase* Vehicle=Cast<AGTTVehicleBase>(OtherActor); if(!Vehicle||!GetWorld()) return;
+    if(!OtherActor||!GetWorld()) return;
     const float Now=GetWorld()->GetTimeSeconds();
-    if(LastSpikedActor.Get()==Vehicle && Now-LastSpikeHitTimeSeconds<SpikeRepeatCooldownSeconds) return;
-    LastSpikedActor=Vehicle; LastSpikeHitTimeSeconds=Now;
-    LastSpikedVehicleId=Vehicle->GetPersistentVehicleId(); LastTireIntegrityBefore=Vehicle->GetTireIntegrity();
-    const float TireDamage=0.18f+ResponseTier*0.08f; const float BodyDamage=1.5f+ResponseTier*1.5f;
-    Vehicle->ApplyTireDamage(TireDamage); Vehicle->ApplyVehicleDamage(BodyDamage);
-    LastTireIntegrityAfter=Vehicle->GetTireIntegrity(); ++SpikeHitCount;
-    UE_LOG(LogGTT,Warning,TEXT("ROADBLOCK_SPIKE_CONSEQUENCE vehicle=%s tier=%d hit=%d tire_before=%.3f tire_after=%.3f tire_delta=%.3f body_damage=%.1f speed_kmh=%.1f"),*LastSpikedVehicleId.ToString(),ResponseTier,SpikeHitCount,LastTireIntegrityBefore,LastTireIntegrityAfter,LastTireIntegrityBefore-LastTireIntegrityAfter,BodyDamage,Vehicle->GetSpeedKmh());
+    if(LastSpikedActor.Get()==OtherActor && Now-LastSpikeHitTimeSeconds<SpikeRepeatCooldownSeconds) return;
+
+    const float TireDamage=0.18f+ResponseTier*0.08f;
+    const float BodyDamage=1.5f+ResponseTier*1.5f;
+    FName VehicleId=NAME_None;
+    float TireBefore=1.0f;
+    float TireAfter=1.0f;
+    float SpeedKmh=0.0f;
+    bool bAccepted=false;
+    const TCHAR* VehiclePath=TEXT("UNKNOWN");
+
+    if(AGTTVehicleBase* Vehicle=Cast<AGTTVehicleBase>(OtherActor))
+    {
+        VehicleId=Vehicle->GetPersistentVehicleId(); TireBefore=Vehicle->GetTireIntegrity(); SpeedKmh=Vehicle->GetSpeedKmh();
+        Vehicle->ApplyTireDamage(TireDamage); Vehicle->ApplyVehicleDamage(BodyDamage);
+        TireAfter=Vehicle->GetTireIntegrity(); bAccepted=TireAfter<TireBefore; VehiclePath=TEXT("LEGACY");
+    }
+    else if(AGTTRoadVehicleNativePawn* NativeVehicle=Cast<AGTTRoadVehicleNativePawn>(OtherActor))
+    {
+        VehicleId=NativeVehicle->GetPersistentVehicleId(); TireBefore=NativeVehicle->GetMigrationSnapshot().TireIntegrity; SpeedKmh=NativeVehicle->GetVelocity().Size()*0.036f;
+        bAccepted=NativeVehicle->ApplyPoliceSpikeDamage(TireDamage,BodyDamage/100.0f);
+        TireAfter=NativeVehicle->GetMigrationSnapshot().TireIntegrity; VehiclePath=TEXT("NATIVE_CHAOS");
+    }
+    else return;
+
+    if(!bAccepted) return;
+    LastSpikedActor=OtherActor; LastSpikeHitTimeSeconds=Now; LastSpikedVehicleId=VehicleId;
+    LastTireIntegrityBefore=TireBefore; LastTireIntegrityAfter=TireAfter; ++SpikeHitCount;
+    UE_LOG(LogGTT,Warning,TEXT("ROADBLOCK_SPIKE_CONSEQUENCE vehicle=%s path=%s tier=%d hit=%d tire_before=%.3f tire_after=%.3f tire_delta=%.3f body_damage=%.1f speed_kmh=%.1f"),*LastSpikedVehicleId.ToString(),VehiclePath,ResponseTier,SpikeHitCount,LastTireIntegrityBefore,LastTireIntegrityAfter,LastTireIntegrityBefore-LastTireIntegrityAfter,BodyDamage,SpeedKmh);
 }
