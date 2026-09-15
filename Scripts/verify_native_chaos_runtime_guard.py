@@ -14,7 +14,7 @@ required_header = [
     "EvidenceLogSeconds",
 ]
 required_cpp = [
-    "NATIVE_CHAOS_EVIDENCE",
+    "NATIVE_CHAOS_RUNTIME_ACCEPTANCE",
     "InvalidRuntimeGraceSeconds",
     "RuntimeEvidenceIntervalSeconds",
     "IsLegacyTakeoverActive",
