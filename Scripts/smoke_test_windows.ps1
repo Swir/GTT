@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $PackageDirectory = [IO.Path]::GetFullPath($PackageDirectory)
 if (-not (Test-Path $PackageDirectory -PathType Container)) { throw "Package directory does not exist: $PackageDirectory" }
-if ($MinimumAliveSeconds -lt 5) { throw "MinimumAliveSeconds must be at least 5 seconds." }
+if ($MinimumAliveSeconds -lt 20) { throw "MinimumAliveSeconds must be at least 20 seconds for deterministic gameplay evidence." }
 if ($LaunchTimeoutSeconds -le $MinimumAliveSeconds) { throw "LaunchTimeoutSeconds must be greater than MinimumAliveSeconds." }
 
 $exeCandidates = @(Get-ChildItem -Path $PackageDirectory -Recurse -File -Filter 'GTT.exe')
@@ -18,13 +18,13 @@ if ($exeCandidates.Count -ne 1) { throw "Expected exactly one packaged GTT.exe, 
 $exe = $exeCandidates[0]
 $runtimeLog = Join-Path $PackageDirectory 'GTT_RUNTIME.log'
 if (Test-Path $runtimeLog) { Remove-Item -Force $runtimeLog }
-$arguments = @('-unattended', '-nosplash', '-nullrhi', '-NoSound', '-log', "-abslog=$runtimeLog")
+$arguments = @('-unattended', '-nosplash', '-nullrhi', '-NoSound', '-GTTDemoSmokeScenario', '-log', "-abslog=$runtimeLog")
 $startedUtc = (Get-Date).ToUniversalTime()
 $process = $null
 $survivedSeconds = 0
 
 try {
-    Write-Host "[GTT] Starting packaged runtime smoke test: $($exe.FullName)"
+    Write-Host "[GTT] Starting deterministic packaged runtime smoke test: $($exe.FullName)"
     $process = Start-Process -FilePath $exe.FullName -ArgumentList $arguments -WorkingDirectory $exe.DirectoryName -PassThru
     $deadline = (Get-Date).AddSeconds($LaunchTimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
@@ -42,7 +42,7 @@ try {
         executable = [IO.Path]::GetRelativePath($PackageDirectory, $exe.FullName).Replace('\','/')
         launch_arguments = $arguments; minimum_alive_seconds = $MinimumAliveSeconds; survived_seconds = $survivedSeconds
         started_utc = $startedUtc.ToString('o'); observed_utc = (Get-Date).ToUniversalTime().ToString('o')
-        runner = $env:RUNNER_NAME; git_sha = $env:GITHUB_SHA; null_rhi = $true
+        runner = $env:RUNNER_NAME; git_sha = $env:GITHUB_SHA; null_rhi = $true; deterministic_demo_scenario = $true
         runtime_log = 'GTT_RUNTIME.log'; visual_acceptance = 'NOT_PERFORMED'; terminated_by_smoke_test = $true
     }
     $evidencePath = Join-Path $PackageDirectory 'RUNTIME_SMOKE.json'

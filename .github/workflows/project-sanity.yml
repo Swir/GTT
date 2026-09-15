@@ -1,148 +1,77 @@
 name: Project sanity
-
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+  push: { branches: [ main ] }
+  pull_request: { branches: [ main ] }
 jobs:
   sanity:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          lfs: false
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Verify repository structure
-        run: python Scripts/verify_project.py
-      - name: Verify combat milestone
-        run: python Scripts/verify_combat.py
-      - name: Verify Arc 3 campaign milestone
-        run: python Scripts/verify_arc3.py
-      - name: Verify heavy haul milestone
-        run: python Scripts/verify_heavy_haul.py
-      - name: Verify rural factions milestone
-        run: python Scripts/verify_factions.py
-      - name: Verify rural economy and road law milestone
-        run: python Scripts/verify_rural_economy.py
-      - name: Verify Arc 4 and North Pass countryside milestone
-        run: python Scripts/verify_arc4.py
-      - name: Verify unified world-state milestone
-        run: python Scripts/verify_unified_save.py
-      - name: Verify world performance milestone
-        run: python Scripts/verify_world_performance.py
-      - name: Verify player experience milestone
-        run: python Scripts/verify_player_experience.py
-      - name: Verify release pipeline milestone
-        run: python Scripts/verify_release_pipeline.py
-      - name: Verify social venues milestone
-        run: python Scripts/verify_social_venues.py
-      - name: Verify vehicle customization milestone
-        run: python Scripts/verify_vehicle_customization.py
-      - name: Verify Chaos migration foundation
-        run: python Scripts/verify_chaos_migration.py
-      - name: Verify original radio audio milestone
-        run: python Scripts/verify_radio_audio.py
-      - name: Verify combat presentation milestone
-        run: python Scripts/verify_combat_presentation.py
-      - name: Verify Fieldmaster Chaos runtime bridge
-        run: python Scripts/verify_fieldmaster_chaos_bridge.py
-      - name: Verify Chaos fleet runtime bridge
-        run: python Scripts/verify_chaos_fleet_bridge.py
-      - name: Verify Native Chaos rig architecture
-        run: python Scripts/verify_native_chaos_rig.py
-      - name: Verify native rig acceptance gate
-        run: python Scripts/verify_native_rig_acceptance.py
-      - name: Verify village presentation milestone
-        run: python Scripts/verify_village_presentation.py
-      - name: Verify demo HUD presentation milestone
-        run: python Scripts/verify_demo_hud.py
-      - name: Verify vehicle presentation milestone
-        run: python Scripts/verify_vehicle_presentation.py
-      - name: Verify native Chaos setup contract
-        run: python Scripts/verify_native_chaos_setup.py
-      - name: Verify native Chaos powertrain contract
-        run: python Scripts/verify_native_chaos_powertrain.py
-      - name: Verify Fieldmaster native pawn acceptance
-        run: python Scripts/verify_fieldmaster_native_pawn.py
-      - name: Verify Win64 runtime evidence pipeline
-        run: python Scripts/verify_win64_evidence_pipeline.py
-      - name: Verify Fieldmaster native gameplay handoff
-        run: python Scripts/verify_fieldmaster_native_handoff.py
-      - name: Verify Fieldmaster native runtime takeover
-        run: python Scripts/verify_fieldmaster_native_takeover.py
-      - name: Verify Fieldmaster native workshop and tuning
-        run: python Scripts/verify_fieldmaster_native_service.py
-      - name: Verify Fieldmaster native terrain and heavy-haul
-        run: python Scripts/verify_fieldmaster_native_environment.py
-      - name: Verify Fieldmaster native collision damage
-        run: python Scripts/verify_fieldmaster_native_collision.py
-      - name: Verify trailer axle and impact physics
-        run: python Scripts/verify_trailer_axle_physics.py
-      - name: Verify trailer roadside recovery
-        run: python Scripts/verify_trailer_roadside_recovery.py
-      - name: Verify trailer presentation milestone
-        run: python Scripts/verify_trailer_presentation.py
-      - name: Verify Native Chaos runtime guard and evidence
-        run: python Scripts/verify_native_chaos_runtime_guard.py
-      - name: Verify Native Fieldmaster drive dynamics
-        run: python Scripts/verify_native_drive_dynamics.py
-      - name: Verify Native Physics acceptance and ground contacts
-        run: python Scripts/verify_native_physics_acceptance.py
-      - name: Verify Native stability and contact control
-        run: python Scripts/verify_native_stability.py
-      - name: Verify Native heavy-haul load and sway dynamics
-        run: python Scripts/verify_native_heavy_haul_dynamics.py
-      - name: Verify Native load-transfer and grade response
-        run: python Scripts/verify_native_load_transfer.py
-      - name: Verify Native traction and slip control
-        run: python Scripts/verify_native_traction_control.py
-      - name: Verify Native terrain and collision implementation contract
-        run: python Scripts/verify_native_terrain_damage_contract.py
-      - name: Verify Native terrain-load and hill control
-        run: python Scripts/verify_native_terrain_load_control.py
-      - name: Verify Native per-wheel load and cross-axle control
-        run: python Scripts/verify_native_per_wheel_load.py
-      - name: Verify Native authored wheel and suspension acceptance
-        run: python Scripts/verify_native_authored_wheel_acceptance.py
-      - name: Verify Native Chaos wheel-state runtime control
-        run: python Scripts/verify_native_chaos_wheel_state.py
-      - name: Verify fleet Native wheel-state and traction control
-        run: python Scripts/verify_fleet_native_wheel_control.py
-      - name: Verify Mulebox cargo dynamics and fleet role integration
-        run: python Scripts/verify_mulebox_cargo_dynamics.py
-      - name: Verify Native road fleet takeover foundation
-        run: python Scripts/verify_native_road_fleet_takeover.py
-      - name: Verify Native road fleet collision and wheel-state control
-        run: python Scripts/verify_native_road_damage_control.py
-      - name: Verify Native road traffic incidents and wanted escalation
-        run: python Scripts/verify_native_road_incidents.py
-      - name: Verify Native road crash-scene AI and hit-and-run escalation
-        run: python Scripts/verify_native_road_crash_scene.py
-      - name: Verify Native road body damage and workshop integration
-        run: python Scripts/verify_native_road_body_damage.py
-      - name: Verify Native roadside recovery and police impound
-        run: python Scripts/verify_native_roadside_recovery.py
-      - name: Verify Native trailer authored-rig acceptance and hitch safety
-        run: python Scripts/verify_native_trailer_acceptance.py
-      - name: Verify authored trailer runtime takeover and wheel-contact dynamics
-        run: python Scripts/verify_authored_trailer_runtime.py
-      - name: Verify Native fleet rollover safety and emergency righting
-        run: python Scripts/verify_native_rollover_safety.py
-      - name: Verify Native drivetrain authority and safe direction changes
-        run: python Scripts/verify_native_drivetrain_authority.py
-      - name: Verify Native wheel/axle traction authority
-        run: python Scripts/verify_native_axle_traction.py
-      - name: Verify Native command composition and suspension runtime evidence
-        run: python Scripts/verify_native_command_composition.py
-      - name: Verify fleet-wide Native Chaos runtime acceptance
-        run: python Scripts/verify_native_runtime_acceptance.py
-      - name: Verify Native Chaos acceptance matrix and runtime smoke evidence
-        run: python Scripts/verify_native_acceptance_matrix.py
-      - name: Verify packaged gameplay smoke and demo gate integration
-        run: python Scripts/verify_packaged_gameplay_smoke.py
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - { name: Verify repository structure, run: 'python Scripts/verify_project.py' }
+      - { name: Verify combat milestone, run: 'python Scripts/verify_combat.py' }
+      - { name: Verify Arc 3 campaign milestone, run: 'python Scripts/verify_arc3.py' }
+      - { name: Verify heavy haul milestone, run: 'python Scripts/verify_heavy_haul.py' }
+      - { name: Verify rural factions milestone, run: 'python Scripts/verify_factions.py' }
+      - { name: Verify rural economy and road law milestone, run: 'python Scripts/verify_rural_economy.py' }
+      - { name: Verify Arc 4 and North Pass countryside milestone, run: 'python Scripts/verify_arc4.py' }
+      - { name: Verify unified world-state milestone, run: 'python Scripts/verify_unified_save.py' }
+      - { name: Verify world performance milestone, run: 'python Scripts/verify_world_performance.py' }
+      - { name: Verify player experience milestone, run: 'python Scripts/verify_player_experience.py' }
+      - { name: Verify release pipeline milestone, run: 'python Scripts/verify_release_pipeline.py' }
+      - { name: Verify social venues milestone, run: 'python Scripts/verify_social_venues.py' }
+      - { name: Verify vehicle customization milestone, run: 'python Scripts/verify_vehicle_customization.py' }
+      - { name: Verify Chaos migration foundation, run: 'python Scripts/verify_chaos_migration.py' }
+      - { name: Verify original radio audio milestone, run: 'python Scripts/verify_radio_audio.py' }
+      - { name: Verify combat presentation milestone, run: 'python Scripts/verify_combat_presentation.py' }
+      - { name: Verify Fieldmaster Chaos runtime bridge, run: 'python Scripts/verify_fieldmaster_chaos_bridge.py' }
+      - { name: Verify Chaos fleet runtime bridge, run: 'python Scripts/verify_chaos_fleet_bridge.py' }
+      - { name: Verify Native Chaos rig architecture, run: 'python Scripts/verify_native_chaos_rig.py' }
+      - { name: Verify native rig acceptance gate, run: 'python Scripts/verify_native_rig_acceptance.py' }
+      - { name: Verify village presentation milestone, run: 'python Scripts/verify_village_presentation.py' }
+      - { name: Verify demo HUD presentation milestone, run: 'python Scripts/verify_demo_hud.py' }
+      - { name: Verify vehicle presentation milestone, run: 'python Scripts/verify_vehicle_presentation.py' }
+      - { name: Verify native Chaos setup contract, run: 'python Scripts/verify_native_chaos_setup.py' }
+      - { name: Verify native Chaos powertrain contract, run: 'python Scripts/verify_native_chaos_powertrain.py' }
+      - { name: Verify Fieldmaster native pawn acceptance, run: 'python Scripts/verify_fieldmaster_native_pawn.py' }
+      - { name: Verify Win64 runtime evidence pipeline, run: 'python Scripts/verify_win64_evidence_pipeline.py' }
+      - { name: Verify Fieldmaster native gameplay handoff, run: 'python Scripts/verify_fieldmaster_native_handoff.py' }
+      - { name: Verify Fieldmaster native runtime takeover, run: 'python Scripts/verify_fieldmaster_native_takeover.py' }
+      - { name: Verify Fieldmaster native workshop and tuning, run: 'python Scripts/verify_fieldmaster_native_service.py' }
+      - { name: Verify Fieldmaster native terrain and heavy-haul, run: 'python Scripts/verify_fieldmaster_native_environment.py' }
+      - { name: Verify Fieldmaster native collision damage, run: 'python Scripts/verify_fieldmaster_native_collision.py' }
+      - { name: Verify trailer axle and impact physics, run: 'python Scripts/verify_trailer_axle_physics.py' }
+      - { name: Verify trailer roadside recovery, run: 'python Scripts/verify_trailer_roadside_recovery.py' }
+      - { name: Verify trailer presentation milestone, run: 'python Scripts/verify_trailer_presentation.py' }
+      - { name: Verify Native Chaos runtime guard and evidence, run: 'python Scripts/verify_native_chaos_runtime_guard.py' }
+      - { name: Verify Native Fieldmaster drive dynamics, run: 'python Scripts/verify_native_drive_dynamics.py' }
+      - { name: Verify Native Physics acceptance and ground contacts, run: 'python Scripts/verify_native_physics_acceptance.py' }
+      - { name: Verify Native stability and contact control, run: 'python Scripts/verify_native_stability.py' }
+      - { name: Verify Native heavy-haul load and sway dynamics, run: 'python Scripts/verify_native_heavy_haul_dynamics.py' }
+      - { name: Verify Native load-transfer and grade response, run: 'python Scripts/verify_native_load_transfer.py' }
+      - { name: Verify Native traction and slip control, run: 'python Scripts/verify_native_traction_control.py' }
+      - { name: Verify Native terrain and collision implementation contract, run: 'python Scripts/verify_native_terrain_damage_contract.py' }
+      - { name: Verify Native terrain-load and hill control, run: 'python Scripts/verify_native_terrain_load_control.py' }
+      - { name: Verify Native per-wheel load and cross-axle control, run: 'python Scripts/verify_native_per_wheel_load.py' }
+      - { name: Verify Native authored wheel and suspension acceptance, run: 'python Scripts/verify_native_authored_wheel_acceptance.py' }
+      - { name: Verify Native Chaos wheel-state runtime control, run: 'python Scripts/verify_native_chaos_wheel_state.py' }
+      - { name: Verify fleet Native wheel-state and traction control, run: 'python Scripts/verify_fleet_native_wheel_control.py' }
+      - { name: Verify Mulebox cargo dynamics and fleet role integration, run: 'python Scripts/verify_mulebox_cargo_dynamics.py' }
+      - { name: Verify Native road fleet takeover foundation, run: 'python Scripts/verify_native_road_fleet_takeover.py' }
+      - { name: Verify Native road fleet collision and wheel-state control, run: 'python Scripts/verify_native_road_damage_control.py' }
+      - { name: Verify Native road traffic incidents and wanted escalation, run: 'python Scripts/verify_native_road_incidents.py' }
+      - { name: Verify Native road crash-scene AI and hit-and-run escalation, run: 'python Scripts/verify_native_road_crash_scene.py' }
+      - { name: Verify Native road body damage and workshop integration, run: 'python Scripts/verify_native_road_body_damage.py' }
+      - { name: Verify Native roadside recovery and police impound, run: 'python Scripts/verify_native_roadside_recovery.py' }
+      - { name: Verify Native trailer authored-rig acceptance and hitch safety, run: 'python Scripts/verify_native_trailer_acceptance.py' }
+      - { name: Verify authored trailer runtime takeover and wheel-contact dynamics, run: 'python Scripts/verify_authored_trailer_runtime.py' }
+      - { name: Verify Native fleet rollover safety and emergency righting, run: 'python Scripts/verify_native_rollover_safety.py' }
+      - { name: Verify Native drivetrain authority and safe direction changes, run: 'python Scripts/verify_native_drivetrain_authority.py' }
+      - { name: Verify Native wheel/axle traction authority, run: 'python Scripts/verify_native_axle_traction.py' }
+      - { name: Verify Native command composition and suspension runtime evidence, run: 'python Scripts/verify_native_command_composition.py' }
+      - { name: Verify fleet-wide Native Chaos runtime acceptance, run: 'python Scripts/verify_native_runtime_acceptance.py' }
+      - { name: Verify Native Chaos acceptance matrix and runtime smoke evidence, run: 'python Scripts/verify_native_acceptance_matrix.py' }
+      - { name: Verify packaged gameplay smoke and demo gate integration, run: 'python Scripts/verify_packaged_gameplay_smoke.py' }
+      - { name: Verify deterministic packaged demo scenario, run: 'python Scripts/verify_deterministic_demo_scenario.py' }
