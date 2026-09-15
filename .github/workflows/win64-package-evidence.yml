@@ -5,7 +5,7 @@ on:
       version:
         description: 'GTT version label for the package'
         required: true
-        default: '0.0.85'
+        default: '0.0.86'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -19,7 +19,7 @@ on:
 permissions: { contents: read }
 jobs:
   package-and-smoke:
-    name: UE 5.8 Win64 package + vehicle control/pursuit interaction evidence
+    name: UE 5.8 Win64 package + wanted-4 roadblock/interception evidence
     runs-on: [self-hosted, windows, x64, unreal-5.8]
     timeout-minutes: 90
     env:
@@ -41,7 +41,7 @@ jobs:
       - name: Runtime smoke test packaged EXE with deterministic scenario
         shell: pwsh
         run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 20
-      - name: Evaluate deterministic vehicle control and pursuit interaction scenario
+      - name: Evaluate deterministic wanted-4 roadblock and interception scenario
         shell: pwsh
         run: ./Scripts/evaluate_demo_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Evaluate packaged gameplay smoke
