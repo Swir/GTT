@@ -15,8 +15,9 @@ public:
     virtual bool IsTickable() const override { return bEnabled && !bFinished; }
 private:
     void Pass(const TCHAR* Step);
-    bool bEnabled=false;
-    bool bFinished=false;
-    float Elapsed=0.0f;
+    bool bEnabled = false;
+    bool bFinished = false;
+    bool bCrimeInjected = false;
+    float Elapsed = 0.0f;
     TSet<FName> Passed;
 };
