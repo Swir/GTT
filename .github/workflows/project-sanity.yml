@@ -65,6 +65,7 @@ jobs:
       - { name: Verify Native road crash-scene AI and hit-and-run escalation, run: 'python Scripts/verify_native_road_crash_scene.py' }
       - { name: Verify Native road body damage and workshop integration, run: 'python Scripts/verify_native_road_body_damage.py' }
       - { name: Verify Native roadside recovery and police impound, run: 'python Scripts/verify_native_roadside_recovery.py' }
+      - { name: Verify breakdown decision, towing and repair economy, run: 'python Scripts/verify_breakdown_repair_economy.py' }
       - { name: Verify Native trailer authored-rig acceptance and hitch safety, run: 'python Scripts/verify_native_trailer_acceptance.py' }
       - { name: Verify authored trailer runtime takeover and wheel-contact dynamics, run: 'python Scripts/verify_authored_trailer_runtime.py' }
       - { name: Verify Native fleet rollover safety and emergency righting, run: 'python Scripts/verify_native_rollover_safety.py' }
