@@ -104,7 +104,8 @@ void UGTTUnifiedSaveSubsystem::ConsolidateLegacySlots()
     }
 
     if (!bChanged) return;
-    Primary->SaveVersion = 4;
+    // Unified consolidation must never downgrade newer schemas (v5+ adds Native structural damage).
+    Primary->SaveVersion = FMath::Max(Primary->SaveVersion, 4);
     Primary->bUnifiedWorldStateInitialized = true;
     ++Primary->UnifiedWorldStateRevision;
     UGameplayStatics::SaveGameToSlot(Primary, PrimarySlotName, 0);
