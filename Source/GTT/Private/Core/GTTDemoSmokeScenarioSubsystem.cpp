@@ -44,13 +44,13 @@ bool ExerciseNativeControls(AWheeledVehiclePawn* Pawn,float Elapsed,const TCHAR*
 
 void UGTTDemoSmokeScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-    Super::Initialize(Collection);bEnabled=FParse::Param(FCommandLine::Get(),TEXT("GTTDemoSmokeScenario"));if(bEnabled)UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_BEGIN version=7 mode=physical-native-roadblock-crossing"));
+    Super::Initialize(Collection);bEnabled=FParse::Param(FCommandLine::Get(),TEXT("GTTDemoSmokeScenario"));if(bEnabled)UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_BEGIN version=8 mode=post-spike-escape-dynamics"));
 }
 void UGTTDemoSmokeScenarioSubsystem::Pass(const TCHAR* Step){const FName Key(Step);if(Passed.Contains(Key))return;Passed.Add(Key);UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_STEP step=%s result=PASS elapsed=%.2f"),Step,Elapsed);}
 
 void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
 {
-    if(!Passed.Contains(TEXT("ROADBLOCK_ACTIVE"))||Passed.Contains(TEXT("HANDLING_CONSEQUENCE")))return;
+    if(!Passed.Contains(TEXT("ROADBLOCK_ACTIVE"))||Passed.Contains(TEXT("POST_SPIKE_ESCAPE")))return;
     UWorld* World=GetWorld();if(!World)return;
     if(!RoadblockTestActor.IsValid()){for(TActorIterator<AGTTRoadblock> It(World);It;++It){RoadblockTestActor=*It;break;}}
     if(!RoadblockTestVehicle.IsValid())
@@ -65,15 +65,27 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
         const FVector Approach=Roadblock->GetSpikeApproachDirection();const FVector Spike=Roadblock->GetSpikeStripWorldLocation();const FVector Stage=Spike-Approach*900.f+FVector(0,0,95.f);
         Vehicle->SetActorLocation(Stage,false,nullptr,ETeleportType::TeleportPhysics);Vehicle->SetActorRotation(Approach.Rotation(),ETeleportType::TeleportPhysics);
         Movement->SetBrakeInput(0.f);Movement->SetSteeringInput(0.f);Movement->SetThrottleInput(0.85f);
-        RoadblockBaselineTires=Vehicle->GetMigrationSnapshot().TireIntegrity;RoadblockBaselineWheelRisk=Vehicle->GetRuntimeWheelRisk();RoadblockCrossingStartSeconds=Elapsed;bRoadblockCrossingStaged=true;
-        UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s phase=STAGED tire_before=%.3f wheel_risk_before=%.3f distance_cm=900"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,RoadblockBaselineWheelRisk);return;
+        RoadblockBaselineTires=Vehicle->GetMigrationSnapshot().TireIntegrity;RoadblockBaselineWheelRisk=Vehicle->GetRuntimeWheelRisk();RoadblockBaselineThrottleLimit=Vehicle->GetRuntimeThrottleLimit();RoadblockBaselineSteeringLimit=Vehicle->GetRuntimeSteeringLimit();RoadblockCrossingStartSeconds=Elapsed;bRoadblockCrossingStaged=true;
+        UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s phase=STAGED tire_before=%.3f wheel_risk_before=%.3f throttle_limit_before=%.3f steering_limit_before=%.3f distance_cm=900"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,RoadblockBaselineWheelRisk,RoadblockBaselineThrottleLimit,RoadblockBaselineSteeringLimit);return;
     }
     Movement->SetBrakeInput(0.f);Movement->SetSteeringInput(0.f);Movement->SetThrottleInput(0.85f);
     if(Roadblock->HasProvenSpikeConsequence()&&Roadblock->GetLastSpikedVehicleId()==Vehicle->GetPersistentVehicleId())
     {
-        Pass(TEXT("ROADBLOCK_PHYSICAL_CROSSING"));UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s result=PASS roadblock_hits=%d"),*Vehicle->GetPersistentVehicleId().ToString(),Roadblock->GetSpikeHitCount());
-        const float TireAfter=Vehicle->GetMigrationSnapshot().TireIntegrity;const float RiskAfter=Vehicle->GetRuntimeWheelRisk();
-        if(TireAfter<RoadblockBaselineTires&&RiskAfter>RoadblockBaselineWheelRisk+KINDA_SMALL_NUMBER){Pass(TEXT("HANDLING_CONSEQUENCE"));UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_HANDLING_CONSEQUENCE vehicle=%s result=PASS tire_before=%.3f tire_after=%.3f wheel_risk_before=%.3f wheel_risk_after=%.3f"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,TireAfter,RoadblockBaselineWheelRisk,RiskAfter);Movement->SetThrottleInput(0.f);Movement->SetBrakeInput(1.f);}
+        if(!Passed.Contains(TEXT("ROADBLOCK_PHYSICAL_CROSSING"))){Pass(TEXT("ROADBLOCK_PHYSICAL_CROSSING"));UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s result=PASS roadblock_hits=%d"),*Vehicle->GetPersistentVehicleId().ToString(),Roadblock->GetSpikeHitCount());}
+        const float TireAfter=Vehicle->GetMigrationSnapshot().TireIntegrity;const float RiskAfter=Vehicle->GetRuntimeWheelRisk();const float ThrottleAfter=Vehicle->GetRuntimeThrottleLimit();const float SteeringAfter=Vehicle->GetRuntimeSteeringLimit();
+        if(!Passed.Contains(TEXT("HANDLING_CONSEQUENCE"))&&TireAfter<RoadblockBaselineTires&&RiskAfter>RoadblockBaselineWheelRisk+KINDA_SMALL_NUMBER&&(ThrottleAfter<RoadblockBaselineThrottleLimit-KINDA_SMALL_NUMBER||SteeringAfter<RoadblockBaselineSteeringLimit-KINDA_SMALL_NUMBER))
+        {
+            Pass(TEXT("HANDLING_CONSEQUENCE"));UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_HANDLING_CONSEQUENCE vehicle=%s result=PASS tire_before=%.3f tire_after=%.3f wheel_risk_before=%.3f wheel_risk_after=%.3f throttle_limit_before=%.3f throttle_limit_after=%.3f steering_limit_before=%.3f steering_limit_after=%.3f"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,TireAfter,RoadblockBaselineWheelRisk,RiskAfter,RoadblockBaselineThrottleLimit,ThrottleAfter,RoadblockBaselineSteeringLimit,SteeringAfter);
+            bPostSpikeEscapeStarted=true;PostSpikeEscapeStartSeconds=Elapsed;PostSpikeStartSpeedCmS=Vehicle->GetVelocity().Size2D();
+        }
+        if(bPostSpikeEscapeStarted)
+        {
+            const float Phase=Elapsed-PostSpikeEscapeStartSeconds;Movement->SetBrakeInput(0.f);Movement->SetThrottleInput(1.f);Movement->SetSteeringInput(FMath::Sin(Phase*2.2f)*0.65f);
+            if(Phase>=3.f&&HasLiveNativeMotion(Vehicle))
+            {
+                Pass(TEXT("POST_SPIKE_ESCAPE"));UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_POST_SPIKE_ESCAPE vehicle=%s result=PASS duration=%.2f start_speed_cm_s=%.1f current_speed_cm_s=%.1f wheel_risk=%.3f throttle_limit=%.3f steering_limit=%.3f"),*Vehicle->GetPersistentVehicleId().ToString(),Phase,PostSpikeStartSpeedCmS,Vehicle->GetVelocity().Size2D(),Vehicle->GetRuntimeWheelRisk(),Vehicle->GetRuntimeThrottleLimit(),Vehicle->GetRuntimeSteeringLimit());Movement->SetThrottleInput(0.f);Movement->SetSteeringInput(0.f);Movement->SetBrakeInput(1.f);
+            }
+        }
     }
     else if(Elapsed-RoadblockCrossingStartSeconds>12.f){UE_LOG(LogTemp,Error,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s result=TIMEOUT elapsed=%.2f"),*Vehicle->GetPersistentVehicleId().ToString(),Elapsed-RoadblockCrossingStartSeconds);}
 }
@@ -92,6 +104,6 @@ void UGTTDemoSmokeScenarioSubsystem::Tick(float DeltaTime)
     if(PlayerPawn&&Passed.Contains(TEXT("PURSUIT_ACTIVE")))for(TActorIterator<AGTTPolicePursuitVehicle> It(World);It;++It){const float Distance=FVector::Dist2D(It->GetActorLocation(),PlayerPawn->GetActorLocation());if(!ObservedPursuitVehicle.IsValid()){ObservedPursuitVehicle=*It;PursuitStartDistance=Distance;UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_PURSUIT baseline_cm=%.1f tier=%d"),Distance,It->GetResponseTier());}if(ObservedPursuitVehicle.Get()==*It&&PursuitStartDistance>0.f&&Distance+250.f<PursuitStartDistance){Pass(TEXT("PURSUIT_CLOSING"));UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_PURSUIT closing=PASS baseline_cm=%.1f current_cm=%.1f delta_cm=%.1f"),PursuitStartDistance,Distance,PursuitStartDistance-Distance);}break;}
     DriveNativeRoadblockCrossing();
     if(Elapsed>=30.f&&!Passed.Contains(TEXT("SAVE"))&&GM)if(GM->SaveProgress())Pass(TEXT("SAVE"));
-    static const FName Required[]={TEXT("WORLD"),TEXT("HUD"),TEXT("TRAFFIC"),TEXT("NPC"),TEXT("MISSION"),TEXT("COMBAT"),TEXT("FIELDMASTER"),TEXT("FIELDMASTER_MOTION"),TEXT("FIELDMASTER_CONTROL"),TEXT("RATTLEBACK"),TEXT("RATTLEBACK_MOTION"),TEXT("RATTLEBACK_CONTROL"),TEXT("MULEBOX"),TEXT("MULEBOX_MOTION"),TEXT("MULEBOX_CONTROL"),TEXT("WANTED_COMPONENT"),TEXT("WANTED_ESCALATION"),TEXT("POLICE_RESPONSE"),TEXT("PURSUIT_ACTIVE"),TEXT("PURSUIT_CLOSING"),TEXT("ROADBLOCK_ACTIVE"),TEXT("INTERCEPTION_ACTIVE"),TEXT("ROADBLOCK_PHYSICAL_CROSSING"),TEXT("HANDLING_CONSEQUENCE"),TEXT("SAVE")};
-    bool bAll=true;for(const FName& Step:Required)bAll&=Passed.Contains(Step);if(bAll){UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_COMPLETE result=PASS steps=25 elapsed=%.2f"),Elapsed);bFinished=true;}else if(Elapsed>75.f){FString Missing;for(const FName& Step:Required)if(!Passed.Contains(Step)){if(!Missing.IsEmpty())Missing+=TEXT(",");Missing+=Step.ToString();}UE_LOG(LogTemp,Error,TEXT("DEMO_SCENARIO_COMPLETE result=FAIL missing=%s elapsed=%.2f"),*Missing,Elapsed);bFinished=true;}
+    static const FName Required[]={TEXT("WORLD"),TEXT("HUD"),TEXT("TRAFFIC"),TEXT("NPC"),TEXT("MISSION"),TEXT("COMBAT"),TEXT("FIELDMASTER"),TEXT("FIELDMASTER_MOTION"),TEXT("FIELDMASTER_CONTROL"),TEXT("RATTLEBACK"),TEXT("RATTLEBACK_MOTION"),TEXT("RATTLEBACK_CONTROL"),TEXT("MULEBOX"),TEXT("MULEBOX_MOTION"),TEXT("MULEBOX_CONTROL"),TEXT("WANTED_COMPONENT"),TEXT("WANTED_ESCALATION"),TEXT("POLICE_RESPONSE"),TEXT("PURSUIT_ACTIVE"),TEXT("PURSUIT_CLOSING"),TEXT("ROADBLOCK_ACTIVE"),TEXT("INTERCEPTION_ACTIVE"),TEXT("ROADBLOCK_PHYSICAL_CROSSING"),TEXT("HANDLING_CONSEQUENCE"),TEXT("POST_SPIKE_ESCAPE"),TEXT("SAVE")};
+    bool bAll=true;for(const FName& Step:Required)bAll&=Passed.Contains(Step);if(bAll){UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_COMPLETE result=PASS steps=26 elapsed=%.2f"),Elapsed);bFinished=true;}else if(Elapsed>75.f){FString Missing;for(const FName& Step:Required)if(!Passed.Contains(Step)){if(!Missing.IsEmpty())Missing+=TEXT(",");Missing+=Step.ToString();}UE_LOG(LogTemp,Error,TEXT("DEMO_SCENARIO_COMPLETE result=FAIL missing=%s elapsed=%.2f"),*Missing,Elapsed);bFinished=true;}
 }
