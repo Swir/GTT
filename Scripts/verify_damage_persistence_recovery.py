@@ -24,14 +24,14 @@ checks = {
     'economy charge proof': 'CashAfterWorkshop >= CashBeforeWorkshop' in cpp and 'WORKSHOP_TEST_RESERVE' in cpp,
     'repaired handling proof': all(x in cpp for x in ['RepairedRisk', 'RepairedThrottle', 'RepairedSteering', 'bMeasuredRecovery']),
     'workshop evidence': 'DEMO_SCENARIO_WORKSHOP_RECOVERY' in cpp and 'DEMO_SCENARIO_DAMAGE_RECOVERY result=PASS' in cpp,
-    'schema v9': 'gtt.demo-scenario.v9' in evaluator and 'required_step_count=28' in evaluator,
+    'schema v10 retains recovery': 'gtt.demo-scenario.v10' in evaluator and 'required_step_count=30' in evaluator,
     'evaluator persistence hard gate': 'damage_persistence_passed' in evaluator and 'spike damage did not survive the SaveProgress/LoadProgress round-trip' in evaluator,
     'evaluator workshop hard gate': 'workshop_recovery_passed' in evaluator and 'paid workshop did not restore persisted spike damage and handling' in evaluator,
-    'workflow 0.0.92': "default: '0.0.92'" in workflow and 'damage persistence recovery evidence' in workflow,
-    '90 second packaged route': '-MinimumAliveSeconds 90 -LaunchTimeoutSeconds 105' in workflow and '-MinimumRuntimeSeconds 90' in workflow,
-    'workflow evaluator ordering': workflow.index('Evaluate spike damage persistence and workshop recovery scenario') < workflow.index('Evaluate packaged gameplay smoke'),
+    'workflow 0.0.93': "default: '0.0.93'" in workflow and 'persistent structural damage evidence' in workflow,
+    '105 second packaged route': '-MinimumAliveSeconds 105 -LaunchTimeoutSeconds 120' in workflow and '-MinimumRuntimeSeconds 105' in workflow,
+    'workflow evaluator ordering': workflow.index('Evaluate persistent structural damage and workshop recovery scenario') < workflow.index('Evaluate packaged gameplay smoke'),
     'sanity wired': 'Verify spike damage persistence and workshop recovery' in san and 'verify_damage_persistence_recovery.py' in san,
-    'docs': '0.0.92' in playtest and 'DAMAGE_PERSISTENCE' in playtest and 'WORKSHOP_RECOVERY' in playtest and '0.0.92' in changelog,
+    'origin docs retained': '0.0.92' in playtest and 'DAMAGE_PERSISTENCE' in playtest and 'WORKSHOP_RECOVERY' in playtest and '0.0.92' in changelog,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
@@ -53,4 +53,4 @@ for token in (
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
 
-print(f'[OK] Spike damage save/load persistence + paid workshop recovery verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
+print(f'[OK] Spike damage save/load persistence + paid workshop recovery retained ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
