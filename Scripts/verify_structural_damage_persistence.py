@@ -21,7 +21,7 @@ changelog = (root / 'CHANGELOG.d/0.0.93.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
 checks = {
-    'save schema retains structural v5 data under v6+': 'SaveVersion = 6' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
+    'save schema retains structural v5 data under v7+': 'SaveVersion = 7' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
     'exact structural fields': all(x in save_h for x in ['FrontHealth', 'RearHealth', 'LeftHealth', 'RightHealth', 'CoolingStress', 'DetachedPanelMask']),
     'base save hooks virtual': 'virtual bool SaveProgress();' in gm_h and 'virtual bool LoadProgress();' in gm_h,
     'structural game mode overrides': 'AGTTStructuralGameMode' in struct_gm_h and 'SaveProgress() override' in struct_gm_h and 'LoadProgress() override' in struct_gm_h,
