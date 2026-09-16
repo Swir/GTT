@@ -1,5 +1,6 @@
 #include "Vehicles/GTTRecoveryChoiceEvidenceSubsystem.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
@@ -11,6 +12,7 @@
 #include "Vehicles/GTTRoadsideRecoverySubsystem.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTStructuralDriveConsequenceSubsystem.h"
+#include "Wanted/GTTWantedComponent.h"
 #include "World/GTTServiceTerminal.h"
 #include "GTT.h"
 
@@ -19,6 +21,7 @@ namespace
     constexpr float EvidenceTimeoutSeconds = 215.0f;
     constexpr float NoAutoTowProofSeconds = 8.0f;
     constexpr float LocationToleranceCm = 250.0f;
+    const FVector WorkshopBaseLocation(-400.0f, 2650.0f, 105.0f);
     float MinBodyHealth(const FGTTRoadBodyDamageSnapshot& Body)
     {
         return FMath::Min(FMath::Min(Body.FrontHealth, Body.RearHealth), FMath::Min(Body.LeftHealth, Body.RightHealth));
@@ -61,8 +64,16 @@ AGTTServiceTerminal* UGTTRecoveryChoiceEvidenceSubsystem::FindWorkshopTerminal()
 {
     UWorld* World = GetWorld();
     if (!World) return nullptr;
-    for (TActorIterator<AGTTServiceTerminal> It(World); It; ++It) if (IsValid(*It)) return *It;
-    return nullptr;
+    const FVector Reference = EvidenceVehicle.IsValid() ? EvidenceVehicle->GetActorLocation() : WorkshopBaseLocation;
+    AGTTServiceTerminal* Best = nullptr;
+    float BestDistanceSq = TNumericLimits<float>::Max();
+    for (TActorIterator<AGTTServiceTerminal> It(World); It; ++It)
+    {
+        if (!IsValid(*It)) continue;
+        const float DistanceSq = FVector::DistSquared2D(Reference, It->GetActorLocation());
+        if (DistanceSq < BestDistanceSq) { BestDistanceSq = DistanceSq; Best = *It; }
+    }
+    return Best;
 }
 
 void UGTTRecoveryChoiceEvidenceSubsystem::Fail(const FString& Reason)
@@ -103,6 +114,22 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Tick(float DeltaTime)
             if (Elapsed - PhaseStarted < 0.5f) return;
             AGTTRoadVehicleNativePawn* Vehicle = EvidenceVehicle.Get();
             if (!Vehicle || !Decision || !Recovery || !Economy) { Fail(TEXT("recovery dependencies unavailable")); return; }
+
+            // The preceding wanted-4 evidence route may still be cooling down. Reset it explicitly so this
+            // phase proves voluntary civilian recovery rather than accidentally entering police impound.
+            if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn))
+            {
+                if (Wanted->GetWantedLevel() > 0)
+                {
+                    Wanted->ClearWanted();
+                    UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=RECOVERY_CHOICE_CLEAR_WANTED"));
+                }
+            }
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+                Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+            }
             if (!Vehicle->ApplyPoliceSpikeDamage(0.94f, 0.34f)) { Fail(TEXT("unable to stage immobilizing tire damage")); return; }
             const FGTTBreakdownAssessment Assessment = Decision->AssessVehicle(Vehicle);
             if (Assessment.Recommendation != EGTTBreakdownRecommendation::Immobilized || Assessment.TowEstimate <= 0 || Assessment.RepairEstimate <= 0)
@@ -176,7 +203,7 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Tick(float DeltaTime)
             const FGTTRoadBodyDamageSnapshot Body = Vehicle->GetBodyDamageSnapshot();
             const int32 TowPaid = CashBeforeTow - Economy->GetCash();
             const bool bDamagePreserved = FMath::IsNearlyEqual(State.ConditionPercent, SavedCondition, 0.002f) && FMath::IsNearlyEqual(State.TireIntegrity, SavedTires, 0.002f) && FMath::IsNearlyEqual(MinBodyHealth(Body), SavedBodyMin, 0.002f);
-            if (TowPaid != TowQuote || !bDamagePreserved || Vehicle->GetDriverPawn() || FVector::Dist2D(Vehicle->GetActorLocation(), FVector(-400.0f, 2650.0f, 105.0f)) > 650.0f)
+            if (TowPaid != TowQuote || !bDamagePreserved || Vehicle->GetDriverPawn() || FVector::Dist2D(Vehicle->GetActorLocation(), WorkshopBaseLocation) > 650.0f)
             {
                 Fail(TEXT("player-authorized tow did not preserve damage or charge the quoted amount")); return;
             }
