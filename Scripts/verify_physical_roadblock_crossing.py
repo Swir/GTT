@@ -15,10 +15,10 @@ checks={
  'crossing evidence': 'DEMO_SCENARIO_ROADBLOCK_CROSSING' in cpp and 'ROADBLOCK_PHYSICAL_CROSSING' in cpp,
  'handling evidence': 'DEMO_SCENARIO_HANDLING_CONSEQUENCE' in cpp and 'HANDLING_CONSEQUENCE' in cpp and 'GetRuntimeWheelRisk' in cpp,
  'post-spike evidence retained': 'POST_SPIKE_ESCAPE' in cpp,
- '26 step completion': 'steps=26' in cpp and 'steps=26' in eval_ps,
- 'schema v8': 'gtt.demo-scenario.v8' in eval_ps and 'physical_crossing_passed' in eval_ps and 'wheel_risk_after' in eval_ps and 'post_spike_escape_passed' in eval_ps,
- 'workflow 0.0.91': "default: '0.0.91'" in workflow and 'post-spike escape dynamics' in workflow,
- 'docs': '0.0.91' in playtest and '0.0.91' in changelog,
+ '26 core completion retained': 'steps=26' in cpp and 'DEMO_SCENARIO_COMPLETE result=PASS steps=26' in eval_ps,
+ 'schema v9 retains crossing': 'gtt.demo-scenario.v9' in eval_ps and 'physical_crossing_passed' in eval_ps and 'wheel_risk_after' in eval_ps and 'post_spike_escape_passed' in eval_ps,
+ 'workflow 0.0.92': "default: '0.0.92'" in workflow and 'damage persistence recovery' in workflow,
+ 'origin docs retained': '0.0.91' in playtest and '0.0.91' in changelog,
 }
 failed=[name for name,ok in checks.items() if not ok]
 if failed: raise SystemExit('Physical roadblock crossing verification failed: '+', '.join(failed))
