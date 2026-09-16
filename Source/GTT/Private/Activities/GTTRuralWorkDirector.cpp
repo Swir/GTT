@@ -74,6 +74,7 @@ bool AGTTRuralWorkDirector::TryStartTimber(APawn* PlayerPawn)
         return false;
     }
 
+    FleetPayoutMultiplier = 1.0f;
     if (GetWorld())
     {
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
@@ -82,7 +83,13 @@ bool AGTTRuralWorkDirector::TryStartTimber(APawn* PlayerPawn)
             PushMessage(PlayerPawn, Fleet->BuildJobDispatchHint(FName(TEXT("TimberHaul"))), 6.0f);
             if (Assessment.Readiness == EGTTFleetMissionReadiness::ServiceRequired)
             {
-                PushMessage(PlayerPawn, TEXT("TIMBER LOADOUT CAUTION: service the CARGO loadout or use another healthy vehicle before loading logs."), 5.5f);
+                FleetPayoutMultiplier = 0.75f;
+                PushMessage(PlayerPawn, TEXT("TIMBER LOADOUT RISK: bypassing fleet prep cuts this contract payout by 25%. Use the unified contract board to prep first."), 5.5f);
+            }
+            else if (Assessment.Readiness == EGTTFleetMissionReadiness::Advisory)
+            {
+                FleetPayoutMultiplier = 0.90f;
+                PushMessage(PlayerPawn, TEXT("TIMBER LOADOUT CAUTION: bypassing recommended prep reduces this contract payout by 10%."), 5.5f);
             }
         }
     }
@@ -127,8 +134,11 @@ bool AGTTRuralWorkDirector::TryDeliverTimber(APawn* PlayerPawn)
     const float TimeRatio = TimberTimeLimit > 0.0f ? TimeRemaining / TimberTimeLimit : 0.0f;
     const int32 IntegrityPay = FMath::RoundToInt(TimberBaseReward * FMath::Clamp(CargoIntegrity, 0.0f, 1.0f));
     const int32 Bonus = TimeRatio >= 0.45f ? TimberFastBonus : 0;
-    FinishWork(PlayerPawn, FMath::Max(60, IntegrityPay + Bonus),
-        FString::Printf(TEXT("TIMBER COMPLETE | load %.0f%%%s"), CargoIntegrity * 100.0f, Bonus > 0 ? TEXT(" | FAST BONUS") : TEXT("")));
+    const int32 Reward = FMath::Max(60, FMath::RoundToInt((IntegrityPay + Bonus) * FleetPayoutMultiplier));
+    FinishWork(PlayerPawn, Reward,
+        FString::Printf(TEXT("TIMBER COMPLETE | load %.0f%%%s%s"), CargoIntegrity * 100.0f,
+            Bonus > 0 ? TEXT(" | FAST BONUS") : TEXT(""),
+            FleetPayoutMultiplier < 0.999f ? TEXT(" | UNPREPARED FLEET PENALTY") : TEXT("")));
     return true;
 }
 
@@ -140,6 +150,7 @@ bool AGTTRuralWorkDirector::TryStartMowing(APawn* PlayerPawn)
         return false;
     }
 
+    FleetPayoutMultiplier = 1.0f;
     if (GetWorld())
     {
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
@@ -192,9 +203,11 @@ FString AGTTRuralWorkDirector::GetObjectiveText() const
     switch (Stage)
     {
         case EGTTRuralWorkStage::ReachTimberPickup:
-            return FString::Printf(TEXT("RURAL WORK | TIMBER | reach NORTH WOOD YARD | %.0fs"), TimeRemaining);
+            return FString::Printf(TEXT("RURAL WORK | TIMBER | reach NORTH WOOD YARD | %.0fs%s"), TimeRemaining,
+                FleetPayoutMultiplier < 0.999f ? TEXT(" | PREP PENALTY") : TEXT(""));
         case EGTTRuralWorkStage::DeliverTimber:
-            return FString::Printf(TEXT("RURAL WORK | TIMBER -> WORKSHOP | %.0fs | load %.0f%%"), TimeRemaining, CargoIntegrity * 100.0f);
+            return FString::Printf(TEXT("RURAL WORK | TIMBER -> WORKSHOP | %.0fs | load %.0f%%%s"), TimeRemaining, CargoIntegrity * 100.0f,
+                FleetPayoutMultiplier < 0.999f ? TEXT(" | PREP PENALTY") : TEXT(""));
         case EGTTRuralWorkStage::MowingField:
             return FString::Printf(TEXT("RURAL WORK | MOWING | gate %d/%d | %.0fs"), MowingPassesCompleted + 1, RequiredMowingPasses, TimeRemaining);
         default:
@@ -238,6 +251,7 @@ void AGTTRuralWorkDirector::FinishWork(APawn* PlayerPawn, int32 Reward, const FS
     Stage = EGTTRuralWorkStage::Idle;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
+    FleetPayoutMultiplier = 1.0f;
     MowingPassesCompleted = 0;
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
 }
@@ -248,6 +262,7 @@ void AGTTRuralWorkDirector::FailWork(APawn* PlayerPawn, const FString& Reason)
     Stage = EGTTRuralWorkStage::Idle;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
+    FleetPayoutMultiplier = 1.0f;
     MowingPassesCompleted = 0;
     PushMessage(PlayerPawn, FString::Printf(TEXT("RURAL WORK FAILED: %s"), *Reason), 6.0f);
 }

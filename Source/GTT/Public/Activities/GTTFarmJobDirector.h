@@ -77,6 +77,7 @@ private:
     EGTTFarmJobStage Stage = EGTTFarmJobStage::Idle;
     float TimeRemaining = 0.0f;
     float CargoIntegrity = 1.0f;
+    float FleetPayoutMultiplier = 1.0f;
     TWeakObjectPtr<AGTTFarmVanPawn> LoadedMulebox;
     TWeakObjectPtr<AGTTMuleboxNativePawn> LoadedNativeMulebox;
 };

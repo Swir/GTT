@@ -61,5 +61,6 @@ private:
     EGTTRuralWorkStage Stage = EGTTRuralWorkStage::Idle;
     float TimeRemaining = 0.0f;
     float CargoIntegrity = 1.0f;
+    float FleetPayoutMultiplier = 1.0f;
     int32 MowingPassesCompleted = 0;
 };
