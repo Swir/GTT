@@ -2,6 +2,7 @@
 
 #include "Activities/GTTFarmJobDirector.h"
 #include "Activities/GTTHeavyHaulDirector.h"
+#include "Activities/GTTRoadRunDirector.h"
 #include "Activities/GTTRuralWorkDirector.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -26,6 +27,7 @@ namespace
     const FName HeavyHaulJob(TEXT("HeavyHaul"));
     const FName TimberHaulJob(TEXT("TimberHaul"));
     const FName FieldMowingJob(TEXT("FieldMowing"));
+    const FName RoadRunJob(TEXT("RoadRun"));
     const FName FieldmasterId(TEXT("RustyFieldmaster60"));
 
     AGTTFieldmasterNativePawn* ResolveNativeFieldmaster(UWorld* World)
@@ -45,13 +47,24 @@ void UGTTContractBoardSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     Super::OnWorldBeginPlay(InWorld);
     if (!InWorld.IsGameWorld()) return;
 
+    bool bHasRoadRunDirector = false;
+    for (TActorIterator<AGTTRoadRunDirector> It(&InWorld); It; ++It)
+    {
+        if (IsValid(*It)) { bHasRoadRunDirector = true; break; }
+    }
+    if (!bHasRoadRunDirector)
+    {
+        InWorld.SpawnActor<AGTTRoadRunDirector>(FVector::ZeroVector, FRotator::ZeroRotator);
+    }
+
     struct FBoardSpawn { FName JobTag; FVector Location; };
     const FBoardSpawn Boards[] =
     {
         { FarmCargoJob, FVector(-2850.0f, -470.0f, 55.0f) },
         { HeavyHaulJob, FVector(-2650.0f, -470.0f, 55.0f) },
         { TimberHaulJob, FVector(-2450.0f, -470.0f, 55.0f) },
-        { FieldMowingJob, FVector(-2250.0f, -470.0f, 55.0f) }
+        { FieldMowingJob, FVector(-2250.0f, -470.0f, 55.0f) },
+        { RoadRunJob, FVector(-2050.0f, -470.0f, 55.0f) }
     };
 
     for (const FBoardSpawn& Entry : Boards)
@@ -69,6 +82,7 @@ FString UGTTContractBoardSubsystem::ContractTitle(FName JobTag)
     if (JobTag == HeavyHaulJob) return TEXT("Heavy Timber Haul");
     if (JobTag == TimberHaulJob) return TEXT("Timber Delivery");
     if (JobTag == FieldMowingJob) return TEXT("Field Mowing");
+    if (JobTag == RoadRunJob) return TEXT("Village Parts Courier");
     return TEXT("Unknown Contract");
 }
 
@@ -78,6 +92,7 @@ int32 UGTTContractBoardSubsystem::ContractBaseReward(FName JobTag)
     if (JobTag == HeavyHaulJob) return 900;
     if (JobTag == TimberHaulJob) return 340;
     if (JobTag == FieldMowingJob) return 390;
+    if (JobTag == RoadRunJob) return 260;
     return 0;
 }
 
@@ -87,12 +102,13 @@ int32 UGTTContractBoardSubsystem::ContractMaximumReward(FName JobTag)
     if (JobTag == HeavyHaulJob) return 1150;
     if (JobTag == TimberHaulJob) return 450;
     if (JobTag == FieldMowingJob) return 470;
+    if (JobTag == RoadRunJob) return 390; // base + fast + clean-run bonus
     return 0;
 }
 
 bool UGTTContractBoardSubsystem::IsHardFleetRequirement(FName JobTag)
 {
-    return JobTag == HeavyHaulJob || JobTag == FieldMowingJob;
+    return JobTag == HeavyHaulJob || JobTag == FieldMowingJob || JobTag == RoadRunJob;
 }
 
 int32 UGTTContractBoardSubsystem::CalculateServiceEstimate(const FGTTGarageFleetSnapshot& Snapshot)
@@ -380,7 +396,7 @@ bool UGTTContractBoardSubsystem::TryPrepareContract(APawn* PlayerPawn, FName Job
         *Snapshot.DisplayName,
         Offer.ServiceEstimate > 0 ? TEXT(", serviced") : TEXT(""),
         Offer.PreparationEstimate,
-        Updated.MaximumReward);
+        Updated.MaximumNetReward);
     return true;
 }
 
@@ -390,6 +406,7 @@ bool UGTTContractBoardSubsystem::IsAnyLegalContractActive() const
     for (TActorIterator<AGTTFarmJobDirector> It(GetWorld()); It; ++It) if (It->IsJobActive()) return true;
     for (TActorIterator<AGTTHeavyHaulDirector> It(GetWorld()); It; ++It) if (It->IsActive()) return true;
     for (TActorIterator<AGTTRuralWorkDirector> It(GetWorld()); It; ++It) if (It->IsWorkActive()) return true;
+    for (TActorIterator<AGTTRoadRunDirector> It(GetWorld()); It; ++It) if (It->IsActive()) return true;
     return false;
 }
 
@@ -432,6 +449,10 @@ bool UGTTContractBoardSubsystem::TryAcceptContract(APawn* PlayerPawn, FName JobT
     else if (JobTag == FieldMowingJob)
     {
         for (TActorIterator<AGTTRuralWorkDirector> It(GetWorld()); It; ++It) { bStarted = It->TryStartMowing(PlayerPawn); break; }
+    }
+    else if (JobTag == RoadRunJob)
+    {
+        for (TActorIterator<AGTTRoadRunDirector> It(GetWorld()); It; ++It) { bStarted = It->TryStartContract(PlayerPawn); break; }
     }
 
     OutSummary = bStarted
