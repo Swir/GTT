@@ -15,6 +15,9 @@ namespace
     constexpr float CargoOpenHour = 7.0f;
     constexpr float CargoCloseHour = 17.5f;
     constexpr int32 MaxRecentContracts = 6;
+    constexpr int32 MaxFeedDepotStock = 18;
+    constexpr int32 MaxHillFarmDemand = 12;
+    constexpr int32 MaxWoodYardDemand = 10;
 }
 
 float UGTTLogisticsReputationSubsystem::GetTimeOfDayHours() const
@@ -29,6 +32,23 @@ int32 UGTTLogisticsReputationSubsystem::GetDayNumber() const
     const AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
     const AGTTDayNightCycle* Cycle = GameMode ? GameMode->GetDayNightCycle() : nullptr;
     return Cycle ? FMath::Max(1, Cycle->GetDayNumber()) : 1;
+}
+
+void UGTTLogisticsReputationSubsystem::EnsureCargoMarketForCurrentDay() const
+{
+    const int32 CurrentDay = GetDayNumber();
+    if (MarketDay == CurrentDay) return;
+
+    const int32 ElapsedDays = MarketDay > 0 ? FMath::Clamp(CurrentDay - MarketDay, 1, 7) : 1;
+    const int32 Restock = 3 * ElapsedDays + ((CurrentDay + CargoCompletedRuns) % 4);
+    FeedDepotStock = FMath::Clamp(FeedDepotStock + Restock, 0, MaxFeedDepotStock);
+
+    // Demand is deterministic from the living world day plus the player's real logistics history.
+    // Success/failure therefore changes tomorrow's route pressure without requiring random network state.
+    HillFarmDemand = FMath::Clamp(4 + ((CurrentDay * 3 + CompletedRuns + CargoFailedRuns) % 7), 1, MaxHillFarmDemand);
+    WoodYardDemand = FMath::Clamp(2 + ((CurrentDay * 2 + CargoCompletedRuns + FailedRuns) % 6), 1, MaxWoodYardDemand);
+    CargoRotationIndex = (CurrentDay + CargoCompletedRuns + CompletedRuns) % 3;
+    MarketDay = CurrentDay;
 }
 
 FString UGTTLogisticsReputationSubsystem::GetTierLabel() const
@@ -84,12 +104,109 @@ int32 UGTTLogisticsReputationSubsystem::GetCargoRouteTier() const
     return 1;
 }
 
+FString UGTTLogisticsReputationSubsystem::GetCargoCommodityLabel() const
+{
+    EnsureCargoMarketForCurrentDay();
+    switch (CargoRotationIndex)
+    {
+        case 1: return TEXT("SEED PALLETS");
+        case 2: return TEXT("FARM PARTS");
+        default: return TEXT("ANIMAL FEED");
+    }
+}
+
+int32 UGTTLogisticsReputationSubsystem::GetFeedDepotStock() const
+{
+    EnsureCargoMarketForCurrentDay();
+    return FeedDepotStock;
+}
+
+int32 UGTTLogisticsReputationSubsystem::GetHillFarmDemand() const
+{
+    EnsureCargoMarketForCurrentDay();
+    return HillFarmDemand;
+}
+
+int32 UGTTLogisticsReputationSubsystem::GetWoodYardDemand() const
+{
+    EnsureCargoMarketForCurrentDay();
+    return WoodYardDemand;
+}
+
+FString UGTTLogisticsReputationSubsystem::GetCargoStockSummary() const
+{
+    EnsureCargoMarketForCurrentDay();
+    return FString::Printf(TEXT("%s | DEPOT %d | HILL NEED %d | WOOD NEED %d"),
+        *GetCargoCommodityLabel(), FeedDepotStock, HillFarmDemand, WoodYardDemand);
+}
+
+bool UGTTLogisticsReputationSubsystem::CanAcceptCargoContract() const
+{
+    EnsureCargoMarketForCurrentDay();
+    const int32 RouteTier = GetCargoRouteTier();
+    const int32 RequiredStock = RouteTier >= 2 ? 3 : 2;
+    if (FeedDepotStock < RequiredStock || HillFarmDemand <= 0) return false;
+    if (RouteTier >= 2 && WoodYardDemand <= 0) return false;
+    return true;
+}
+
+bool UGTTLogisticsReputationSubsystem::ReserveCargoContract(int32 RouteTier, int32& OutReservedUnits, FString& OutReason)
+{
+    EnsureCargoMarketForCurrentDay();
+    OutReservedUnits = 0;
+    OutReason.Reset();
+
+    const int32 RequiredStock = RouteTier >= 2 ? 3 : 2;
+    if (FeedDepotStock < RequiredStock)
+    {
+        OutReason = FString::Printf(TEXT("Feed Depot only has %d load units; this route needs %d. The next daily restock may reopen it."), FeedDepotStock, RequiredStock);
+        return false;
+    }
+    if (HillFarmDemand <= 0)
+    {
+        OutReason = TEXT("Hill Farm demand is already satisfied for today. Check tomorrow's contract rotation.");
+        return false;
+    }
+    if (RouteTier >= 2 && WoodYardDemand <= 0)
+    {
+        OutReason = TEXT("North Wood Yard has no remaining demand for the extended chain today.");
+        return false;
+    }
+
+    FeedDepotStock -= RequiredStock;
+    OutReservedUnits = RequiredStock;
+    OutReason = FString::Printf(TEXT("Reserved %d units of %s | depot stock now %d."), RequiredStock, *GetCargoCommodityLabel(), FeedDepotStock);
+    return true;
+}
+
+void UGTTLogisticsReputationSubsystem::SettleCargoContract(int32 ReservedUnits, bool bExtendedRoute, bool bSuccess)
+{
+    EnsureCargoMarketForCurrentDay();
+    if (!bSuccess || ReservedUnits <= 0) return; // failed cargo is lost; buyer demand remains open.
+
+    if (bExtendedRoute)
+    {
+        const int32 HillUnits = FMath::Max(1, ReservedUnits / 3);
+        const int32 WoodUnits = FMath::Max(1, ReservedUnits - HillUnits);
+        HillFarmDemand = FMath::Max(0, HillFarmDemand - HillUnits);
+        WoodYardDemand = FMath::Max(0, WoodYardDemand - WoodUnits);
+    }
+    else
+    {
+        HillFarmDemand = FMath::Max(0, HillFarmDemand - ReservedUnits);
+    }
+}
+
 float UGTTLogisticsReputationSubsystem::GetCargoMarketMultiplier() const
 {
+    EnsureCargoMarketForCurrentDay();
     const float Hour = GetTimeOfDayHours();
     const float TimeDemandBonus = Hour < 10.0f ? 0.12f : (Hour >= 14.0f ? 0.08f : 0.0f);
     const int32 DemandCycle = (GetDayNumber() + CargoCompletedRuns + CompletedRuns) % 3;
-    const float DailyDemandBonus = DemandCycle == 0 ? 0.10f : (DemandCycle == 1 ? 0.04f : 0.0f);
+    const float CycleBonus = DemandCycle == 0 ? 0.06f : (DemandCycle == 1 ? 0.03f : 0.0f);
+    const float DemandPressure = FMath::Clamp(static_cast<float>(HillFarmDemand + WoodYardDemand - FeedDepotStock) / 18.0f, 0.0f, 1.0f);
+    const float CommodityBonus = CargoRotationIndex == 2 ? 0.04f : (CargoRotationIndex == 1 ? 0.02f : 0.0f);
+    const float DailyDemandBonus = FMath::Min(0.10f, CycleBonus + DemandPressure * 0.05f + CommodityBonus);
     const float ReputationBonus = FMath::Min(0.12f, static_cast<float>(Reputation) * 0.0015f);
     const float StreakBonus = FMath::Min(0.04f, static_cast<float>(CleanStreak) * 0.008f);
     return FMath::Clamp(1.0f + TimeDemandBonus + DailyDemandBonus + ReputationBonus + StreakBonus, 1.0f, 1.38f);
@@ -97,11 +214,12 @@ float UGTTLogisticsReputationSubsystem::GetCargoMarketMultiplier() const
 
 FString UGTTLogisticsReputationSubsystem::GetCargoMarketLabel() const
 {
-    if (!IsCargoDepotWindowOpen()) return TEXT("MARKET PAUSED");
+    EnsureCargoMarketForCurrentDay();
+    if (!IsCargoDepotWindowOpen()) return FString::Printf(TEXT("MARKET PAUSED | %s"), *GetCargoCommodityLabel());
     const float Hour = GetTimeOfDayHours();
     const FString Demand = Hour < 10.0f ? TEXT("MORNING RUSH") : (Hour >= 14.0f ? TEXT("LATE FEED DEMAND") : TEXT("STEADY DEMAND"));
     const int32 Bonus = FMath::RoundToInt((GetCargoMarketMultiplier() - 1.0f) * 100.0f);
-    return FString::Printf(TEXT("%s +%d%% | ROUTE T%d"), *Demand, Bonus, GetCargoRouteTier());
+    return FString::Printf(TEXT("%s +%d%% | ROUTE T%d | %s"), *Demand, Bonus, GetCargoRouteTier(), *GetCargoCommodityLabel());
 }
 
 FString UGTTLogisticsReputationSubsystem::GetRecentHistorySummary() const
@@ -186,6 +304,7 @@ void UGTTLogisticsReputationSubsystem::RecordCargoFailure(float CargoIntegrity, 
 void UGTTLogisticsReputationSubsystem::CaptureToSave(UGTTSaveGame* Save) const
 {
     if (!Save) return;
+    EnsureCargoMarketForCurrentDay();
     Save->LogisticsReputation = Reputation;
     Save->LogisticsCleanStreak = CleanStreak;
     Save->LogisticsCompletedRuns = CompletedRuns;
@@ -194,6 +313,11 @@ void UGTTLogisticsReputationSubsystem::CaptureToSave(UGTTSaveGame* Save) const
     Save->LogisticsCargoCompletedRuns = CargoCompletedRuns;
     Save->LogisticsCargoFailedRuns = CargoFailedRuns;
     Save->LogisticsCargoLifetimeRevenue = CargoLifetimeRevenue;
+    Save->LogisticsMarketDay = MarketDay;
+    Save->FeedDepotStock = FeedDepotStock;
+    Save->HillFarmDemand = HillFarmDemand;
+    Save->WoodYardDemand = WoodYardDemand;
+    Save->CargoRotationIndex = CargoRotationIndex;
     Save->LogisticsRecentContractTags = RecentContractTags;
     Save->LogisticsRecentPayouts = RecentPayouts;
     Save->LogisticsRecentQualityPercent = RecentQualityPercent;
@@ -211,6 +335,11 @@ void UGTTLogisticsReputationSubsystem::RestoreFromSave(const UGTTSaveGame* Save)
         CargoCompletedRuns = 0;
         CargoFailedRuns = 0;
         CargoLifetimeRevenue = 0;
+        MarketDay = 0;
+        FeedDepotStock = 10;
+        HillFarmDemand = 6;
+        WoodYardDemand = 4;
+        CargoRotationIndex = 0;
         RecentContractTags.Reset();
         RecentPayouts.Reset();
         RecentQualityPercent.Reset();
@@ -225,6 +354,11 @@ void UGTTLogisticsReputationSubsystem::RestoreFromSave(const UGTTSaveGame* Save)
     CargoCompletedRuns = FMath::Max(0, Save->LogisticsCargoCompletedRuns);
     CargoFailedRuns = FMath::Max(0, Save->LogisticsCargoFailedRuns);
     CargoLifetimeRevenue = FMath::Max(0, Save->LogisticsCargoLifetimeRevenue);
+    MarketDay = FMath::Max(0, Save->LogisticsMarketDay);
+    FeedDepotStock = FMath::Clamp(Save->FeedDepotStock, 0, MaxFeedDepotStock);
+    HillFarmDemand = FMath::Clamp(Save->HillFarmDemand, 0, MaxHillFarmDemand);
+    WoodYardDemand = FMath::Clamp(Save->WoodYardDemand, 0, MaxWoodYardDemand);
+    CargoRotationIndex = FMath::Clamp(Save->CargoRotationIndex, 0, 2);
     RecentContractTags = Save->LogisticsRecentContractTags;
     RecentPayouts = Save->LogisticsRecentPayouts;
     RecentQualityPercent = Save->LogisticsRecentQualityPercent;
@@ -239,4 +373,5 @@ void UGTTLogisticsReputationSubsystem::RestoreFromSave(const UGTTSaveGame* Save)
         RecentPayouts.RemoveAt(0);
         RecentQualityPercent.RemoveAt(0);
     }
+    EnsureCargoMarketForCurrentDay();
 }
