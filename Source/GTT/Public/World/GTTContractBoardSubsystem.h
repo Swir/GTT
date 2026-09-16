@@ -22,6 +22,11 @@ struct GTT_API FGTTContractBoardOffer
     UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") int32 MaximumNetReward = 0;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") bool bCanAcceptNow = false;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") bool bNeedsPreparation = false;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") bool bScheduleOpen = true;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") FString ScheduleStatus;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") int32 LogisticsReputation = 0;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") FString LogisticsTier;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") int32 PayoutBonusPercent = 0;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Contracts") FGTTFleetMissionAssessment Fleet;
 };
 
