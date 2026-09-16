@@ -35,6 +35,9 @@ void AGTTFarmJobTerminal::Interact_Implementation(AActor* Interactor)
         case EGTTFarmJobTerminalType::Finish:
             Director->TryCompleteJob(Pawn);
             break;
+        case EGTTFarmJobTerminalType::FinalFinish:
+            Director->TryCompleteFinalStop(Pawn);
+            break;
     }
 }
 
@@ -43,11 +46,13 @@ FText AGTTFarmJobTerminal::GetInteractionText_Implementation() const
     switch (TerminalType)
     {
         case EGTTFarmJobTerminalType::Start:
-            return NSLOCTEXT("GTT", "FarmJobStartV2", "Take farm cargo contract");
+            return NSLOCTEXT("GTT", "FarmJobStartV3", "Take rural cargo contract");
         case EGTTFarmJobTerminalType::Pickup:
-            return NSLOCTEXT("GTT", "FarmJobPickup", "Load feed cargo");
+            return NSLOCTEXT("GTT", "FarmJobPickupV2", "Load feed cargo");
         case EGTTFarmJobTerminalType::Finish:
-            return NSLOCTEXT("GTT", "FarmJobFinishV2", "Deliver farm cargo");
+            return NSLOCTEXT("GTT", "FarmJobFinishV3", "Hill Farm cargo handoff / relay");
+        case EGTTFarmJobTerminalType::FinalFinish:
+            return NSLOCTEXT("GTT", "FarmJobFinalFinish", "North Wood Yard final cargo handoff");
     }
     return FText::GetEmpty();
 }

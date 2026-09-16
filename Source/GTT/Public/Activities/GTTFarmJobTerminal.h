@@ -12,7 +12,8 @@ enum class EGTTFarmJobTerminalType : uint8
 {
     Start,
     Pickup,
-    Finish
+    Finish,
+    FinalFinish
 };
 
 UCLASS()
