@@ -97,18 +97,24 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
         }
     }
 
+    if (GetWorld())
+    {
+        if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+        {
+            const FGTTFleetMissionAssessment Assessment = Fleet->AssessJobReadiness(FName(TEXT("FarmCargo")));
+            PushMessage(PlayerPawn, Fleet->BuildJobDispatchHint(FName(TEXT("FarmCargo"))), 6.0f);
+            if (Assessment.Readiness == EGTTFleetMissionReadiness::ServiceRequired)
+            {
+                PushMessage(PlayerPawn, TEXT("CARGO LOADOUT NEEDS SERVICE: the contract is still open, but prep the Mulebox or bring another healthy vehicle."), 6.0f);
+            }
+        }
+    }
+
     ClearLoadedVehicleCargoState();
     Stage = EGTTFarmJobStage::ReachPickup;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
     PushMessage(PlayerPawn, TEXT("FARM CONTRACT: drive to FEED DEPOT and collect the cargo. Mulebox 1200 gets a role bonus."), 6.0f);
-    if (GetWorld())
-    {
-        if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
-        {
-            PushMessage(PlayerPawn, Fleet->BuildJobDispatchHint(FName(TEXT("FarmCargo"))), 6.0f);
-        }
-    }
     return true;
 }
 
