@@ -2,6 +2,7 @@
 #include "Activities/GTTBrawlDirector.h"
 #include "Activities/GTTFarmJobDirector.h"
 #include "Activities/GTTHeavyHaulDirector.h"
+#include "Activities/GTTRoadRunDirector.h"
 #include "Activities/GTTRuralWorkDirector.h"
 #include "Combat/GTTCombatComponent.h"
 #include "Core/GTTGameMode.h"
@@ -135,6 +136,7 @@ FString AGTTGameHUD::BuildPrimaryObjective() const
     if (const AGTTBrawlDirector* Brawl=Cast<AGTTBrawlDirector>(UGameplayStatics::GetActorOfClass(this,AGTTBrawlDirector::StaticClass()))) if (Brawl->IsBrawlActive()) return Brawl->GetObjectiveText();
     if (const AGTTHeavyHaulDirector* HeavyHaul=Cast<AGTTHeavyHaulDirector>(UGameplayStatics::GetActorOfClass(this,AGTTHeavyHaulDirector::StaticClass()))) if (HeavyHaul->IsActive()) return HeavyHaul->GetObjectiveText();
     if (const AGTTFarmJobDirector* Farm=Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this,AGTTFarmJobDirector::StaticClass()))) if (Farm->IsJobActive()) return Farm->GetObjectiveText();
+    if (const AGTTRoadRunDirector* RoadRun=Cast<AGTTRoadRunDirector>(UGameplayStatics::GetActorOfClass(this,AGTTRoadRunDirector::StaticClass()))) if (RoadRun->IsActive()) return RoadRun->GetObjectiveText();
     if (const AGTTRuralWorkDirector* Work=Cast<AGTTRuralWorkDirector>(UGameplayStatics::GetActorOfClass(this,AGTTRuralWorkDirector::StaticClass()))) if (Work->IsWorkActive()) return Work->GetObjectiveText();
     if (const AGTTNightFavorDirector* Favor=Cast<AGTTNightFavorDirector>(UGameplayStatics::GetActorOfClass(this,AGTTNightFavorDirector::StaticClass()))) if (Favor->IsActive()) return Favor->GetObjectiveText();
     const FString PrototypeMission=BuildMissionText(); if (!PrototypeMission.IsEmpty()) return PrototypeMission;
