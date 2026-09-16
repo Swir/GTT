@@ -90,6 +90,7 @@ private:
     APawn* ResolvePlayerPawn() const;
     void ClearLoadedVehicleCargoState();
     float ResolveCargoVehicleConditionRatio() const;
+    void SpawnLogisticsDispatchers();
 
     EGTTFarmJobStage Stage = EGTTFarmJobStage::Idle;
     float TimeRemaining = 0.0f;
@@ -97,6 +98,8 @@ private:
     float FleetPayoutMultiplier = 1.0f;
     float MarketMultiplierAtStart = 1.0f;
     int32 RouteTierAtStart = 1;
+    int32 CargoUnitsReserved = 0;
+    FString CargoCommodityAtStart = TEXT("ANIMAL FEED");
     bool bPoliceIncidentDuringRun = false;
     TWeakObjectPtr<AGTTFarmVanPawn> LoadedMulebox;
     TWeakObjectPtr<AGTTMuleboxNativePawn> LoadedNativeMulebox;
