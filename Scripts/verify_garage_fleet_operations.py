@@ -22,7 +22,7 @@ checks = {
     "native road state overrides mirror": all(token in fleet_cpp for token in ["FindActiveNativeRoadVehicle", "GetMigrationSnapshot", "GetBodyDamageSnapshot", "Assessment.RepairEstimate", "Assessment.TowEstimate"]),
     "breakdown states visible": all(token in fleet_cpp for token in ["LIMP", "TOW", "IMMOBILE", "READY"]),
     "native fieldmaster represented": "AGTTFieldmasterNativePawn" in fleet_cpp and "IsLegacyTakeoverActive" in fleet_cpp,
-    "office fleet dashboard": "BuildFleetSummary" in office_cpp and "inspect fleet" in office_cpp and "recall never repairs damage" in office_cpp,
+    "office fleet dashboard": "BuildFleetSummary" in office_cpp and "inspect fleet" in office_cpp and "Dispatch sets it ACTIVE and never repairs damage" in office_cpp,
     "registration ignores already-owned cars": "Vehicle->IsOwnedByPlayer()" in office_cpp and "NearestUnownedVehicle" in office_cpp,
     "bay live status": all(token in slot_cpp for token in ["GetSlotSnapshot", "ServiceStatus", "ConditionPercent", "FuelPercent", "TireIntegrity", "BodyHealth"]),
     "native road recall authority": all(token in slot_cpp for token in ["FindActiveNativeRoadVehicle", "TeleportPhysics", "SetPhysicsLinearVelocity", "FlushNativePersistenceMirror"]),
