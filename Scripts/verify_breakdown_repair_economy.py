@@ -22,7 +22,7 @@ checks={
 'impound mandatory service':'Police impound + mandatory safety service' in recovery_cpp and 'ApplyNativeWorkshopService()' in recovery_cpp,
 'separate price messaging':'Tow $%d; workshop estimate $%d is separate.' in recovery_cpp,
 'native driver services':'AGTTRoadVehicleNativePawn' in statics and 'NativeRoad->GetDriverPawn()' in statics,
-'sanity wired':'Verify breakdown decision, towing and repair economy' in sanity and 'verify_breakdown_repair_economy.py' in sanity,
+'sanity wired':'Verify breakdown decision towing and repair economy' in sanity and 'verify_breakdown_repair_economy.py' in sanity,
 'docs':'0.0.95' in playtest and 'tow' in playtest.lower() and '0.0.95' in changelog and 'damage-based' in changelog.lower(),
 }
 failed=[n for n,ok in checks.items() if not ok]
