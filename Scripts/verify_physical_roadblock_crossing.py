@@ -16,8 +16,8 @@ checks={
  'handling evidence': 'DEMO_SCENARIO_HANDLING_CONSEQUENCE' in cpp and 'HANDLING_CONSEQUENCE' in cpp and 'GetRuntimeWheelRisk' in cpp,
  'post-spike evidence retained': 'POST_SPIKE_ESCAPE' in cpp,
  '26 core completion retained': 'steps=26' in cpp and 'DEMO_SCENARIO_COMPLETE result=PASS steps=26' in eval_ps,
- 'schema v9 retains crossing': 'gtt.demo-scenario.v9' in eval_ps and 'physical_crossing_passed' in eval_ps and 'wheel_risk_after' in eval_ps and 'post_spike_escape_passed' in eval_ps,
- 'workflow 0.0.92': "default: '0.0.92'" in workflow and 'damage persistence recovery' in workflow,
+ 'schema v10 retains crossing': 'gtt.demo-scenario.v10' in eval_ps and 'physical_crossing_passed' in eval_ps and 'wheel_risk_after' in eval_ps and 'post_spike_escape_passed' in eval_ps,
+ 'workflow 0.0.93': "default: '0.0.93'" in workflow and 'persistent structural damage' in workflow,
  'origin docs retained': '0.0.91' in playtest and '0.0.91' in changelog,
 }
 failed=[name for name,ok in checks.items() if not ok]
