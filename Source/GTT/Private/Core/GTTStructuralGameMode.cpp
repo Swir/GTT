@@ -4,11 +4,14 @@
 #include "Kismet/GameplayStatics.h"
 #include "Save/GTTSaveGame.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
+#include "World/GTTGarageFleetSubsystem.h"
 #include "GTT.h"
 
 namespace
 {
-    constexpr int32 StructuralSaveVersion = 5;
+    constexpr int32 StructuralDamageSaveVersion = 5;
+    constexpr int32 FleetDispatchSaveVersion = 6;
+    constexpr int32 ExtendedSaveVersion = 6;
 }
 
 bool AGTTStructuralGameMode::SaveProgress()
@@ -36,11 +39,16 @@ bool AGTTStructuralGameMode::SaveProgress()
         return false;
     }
 
-    Save->SaveVersion = FMath::Max(Save->SaveVersion, StructuralSaveVersion);
+    Save->SaveVersion = FMath::Max(Save->SaveVersion, ExtendedSaveVersion);
     Save->RoadStructuralDamage.Reset();
 
     if (GetWorld())
     {
+        if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+        {
+            Save->PreferredGarageVehicleId = Fleet->GetPreferredVehicleId();
+        }
+
         for (TActorIterator<AGTTRoadVehicleNativePawn> It(GetWorld()); It; ++It)
         {
             AGTTRoadVehicleNativePawn* Native = *It;
@@ -65,13 +73,13 @@ bool AGTTStructuralGameMode::SaveProgress()
     const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
     if (bSaved)
     {
-        UE_LOG(LogGTT, Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d"),
-            Save->SaveVersion, Save->RoadStructuralDamage.Num());
+        UE_LOG(LogGTT, Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d preferred=%s"),
+            Save->SaveVersion, Save->RoadStructuralDamage.Num(), *Save->PreferredGarageVehicleId.ToString());
     }
     else
     {
-        UE_LOG(LogGTT, Error, TEXT("STRUCTURAL_SAVE result=FAIL version=%d vehicles=%d"),
-            Save->SaveVersion, Save->RoadStructuralDamage.Num());
+        UE_LOG(LogGTT, Error, TEXT("STRUCTURAL_SAVE result=FAIL version=%d vehicles=%d preferred=%s"),
+            Save->SaveVersion, Save->RoadStructuralDamage.Num(), *Save->PreferredGarageVehicleId.ToString());
     }
     return bSaved;
 }
@@ -105,6 +113,14 @@ bool AGTTStructuralGameMode::LoadProgress()
         return false;
     }
 
+    if (GetWorld())
+    {
+        if (UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+        {
+            Fleet->RestorePreferredVehicleId(Save->SaveVersion >= FleetDispatchSaveVersion ? Save->PreferredGarageVehicleId : NAME_None);
+        }
+    }
+
     int32 RestoredCount = 0;
     for (const TWeakObjectPtr<AGTTRoadVehicleNativePawn>& WeakNative : NativeVehicles)
     {
@@ -113,7 +129,7 @@ bool AGTTStructuralGameMode::LoadProgress()
 
         FGTTRoadBodyDamageSnapshot Body;
         int32 PanelMask = 0;
-        if (Save->SaveVersion >= StructuralSaveVersion)
+        if (Save->SaveVersion >= StructuralDamageSaveVersion)
         {
             const FGTTStoredRoadStructuralDamageData* Stored = Save->RoadStructuralDamage.FindByPredicate(
                 [Native](const FGTTStoredRoadStructuralDamageData& Data)
@@ -136,8 +152,10 @@ bool AGTTStructuralGameMode::LoadProgress()
         Native->TryActivateLegacyTakeover();
     }
 
+    const UGTTGarageFleetSubsystem* Fleet = GetWorld() ? GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>() : nullptr;
     UE_LOG(LogGTT, Log,
-        TEXT("STRUCTURAL_LOAD result=PASS version=%d records=%d restored=%d"),
-        Save->SaveVersion, Save->RoadStructuralDamage.Num(), RestoredCount);
+        TEXT("STRUCTURAL_LOAD result=PASS version=%d records=%d restored=%d preferred=%s"),
+        Save->SaveVersion, Save->RoadStructuralDamage.Num(), RestoredCount,
+        Fleet ? *Fleet->GetPreferredVehicleId().ToString() : TEXT("None"));
     return true;
 }
