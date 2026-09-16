@@ -68,11 +68,12 @@ for token in [
 for token in [
     "AttachToNativeFieldmaster",
     "IsHidden()",
-    "ConditionPercent / 100.0f",
+    "GetMigrationSnapshot().ConditionPercent, 0.40f, 1.0f",
     "GetCargoIntegrity",
     "GetTrailerIntegrity",
 ]:
     assert token in haul, f"heavy-haul gameplay connection missing {token}"
+assert "GetMigrationSnapshot().ConditionPercent / 100.0f" not in haul, "heavy-haul must consume normalized Native Fieldmaster health directly"
 
 # SWIR Roadmap Style Lock v1 + exact current progress. 0.0.47 must not fake runtime acceptance.
 assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
@@ -93,4 +94,4 @@ assert "Native Fieldmaster Terrain & Heavy-Haul Integration" in changelog
 assert "125/130 (96.2%)" in changelog
 assert "Verify Fieldmaster native terrain and heavy-haul" in workflow
 
-print("Fieldmaster native terrain/heavy-haul sanity passed; roadmap remains 125/130 (96.2%)")
+print("Fieldmaster native terrain/heavy-haul sanity passed with normalized native tractor health; roadmap remains 125/130 (96.2%)")
