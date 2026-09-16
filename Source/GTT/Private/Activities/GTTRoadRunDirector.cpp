@@ -1,5 +1,7 @@
 #include "Activities/GTTRoadRunDirector.h"
 
+#include "Components/SceneComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -18,6 +20,29 @@ namespace
 AGTTRoadRunDirector::AGTTRoadRunDirector()
 {
     PrimaryActorTick.bCanEverTick = true;
+
+    SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+    SetRootComponent(SceneRoot);
+
+    PickupMarker = CreateDefaultSubobject<UTextRenderComponent>(TEXT("PickupMarker"));
+    PickupMarker->SetupAttachment(SceneRoot);
+    PickupMarker->SetRelativeLocation(PartsPickupLocation + FVector(0.0f, 0.0f, 150.0f));
+    PickupMarker->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+    PickupMarker->SetHorizontalAlignment(EHTA_Center);
+    PickupMarker->SetWorldSize(42.0f);
+    PickupMarker->SetText(FText::FromString(TEXT("PARTS DEPOT\nCOURIER PICKUP")));
+    PickupMarker->SetTextRenderColor(FColor(255, 205, 75));
+    PickupMarker->SetVisibility(false, true);
+
+    DeliveryMarker = CreateDefaultSubobject<UTextRenderComponent>(TEXT("DeliveryMarker"));
+    DeliveryMarker->SetupAttachment(SceneRoot);
+    DeliveryMarker->SetRelativeLocation(DeliveryLocation + FVector(0.0f, 0.0f, 150.0f));
+    DeliveryMarker->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+    DeliveryMarker->SetHorizontalAlignment(EHTA_Center);
+    DeliveryMarker->SetWorldSize(42.0f);
+    DeliveryMarker->SetText(FText::FromString(TEXT("NORTH WOOD YARD\nCOURIER DROP")));
+    DeliveryMarker->SetTextRenderColor(FColor(85, 220, 255));
+    DeliveryMarker->SetVisibility(false, true);
 }
 
 void AGTTRoadRunDirector::Tick(float DeltaSeconds)
@@ -123,6 +148,7 @@ bool AGTTRoadRunDirector::TryStartContract(APawn* PlayerPawn)
     NativeImpactBaseline = 0;
     NativeImpactCountDuringRun = 0;
     StatusMessageCooldown = 0.0f;
+    SetMarkerState(true, false);
     PushMessage(PlayerPawn, TEXT("PARTS COURIER: take the Rattleback 82 to the VILLAGE PARTS DEPOT, then run the sealed crate to NORTH WOOD YARD."), 7.0f);
     return true;
 }
@@ -167,6 +193,7 @@ void AGTTRoadRunDirector::BeginDelivery(APawn* PlayerPawn, APawn* ControlledVehi
     {
         NativeImpactBaseline = NativeRoad->GetNativeImpactCount();
     }
+    SetMarkerState(false, true);
     PushMessage(PlayerPawn, TEXT("PARTS LOADED: NORTH WOOD YARD is waiting. Fast + clean driving pays best; crashes and worn running gear damage the shipment."), 7.0f);
 }
 
@@ -233,6 +260,7 @@ void AGTTRoadRunDirector::CompleteContract(APawn* PlayerPawn)
     ParcelIntegrity = 1.0f;
     NativeImpactBaseline = 0;
     NativeImpactCountDuringRun = 0;
+    SetMarkerState(false, false);
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
 }
 
@@ -243,6 +271,7 @@ void AGTTRoadRunDirector::FailContract(APawn* PlayerPawn, const FString& Reason)
     ParcelIntegrity = 1.0f;
     NativeImpactBaseline = 0;
     NativeImpactCountDuringRun = 0;
+    SetMarkerState(false, false);
     PushMessage(PlayerPawn, FString::Printf(TEXT("PARTS COURIER FAILED: %s"), *Reason), 6.0f);
 }
 
@@ -262,4 +291,10 @@ FString AGTTRoadRunDirector::GetObjectiveText() const
 void AGTTRoadRunDirector::PushMessage(APawn* PlayerPawn, const FString& Message, float Duration) const
 {
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn)) Economy->PushMessage(Message, Duration);
+}
+
+void AGTTRoadRunDirector::SetMarkerState(bool bPickupVisible, bool bDeliveryVisible)
+{
+    if (PickupMarker) PickupMarker->SetVisibility(bPickupVisible, true);
+    if (DeliveryMarker) DeliveryMarker->SetVisibility(bDeliveryVisible, true);
 }
