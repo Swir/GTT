@@ -24,12 +24,12 @@ checks = {
     'economy charge proof': 'CashAfterWorkshop >= CashBeforeWorkshop' in cpp and 'WORKSHOP_TEST_RESERVE' in cpp,
     'repaired handling proof': all(x in cpp for x in ['RepairedRisk', 'RepairedThrottle', 'RepairedSteering', 'bMeasuredRecovery']),
     'workshop evidence': 'DEMO_SCENARIO_WORKSHOP_RECOVERY' in cpp and 'DEMO_SCENARIO_DAMAGE_RECOVERY result=PASS' in cpp,
-    'schema v10 retains recovery': 'gtt.demo-scenario.v10' in evaluator and 'required_step_count=30' in evaluator,
+    'latest schema retains recovery': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator,
     'evaluator persistence hard gate': 'damage_persistence_passed' in evaluator and 'spike damage did not survive the SaveProgress/LoadProgress round-trip' in evaluator,
     'evaluator workshop hard gate': 'workshop_recovery_passed' in evaluator and 'paid workshop did not restore persisted spike damage and handling' in evaluator,
-    'workflow 0.0.93': "default: '0.0.93'" in workflow and 'persistent structural damage evidence' in workflow,
-    '105 second packaged route': '-MinimumAliveSeconds 105 -LaunchTimeoutSeconds 120' in workflow and '-MinimumRuntimeSeconds 105' in workflow,
-    'workflow evaluator ordering': workflow.index('Evaluate persistent structural damage and workshop recovery scenario') < workflow.index('Evaluate packaged gameplay smoke'),
+    'workflow advanced': "default: '0.0.94'" in workflow and 'structural limp-home evidence' in workflow,
+    '125 second packaged route': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
+    'workflow evaluator ordering': workflow.index('Evaluate structural limp-home, persistence and workshop recovery scenario') < workflow.index('Evaluate packaged gameplay smoke'),
     'sanity wired': 'Verify spike damage persistence and workshop recovery' in san and 'verify_damage_persistence_recovery.py' in san,
     'origin docs retained': '0.0.92' in playtest and 'DAMAGE_PERSISTENCE' in playtest and 'WORKSHOP_RECOVERY' in playtest and '0.0.92' in changelog,
 }
@@ -46,10 +46,7 @@ remaining = total - done
 percent = round(done * 100.0 / total, 1)
 filled = round(done * 20.0 / total)
 bar = '█' * filled + '░' * (20 - filled)
-for token in (
-    f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {percent:.1f}%',
-    f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'
-):
+for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
 
