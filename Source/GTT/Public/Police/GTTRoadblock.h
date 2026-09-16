@@ -24,6 +24,8 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Police|Roadblock") float GetLastTireIntegrityBefore() const { return LastTireIntegrityBefore; }
     UFUNCTION(BlueprintPure, Category="GTT|Police|Roadblock") float GetLastTireIntegrityAfter() const { return LastTireIntegrityAfter; }
     UFUNCTION(BlueprintPure, Category="GTT|Police|Roadblock") bool HasProvenSpikeConsequence() const { return SpikeHitCount > 0 && LastTireIntegrityAfter < LastTireIntegrityBefore; }
+    UFUNCTION(BlueprintPure, Category="GTT|Police|Roadblock") FVector GetSpikeStripWorldLocation() const;
+    UFUNCTION(BlueprintPure, Category="GTT|Police|Roadblock") FVector GetSpikeApproachDirection() const;
 
 private:
     UFUNCTION()
