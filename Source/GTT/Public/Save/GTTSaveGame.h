@@ -39,7 +39,8 @@ class GTT_API UGTTSaveGame : public USaveGame
 
 public:
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 SaveVersion = 5;
-    // Migration compatibility: v3 vehicle tuning, v4 unified world state, v5 persistent Native structural damage.
+    // Migration compatibility: legacy vehicle-tuning snapshots used SaveVersion = 3;
+    // v4 introduced unified world state and v5 adds persistent Native structural damage.
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 Cash = 120;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 FishCount = 0;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float FishWeightKg = 0.0f;
