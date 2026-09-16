@@ -5,6 +5,7 @@
 #include "Save/GTTSaveGame.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "World/GTTGarageFleetSubsystem.h"
+#include "World/GTTLogisticsReputationSubsystem.h"
 #include "GTT.h"
 
 namespace
@@ -12,7 +13,8 @@ namespace
     constexpr int32 StructuralDamageSaveVersion = 5;
     constexpr int32 FleetDispatchSaveVersion = 6;
     constexpr int32 MissionLoadoutSaveVersion = 7;
-    constexpr int32 ExtendedSaveVersion = 7;
+    constexpr int32 LogisticsReputationSaveVersion = 8;
+    constexpr int32 ExtendedSaveVersion = 8;
 }
 
 bool AGTTStructuralGameMode::SaveProgress()
@@ -52,6 +54,10 @@ bool AGTTStructuralGameMode::SaveProgress()
             Save->PreferredRoadVehicleId = Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Road);
             Save->PreferredCargoVehicleId = Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Cargo);
         }
+        if (const UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>())
+        {
+            Logistics->CaptureToSave(Save);
+        }
 
         for (TActorIterator<AGTTRoadVehicleNativePawn> It(GetWorld()); It; ++It)
         {
@@ -77,9 +83,10 @@ bool AGTTStructuralGameMode::SaveProgress()
     const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
     if (bSaved)
     {
-        UE_LOG(LogGTT, Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d preferred=%s loadouts=T:%s R:%s C:%s"),
+        UE_LOG(LogGTT, Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d preferred=%s loadouts=T:%s R:%s C:%s logistics_rep=%d streak=%d"),
             Save->SaveVersion, Save->RoadStructuralDamage.Num(), *Save->PreferredGarageVehicleId.ToString(),
-            *Save->PreferredTractorVehicleId.ToString(), *Save->PreferredRoadVehicleId.ToString(), *Save->PreferredCargoVehicleId.ToString());
+            *Save->PreferredTractorVehicleId.ToString(), *Save->PreferredRoadVehicleId.ToString(), *Save->PreferredCargoVehicleId.ToString(),
+            Save->LogisticsReputation, Save->LogisticsCleanStreak);
     }
     else
     {
@@ -132,6 +139,10 @@ bool AGTTStructuralGameMode::LoadProgress()
                 Fleet->RestoreRoleLoadouts(NAME_None, NAME_None, NAME_None);
             }
         }
+        if (UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>())
+        {
+            Logistics->RestoreFromSave(Save->SaveVersion >= LogisticsReputationSaveVersion ? Save : nullptr);
+        }
     }
 
     int32 RestoredCount = 0;
@@ -166,12 +177,15 @@ bool AGTTStructuralGameMode::LoadProgress()
     }
 
     const UGTTGarageFleetSubsystem* Fleet = GetWorld() ? GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>() : nullptr;
+    const UGTTLogisticsReputationSubsystem* Logistics = GetWorld() ? GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>() : nullptr;
     UE_LOG(LogGTT, Log,
-        TEXT("STRUCTURAL_LOAD result=PASS version=%d records=%d restored=%d preferred=%s loadouts=T:%s R:%s C:%s"),
+        TEXT("STRUCTURAL_LOAD result=PASS version=%d records=%d restored=%d preferred=%s loadouts=T:%s R:%s C:%s logistics_rep=%d streak=%d"),
         Save->SaveVersion, Save->RoadStructuralDamage.Num(), RestoredCount,
         Fleet ? *Fleet->GetPreferredVehicleId().ToString() : TEXT("None"),
         Fleet ? *Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Tractor).ToString() : TEXT("None"),
         Fleet ? *Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Road).ToString() : TEXT("None"),
-        Fleet ? *Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Cargo).ToString() : TEXT("None"));
+        Fleet ? *Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Cargo).ToString() : TEXT("None"),
+        Logistics ? Logistics->GetReputation() : 0,
+        Logistics ? Logistics->GetCleanStreak() : 0);
     return true;
 }

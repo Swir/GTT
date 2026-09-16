@@ -16,9 +16,9 @@ changelog = (root / 'CHANGELOG.d/0.0.99.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
 checks = {
-    'save schema v7 retains v6 dispatch': 'SaveVersion = 7' in save_h and 'PreferredGarageVehicleId' in save_h,
+    'save schema v8 retains v6 dispatch': 'SaveVersion = 8' in save_h and 'PreferredGarageVehicleId' in save_h,
     'v5 structural threshold retained': 'StructuralDamageSaveVersion = 5' in struct_cpp and 'Save->SaveVersion >= StructuralDamageSaveVersion' in struct_cpp,
-    'v6 dispatch threshold retained': 'FleetDispatchSaveVersion = 6' in struct_cpp and 'ExtendedSaveVersion = 7' in struct_cpp,
+    'v6 dispatch threshold retained': 'FleetDispatchSaveVersion = 6' in struct_cpp and 'ExtendedSaveVersion = 8' in struct_cpp,
     'preferred dispatch saved': 'Save->PreferredGarageVehicleId = Fleet->GetPreferredVehicleId()' in struct_cpp,
     'preferred dispatch restored': 'RestorePreferredVehicleId' in struct_cpp and 'Save->PreferredGarageVehicleId' in struct_cpp,
     'old-save fallback supported': 'Save->SaveVersion >= FleetDispatchSaveVersion ? Save->PreferredGarageVehicleId : NAME_None' in struct_cpp,
@@ -36,7 +36,7 @@ checks = {
     'player-facing active dispatch UX': '[ACTIVE]' in slot_cpp and 'set ACTIVE' in slot_cpp and 'Dispatch slot' in slot_cpp,
     'farm job consumes fleet state': 'BuildJobDispatchHint(FName(TEXT("FarmCargo")))' in farm_cpp,
     'farm role reward retained': 'MuleboxRoleBonus' in farm_cpp and 'MULEBOX ROLE BONUS' in farm_cpp,
-    'structural regression verifier migrated': 'save schema retains structural v5 data under v7+' in struct_verify and 'StructuralDamageSaveVersion = 5' in struct_verify,
+    'structural regression verifier migrated': 'save schema retains structural v5 data under v8+' in struct_verify and 'StructuralDamageSaveVersion = 5' in struct_verify,
     'sanity wired': 'Verify persistent fleet dispatch and job fit' in sanity and 'verify_fleet_dispatch_selection.py' in sanity,
     'playtest documents runtime route': all(x in playtest for x in ['0.0.99', 'Save/load persistence and migration', 'Farm cargo job fit', 'Native Chaos authority']),
     'changelog documents milestone': all(x in changelog for x in ['0.0.99', 'Persistent Fleet Dispatch', 'save schema v6', '125/130']),
@@ -46,18 +46,13 @@ if failed:
     raise SystemExit('Fleet dispatch selection verification failed: ' + ', '.join(failed))
 
 required_style = [
-    '<!-- SWIR-ROADMAP-STANDARD:v1 -->',
-    '<!-- ROADMAP-PROGRESS:START -->',
-    'alt="CI"',
-    'alt="Roadmap progress"',
-    'alt="Completed"',
-    'alt="Status"',
-    '## 📊 Overall progress',
+    '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->',
+    'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
+    '## 📊 Overall progress', '<!-- ROADMAP-PROGRESS:END -->'
 ]
 for token in required_style:
     if token not in roadmap:
         raise SystemExit('SWIR roadmap style lock missing: ' + token)
-
 items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE)
 done = sum(v == 'x' for v in items)
 total = len(items)
@@ -67,18 +62,10 @@ remaining = total - done
 percent = round(done * 100.0 / total, 1)
 filled = round(done * 20.0 / total)
 bar = '█' * filled + '░' * (20 - filled)
-for token in (
-    f'ROADMAP-{percent:.1f}%25',
-    f'DONE-{done}%2F{total}',
-    'STATUS-IN%20PROGRESS',
-    f'{bar} {percent:.1f}%',
-    f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |',
-    '<!-- ROADMAP-PROGRESS:END -->',
-):
+for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', 'STATUS-IN%20PROGRESS', f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |', '<!-- ROADMAP-PROGRESS:END -->'):
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
-
 if (done, total, round(percent, 1)) != (125, 130, 96.2):
     raise SystemExit(f'0.0.99 must not claim Unreal/art roadmap gates: got {done}/{total} = {percent:.1f}%')
 
-print(f'[OK] GTT 0.0.99 persistent fleet dispatch + legal-job fit retained under save v7 ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
+print(f'[OK] GTT 0.0.99 persistent fleet dispatch + legal-job fit retained under save v8 ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')

@@ -21,7 +21,7 @@ changelog = (root / 'CHANGELOG.d/0.0.93.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
 checks = {
-    'save schema retains structural v5 data under v7+': 'SaveVersion = 7' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
+    'save schema retains structural v5 data under v8+': 'SaveVersion = 8' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
     'exact structural fields': all(x in save_h for x in ['FrontHealth', 'RearHealth', 'LeftHealth', 'RightHealth', 'CoolingStress', 'DetachedPanelMask']),
     'base save hooks virtual': 'virtual bool SaveProgress();' in gm_h and 'virtual bool LoadProgress();' in gm_h,
     'structural game mode overrides': 'AGTTStructuralGameMode' in struct_gm_h and 'SaveProgress() override' in struct_gm_h and 'LoadProgress() override' in struct_gm_h,
@@ -65,4 +65,4 @@ for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {pe
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
 
-print(f'[OK] Persistent Native structural damage + workshop recovery retained ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
+print(f'[OK] Persistent Native structural damage + workshop recovery retained under save v8 ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')

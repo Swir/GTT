@@ -74,6 +74,7 @@ jobs:
       - { name: Verify mission-aware fleet loadouts and job readiness, run: 'python Scripts/verify_mission_fleet_loadouts.py' }
       - { name: Verify contract board and fleet preparation economy, run: 'python Scripts/verify_contract_board_preparation.py' }
       - { name: Verify Rattleback road courier and traffic-risk economy, run: 'python Scripts/verify_road_run_contract.py' }
+      - { name: Verify living rural logistics and traffic reputation, run: 'python Scripts/verify_living_logistics_reputation.py' }
       - { name: Verify Native trailer authored-rig acceptance and hitch safety, run: 'python Scripts/verify_native_trailer_acceptance.py' }
       - { name: Verify authored trailer runtime takeover and wheel-contact dynamics, run: 'python Scripts/verify_authored_trailer_runtime.py' }
       - { name: Verify Native fleet rollover safety and emergency righting, run: 'python Scripts/verify_native_rollover_safety.py' }

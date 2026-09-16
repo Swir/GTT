@@ -21,28 +21,16 @@ playtest_lower = playtest.lower()
 changelog_lower = changelog.lower()
 
 checks = {
-    "readiness contract exposed": all(token in fleet_h for token in [
-        "EGTTFleetMissionReadiness", "FGTTFleetMissionAssessment", "AssessJobReadiness",
-        "IsJobFleetReady", "MissionReadinessLabel", "RecommendedRoleForJob"]),
-    "per-role loadout API exposed": all(token in fleet_h for token in [
-        "GetRoleLoadoutVehicleId", "SetRoleLoadoutVehicleId", "RestoreRoleLoadouts",
-        "PreferredTractorVehicleId", "PreferredRoadVehicleId", "PreferredCargoVehicleId"]),
-    "jobs map to deterministic roles": all(token in fleet_cpp for token in [
-        "FarmCargoJob", "HeavyHaulJob", "TimberHaulJob", "FieldMowingJob", "RoadRunJob",
-        "EGTTGarageFleetRole::Cargo", "EGTTGarageFleetRole::Tractor", "EGTTGarageFleetRole::Road"]),
-    "mission thresholds consider actual wear": all(token in fleet_cpp for token in [
-        "GetJobThresholds", "ConditionPercent", "FuelPercent", "TireIntegrity", "BodyHealth",
-        "ServiceRequired", "PrepEstimate"]),
-    "mission hint uses exact garage slot": all(token in fleet_cpp for token in [
-        "Assessment.AssignedSlot + 1", "prep~$%d", "MissionReadinessLabel"]),
+    "readiness contract exposed": all(token in fleet_h for token in ["EGTTFleetMissionReadiness", "FGTTFleetMissionAssessment", "AssessJobReadiness", "IsJobFleetReady", "MissionReadinessLabel", "RecommendedRoleForJob"]),
+    "per-role loadout API exposed": all(token in fleet_h for token in ["GetRoleLoadoutVehicleId", "SetRoleLoadoutVehicleId", "RestoreRoleLoadouts", "PreferredTractorVehicleId", "PreferredRoadVehicleId", "PreferredCargoVehicleId"]),
+    "jobs map to deterministic roles": all(token in fleet_cpp for token in ["FarmCargoJob", "HeavyHaulJob", "TimberHaulJob", "FieldMowingJob", "RoadRunJob", "EGTTGarageFleetRole::Cargo", "EGTTGarageFleetRole::Tractor", "EGTTGarageFleetRole::Road"]),
+    "mission thresholds consider actual wear": all(token in fleet_cpp for token in ["GetJobThresholds", "ConditionPercent", "FuelPercent", "TireIntegrity", "BodyHealth", "ServiceRequired", "PrepEstimate"]),
+    "mission hint uses exact garage slot": all(token in fleet_cpp for token in ["Assessment.AssignedSlot + 1", "prep~$%d", "MissionReadinessLabel"]),
     "dispatch commits role loadout": "SetRoleLoadoutVehicleId(ClassifyVehicleRole(VehicleId), VehicleId)" in fleet_cpp,
     "garage surfaces role loadout": "[LOADOUT]" in slot_cpp and "mission loadout" in slot_cpp and "LOADOUTS T:%s R:%s C:%s" in fleet_cpp,
-    "save schema v7": "SaveVersion = 7" in save_h and "v7 adds per-role mission loadouts" in save_h,
-    "save stores three role ids": all(token in save_h for token in [
-        "PreferredTractorVehicleId", "PreferredRoadVehicleId", "PreferredCargoVehicleId"]),
-    "structural save writes role ids": all(token in struct_cpp for token in [
-        "MissionLoadoutSaveVersion = 7", "ExtendedSaveVersion = 7",
-        "Save->PreferredTractorVehicleId", "Save->PreferredRoadVehicleId", "Save->PreferredCargoVehicleId"]),
+    "save schema v8 retains v7 loadouts": "SaveVersion = 8" in save_h and "v7 adds per-role mission loadouts" in save_h,
+    "save stores three role ids": all(token in save_h for token in ["PreferredTractorVehicleId", "PreferredRoadVehicleId", "PreferredCargoVehicleId"]),
+    "structural save writes role ids": all(token in struct_cpp for token in ["MissionLoadoutSaveVersion = 7", "ExtendedSaveVersion = 8", "Save->PreferredTractorVehicleId", "Save->PreferredRoadVehicleId", "Save->PreferredCargoVehicleId"]),
     "structural load migrates pre-v7": "Save->SaveVersion >= MissionLoadoutSaveVersion" in struct_cpp and "RestoreRoleLoadouts(NAME_None, NAME_None, NAME_None)" in struct_cpp,
     "v5 and v6 compatibility thresholds retained": "StructuralDamageSaveVersion = 5" in struct_cpp and "FleetDispatchSaveVersion = 6" in struct_cpp,
     "farm cargo consumes readiness": "AssessJobReadiness(FName(TEXT(\"FarmCargo\")))" in farm_cpp and "CARGO LOADOUT NEEDS SERVICE" in farm_cpp,
@@ -52,25 +40,18 @@ checks = {
     "crime locks remain in mission loops": "GetWantedLevel() > 0" in farm_cpp and "GetWildlifeAlertLevel() > 0" in farm_cpp and "CanTakeContract" in heavy_cpp and "CanTakeLegalWork" in rural_cpp,
     "existing role rewards retained": "MuleboxRoleBonus" in farm_cpp and "MULEBOX ROLE BONUS" in farm_cpp,
     "sanity wired": "Verify mission-aware fleet loadouts and job readiness" in sanity and "verify_mission_fleet_loadouts.py" in sanity,
-    "playtest covers runtime route": all(token in playtest_lower for token in [
-        "0.1.0", "role loadouts", "heavy haul", "mowing", "save/load", "win64"]),
-    "changelog documents milestone": all(token in changelog_lower for token in [
-        "0.1.0", "mission-aware fleet", "save schema v7", "125/130"]),
+    "playtest covers runtime route": all(token in playtest_lower for token in ["0.1.0", "role loadouts", "heavy haul", "mowing", "save/load", "win64"]),
+    "changelog documents milestone": all(token in changelog_lower for token in ["0.1.0", "mission-aware fleet", "save schema v7", "125/130"]),
 }
 
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit("Mission-aware fleet loadout verification failed: " + ", ".join(failed))
 
-required_style = [
-    '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->',
-    'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
-    '## 📊 Overall progress', '<!-- ROADMAP-PROGRESS:END -->'
-]
+required_style = ['<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->', 'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"', '## 📊 Overall progress', '<!-- ROADMAP-PROGRESS:END -->']
 for token in required_style:
     if token not in roadmap:
         raise SystemExit("SWIR roadmap style lock missing: " + token)
-
 items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE)
 done = sum(v == 'x' for v in items)
 total = len(items)
@@ -80,12 +61,10 @@ remaining = total - done
 percent = round(done * 100.0 / total, 1)
 filled = round(done * 20.0 / total)
 bar = '█' * filled + '░' * (20 - filled)
-for token in (
-    f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', 'STATUS-IN%20PROGRESS',
-    f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
+for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', 'STATUS-IN%20PROGRESS', f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
     if token not in roadmap:
         raise SystemExit("Roadmap dashboard drift: missing " + token)
 if (done, total, percent) != (125, 130, 96.2):
     raise SystemExit(f"0.1.0 source milestone must not claim build/art gates: {done}/{total} = {percent:.1f}%")
 
-print(f"[OK] GTT 0.1.0 mission-aware fleet loadouts, readiness gates and save v7 verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.")
+print(f"[OK] GTT 0.1.0 mission-aware fleet loadouts retained under save v8 ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.")

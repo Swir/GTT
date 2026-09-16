@@ -17,6 +17,7 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTContractBoardTerminal.h"
+#include "World/GTTLogisticsReputationSubsystem.h"
 
 namespace
 {
@@ -92,7 +93,7 @@ int32 UGTTContractBoardSubsystem::ContractBaseReward(FName JobTag)
     if (JobTag == HeavyHaulJob) return 900;
     if (JobTag == TimberHaulJob) return 340;
     if (JobTag == FieldMowingJob) return 390;
-    if (JobTag == RoadRunJob) return 260;
+    if (JobTag == RoadRunJob) return 310;
     return 0;
 }
 
@@ -102,7 +103,7 @@ int32 UGTTContractBoardSubsystem::ContractMaximumReward(FName JobTag)
     if (JobTag == HeavyHaulJob) return 1150;
     if (JobTag == TimberHaulJob) return 450;
     if (JobTag == FieldMowingJob) return 470;
-    if (JobTag == RoadRunJob) return 390; // base + fast + clean-run bonus
+    if (JobTag == RoadRunJob) return 460; // base + fast + clean-run bonus before reputation/shift multiplier
     return 0;
 }
 
@@ -136,6 +137,29 @@ FGTTContractBoardOffer UGTTContractBoardSubsystem::BuildOffer(FName JobTag) cons
     Offer.MaximumReward = ContractMaximumReward(JobTag);
     Offer.MaximumNetReward = Offer.MaximumReward;
 
+    if (JobTag == RoadRunJob)
+    {
+        const UGTTLogisticsReputationSubsystem* Logistics = GetWorld() ? GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>() : nullptr;
+        if (Logistics)
+        {
+            Offer.bScheduleOpen = Logistics->IsRoadCourierWindowOpen();
+            Offer.ScheduleStatus = Logistics->GetRoadCourierScheduleLabel();
+            Offer.LogisticsReputation = Logistics->GetReputation();
+            Offer.LogisticsTier = Logistics->GetTierLabel();
+            const float RewardMultiplier = Logistics->GetRoadCourierRewardMultiplier();
+            Offer.PayoutBonusPercent = FMath::RoundToInt((RewardMultiplier - 1.0f) * 100.0f);
+            Offer.BaseReward = FMath::RoundToInt(static_cast<float>(Offer.BaseReward) * RewardMultiplier);
+            Offer.MaximumReward = FMath::RoundToInt(static_cast<float>(Offer.MaximumReward) * RewardMultiplier);
+            Offer.MaximumNetReward = Offer.MaximumReward;
+        }
+        else
+        {
+            Offer.bScheduleOpen = false;
+            Offer.ScheduleStatus = TEXT("LOGISTICS OFFLINE");
+            Offer.LogisticsTier = TEXT("NEWCOMER");
+        }
+    }
+
     const UGTTGarageFleetSubsystem* Fleet = GetWorld() ? GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>() : nullptr;
     if (!Fleet || Offer.RequiredRole == EGTTGarageFleetRole::Utility)
     {
@@ -155,8 +179,9 @@ FGTTContractBoardOffer UGTTContractBoardSubsystem::BuildOffer(FName JobTag) cons
 
     Offer.PreparationEstimate = Offer.ServiceEstimate + Offer.DispatchEstimate;
     Offer.MaximumNetReward = FMath::Max(0, Offer.MaximumReward - Offer.PreparationEstimate);
-    Offer.bCanAcceptNow = Offer.Fleet.Readiness == EGTTFleetMissionReadiness::Ready && Offer.DispatchEstimate == 0;
-    Offer.bNeedsPreparation = !Offer.bCanAcceptNow && Offer.Fleet.Readiness != EGTTFleetMissionReadiness::Unavailable;
+    const bool bFleetReady = Offer.Fleet.Readiness == EGTTFleetMissionReadiness::Ready && Offer.DispatchEstimate == 0;
+    Offer.bCanAcceptNow = bFleetReady && Offer.bScheduleOpen;
+    Offer.bNeedsPreparation = !bFleetReady && Offer.Fleet.Readiness != EGTTFleetMissionReadiness::Unavailable;
     return Offer;
 }
 
@@ -426,6 +451,11 @@ bool UGTTContractBoardSubsystem::TryAcceptContract(APawn* PlayerPawn, FName JobT
     }
 
     const FGTTContractBoardOffer Offer = BuildOffer(JobTag);
+    if (JobTag == RoadRunJob && !Offer.bScheduleOpen)
+    {
+        OutSummary = FString::Printf(TEXT("%s is closed now (%s). Vehicle preparation remains available before the next shift."), *Offer.Title, *Offer.ScheduleStatus);
+        return false;
+    }
     if (!Offer.bCanAcceptNow)
     {
         OutSummary = FString::Printf(TEXT("%s is not ready: %s Use PREP first (estimate $%d)."),

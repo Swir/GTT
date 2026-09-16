@@ -38,10 +38,11 @@ class GTT_API UGTTSaveGame : public USaveGame
     GENERATED_BODY()
 
 public:
-    UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 SaveVersion = 7;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 SaveVersion = 8;
     // Migration compatibility: legacy vehicle-tuning snapshots used SaveVersion = 3;
     // v4 introduced unified world state, v5 added persistent Native structural damage,
-    // v6 persists the active garage dispatch vehicle, and v7 adds per-role mission loadouts.
+    // v6 persists the active garage dispatch vehicle, v7 adds per-role mission loadouts,
+    // and v8 persists rural logistics reputation/history.
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 Cash = 120;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 FishCount = 0;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float FishWeightKg = 0.0f;
@@ -55,6 +56,12 @@ public:
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Garage|Loadout") FName PreferredTractorVehicleId = NAME_None;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Garage|Loadout") FName PreferredRoadVehicleId = NAME_None;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Garage|Loadout") FName PreferredCargoVehicleId = NAME_None;
+
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics") int32 LogisticsReputation = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics") int32 LogisticsCleanStreak = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics") int32 LogisticsCompletedRuns = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics") int32 LogisticsFailedRuns = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics") int32 LogisticsLifetimeRevenue = 0;
 
     // Save v4+: primary sandbox snapshot. Dedicated pre-v4 slots remain compatibility mirrors.
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Unified") bool bUnifiedWorldStateInitialized = false;

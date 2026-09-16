@@ -10,6 +10,7 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTGarageFleetSubsystem.h"
+#include "World/GTTLogisticsReputationSubsystem.h"
 
 namespace
 {
@@ -33,6 +34,16 @@ AGTTRoadRunDirector::AGTTRoadRunDirector()
     PickupMarker->SetText(FText::FromString(TEXT("PARTS DEPOT\nCOURIER PICKUP")));
     PickupMarker->SetTextRenderColor(FColor(255, 205, 75));
     PickupMarker->SetVisibility(false, true);
+
+    RelayMarker = CreateDefaultSubobject<UTextRenderComponent>(TEXT("RelayMarker"));
+    RelayMarker->SetupAttachment(SceneRoot);
+    RelayMarker->SetRelativeLocation(HillFarmRelayLocation + FVector(0.0f, 0.0f, 150.0f));
+    RelayMarker->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+    RelayMarker->SetHorizontalAlignment(EHTA_Center);
+    RelayMarker->SetWorldSize(42.0f);
+    RelayMarker->SetText(FText::FromString(TEXT("HILL FARM\nCOURIER RELAY")));
+    RelayMarker->SetTextRenderColor(FColor(135, 235, 130));
+    RelayMarker->SetVisibility(false, true);
 
     DeliveryMarker = CreateDefaultSubobject<UTextRenderComponent>(TEXT("DeliveryMarker"));
     DeliveryMarker->SetupAttachment(SceneRoot);
@@ -65,7 +76,7 @@ void AGTTRoadRunDirector::Tick(float DeltaSeconds)
         return;
     }
 
-    if (Stage != EGTTRoadRunStage::DeliverParts) return;
+    if (Stage != EGTTRoadRunStage::RelayHillFarm && Stage != EGTTRoadRunStage::DeliverParts) return;
 
     TimeRemaining = FMath::Max(0.0f, TimeRemaining - DeltaSeconds);
     if (TimeRemaining <= 0.0f)
@@ -74,31 +85,51 @@ void AGTTRoadRunDirector::Tick(float DeltaSeconds)
         return;
     }
 
-    if (bDrivingRattleback && ControlledVehicle)
+    int32 WantedLevel = 0;
+    if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn))
     {
-        UpdateDeliveryRisk(DeltaSeconds, PlayerPawn, ControlledVehicle);
-        if (ParcelIntegrity <= 0.02f)
+        WantedLevel = Wanted->GetWantedLevel();
+        if (WantedLevel > 0) bPoliceIncidentDuringRun = true;
+    }
+
+    if (!bDrivingRattleback || !ControlledVehicle) return;
+
+    UpdateDeliveryRisk(DeltaSeconds, PlayerPawn, ControlledVehicle);
+    if (ParcelIntegrity <= 0.02f)
+    {
+        FailContract(PlayerPawn, TEXT("The parts shipment was destroyed by rough driving."), true);
+        return;
+    }
+
+    if (Stage == EGTTRoadRunStage::RelayHillFarm &&
+        FVector::DistSquared2D(ControlledVehicle->GetActorLocation(), HillFarmRelayLocation) <= FMath::Square(CheckpointRadius))
+    {
+        if (WantedLevel > 0)
         {
-            FailContract(PlayerPawn, TEXT("The parts shipment was destroyed by rough driving."));
+            if (StatusMessageCooldown <= 0.0f)
+            {
+                PushMessage(PlayerPawn, TEXT("COURIER RELAY BLOCKED: Hill Farm will not sign while police are on you."), 4.5f);
+                StatusMessageCooldown = 4.0f;
+            }
             return;
         }
+        CompleteRelay(PlayerPawn);
+        return;
+    }
 
-        if (FVector::DistSquared2D(ControlledVehicle->GetActorLocation(), DeliveryLocation) <= FMath::Square(CheckpointRadius))
+    if (Stage == EGTTRoadRunStage::DeliverParts &&
+        FVector::DistSquared2D(ControlledVehicle->GetActorLocation(), DeliveryLocation) <= FMath::Square(CheckpointRadius))
+    {
+        if (WantedLevel > 0)
         {
-            if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn))
+            if (StatusMessageCooldown <= 0.0f)
             {
-                if (Wanted->GetWantedLevel() > 0)
-                {
-                    if (StatusMessageCooldown <= 0.0f)
-                    {
-                        PushMessage(PlayerPawn, TEXT("COURIER HANDOFF BLOCKED: lose the police before entering the North Wood Yard."), 4.5f);
-                        StatusMessageCooldown = 4.0f;
-                    }
-                    return;
-                }
+                PushMessage(PlayerPawn, TEXT("COURIER HANDOFF BLOCKED: lose the police before entering the North Wood Yard."), 4.5f);
+                StatusMessageCooldown = 4.0f;
             }
-            CompleteContract(PlayerPawn);
+            return;
         }
+        CompleteContract(PlayerPawn);
     }
 }
 
@@ -121,6 +152,13 @@ bool AGTTRoadRunDirector::TryStartContract(APawn* PlayerPawn)
             PushMessage(PlayerPawn, TEXT("Clear the game-warden alert before taking legal courier work."));
             return false;
         }
+    }
+
+    UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>();
+    if (!Logistics || !Logistics->IsRoadCourierWindowOpen())
+    {
+        PushMessage(PlayerPawn, TEXT("PARTS DEPOT CLOSED: courier dispatch runs 06:00-21:30."), 5.5f);
+        return false;
     }
 
     const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>();
@@ -148,8 +186,12 @@ bool AGTTRoadRunDirector::TryStartContract(APawn* PlayerPawn)
     NativeImpactBaseline = 0;
     NativeImpactCountDuringRun = 0;
     StatusMessageCooldown = 0.0f;
-    SetMarkerState(true, false);
-    PushMessage(PlayerPawn, TEXT("PARTS COURIER: take the Rattleback 82 to the VILLAGE PARTS DEPOT, then run the sealed crate to NORTH WOOD YARD."), 7.0f);
+    bPoliceIncidentDuringRun = false;
+    RewardMultiplierAtStart = Logistics->GetRoadCourierRewardMultiplier();
+    SetMarkerState(true, false, false);
+    PushMessage(PlayerPawn, FString::Printf(
+        TEXT("PARTS COURIER: Rattleback -> PARTS DEPOT -> HILL FARM -> NORTH WOOD YARD. %s | REP %s %d | payout x%.2f."),
+        *Logistics->GetRoadCourierScheduleLabel(), *Logistics->GetTierLabel(), Logistics->GetReputation(), RewardMultiplierAtStart), 8.0f);
     return true;
 }
 
@@ -184,7 +226,7 @@ bool AGTTRoadRunDirector::IsRattlebackControlled(APawn*& OutControlledVehicle) c
 
 void AGTTRoadRunDirector::BeginDelivery(APawn* PlayerPawn, APawn* ControlledVehicle)
 {
-    Stage = EGTTRoadRunStage::DeliverParts;
+    Stage = EGTTRoadRunStage::RelayHillFarm;
     TimeRemaining = DeliveryTimeLimit;
     ParcelIntegrity = 1.0f;
     NativeImpactCountDuringRun = 0;
@@ -193,8 +235,16 @@ void AGTTRoadRunDirector::BeginDelivery(APawn* PlayerPawn, APawn* ControlledVehi
     {
         NativeImpactBaseline = NativeRoad->GetNativeImpactCount();
     }
-    SetMarkerState(false, true);
-    PushMessage(PlayerPawn, TEXT("PARTS LOADED: NORTH WOOD YARD is waiting. Fast + clean driving pays best; crashes and worn running gear damage the shipment."), 7.0f);
+    SetMarkerState(false, true, false);
+    PushMessage(PlayerPawn, TEXT("PARTS LOADED: first signature is at HILL FARM. The clock and shipment integrity now run continuously through both delivery legs."), 7.0f);
+}
+
+void AGTTRoadRunDirector::CompleteRelay(APawn* PlayerPawn)
+{
+    if (Stage != EGTTRoadRunStage::RelayHillFarm) return;
+    Stage = EGTTRoadRunStage::DeliverParts;
+    SetMarkerState(false, false, true);
+    PushMessage(PlayerPawn, FString::Printf(TEXT("HILL FARM SIGNED: %.0f%% shipment intact. Final handoff: NORTH WOOD YARD. %.0fs remain."), ParcelIntegrity * 100.0f, TimeRemaining), 6.5f);
 }
 
 void AGTTRoadRunDirector::UpdateDeliveryRisk(float DeltaSeconds, APawn* PlayerPawn, APawn* ControlledVehicle)
@@ -240,19 +290,33 @@ void AGTTRoadRunDirector::CompleteContract(APawn* PlayerPawn)
     if (!PlayerPawn || Stage != EGTTRoadRunStage::DeliverParts) return;
 
     const float TimeRatio = DeliveryTimeLimit > 0.0f ? TimeRemaining / DeliveryTimeLimit : 0.0f;
-    const int32 DamagePenalty = FMath::RoundToInt((1.0f - FMath::Clamp(ParcelIntegrity, 0.0f, 1.0f)) * 140.0f);
-    const int32 FastBonus = TimeRatio >= 0.42f ? FastDeliveryBonus : 0;
-    const int32 CleanBonus = ParcelIntegrity >= 0.97f && NativeImpactCountDuringRun == 0 ? CleanRunBonus : 0;
-    const int32 TotalReward = FMath::Max(60, BaseReward - DamagePenalty + FastBonus + CleanBonus);
+    const int32 DamagePenalty = FMath::RoundToInt((1.0f - FMath::Clamp(ParcelIntegrity, 0.0f, 1.0f)) * 160.0f);
+    const int32 FastBonus = TimeRatio >= 0.38f ? FastDeliveryBonus : 0;
+    const int32 CleanBonus = ParcelIntegrity >= 0.97f && NativeImpactCountDuringRun == 0 && !bPoliceIncidentDuringRun ? CleanRunBonus : 0;
+    const int32 RawReward = FMath::Max(70, BaseReward - DamagePenalty + FastBonus + CleanBonus);
+    const int32 TotalReward = FMath::Max(70, FMath::RoundToInt(static_cast<float>(RawReward) * FMath::Max(1.0f, RewardMultiplierAtStart)));
 
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
     {
-        Economy->AddCash(TotalReward, FString::Printf(TEXT("Village parts courier: +$%d"), TotalReward));
+        Economy->AddCash(TotalReward, FString::Printf(TEXT("Village logistics courier: +$%d"), TotalReward));
+    }
+
+    UGTTLogisticsReputationSubsystem* Logistics = GetWorld() ? GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>() : nullptr;
+    if (Logistics)
+    {
+        Logistics->RecordCourierSuccess(TotalReward, ParcelIntegrity, FastBonus > 0, bPoliceIncidentDuringRun, NativeImpactCountDuringRun);
+    }
+
+    if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
+    {
         Economy->PushMessage(FString::Printf(
-            TEXT("COURIER COMPLETE: $%d | shipment %.0f%% | %.0fs left%s%s"),
+            TEXT("COURIER COMPLETE: $%d | shipment %.0f%% | %.0fs left | REP %s %d | streak %d%s%s%s"),
             TotalReward, ParcelIntegrity * 100.0f, TimeRemaining,
-            FastBonus > 0 ? TEXT(" | FAST BONUS") : TEXT(""),
-            CleanBonus > 0 ? TEXT(" | CLEAN RUN") : TEXT("")), 7.0f);
+            Logistics ? *Logistics->GetTierLabel() : TEXT("NEWCOMER"), Logistics ? Logistics->GetReputation() : 0,
+            Logistics ? Logistics->GetCleanStreak() : 0,
+            FastBonus > 0 ? TEXT(" | FAST") : TEXT(""),
+            CleanBonus > 0 ? TEXT(" | CLEAN") : TEXT(""),
+            bPoliceIncidentDuringRun ? TEXT(" | POLICE INCIDENT") : TEXT("")), 8.0f);
     }
 
     Stage = EGTTRoadRunStage::Idle;
@@ -260,19 +324,32 @@ void AGTTRoadRunDirector::CompleteContract(APawn* PlayerPawn)
     ParcelIntegrity = 1.0f;
     NativeImpactBaseline = 0;
     NativeImpactCountDuringRun = 0;
-    SetMarkerState(false, false);
+    bPoliceIncidentDuringRun = false;
+    RewardMultiplierAtStart = 1.0f;
+    SetMarkerState(false, false, false);
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
 }
 
-void AGTTRoadRunDirector::FailContract(APawn* PlayerPawn, const FString& Reason)
+void AGTTRoadRunDirector::FailContract(APawn* PlayerPawn, const FString& Reason, bool bSevereFailure)
 {
+    if (GetWorld())
+    {
+        if (UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>())
+        {
+            Logistics->RecordCourierFailure(bSevereFailure);
+        }
+    }
+
     Stage = EGTTRoadRunStage::Idle;
     TimeRemaining = 0.0f;
     ParcelIntegrity = 1.0f;
     NativeImpactBaseline = 0;
     NativeImpactCountDuringRun = 0;
-    SetMarkerState(false, false);
-    PushMessage(PlayerPawn, FString::Printf(TEXT("PARTS COURIER FAILED: %s"), *Reason), 6.0f);
+    bPoliceIncidentDuringRun = false;
+    RewardMultiplierAtStart = 1.0f;
+    SetMarkerState(false, false, false);
+    PushMessage(PlayerPawn, FString::Printf(TEXT("PARTS COURIER FAILED: %s Reputation/streak consequence saved."), *Reason), 6.5f);
+    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
 }
 
 FString AGTTRoadRunDirector::GetObjectiveText() const
@@ -281,6 +358,8 @@ FString AGTTRoadRunDirector::GetObjectiveText() const
     {
         case EGTTRoadRunStage::CollectParts:
             return TEXT("PARTS COURIER | Rattleback -> VILLAGE PARTS DEPOT");
+        case EGTTRoadRunStage::RelayHillFarm:
+            return FString::Printf(TEXT("PARTS COURIER | HILL FARM RELAY | %.0fs | shipment %.0f%%"), TimeRemaining, ParcelIntegrity * 100.0f);
         case EGTTRoadRunStage::DeliverParts:
             return FString::Printf(TEXT("PARTS COURIER | NORTH WOOD YARD | %.0fs | shipment %.0f%%"), TimeRemaining, ParcelIntegrity * 100.0f);
         default:
@@ -293,8 +372,9 @@ void AGTTRoadRunDirector::PushMessage(APawn* PlayerPawn, const FString& Message,
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn)) Economy->PushMessage(Message, Duration);
 }
 
-void AGTTRoadRunDirector::SetMarkerState(bool bPickupVisible, bool bDeliveryVisible)
+void AGTTRoadRunDirector::SetMarkerState(bool bPickupVisible, bool bRelayVisible, bool bDeliveryVisible)
 {
     if (PickupMarker) PickupMarker->SetVisibility(bPickupVisible, true);
+    if (RelayMarker) RelayMarker->SetVisibility(bRelayVisible, true);
     if (DeliveryMarker) DeliveryMarker->SetVisibility(bDeliveryVisible, true);
 }

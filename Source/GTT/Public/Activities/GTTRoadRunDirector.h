@@ -12,6 +12,7 @@ enum class EGTTRoadRunStage : uint8
 {
     Idle,
     CollectParts,
+    RelayHillFarm,
     DeliverParts
 };
 
@@ -46,17 +47,21 @@ private:
     APawn* ResolvePlayerPawn() const;
     bool IsRattlebackControlled(APawn*& OutControlledVehicle) const;
     void BeginDelivery(APawn* PlayerPawn, APawn* ControlledVehicle);
+    void CompleteRelay(APawn* PlayerPawn);
     void UpdateDeliveryRisk(float DeltaSeconds, APawn* PlayerPawn, APawn* ControlledVehicle);
     void CompleteContract(APawn* PlayerPawn);
-    void FailContract(APawn* PlayerPawn, const FString& Reason);
+    void FailContract(APawn* PlayerPawn, const FString& Reason, bool bSevereFailure = false);
     void PushMessage(APawn* PlayerPawn, const FString& Message, float Duration = 5.0f) const;
-    void SetMarkerState(bool bPickupVisible, bool bDeliveryVisible);
+    void SetMarkerState(bool bPickupVisible, bool bRelayVisible, bool bDeliveryVisible);
 
     UPROPERTY(VisibleAnywhere, Category="GTT|RoadRun")
     TObjectPtr<USceneComponent> SceneRoot;
 
     UPROPERTY(VisibleAnywhere, Category="GTT|RoadRun")
     TObjectPtr<UTextRenderComponent> PickupMarker;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|RoadRun")
+    TObjectPtr<UTextRenderComponent> RelayMarker;
 
     UPROPERTY(VisibleAnywhere, Category="GTT|RoadRun")
     TObjectPtr<UTextRenderComponent> DeliveryMarker;
@@ -67,15 +72,20 @@ private:
     int32 NativeImpactBaseline = 0;
     int32 NativeImpactCountDuringRun = 0;
     float StatusMessageCooldown = 0.0f;
+    bool bPoliceIncidentDuringRun = false;
+    float RewardMultiplierAtStart = 1.0f;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun")
     FVector PartsPickupLocation = FVector(-1250.0f, -470.0f, 80.0f);
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun")
+    FVector HillFarmRelayLocation = FVector(5200.0f, 2550.0f, 80.0f);
+
+    UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun")
     FVector DeliveryLocation = FVector(7850.0f, 450.0f, 80.0f);
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun", meta=(ClampMin="30.0"))
-    float DeliveryTimeLimit = 155.0f;
+    float DeliveryTimeLimit = 185.0f;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun", meta=(ClampMin="100.0"))
     float CheckpointRadius = 520.0f;
@@ -84,11 +94,11 @@ private:
     float SafeCruiseSpeedKmh = 78.0f;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun", meta=(ClampMin="0"))
-    int32 BaseReward = 260;
+    int32 BaseReward = 310;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun", meta=(ClampMin="0"))
-    int32 FastDeliveryBonus = 90;
+    int32 FastDeliveryBonus = 100;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun", meta=(ClampMin="0"))
-    int32 CleanRunBonus = 40;
+    int32 CleanRunBonus = 50;
 };
