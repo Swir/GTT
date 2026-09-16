@@ -74,11 +74,11 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
 
     if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
     {
-        Economy->PushMessage(Fleet->BuildFleetSummary(FleetSlotCount) + TEXT("\nUse the numbered bay terminal to recall a vehicle; recall never repairs damage."), 8.0f);
+        Economy->PushMessage(Fleet->BuildFleetSummary(FleetSlotCount) + TEXT("\nUse a numbered bay to dispatch a vehicle. Dispatch sets it ACTIVE and never repairs damage."), 8.0f);
         return;
     }
 
-    Economy->PushMessage(TEXT("No vehicle at registration desk. Use GARAGE SLOT 1-4 selectors to recall a specific owned vehicle."), 5.0f);
+    Economy->PushMessage(TEXT("No vehicle at registration desk. Use GARAGE SLOT 1-4 selectors to dispatch a specific owned vehicle."), 5.0f);
 }
 
 FText AGTTGarageTerminal::GetInteractionText_Implementation() const
