@@ -17,6 +17,8 @@ sanity = read(".github/workflows/project-sanity.yml")
 playtest = read("Docs/PLAYTEST_0.1.0.md")
 changelog = read("CHANGELOG.d/0.1.0.md")
 roadmap = read("Docs/ROADMAP.md")
+playtest_lower = playtest.lower()
+changelog_lower = changelog.lower()
 
 checks = {
     "readiness contract exposed": all(token in fleet_h for token in [
@@ -50,10 +52,10 @@ checks = {
     "crime locks remain in mission loops": "GetWantedLevel() > 0" in farm_cpp and "GetWildlifeAlertLevel() > 0" in farm_cpp and "CanTakeContract" in heavy_cpp and "CanTakeLegalWork" in rural_cpp,
     "existing role rewards retained": "MuleboxRoleBonus" in farm_cpp and "MULEBOX ROLE BONUS" in farm_cpp,
     "sanity wired": "Verify mission-aware fleet loadouts and job readiness" in sanity and "verify_mission_fleet_loadouts.py" in sanity,
-    "playtest covers runtime route": all(token in playtest for token in [
-        "0.1.0", "role loadouts", "Heavy haul", "Mowing", "Save/load", "Win64"]),
-    "changelog documents milestone": all(token in changelog for token in [
-        "0.1.0", "Mission-Aware Fleet", "save schema v7", "125/130"]),
+    "playtest covers runtime route": all(token in playtest_lower for token in [
+        "0.1.0", "role loadouts", "heavy haul", "mowing", "save/load", "win64"]),
+    "changelog documents milestone": all(token in changelog_lower for token in [
+        "0.1.0", "mission-aware fleet", "save schema v7", "125/130"]),
 }
 
 failed = [name for name, ok in checks.items() if not ok]
