@@ -19,8 +19,9 @@ struct FGTTVehicleMigrationSnapshot
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GTT|Vehicle|Migration")
-    float ConditionPercent = 100.0f;
+    // Canonical vehicle-health ratio, matching AGTTVehicleBase::GetConditionPercent(): 0.0 = broken, 1.0 = healthy.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GTT|Vehicle|Migration", meta=(ClampMin="0.0", ClampMax="1.0"))
+    float ConditionPercent = 1.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GTT|Vehicle|Migration")
     float FuelLiters = 0.0f;

@@ -83,7 +83,7 @@ AGTTFieldmasterNativePawn* AGTTHeavyHaulDirector::FindEligibleNativeTowVehicle(c
     {
         AGTTFieldmasterNativePawn* Candidate = *It;
         if (!Candidate || !Candidate->IsNativeFieldmasterReady() || !Candidate->IsLegacyTakeoverActive() || !Candidate->IsOwnedByPlayer()) continue;
-        if (Candidate->GetMigrationSnapshot().ConditionPercent < 40.0f) continue;
+        if (Candidate->GetMigrationSnapshot().ConditionPercent < 0.40f) continue;
         const float DistSq = FVector::DistSquared2D(Candidate->GetActorLocation(), Origin);
         if (DistSq < BestDistSq) { BestDistSq = DistSq; Best = Candidate; }
     }
@@ -92,7 +92,7 @@ AGTTFieldmasterNativePawn* AGTTHeavyHaulDirector::FindEligibleNativeTowVehicle(c
 
 float AGTTHeavyHaulDirector::GetContractTowConditionFactor() const
 {
-    if (ContractNativeTowVehicle) return FMath::Clamp(ContractNativeTowVehicle->GetMigrationSnapshot().ConditionPercent / 100.0f, 0.40f, 1.0f);
+    if (ContractNativeTowVehicle) return FMath::Clamp(ContractNativeTowVehicle->GetMigrationSnapshot().ConditionPercent, 0.40f, 1.0f);
     if (ContractTowVehicle) return FMath::Clamp(ContractTowVehicle->GetConditionPercent(), 0.40f, 1.0f);
     return 0.40f;
 }

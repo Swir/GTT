@@ -42,6 +42,7 @@ jobs:
       - { name: Verify Fieldmaster native workshop and tuning, run: 'python Scripts/verify_fieldmaster_native_service.py' }
       - { name: Verify Fieldmaster native terrain and heavy-haul, run: 'python Scripts/verify_fieldmaster_native_environment.py' }
       - { name: Verify Fieldmaster native collision damage, run: 'python Scripts/verify_fieldmaster_native_collision.py' }
+      - { name: Verify Native Fieldmaster condition units, run: 'python Scripts/verify_fieldmaster_condition_units.py' }
       - { name: Verify trailer axle and impact physics, run: 'python Scripts/verify_trailer_axle_physics.py' }
       - { name: Verify trailer roadside recovery, run: 'python Scripts/verify_trailer_roadside_recovery.py' }
       - { name: Verify trailer presentation milestone, run: 'python Scripts/verify_trailer_presentation.py' }
