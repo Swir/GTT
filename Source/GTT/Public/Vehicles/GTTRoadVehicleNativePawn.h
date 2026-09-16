@@ -76,6 +76,9 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Migration") FGTTRoadVehicleMigrationSnapshot GetMigrationSnapshot() const { return MigrationSnapshot; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") float GetRuntimeWheelRisk() const { return RuntimeWheelRisk; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") int32 GetRuntimeWheelContacts() const { return RuntimeWheelContacts; }
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") float GetRuntimeThrottleLimit() const { return RuntimeThrottleLimit; }
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") float GetRuntimeSteeringLimit() const { return RuntimeSteeringLimit; }
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") float GetRuntimeBrakeAssist() const { return RuntimeBrakeAssist; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") float GetLastImpactSpeedKmh() const { return LastImpactSpeedKmh; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") int32 GetNativeImpactCount() const { return NativeImpactCount; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") EGTTRoadDamageZone GetLastImpactZone() const { return LastImpactZone; }
