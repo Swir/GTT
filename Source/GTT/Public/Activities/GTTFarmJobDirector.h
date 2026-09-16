@@ -12,7 +12,8 @@ enum class EGTTFarmJobStage : uint8
 {
     Idle,
     ReachPickup,
-    DeliverCargo
+    DeliverCargo,
+    DeliverFinalStop
 };
 
 UCLASS()
@@ -22,6 +23,7 @@ class GTT_API AGTTFarmJobDirector : public AActor
 
 public:
     AGTTFarmJobDirector();
+    virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
 
     UFUNCTION(BlueprintCallable, Category="GTT|FarmJob")
@@ -32,6 +34,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="GTT|FarmJob")
     bool TryCompleteJob(APawn* PlayerPawn);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|FarmJob")
+    bool TryCompleteFinalStop(APawn* PlayerPawn);
 
     UFUNCTION(BlueprintPure, Category="GTT|FarmJob")
     EGTTFarmJobStage GetStage() const { return Stage; }
@@ -52,6 +57,9 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="30.0"))
     float DeliveryTimeLimit = 165.0f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0.0"))
+    float ExtendedRouteExtraTime = 90.0f;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0"))
     int32 BaseReward = 220;
 
@@ -67,7 +75,16 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0"))
     int32 MuleboxRoleBonus = 45;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0"))
+    int32 TrustedChainBonus = 70;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0"))
+    int32 ReliableChainBonus = 120;
+
 private:
+    bool CompleteCargoContract(APawn* PlayerPawn, bool bExtendedRoute);
+    bool IsDeliveryVehiclePresent(APawn* PlayerPawn) const;
+    bool IsPoliceBlockingHandoff(APawn* PlayerPawn, const FString& LocationLabel);
     void FailJob(APawn* PlayerPawn, const FString& Reason);
     void PushMessage(APawn* Pawn, const FString& Message, float Duration = 4.0f) const;
     APawn* ResolvePlayerPawn() const;
@@ -78,6 +95,9 @@ private:
     float TimeRemaining = 0.0f;
     float CargoIntegrity = 1.0f;
     float FleetPayoutMultiplier = 1.0f;
+    float MarketMultiplierAtStart = 1.0f;
+    int32 RouteTierAtStart = 1;
+    bool bPoliceIncidentDuringRun = false;
     TWeakObjectPtr<AGTTFarmVanPawn> LoadedMulebox;
     TWeakObjectPtr<AGTTMuleboxNativePawn> LoadedNativeMulebox;
 };
