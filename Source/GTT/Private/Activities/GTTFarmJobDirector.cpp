@@ -97,6 +97,7 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
         }
     }
 
+    FleetPayoutMultiplier = 1.0f;
     if (GetWorld())
     {
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
@@ -105,7 +106,13 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
             PushMessage(PlayerPawn, Fleet->BuildJobDispatchHint(FName(TEXT("FarmCargo"))), 6.0f);
             if (Assessment.Readiness == EGTTFleetMissionReadiness::ServiceRequired)
             {
-                PushMessage(PlayerPawn, TEXT("CARGO LOADOUT NEEDS SERVICE: the contract is still open, but prep the Mulebox or bring another healthy vehicle."), 6.0f);
+                FleetPayoutMultiplier = 0.75f;
+                PushMessage(PlayerPawn, TEXT("CARGO LOADOUT NEEDS SERVICE: bypassing prep puts 25% of this contract payout at risk. Use the unified contract board to prep first."), 6.0f);
+            }
+            else if (Assessment.Readiness == EGTTFleetMissionReadiness::Advisory)
+            {
+                FleetPayoutMultiplier = 0.90f;
+                PushMessage(PlayerPawn, TEXT("CARGO LOADOUT CAUTION: bypassing recommended prep reduces this contract payout by 10%."), 5.5f);
             }
         }
     }
@@ -165,16 +172,18 @@ bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
     const int32 IntegrityReward = FMath::RoundToInt(BaseReward * FMath::Clamp(CargoIntegrity, 0.0f, 1.0f));
     const int32 Bonus = TimeRatio >= FastDeliveryThreshold ? FastDeliveryBonus : 0;
     const int32 RoleBonus = (LoadedMulebox.IsValid() || LoadedNativeMulebox.IsValid()) ? MuleboxRoleBonus : 0;
-    const int32 TotalReward = FMath::Max(25, IntegrityReward + Bonus + RoleBonus);
+    const int32 RawReward = IntegrityReward + Bonus + RoleBonus;
+    const int32 TotalReward = FMath::Max(25, FMath::RoundToInt(RawReward * FleetPayoutMultiplier));
 
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
     {
         Economy->AddCash(TotalReward, FString::Printf(TEXT("Farm cargo delivery: +$%d"), TotalReward));
         Economy->PushMessage(
-            FString::Printf(TEXT("DELIVERY COMPLETE: $%d | cargo %.0f%% | %.0fs left%s%s"),
+            FString::Printf(TEXT("DELIVERY COMPLETE: $%d | cargo %.0f%% | %.0fs left%s%s%s"),
                 TotalReward, CargoIntegrity * 100.0f, TimeRemaining,
                 Bonus > 0 ? TEXT(" | FAST BONUS") : TEXT(""),
-                RoleBonus > 0 ? TEXT(" | MULEBOX ROLE BONUS") : TEXT("")),
+                RoleBonus > 0 ? TEXT(" | MULEBOX ROLE BONUS") : TEXT(""),
+                FleetPayoutMultiplier < 0.999f ? TEXT(" | UNPREPARED FLEET PENALTY") : TEXT("")),
             7.0f);
     }
 
@@ -182,6 +191,7 @@ bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
     Stage = EGTTFarmJobStage::Idle;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
+    FleetPayoutMultiplier = 1.0f;
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
     return true;
 }
@@ -193,8 +203,9 @@ FString AGTTFarmJobDirector::GetObjectiveText() const
         case EGTTFarmJobStage::ReachPickup:
             return TEXT("FARM JOB | Reach FEED DEPOT and load cargo");
         case EGTTFarmJobStage::DeliverCargo:
-            return FString::Printf(TEXT("FARM JOB | HILL FARM delivery | %.0fs | cargo %.0f%%%s"), TimeRemaining, CargoIntegrity * 100.0f,
-                (LoadedMulebox.IsValid() || LoadedNativeMulebox.IsValid()) ? TEXT(" | MULEBOX LOADED") : TEXT(""));
+            return FString::Printf(TEXT("FARM JOB | HILL FARM delivery | %.0fs | cargo %.0f%%%s%s"), TimeRemaining, CargoIntegrity * 100.0f,
+                (LoadedMulebox.IsValid() || LoadedNativeMulebox.IsValid()) ? TEXT(" | MULEBOX LOADED") : TEXT(""),
+                FleetPayoutMultiplier < 0.999f ? TEXT(" | PREP PENALTY") : TEXT(""));
         default:
             return FString();
     }
@@ -206,6 +217,7 @@ void AGTTFarmJobDirector::FailJob(APawn* PlayerPawn, const FString& Reason)
     Stage = EGTTFarmJobStage::Idle;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
+    FleetPayoutMultiplier = 1.0f;
     PushMessage(PlayerPawn, FString::Printf(TEXT("FARM JOB FAILED: %s"), *Reason), 6.0f);
 }
 
