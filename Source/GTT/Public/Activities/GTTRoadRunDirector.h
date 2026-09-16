@@ -4,6 +4,9 @@
 #include "GameFramework/Actor.h"
 #include "GTTRoadRunDirector.generated.h"
 
+class USceneComponent;
+class UTextRenderComponent;
+
 UENUM(BlueprintType)
 enum class EGTTRoadRunStage : uint8
 {
@@ -47,6 +50,16 @@ private:
     void CompleteContract(APawn* PlayerPawn);
     void FailContract(APawn* PlayerPawn, const FString& Reason);
     void PushMessage(APawn* PlayerPawn, const FString& Message, float Duration = 5.0f) const;
+    void SetMarkerState(bool bPickupVisible, bool bDeliveryVisible);
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|RoadRun")
+    TObjectPtr<USceneComponent> SceneRoot;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|RoadRun")
+    TObjectPtr<UTextRenderComponent> PickupMarker;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|RoadRun")
+    TObjectPtr<UTextRenderComponent> DeliveryMarker;
 
     EGTTRoadRunStage Stage = EGTTRoadRunStage::Idle;
     float TimeRemaining = 0.0f;
