@@ -21,7 +21,7 @@ changelog = (root / 'CHANGELOG.d/0.0.93.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
 checks = {
-    'save schema v5': 'SaveVersion = 5' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
+    'save schema retains structural v5 data under v6+': 'SaveVersion = 6' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
     'exact structural fields': all(x in save_h for x in ['FrontHealth', 'RearHealth', 'LeftHealth', 'RightHealth', 'CoolingStress', 'DetachedPanelMask']),
     'base save hooks virtual': 'virtual bool SaveProgress();' in gm_h and 'virtual bool LoadProgress();' in gm_h,
     'structural game mode overrides': 'AGTTStructuralGameMode' in struct_gm_h and 'SaveProgress() override' in struct_gm_h and 'LoadProgress() override' in struct_gm_h,
@@ -29,7 +29,7 @@ checks = {
     'native mirror flushed before save': 'FlushNativePersistenceMirror' in struct_gm_cpp and 'Super::SaveProgress()' in struct_gm_cpp,
     'primary save structural capture': 'RoadStructuralDamage.Reset()' in struct_gm_cpp and 'GetBodyDamageSnapshot()' in struct_gm_cpp and 'GetDetachedPanelMask()' in struct_gm_cpp,
     'safe load takeover cycle': 'DeactivateLegacyTakeover()' in struct_gm_cpp and 'Super::LoadProgress()' in struct_gm_cpp and 'RestorePersistentBodyDamage' in struct_gm_cpp and 'TryActivateLegacyTakeover()' in struct_gm_cpp,
-    'old save compatibility': 'Save->SaveVersion >= StructuralSaveVersion' in struct_gm_cpp,
+    'v5 structural compatibility survives newer schema': 'StructuralDamageSaveVersion = 5' in struct_gm_cpp and 'Save->SaveVersion >= StructuralDamageSaveVersion' in struct_gm_cpp,
     'unified save never downgrades': 'Primary->SaveVersion = FMath::Max(Primary->SaveVersion, 4);' in unified,
     'native structural API': all(x in native_h for x in ['ApplyScriptedImpactDamage', 'RestorePersistentBodyDamage', 'FlushNativePersistenceMirror', 'GetDetachedPanelMask']),
     'panel mask persisted visually': all(x in native_persist for x in ['FrontPanelBit', 'RearPanelBit', 'LeftPanelBit', 'RightPanelBit', 'SetSimulatePhysics(true)', 'NATIVE_ROAD_STRUCTURAL_RESTORE']),
