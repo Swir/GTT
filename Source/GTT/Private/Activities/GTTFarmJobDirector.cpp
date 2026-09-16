@@ -1,7 +1,9 @@
 #include "Activities/GTTFarmJobDirector.h"
 
+#include "Activities/GTTFarmJobTerminal.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Vehicles/GTTFarmVanPawn.h"
@@ -10,6 +12,7 @@
 #include "Wanted/GTTWantedComponent.h"
 #include "Core/GTTGameMode.h"
 #include "World/GTTGarageFleetSubsystem.h"
+#include "World/GTTLogisticsReputationSubsystem.h"
 
 namespace
 {
@@ -45,19 +48,37 @@ AGTTFarmJobDirector::AGTTFarmJobDirector()
     PrimaryActorTick.bCanEverTick = true;
 }
 
+void AGTTFarmJobDirector::BeginPlay()
+{
+    Super::BeginPlay();
+    if (!GetWorld()) return;
+
+    // 0.1.4 extends TRUSTED+ CARGO work from Hill Farm to the existing North Wood Yard.
+    // The extra terminal is owned by this director so the prototype world does not need a duplicate route definition.
+    if (AGTTFarmJobTerminal* FinalStop = GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(7850.0f, 1120.0f, 55.0f), FRotator::ZeroRotator))
+    {
+        FinalStop->SetTerminalType(EGTTFarmJobTerminalType::FinalFinish);
+    }
+}
+
 void AGTTFarmJobDirector::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
-    if (Stage != EGTTFarmJobStage::DeliverCargo) return;
+    if (Stage != EGTTFarmJobStage::DeliverCargo && Stage != EGTTFarmJobStage::DeliverFinalStop) return;
 
     APawn* ControlledPawn = UGameplayStatics::GetPlayerPawn(this, 0);
     APawn* PlayerPawn = ResolvePlayerPawn();
     if (!ControlledPawn || !PlayerPawn) return;
 
+    if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn))
+    {
+        if (Wanted->GetWantedLevel() > 0) bPoliceIncidentDuringRun = true;
+    }
+
     TimeRemaining = FMath::Max(0.0f, TimeRemaining - DeltaSeconds);
     if (TimeRemaining <= 0.0f)
     {
-        FailJob(PlayerPawn, TEXT("Delivery window expired. The farm cancelled the run."));
+        FailJob(PlayerPawn, TEXT("Delivery window expired. The rural buyers cancelled the run."));
         return;
     }
 
@@ -97,9 +118,24 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
         }
     }
 
-    FleetPayoutMultiplier = 1.0f;
+    MarketMultiplierAtStart = 1.0f;
+    RouteTierAtStart = 1;
+    bPoliceIncidentDuringRun = false;
     if (GetWorld())
     {
+        if (const UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>())
+        {
+            if (!Logistics->IsCargoDepotWindowOpen())
+            {
+                PushMessage(PlayerPawn, FString::Printf(TEXT("FEED DEPOT %s. Cargo staff follow the village work shift; prepare the Mulebox now and return at 07:00."), *Logistics->GetCargoScheduleLabel()), 6.0f);
+                return false;
+            }
+            MarketMultiplierAtStart = Logistics->GetCargoMarketMultiplier();
+            RouteTierAtStart = Logistics->GetCargoRouteTier();
+            PushMessage(PlayerPawn, FString::Printf(TEXT("CARGO MARKET: %s | REP %s %d | payout x%.2f locked for this contract."),
+                *Logistics->GetCargoMarketLabel(), *Logistics->GetTierLabel(), Logistics->GetReputation(), MarketMultiplierAtStart), 6.0f);
+        }
+
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
         {
             const FGTTFleetMissionAssessment Assessment = Fleet->AssessJobReadiness(FName(TEXT("FarmCargo")));
@@ -114,6 +150,10 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
                 FleetPayoutMultiplier = 0.90f;
                 PushMessage(PlayerPawn, TEXT("CARGO LOADOUT CAUTION: bypassing recommended prep reduces this contract payout by 10%."), 5.5f);
             }
+            else
+            {
+                FleetPayoutMultiplier = 1.0f;
+            }
         }
     }
 
@@ -121,7 +161,10 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
     Stage = EGTTFarmJobStage::ReachPickup;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
-    PushMessage(PlayerPawn, TEXT("FARM CONTRACT: drive to FEED DEPOT and collect the cargo. Mulebox 1200 gets a role bonus."), 6.0f);
+    const FString RouteText = RouteTierAtStart >= 2
+        ? TEXT("FEED DEPOT -> HILL FARM relay -> NORTH WOOD YARD")
+        : TEXT("FEED DEPOT -> HILL FARM");
+    PushMessage(PlayerPawn, FString::Printf(TEXT("FARM CONTRACT T%d: %s. Mulebox 1200 gets a role bonus."), RouteTierAtStart, *RouteText), 7.0f);
     return true;
 }
 
@@ -151,40 +194,101 @@ bool AGTTFarmJobDirector::TryPickupCargo(APawn* PlayerPawn)
     }
 
     Stage = EGTTFarmJobStage::DeliverCargo;
-    TimeRemaining = DeliveryTimeLimit;
+    TimeRemaining = DeliveryTimeLimit + (RouteTierAtStart >= 2 ? ExtendedRouteExtraTime : 0.0f);
     CargoIntegrity = 1.0f;
-    PushMessage(PlayerPawn, TEXT("CARGO LOADED: deliver to HILL FARM before time runs out. Keep the vehicle intact."), 7.0f);
+    PushMessage(PlayerPawn, RouteTierAtStart >= 2
+        ? TEXT("CARGO LOADED: first handoff HILL FARM, then continue the same load to NORTH WOOD YARD. One timer, one cargo condition.")
+        : TEXT("CARGO LOADED: deliver to HILL FARM before time runs out. Keep the vehicle intact."), 7.0f);
     return true;
+}
+
+bool AGTTFarmJobDirector::IsDeliveryVehiclePresent(APawn* PlayerPawn) const
+{
+    const bool bNativeMuleboxArrived = LoadedNativeMulebox.IsValid() && UGameplayStatics::GetPlayerPawn(this, 0) == LoadedNativeMulebox.Get();
+    return bNativeMuleboxArrived || FindNearbyWorkVehicle(this, PlayerPawn, 750.0f) != nullptr;
+}
+
+bool AGTTFarmJobDirector::IsPoliceBlockingHandoff(APawn* PlayerPawn, const FString& LocationLabel)
+{
+    if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn))
+    {
+        if (Wanted->GetWantedLevel() > 0)
+        {
+            bPoliceIncidentDuringRun = true;
+            PushMessage(PlayerPawn, FString::Printf(TEXT("%s HANDOFF BLOCKED: legal staff will not sign while police are searching for you. The delivery clock keeps running."), *LocationLabel), 6.0f);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
 {
     if (!PlayerPawn || Stage != EGTTFarmJobStage::DeliverCargo) return false;
-
-    const bool bNativeMuleboxArrived = LoadedNativeMulebox.IsValid() && UGameplayStatics::GetPlayerPawn(this, 0) == LoadedNativeMulebox.Get();
-    if (!bNativeMuleboxArrived && !FindNearbyWorkVehicle(this, PlayerPawn, 750.0f))
+    if (IsPoliceBlockingHandoff(PlayerPawn, TEXT("HILL FARM"))) return false;
+    if (!IsDeliveryVehiclePresent(PlayerPawn))
     {
-        PushMessage(PlayerPawn, TEXT("Park the cargo vehicle inside the delivery yard before unloading."));
+        PushMessage(PlayerPawn, TEXT("Park the cargo vehicle inside the Hill Farm delivery yard before unloading."));
         return false;
     }
 
-    const float TimeRatio = DeliveryTimeLimit > 0.0f ? TimeRemaining / DeliveryTimeLimit : 0.0f;
+    if (RouteTierAtStart >= 2)
+    {
+        Stage = EGTTFarmJobStage::DeliverFinalStop;
+        PushMessage(PlayerPawn, FString::Printf(TEXT("HILL FARM RELAY SIGNED: keep the same load moving to NORTH WOOD YARD. %.0fs remain | cargo %.0f%% | chain bonus $%d."),
+            TimeRemaining, CargoIntegrity * 100.0f, RouteTierAtStart >= 3 ? ReliableChainBonus : TrustedChainBonus), 7.0f);
+        return true;
+    }
+
+    return CompleteCargoContract(PlayerPawn, false);
+}
+
+bool AGTTFarmJobDirector::TryCompleteFinalStop(APawn* PlayerPawn)
+{
+    if (!PlayerPawn || Stage != EGTTFarmJobStage::DeliverFinalStop) return false;
+    if (IsPoliceBlockingHandoff(PlayerPawn, TEXT("NORTH WOOD YARD"))) return false;
+    if (!IsDeliveryVehiclePresent(PlayerPawn))
+    {
+        PushMessage(PlayerPawn, TEXT("Park the loaded cargo vehicle inside North Wood Yard before the final handoff."));
+        return false;
+    }
+    return CompleteCargoContract(PlayerPawn, true);
+}
+
+bool AGTTFarmJobDirector::CompleteCargoContract(APawn* PlayerPawn, bool bExtendedRoute)
+{
+    const float ActiveTimeLimit = DeliveryTimeLimit + (RouteTierAtStart >= 2 ? ExtendedRouteExtraTime : 0.0f);
+    const float TimeRatio = ActiveTimeLimit > 0.0f ? TimeRemaining / ActiveTimeLimit : 0.0f;
     const int32 IntegrityReward = FMath::RoundToInt(BaseReward * FMath::Clamp(CargoIntegrity, 0.0f, 1.0f));
     const int32 Bonus = TimeRatio >= FastDeliveryThreshold ? FastDeliveryBonus : 0;
     const int32 RoleBonus = (LoadedMulebox.IsValid() || LoadedNativeMulebox.IsValid()) ? MuleboxRoleBonus : 0;
-    const int32 RawReward = IntegrityReward + Bonus + RoleBonus;
-    const int32 TotalReward = FMath::Max(25, FMath::RoundToInt(RawReward * FleetPayoutMultiplier));
+    const int32 RouteBonus = bExtendedRoute ? (RouteTierAtStart >= 3 ? ReliableChainBonus : TrustedChainBonus) : 0;
+    const int32 RawReward = IntegrityReward + Bonus + RoleBonus + RouteBonus;
+    const int32 FleetAdjustedReward = FMath::RoundToInt(RawReward * FleetPayoutMultiplier);
+    const int32 TotalReward = FMath::Max(25, FMath::RoundToInt(static_cast<float>(FleetAdjustedReward) * MarketMultiplierAtStart));
 
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
     {
-        Economy->AddCash(TotalReward, FString::Printf(TEXT("Farm cargo delivery: +$%d"), TotalReward));
+        Economy->AddCash(TotalReward, FString::Printf(TEXT("Rural cargo delivery: +$%d"), TotalReward));
         Economy->PushMessage(
-            FString::Printf(TEXT("DELIVERY COMPLETE: $%d | cargo %.0f%% | %.0fs left%s%s%s"),
+            FString::Printf(TEXT("DELIVERY COMPLETE: $%d | cargo %.0f%% | %.0fs left%s%s%s | MARKET x%.2f%s"),
                 TotalReward, CargoIntegrity * 100.0f, TimeRemaining,
                 Bonus > 0 ? TEXT(" | FAST BONUS") : TEXT(""),
                 RoleBonus > 0 ? TEXT(" | MULEBOX ROLE BONUS") : TEXT(""),
-                FleetPayoutMultiplier < 0.999f ? TEXT(" | UNPREPARED FLEET PENALTY") : TEXT("")),
-            7.0f);
+                FleetPayoutMultiplier < 0.999f ? TEXT(" | UNPREPARED FLEET PENALTY") : TEXT(""),
+                MarketMultiplierAtStart,
+                bExtendedRoute ? TEXT(" | CHAIN COMPLETE") : TEXT("")),
+            8.0f);
+    }
+
+    if (GetWorld())
+    {
+        if (UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>())
+        {
+            Logistics->RecordCargoSuccess(TotalReward, CargoIntegrity, Bonus > 0, bPoliceIncidentDuringRun, bExtendedRoute);
+            PushMessage(PlayerPawn, FString::Printf(TEXT("LOGISTICS UPDATED: REP %s %d | CARGO %d complete | %s"),
+                *Logistics->GetTierLabel(), Logistics->GetReputation(), Logistics->GetCargoCompletedRuns(), *Logistics->GetRecentHistorySummary()), 6.0f);
+        }
     }
 
     ClearLoadedVehicleCargoState();
@@ -192,6 +296,9 @@ bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
     FleetPayoutMultiplier = 1.0f;
+    MarketMultiplierAtStart = 1.0f;
+    RouteTierAtStart = 1;
+    bPoliceIncidentDuringRun = false;
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
     return true;
 }
@@ -201,11 +308,16 @@ FString AGTTFarmJobDirector::GetObjectiveText() const
     switch (Stage)
     {
         case EGTTFarmJobStage::ReachPickup:
-            return TEXT("FARM JOB | Reach FEED DEPOT and load cargo");
+            return FString::Printf(TEXT("FARM CARGO T%d | Reach FEED DEPOT and load cargo | market x%.2f"), RouteTierAtStart, MarketMultiplierAtStart);
         case EGTTFarmJobStage::DeliverCargo:
-            return FString::Printf(TEXT("FARM JOB | HILL FARM delivery | %.0fs | cargo %.0f%%%s%s"), TimeRemaining, CargoIntegrity * 100.0f,
+            return FString::Printf(TEXT("FARM CARGO | HILL FARM %s | %.0fs | cargo %.0f%%%s%s"),
+                RouteTierAtStart >= 2 ? TEXT("RELAY") : TEXT("DELIVERY"), TimeRemaining, CargoIntegrity * 100.0f,
                 (LoadedMulebox.IsValid() || LoadedNativeMulebox.IsValid()) ? TEXT(" | MULEBOX LOADED") : TEXT(""),
                 FleetPayoutMultiplier < 0.999f ? TEXT(" | PREP PENALTY") : TEXT(""));
+        case EGTTFarmJobStage::DeliverFinalStop:
+            return FString::Printf(TEXT("FARM CARGO | NORTH WOOD YARD FINAL | %.0fs | cargo %.0f%% | market x%.2f%s"),
+                TimeRemaining, CargoIntegrity * 100.0f, MarketMultiplierAtStart,
+                bPoliceIncidentDuringRun ? TEXT(" | POLICE INCIDENT") : TEXT(""));
         default:
             return FString();
     }
@@ -213,12 +325,27 @@ FString AGTTFarmJobDirector::GetObjectiveText() const
 
 void AGTTFarmJobDirector::FailJob(APawn* PlayerPawn, const FString& Reason)
 {
+    if (Stage == EGTTFarmJobStage::DeliverCargo || Stage == EGTTFarmJobStage::DeliverFinalStop)
+    {
+        if (GetWorld())
+        {
+            if (UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>())
+            {
+                Logistics->RecordCargoFailure(CargoIntegrity, CargoIntegrity <= 0.02f || TimeRemaining <= 0.0f);
+            }
+        }
+    }
+
     ClearLoadedVehicleCargoState();
     Stage = EGTTFarmJobStage::Idle;
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
     FleetPayoutMultiplier = 1.0f;
-    PushMessage(PlayerPawn, FString::Printf(TEXT("FARM JOB FAILED: %s"), *Reason), 6.0f);
+    MarketMultiplierAtStart = 1.0f;
+    RouteTierAtStart = 1;
+    bPoliceIncidentDuringRun = false;
+    PushMessage(PlayerPawn, FString::Printf(TEXT("FARM JOB FAILED: %s Reputation/streak consequence saved."), *Reason), 6.0f);
+    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
 }
 
 void AGTTFarmJobDirector::ClearLoadedVehicleCargoState()
