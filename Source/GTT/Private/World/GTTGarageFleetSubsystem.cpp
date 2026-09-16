@@ -1,0 +1,209 @@
+#include "World/GTTGarageFleetSubsystem.h"
+
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "Vehicles/GTTBreakdownDecisionSubsystem.h"
+#include "Vehicles/GTTFieldmasterNativePawn.h"
+#include "Vehicles/GTTRoadVehicleNativePawn.h"
+#include "Vehicles/GTTVehicleBase.h"
+
+namespace
+{
+    constexpr int32 GarageWorkshopBaseCost = 75;
+
+    float MinimumBodyHealth(const FGTTRoadBodyDamageSnapshot& Body)
+    {
+        return FMath::Min(FMath::Min(Body.FrontHealth, Body.RearHealth), FMath::Min(Body.LeftHealth, Body.RightHealth));
+    }
+
+    FString BreakdownStatus(EGTTBreakdownRecommendation Recommendation)
+    {
+        switch (Recommendation)
+        {
+            case EGTTBreakdownRecommendation::LimpToWorkshop: return TEXT("LIMP");
+            case EGTTBreakdownRecommendation::TowRecommended: return TEXT("TOW");
+            case EGTTBreakdownRecommendation::Immobilized: return TEXT("IMMOBILE");
+            default: return TEXT("READY");
+        }
+    }
+}
+
+int32 UGTTGarageFleetSubsystem::GetVehicleSortPriority(const AGTTVehicleBase* Vehicle)
+{
+    if (!Vehicle) return 1000;
+    const FName Id = Vehicle->GetPersistentVehicleId();
+    if (Id == FName(TEXT("RustyFieldmaster60"))) return 0;
+    if (Id == FName(TEXT("Rattleback82"))) return 10;
+    if (Id == FName(TEXT("Mulebox1200"))) return 20;
+    return 100 + static_cast<int32>(GetTypeHash(Id) % 500);
+}
+
+TArray<AGTTVehicleBase*> UGTTGarageFleetSubsystem::GatherOwnedVehicles() const
+{
+    TArray<AGTTVehicleBase*> Vehicles;
+    if (!GetWorld()) return Vehicles;
+
+    for (TActorIterator<AGTTVehicleBase> It(GetWorld()); It; ++It)
+    {
+        AGTTVehicleBase* Vehicle = *It;
+        if (IsValid(Vehicle) && Vehicle->IsOwnedByPlayer() && !Vehicle->GetPersistentVehicleId().IsNone())
+        {
+            Vehicles.Add(Vehicle);
+        }
+    }
+
+    Vehicles.Sort([](const AGTTVehicleBase& A, const AGTTVehicleBase& B)
+    {
+        const int32 PriorityA = UGTTGarageFleetSubsystem::GetVehicleSortPriority(&A);
+        const int32 PriorityB = UGTTGarageFleetSubsystem::GetVehicleSortPriority(&B);
+        if (PriorityA != PriorityB) return PriorityA < PriorityB;
+        return A.GetPersistentVehicleId().ToString() < B.GetPersistentVehicleId().ToString();
+    });
+    return Vehicles;
+}
+
+AGTTVehicleBase* UGTTGarageFleetSubsystem::ResolveLegacyVehicleForSlot(int32 SlotIndex) const
+{
+    if (SlotIndex < 0) return nullptr;
+    const TArray<AGTTVehicleBase*> Vehicles = GatherOwnedVehicles();
+    return Vehicles.IsValidIndex(SlotIndex) ? Vehicles[SlotIndex] : nullptr;
+}
+
+AGTTRoadVehicleNativePawn* UGTTGarageFleetSubsystem::FindActiveNativeRoadVehicle(FName VehicleId) const
+{
+    if (!GetWorld() || VehicleId.IsNone()) return nullptr;
+    for (TActorIterator<AGTTRoadVehicleNativePawn> It(GetWorld()); It; ++It)
+    {
+        AGTTRoadVehicleNativePawn* Native = *It;
+        if (IsValid(Native) && Native->IsLegacyTakeoverActive() && Native->GetPersistentVehicleId() == VehicleId)
+        {
+            return Native;
+        }
+    }
+    return nullptr;
+}
+
+TArray<FGTTGarageFleetSnapshot> UGTTGarageFleetSubsystem::BuildFleetSnapshot(int32 MaxSlots) const
+{
+    TArray<FGTTGarageFleetSnapshot> Result;
+    if (!GetWorld() || MaxSlots <= 0) return Result;
+
+    const TArray<AGTTVehicleBase*> Vehicles = GatherOwnedVehicles();
+    const int32 Count = FMath::Min(MaxSlots, Vehicles.Num());
+    Result.Reserve(Count);
+
+    const UGTTBreakdownDecisionSubsystem* Breakdown = GetWorld()->GetSubsystem<UGTTBreakdownDecisionSubsystem>();
+
+    for (int32 Index = 0; Index < Count; ++Index)
+    {
+        AGTTVehicleBase* Vehicle = Vehicles[Index];
+        if (!Vehicle) continue;
+
+        FGTTGarageFleetSnapshot Snapshot;
+        Snapshot.SlotIndex = Index;
+        Snapshot.VehicleId = Vehicle->GetPersistentVehicleId();
+        Snapshot.DisplayName = Vehicle->GetVehicleDisplayName().ToString();
+        Snapshot.ConditionPercent = FMath::Clamp(Vehicle->GetConditionPercent(), 0.0f, 1.0f);
+        Snapshot.FuelPercent = FMath::Clamp(Vehicle->GetFuelPercent(), 0.0f, 1.0f);
+        Snapshot.TireIntegrity = FMath::Clamp(Vehicle->GetTireIntegrity(), 0.0f, 1.0f);
+        Snapshot.EngineUpgradeLevel = Vehicle->GetEngineUpgradeLevel();
+        Snapshot.TireUpgradeLevel = Vehicle->GetTireUpgradeLevel();
+        Snapshot.bOccupied = Vehicle->IsOccupied();
+
+        if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(Snapshot.VehicleId))
+        {
+            const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
+            const FGTTRoadBodyDamageSnapshot Body = NativeRoad->GetBodyDamageSnapshot();
+            const float Capacity = Snapshot.VehicleId == FName(TEXT("Mulebox1200")) ? 62.0f : 42.0f;
+
+            Snapshot.DisplayName = NativeRoad->GetVehicleDisplayName().ToString();
+            Snapshot.ConditionPercent = FMath::Clamp(State.ConditionPercent, 0.0f, 1.0f);
+            Snapshot.FuelPercent = FMath::Clamp(State.FuelLiters / FMath::Max(1.0f, Capacity), 0.0f, 1.0f);
+            Snapshot.TireIntegrity = FMath::Clamp(State.TireIntegrity, 0.0f, 1.0f);
+            Snapshot.BodyHealth = MinimumBodyHealth(Body);
+            Snapshot.EngineUpgradeLevel = State.EngineUpgradeLevel;
+            Snapshot.TireUpgradeLevel = State.TireUpgradeLevel;
+            Snapshot.bNativeAuthority = true;
+            Snapshot.bOccupied = NativeRoad->GetDriverPawn() != nullptr;
+
+            if (Breakdown)
+            {
+                const FGTTBreakdownAssessment Assessment = Breakdown->AssessVehicle(NativeRoad, GarageWorkshopBaseCost);
+                Snapshot.ServiceStatus = Snapshot.bOccupied ? TEXT("IN USE") : BreakdownStatus(Assessment.Recommendation);
+                Snapshot.RepairEstimate = Assessment.RepairEstimate;
+                Snapshot.TowEstimate = Assessment.TowEstimate;
+            }
+        }
+        else if (Snapshot.VehicleId == FName(TEXT("RustyFieldmaster60")))
+        {
+            for (TActorIterator<AGTTFieldmasterNativePawn> It(GetWorld()); It; ++It)
+            {
+                AGTTFieldmasterNativePawn* Native = *It;
+                if (!IsValid(Native) || !Native->IsLegacyTakeoverActive()) continue;
+                const FGTTVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
+                Snapshot.DisplayName = Native->GetVehicleDisplayName().ToString();
+                Snapshot.ConditionPercent = FMath::Clamp(State.ConditionPercent, 0.0f, 1.0f);
+                Snapshot.FuelPercent = FMath::Clamp(State.FuelLiters / FMath::Max(1.0f, Vehicle->GetFuelCapacity()), 0.0f, 1.0f);
+                Snapshot.TireIntegrity = FMath::Clamp(State.TireIntegrity, 0.0f, 1.0f);
+                Snapshot.EngineUpgradeLevel = State.EngineUpgradeLevel;
+                Snapshot.TireUpgradeLevel = State.TireUpgradeLevel;
+                Snapshot.bNativeAuthority = true;
+                Snapshot.bOccupied = Native->IsOccupied();
+                break;
+            }
+        }
+
+        if (!Snapshot.bOccupied && Snapshot.ServiceStatus == TEXT("READY"))
+        {
+            if (Snapshot.ConditionPercent <= 0.05f || Snapshot.FuelPercent <= 0.01f || Snapshot.TireIntegrity <= 0.08f)
+                Snapshot.ServiceStatus = TEXT("IMMOBILE");
+            else if (Snapshot.ConditionPercent <= 0.35f || Snapshot.TireIntegrity <= 0.30f || Snapshot.BodyHealth <= 0.35f)
+                Snapshot.ServiceStatus = TEXT("SERVICE");
+        }
+        else if (Snapshot.bOccupied)
+        {
+            Snapshot.ServiceStatus = TEXT("IN USE");
+        }
+
+        Result.Add(Snapshot);
+    }
+
+    return Result;
+}
+
+bool UGTTGarageFleetSubsystem::GetSlotSnapshot(int32 SlotIndex, FGTTGarageFleetSnapshot& OutSnapshot) const
+{
+    if (SlotIndex < 0) return false;
+    const TArray<FGTTGarageFleetSnapshot> Fleet = BuildFleetSnapshot(SlotIndex + 1);
+    if (!Fleet.IsValidIndex(SlotIndex)) return false;
+    OutSnapshot = Fleet[SlotIndex];
+    return true;
+}
+
+FString UGTTGarageFleetSubsystem::BuildFleetSummary(int32 MaxSlots) const
+{
+    const TArray<FGTTGarageFleetSnapshot> Fleet = BuildFleetSnapshot(MaxSlots);
+    FString Summary = FString::Printf(TEXT("GARAGE FLEET %d/%d"), Fleet.Num(), FMath::Max(1, MaxSlots));
+    if (Fleet.Num() == 0) return Summary + TEXT(" | no registered vehicles");
+
+    for (const FGTTGarageFleetSnapshot& Vehicle : Fleet)
+    {
+        const FString NativeTag = Vehicle.bNativeAuthority ? TEXT(" N") : TEXT("");
+        FString Quote;
+        if (Vehicle.RepairEstimate > 0)
+        {
+            Quote = FString::Printf(TEXT(" | repair ~$%d tow ~$%d"), Vehicle.RepairEstimate, Vehicle.TowEstimate);
+        }
+        Summary += FString::Printf(TEXT("\n%d %s%s | %s | C%.0f F%.0f T%.0f B%.0f%s"),
+            Vehicle.SlotIndex + 1,
+            *Vehicle.DisplayName,
+            *NativeTag,
+            *Vehicle.ServiceStatus,
+            Vehicle.ConditionPercent * 100.0f,
+            Vehicle.FuelPercent * 100.0f,
+            Vehicle.TireIntegrity * 100.0f,
+            Vehicle.BodyHealth * 100.0f,
+            *Quote);
+    }
+    return Summary;
+}

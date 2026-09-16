@@ -67,6 +67,7 @@ jobs:
       - { name: Verify Native roadside recovery and police impound, run: 'python Scripts/verify_native_roadside_recovery.py' }
       - { name: Verify breakdown decision towing and repair economy, run: 'python Scripts/verify_breakdown_repair_economy.py' }
       - { name: Verify player-selectable recovery and damage HUD, run: 'python Scripts/verify_recovery_choice_hud.py' }
+      - { name: Verify garage fleet operations and service UX, run: 'python Scripts/verify_garage_fleet_operations.py' }
       - { name: Verify Native trailer authored-rig acceptance and hitch safety, run: 'python Scripts/verify_native_trailer_acceptance.py' }
       - { name: Verify authored trailer runtime takeover and wheel-contact dynamics, run: 'python Scripts/verify_authored_trailer_runtime.py' }
       - { name: Verify Native fleet rollover safety and emergency righting, run: 'python Scripts/verify_native_rollover_safety.py' }
