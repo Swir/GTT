@@ -8,6 +8,7 @@
 #include "Vehicles/GTTTractorPawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
+#include "World/GTTGarageFleetSubsystem.h"
 
 AGTTRuralWorkDirector::AGTTRuralWorkDirector()
 {
@@ -72,6 +73,20 @@ bool AGTTRuralWorkDirector::TryStartTimber(APawn* PlayerPawn)
         PushMessage(PlayerPawn, TEXT("TIMBER BOARD: clear police/ranger attention and finish other work first."));
         return false;
     }
+
+    if (GetWorld())
+    {
+        if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+        {
+            const FGTTFleetMissionAssessment Assessment = Fleet->AssessJobReadiness(FName(TEXT("TimberHaul")));
+            PushMessage(PlayerPawn, Fleet->BuildJobDispatchHint(FName(TEXT("TimberHaul"))), 6.0f);
+            if (Assessment.Readiness == EGTTFleetMissionReadiness::ServiceRequired)
+            {
+                PushMessage(PlayerPawn, TEXT("TIMBER LOADOUT CAUTION: service the CARGO loadout or use another healthy vehicle before loading logs."), 5.5f);
+            }
+        }
+    }
+
     WorkType = EGTTRuralWorkType::TimberHaul;
     Stage = EGTTRuralWorkStage::ReachTimberPickup;
     TimeRemaining = TimberTimeLimit;
@@ -124,6 +139,21 @@ bool AGTTRuralWorkDirector::TryStartMowing(APawn* PlayerPawn)
         PushMessage(PlayerPawn, TEXT("FIELD BOARD: clear police/ranger attention and finish other work first."));
         return false;
     }
+
+    if (GetWorld())
+    {
+        if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+        {
+            const FGTTFleetMissionAssessment Assessment = Fleet->AssessJobReadiness(FName(TEXT("FieldMowing")));
+            PushMessage(PlayerPawn, Fleet->BuildJobDispatchHint(FName(TEXT("FieldMowing"))), 6.0f);
+            if (Assessment.Readiness == EGTTFleetMissionReadiness::Unavailable || Assessment.Readiness == EGTTFleetMissionReadiness::ServiceRequired)
+            {
+                PushMessage(PlayerPawn, TEXT("FIELD WORK BLOCKED: prep a mission-ready TRACTOR loadout before starting the mowing route."), 5.5f);
+                return false;
+            }
+        }
+    }
+
     if (!FindNearbyVehicle(PlayerPawn, 900.0f, true))
     {
         PushMessage(PlayerPawn, TEXT("FIELD WORK requires a tractor parked near the field office."));

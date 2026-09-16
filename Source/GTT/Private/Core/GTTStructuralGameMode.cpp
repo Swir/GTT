@@ -11,7 +11,8 @@ namespace
 {
     constexpr int32 StructuralDamageSaveVersion = 5;
     constexpr int32 FleetDispatchSaveVersion = 6;
-    constexpr int32 ExtendedSaveVersion = 6;
+    constexpr int32 MissionLoadoutSaveVersion = 7;
+    constexpr int32 ExtendedSaveVersion = 7;
 }
 
 bool AGTTStructuralGameMode::SaveProgress()
@@ -47,6 +48,9 @@ bool AGTTStructuralGameMode::SaveProgress()
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
         {
             Save->PreferredGarageVehicleId = Fleet->GetPreferredVehicleId();
+            Save->PreferredTractorVehicleId = Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Tractor);
+            Save->PreferredRoadVehicleId = Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Road);
+            Save->PreferredCargoVehicleId = Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Cargo);
         }
 
         for (TActorIterator<AGTTRoadVehicleNativePawn> It(GetWorld()); It; ++It)
@@ -73,8 +77,9 @@ bool AGTTStructuralGameMode::SaveProgress()
     const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
     if (bSaved)
     {
-        UE_LOG(LogGTT, Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d preferred=%s"),
-            Save->SaveVersion, Save->RoadStructuralDamage.Num(), *Save->PreferredGarageVehicleId.ToString());
+        UE_LOG(LogGTT, Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d preferred=%s loadouts=T:%s R:%s C:%s"),
+            Save->SaveVersion, Save->RoadStructuralDamage.Num(), *Save->PreferredGarageVehicleId.ToString(),
+            *Save->PreferredTractorVehicleId.ToString(), *Save->PreferredRoadVehicleId.ToString(), *Save->PreferredCargoVehicleId.ToString());
     }
     else
     {
@@ -118,6 +123,14 @@ bool AGTTStructuralGameMode::LoadProgress()
         if (UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
         {
             Fleet->RestorePreferredVehicleId(Save->SaveVersion >= FleetDispatchSaveVersion ? Save->PreferredGarageVehicleId : NAME_None);
+            if (Save->SaveVersion >= MissionLoadoutSaveVersion)
+            {
+                Fleet->RestoreRoleLoadouts(Save->PreferredTractorVehicleId, Save->PreferredRoadVehicleId, Save->PreferredCargoVehicleId);
+            }
+            else
+            {
+                Fleet->RestoreRoleLoadouts(NAME_None, NAME_None, NAME_None);
+            }
         }
     }
 
@@ -154,8 +167,11 @@ bool AGTTStructuralGameMode::LoadProgress()
 
     const UGTTGarageFleetSubsystem* Fleet = GetWorld() ? GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>() : nullptr;
     UE_LOG(LogGTT, Log,
-        TEXT("STRUCTURAL_LOAD result=PASS version=%d records=%d restored=%d preferred=%s"),
+        TEXT("STRUCTURAL_LOAD result=PASS version=%d records=%d restored=%d preferred=%s loadouts=T:%s R:%s C:%s"),
         Save->SaveVersion, Save->RoadStructuralDamage.Num(), RestoredCount,
-        Fleet ? *Fleet->GetPreferredVehicleId().ToString() : TEXT("None"));
+        Fleet ? *Fleet->GetPreferredVehicleId().ToString() : TEXT("None"),
+        Fleet ? *Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Tractor).ToString() : TEXT("None"),
+        Fleet ? *Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Road).ToString() : TEXT("None"),
+        Fleet ? *Fleet->GetRoleLoadoutVehicleId(EGTTGarageFleetRole::Cargo).ToString() : TEXT("None"));
     return true;
 }
