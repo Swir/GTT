@@ -9,6 +9,11 @@
 #include "UObject/ConstructorHelpers.h"
 #include "World/GTTContractBoardSubsystem.h"
 
+namespace
+{
+    const FName RoadRunJob(TEXT("RoadRun"));
+}
+
 AGTTContractBoardTerminal::AGTTContractBoardTerminal()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -64,7 +69,25 @@ void AGTTContractBoardTerminal::RefreshLabel()
     const FString Role = UGTTGarageFleetSubsystem::FleetRoleLabel(Offer.RequiredRole);
     const FString Readiness = UGTTGarageFleetSubsystem::MissionReadinessLabel(Offer.Fleet.Readiness);
     const FString Vehicle = Offer.Fleet.AssignedVehicleName.IsEmpty() ? TEXT("NO LOADOUT") : Offer.Fleet.AssignedVehicleName.ToUpper();
-    const FString Action = Offer.bCanAcceptNow ? TEXT("E - ACCEPT") : (Offer.bNeedsPreparation ? TEXT("E - PREP") : TEXT("UNAVAILABLE"));
+    const FString Action = Offer.bCanAcceptNow ? TEXT("E - ACCEPT") : (Offer.bNeedsPreparation ? TEXT("E - PREP") : (!Offer.bScheduleOpen ? TEXT("CLOSED") : TEXT("UNAVAILABLE")));
+
+    if (JobTag == RoadRunJob)
+    {
+        Label->SetText(FText::FromString(FString::Printf(
+            TEXT("CONTRACT BOARD\n%s | %s\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\nREP %s %d | BONUS %d%% | %s\n%s"),
+            *Offer.Title.ToUpper(), *Role,
+            Offer.BaseReward, Offer.MaximumReward,
+            *Vehicle, *Readiness,
+            Offer.Fleet.ConditionPercent * 100.0f,
+            Offer.Fleet.FuelPercent * 100.0f,
+            Offer.Fleet.TireIntegrity * 100.0f,
+            Offer.Fleet.BodyHealth * 100.0f,
+            Offer.PreparationEstimate,
+            Offer.MaximumNetReward,
+            *Offer.LogisticsTier.ToUpper(), Offer.LogisticsReputation, Offer.PayoutBonusPercent, *Offer.ScheduleStatus,
+            *Action)));
+        return;
+    }
 
     Label->SetText(FText::FromString(FString::Printf(
         TEXT("CONTRACT BOARD\n%s | %s\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\n%s"),
@@ -96,11 +119,19 @@ void AGTTContractBoardTerminal::Interact_Implementation(AActor* Interactor)
     {
         bSuccess = Contracts->TryAcceptContract(Pawn, JobTag, Summary);
     }
-    else
+    else if (Offer.bNeedsPreparation)
     {
         const FVector StageLocation = GetActorLocation() + FVector(0.0f, -420.0f, 80.0f);
         const FTransform StageTransform(FRotator(0.0f, 90.0f, 0.0f), StageLocation);
         bSuccess = Contracts->TryPrepareContract(Pawn, JobTag, StageTransform, Summary);
+    }
+    else if (!Offer.bScheduleOpen)
+    {
+        Summary = FString::Printf(TEXT("%s is %s. Your ROAD loadout can wait staged for the 06:00 opening."), *Offer.Title, *Offer.ScheduleStatus);
+    }
+    else
+    {
+        Summary = Offer.Fleet.Reason.IsEmpty() ? TEXT("Contract is currently unavailable.") : Offer.Fleet.Reason;
     }
 
     Economy->PushMessage(Summary.IsEmpty() ? (bSuccess ? TEXT("Contract board updated.") : TEXT("Contract board action failed.")) : Summary, bSuccess ? 6.0f : 4.5f);
@@ -126,6 +157,11 @@ FText AGTTContractBoardTerminal::GetInteractionText_Implementation() const
             *UGTTGarageFleetSubsystem::MissionReadinessLabel(Offer.Fleet.Readiness),
             Offer.PreparationEstimate,
             Offer.MaximumNetReward));
+    }
+    if (!Offer.bScheduleOpen)
+    {
+        return FText::FromString(FString::Printf(TEXT("%s | %s | REP %s %d"),
+            *Offer.Title, *Offer.ScheduleStatus, *Offer.LogisticsTier, Offer.LogisticsReputation));
     }
     return FText::FromString(FString::Printf(TEXT("%s unavailable | %s"), *Offer.Title, *Offer.Fleet.Reason));
 }
