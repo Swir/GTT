@@ -60,6 +60,9 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0.0"))
     float ExtendedRouteExtraTime = 90.0f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0.0"))
+    float BulkRouteExtraTime = 25.0f;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="0"))
     int32 BaseReward = 220;
 
@@ -100,6 +103,7 @@ private:
     int32 RouteTierAtStart = 1;
     int32 CargoUnitsReserved = 0;
     FString CargoCommodityAtStart = TEXT("ANIMAL FEED");
+    FString CargoPriorityAtStart = TEXT("HILL FARM DIRECT");
     bool bPoliceIncidentDuringRun = false;
     TWeakObjectPtr<AGTTFarmVanPawn> LoadedMulebox;
     TWeakObjectPtr<AGTTMuleboxNativePawn> LoadedNativeMulebox;

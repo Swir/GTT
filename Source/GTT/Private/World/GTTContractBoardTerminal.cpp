@@ -78,7 +78,9 @@ void AGTTContractBoardTerminal::RefreshLabel()
         const bool bScheduleOpen = Logistics && Logistics->IsCargoDepotWindowOpen();
         const bool bMarketLoadAvailable = Logistics && Logistics->CanAcceptCargoContract();
         const float MarketMultiplier = Logistics ? Logistics->GetCargoMarketMultiplier() : 1.0f;
-        const int32 RouteTier = Logistics ? Logistics->GetCargoRouteTier() : 1;
+        const int32 CapabilityTier = Logistics ? Logistics->GetCargoRouteTier() : 1;
+        const int32 RouteTier = Logistics ? Logistics->GetActiveCargoOrderTier() : 1;
+        const int32 OrderUnits = Logistics ? Logistics->GetCargoOrderUnits() : (RouteTier >= 2 ? 3 : 2);
         const int32 RouteBonus = RouteTier >= 3 ? 120 : (RouteTier >= 2 ? 70 : 0);
         const int32 DisplayBase = FMath::RoundToInt(static_cast<float>(Offer.BaseReward) * MarketMultiplier);
         const int32 DisplayMax = FMath::RoundToInt(static_cast<float>(Offer.MaximumReward + RouteBonus) * MarketMultiplier);
@@ -88,8 +90,9 @@ void AGTTContractBoardTerminal::RefreshLabel()
                 (!bScheduleOpen ? TEXT("CLOSED") : (!bMarketLoadAvailable ? TEXT("STOCK/DEMAND FULL") : TEXT("UNAVAILABLE"))));
 
         Label->SetText(FText::FromString(FString::Printf(
-            TEXT("CONTRACT BOARD\n%s | %s | T%d\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\n%s | %s\n%s\nREP %s %d | CARGO %d/%d\n%s\n%s"),
-            *Offer.Title.ToUpper(), *Role, RouteTier,
+            TEXT("CONTRACT BOARD\n%s | %s | CAP T%d / ORDER T%d\n%s | %d UNITS\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\n%s | %s\n%s\nREP %s %d | CARGO %d/%d\n%s\n%s"),
+            *Offer.Title.ToUpper(), *Role, CapabilityTier, RouteTier,
+            Logistics ? *Logistics->GetCargoOrderPriorityLabel() : TEXT("ORDER OFFLINE"), OrderUnits,
             DisplayBase, DisplayMax,
             *Vehicle, *Readiness,
             Offer.Fleet.ConditionPercent * 100.0f,
@@ -114,8 +117,9 @@ void AGTTContractBoardTerminal::RefreshLabel()
 
     if (JobTag == RoadRunJob)
     {
+        const UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>();
         Label->SetText(FText::FromString(FString::Printf(
-            TEXT("CONTRACT BOARD\n%s | %s\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\nREP %s %d | BONUS %d%% | %s\n%s"),
+            TEXT("CONTRACT BOARD\n%s | %s\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\nREP %s %d | BONUS %d%% | %s\n%s\n%s"),
             *Offer.Title.ToUpper(), *Role,
             Offer.BaseReward, Offer.MaximumReward,
             *Vehicle, *Readiness,
@@ -126,6 +130,7 @@ void AGTTContractBoardTerminal::RefreshLabel()
             Offer.PreparationEstimate,
             Offer.MaximumNetReward,
             *Offer.LogisticsTier.ToUpper(), Offer.LogisticsReputation, Offer.PayoutBonusPercent, *Offer.ScheduleStatus,
+            Logistics ? *Logistics->GetRoadSupplySignalLabel() : TEXT("SUPPLY SIGNAL OFFLINE"),
             *Action)));
         return;
     }
@@ -178,7 +183,7 @@ void AGTTContractBoardTerminal::Interact_Implementation(AActor* Interactor)
     else if (JobTag == FarmCargoJob && !bCargoMarketOpen)
     {
         Summary = Logistics
-            ? FString::Printf(TEXT("No CARGO load is available right now: %s. Daily restock and contract rotation happen with the next rural work day."), *Logistics->GetCargoStockSummary())
+            ? FString::Printf(TEXT("No CARGO load is available right now: %s. Unserved demand carries into future work days; restock and fresh orders arrive with the next rural shift."), *Logistics->GetCargoStockSummary())
             : TEXT("Cargo market state unavailable.");
     }
     else if (!Offer.bScheduleOpen)
@@ -207,13 +212,14 @@ FText AGTTContractBoardTerminal::GetInteractionText_Implementation() const
         const bool bScheduleOpen = Logistics && Logistics->IsCargoDepotWindowOpen();
         const bool bMarketLoadAvailable = Logistics && Logistics->CanAcceptCargoContract();
         const float MarketMultiplier = Logistics ? Logistics->GetCargoMarketMultiplier() : 1.0f;
-        const int32 RouteTier = Logistics ? Logistics->GetCargoRouteTier() : 1;
+        const int32 CapabilityTier = Logistics ? Logistics->GetCargoRouteTier() : 1;
+        const int32 RouteTier = Logistics ? Logistics->GetActiveCargoOrderTier() : 1;
         const int32 RouteBonus = RouteTier >= 3 ? 120 : (RouteTier >= 2 ? 70 : 0);
         const int32 DisplayMax = FMath::RoundToInt(static_cast<float>(Offer.MaximumReward + RouteBonus) * MarketMultiplier);
         if (Offer.bNeedsPreparation)
         {
-            return FText::FromString(FString::Printf(TEXT("Prepare %s T%d | %s | $%d | market max $%d"),
-                *Offer.Title, RouteTier, *UGTTGarageFleetSubsystem::MissionReadinessLabel(Offer.Fleet.Readiness), Offer.PreparationEstimate, DisplayMax));
+            return FText::FromString(FString::Printf(TEXT("Prepare %s CAP T%d / ORDER T%d | %s | $%d | market max $%d"),
+                *Offer.Title, CapabilityTier, RouteTier, *UGTTGarageFleetSubsystem::MissionReadinessLabel(Offer.Fleet.Readiness), Offer.PreparationEstimate, DisplayMax));
         }
         if (!bScheduleOpen)
         {
@@ -228,9 +234,11 @@ FText AGTTContractBoardTerminal::GetInteractionText_Implementation() const
         }
         if (Offer.bCanAcceptNow)
         {
-            return FText::FromString(FString::Printf(TEXT("Accept %s T%d | max $%d | %s | %s"),
-                *Offer.Title, RouteTier, DisplayMax,
-                Logistics ? *Logistics->GetCargoMarketLabel() : TEXT("MARKET"),
+            return FText::FromString(FString::Printf(TEXT("Accept %s ORDER T%d | %s | %d units | max $%d | %s"),
+                *Offer.Title, RouteTier,
+                Logistics ? *Logistics->GetCargoOrderPriorityLabel() : TEXT("ORDER"),
+                Logistics ? Logistics->GetCargoOrderUnits() : 0,
+                DisplayMax,
                 Logistics ? *Logistics->GetCargoStockSummary() : TEXT("STOCK OFFLINE")));
         }
     }

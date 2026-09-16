@@ -51,14 +51,34 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics")
     float GetRoadCourierRewardMultiplier() const;
 
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics")
+    FString GetRoadSupplySignalLabel() const;
+
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     bool IsCargoDepotWindowOpen() const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     FString GetCargoScheduleLabel() const;
 
+    // Reputation capability tier. The actual offered order can step down to a Hill Farm
+    // direct run when that buyer has the stronger backlog.
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     int32 GetCargoRouteTier() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Orders")
+    int32 GetActiveCargoOrderTier() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Orders")
+    int32 GetCargoOrderUnits() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Orders")
+    FString GetCargoOrderPriorityLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Orders")
+    FString GetCargoOrderRouteLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Orders")
+    int32 GetCargoBacklogPressure() const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     float GetCargoMarketMultiplier() const;
@@ -116,13 +136,14 @@ private:
     int32 CargoFailedRuns = 0;
     int32 CargoLifetimeRevenue = 0;
 
-    // 0.1.5 persistent living-market state. Mutable because read-only board queries can be
-    // the first touch after the world day rolls over and therefore lazily apply daily restock.
+    // Living-market state. Mutable because read-only board queries can be the first touch
+    // after a world-day rollover and therefore lazily apply stock/backlog evolution.
     mutable int32 MarketDay = 0;
     mutable int32 FeedDepotStock = 10;
     mutable int32 HillFarmDemand = 6;
     mutable int32 WoodYardDemand = 4;
     mutable int32 CargoRotationIndex = 0;
+    mutable int32 CargoBacklogPressure = 0;
 
     TArray<FName> RecentContractTags;
     TArray<int32> RecentPayouts;

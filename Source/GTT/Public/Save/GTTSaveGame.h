@@ -44,7 +44,9 @@ public:
     // v6 persists the active garage dispatch vehicle, v7 adds per-role mission loadouts,
     // and v8 persists rural logistics reputation/history. 0.1.4 extends v8 additively with
     // CARGO history; 0.1.5 extends the same compatible v8 snapshot with persistent depot
-    // stock/demand/rotation so existing v8 profiles safely receive default market values.
+    // stock/demand/rotation; 0.1.6 extends it with persistent supply-backlog pressure.
+    // These remain additive fields with safe defaults so existing v8 profiles do not need
+    // a destructive migration.
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 Cash = 120;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 FishCount = 0;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float FishWeightKg = 0.0f;
@@ -72,6 +74,7 @@ public:
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 HillFarmDemand = 6;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 WoodYardDemand = 4;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 CargoRotationIndex = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 CargoBacklogPressure = 0;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<FName> LogisticsRecentContractTags;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<int32> LogisticsRecentPayouts;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<int32> LogisticsRecentQualityPercent;
