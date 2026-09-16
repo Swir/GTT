@@ -6,14 +6,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 required = {
     "Source/GTT/Public/Save/GTTSaveGame.h": [
-        "SaveVersion = 7", "bUnifiedWorldStateInitialized", "UnifiedWorldStateRevision",
+        "SaveVersion = 8", "bUnifiedWorldStateInitialized", "UnifiedWorldStateRevision",
         "CombatWeaponTypes", "CombatEquippedWeaponType", "CombatShotgunAmmo",
         "MainStoryStage", "Arc3Stage", "Arc4Stage", "Arc4StartingFactionVictories",
         "bArc4ContrabandPrepared", "FactionVictories", "RustDogsDefeated",
         "StoneCrowsDefeated", "MudJackalsDefeated", "ContrabandUnits", "ContrabandValue",
         "bInsuranceActive", "ImpoundedVehicleId", "PendingImpoundFee",
         "LifetimeFenceRevenue", "SpeedingCitations", "RoadStructuralDamage",
-        "PreferredGarageVehicleId", "PreferredTractorVehicleId", "PreferredRoadVehicleId", "PreferredCargoVehicleId"
+        "PreferredGarageVehicleId", "PreferredTractorVehicleId", "PreferredRoadVehicleId", "PreferredCargoVehicleId",
+        "LogisticsReputation", "LogisticsCleanStreak", "LogisticsCompletedRuns", "LogisticsFailedRuns", "LogisticsLifetimeRevenue"
     ],
     "Source/GTT/Public/Save/GTTUnifiedSaveSubsystem.h": [
         "GTT_Prototype_01", "GTT_Combat_01", "GTT_MainStory_01", "GTT_MainStory_Arc3_01",
@@ -41,13 +42,11 @@ for rel, tokens in required.items():
     if missing:
         raise SystemExit(f"[FAIL] {rel} missing hooks: {missing}")
 
-# Every domain must have both a legacy -> primary import and a primary -> compatibility-mirror write path.
 cpp = (ROOT / "Source/GTT/Private/Save/GTTUnifiedSaveSubsystem.cpp").read_text(encoding="utf-8")
 for slot in ["CombatSlotName", "StorySlotName", "Arc3SlotName", "Arc4SlotName", "FactionSlotName", "RuralEconomySlotName"]:
     if cpp.count(slot) < 2:
         raise SystemExit(f"[FAIL] {slot} does not appear in both migration directions")
 
-# Enforce the SWIR roadmap dashboard against the real checklist, including the 20-cell bar.
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
 if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
     raise SystemExit("[FAIL] SWIR roadmap standard marker missing")
@@ -67,8 +66,7 @@ expect = [
 missing = [token for token in expect if token not in roadmap]
 if missing:
     raise SystemExit(f"[FAIL] roadmap dashboard/checklist mismatch: {done}/{total} = {percent:.1f}% missing {missing}")
-
 if "- [x] Consolidate combat/story/faction slots into primary sandbox SaveGame" not in roadmap:
     raise SystemExit("[FAIL] unified-save roadmap milestone is not checked")
 
-print(f"[OK] unified world state structurally sane with schema v7 forward compatibility; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
+print(f"[OK] unified world state structurally sane with schema v8 forward compatibility; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
