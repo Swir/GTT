@@ -9,6 +9,7 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "Core/GTTGameMode.h"
+#include "World/GTTGarageFleetSubsystem.h"
 
 namespace
 {
@@ -101,6 +102,13 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
     TimeRemaining = 0.0f;
     CargoIntegrity = 1.0f;
     PushMessage(PlayerPawn, TEXT("FARM CONTRACT: drive to FEED DEPOT and collect the cargo. Mulebox 1200 gets a role bonus."), 6.0f);
+    if (GetWorld())
+    {
+        if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+        {
+            PushMessage(PlayerPawn, Fleet->BuildJobDispatchHint(FName(TEXT("FarmCargo"))), 6.0f);
+        }
+    }
     return true;
 }
 
