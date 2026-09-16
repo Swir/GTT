@@ -16,9 +16,9 @@ changelog = (root / 'CHANGELOG.d/0.0.99.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
 checks = {
-    'save schema v6': 'SaveVersion = 6' in save_h and 'PreferredGarageVehicleId' in save_h,
+    'save schema v7 retains v6 dispatch': 'SaveVersion = 7' in save_h and 'PreferredGarageVehicleId' in save_h,
     'v5 structural threshold retained': 'StructuralDamageSaveVersion = 5' in struct_cpp and 'Save->SaveVersion >= StructuralDamageSaveVersion' in struct_cpp,
-    'v6 dispatch threshold explicit': 'FleetDispatchSaveVersion = 6' in struct_cpp and 'ExtendedSaveVersion = 6' in struct_cpp,
+    'v6 dispatch threshold retained': 'FleetDispatchSaveVersion = 6' in struct_cpp and 'ExtendedSaveVersion = 7' in struct_cpp,
     'preferred dispatch saved': 'Save->PreferredGarageVehicleId = Fleet->GetPreferredVehicleId()' in struct_cpp,
     'preferred dispatch restored': 'RestorePreferredVehicleId' in struct_cpp and 'Save->PreferredGarageVehicleId' in struct_cpp,
     'old-save fallback supported': 'Save->SaveVersion >= FleetDispatchSaveVersion ? Save->PreferredGarageVehicleId : NAME_None' in struct_cpp,
@@ -36,7 +36,7 @@ checks = {
     'player-facing active dispatch UX': '[ACTIVE]' in slot_cpp and 'set ACTIVE' in slot_cpp and 'Dispatch slot' in slot_cpp,
     'farm job consumes fleet state': 'BuildJobDispatchHint(FName(TEXT("FarmCargo")))' in farm_cpp,
     'farm role reward retained': 'MuleboxRoleBonus' in farm_cpp and 'MULEBOX ROLE BONUS' in farm_cpp,
-    'structural regression verifier migrated': 'save schema retains structural v5 data under v6+' in struct_verify and 'StructuralDamageSaveVersion = 5' in struct_verify,
+    'structural regression verifier migrated': 'save schema retains structural v5 data under v7+' in struct_verify and 'StructuralDamageSaveVersion = 5' in struct_verify,
     'sanity wired': 'Verify persistent fleet dispatch and job fit' in sanity and 'verify_fleet_dispatch_selection.py' in sanity,
     'playtest documents runtime route': all(x in playtest for x in ['0.0.99', 'Save/load persistence and migration', 'Farm cargo job fit', 'Native Chaos authority']),
     'changelog documents milestone': all(x in changelog for x in ['0.0.99', 'Persistent Fleet Dispatch', 'save schema v6', '125/130']),
@@ -81,4 +81,4 @@ for token in (
 if (done, total, round(percent, 1)) != (125, 130, 96.2):
     raise SystemExit(f'0.0.99 must not claim Unreal/art roadmap gates: got {done}/{total} = {percent:.1f}%')
 
-print(f'[OK] GTT 0.0.99 persistent fleet dispatch + legal-job fit verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
+print(f'[OK] GTT 0.0.99 persistent fleet dispatch + legal-job fit retained under save v7 ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
