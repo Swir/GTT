@@ -18,6 +18,8 @@
 #include "Missions/GTTNightFavorDirector.h"
 #include "Police/GTTPoliceDirector.h"
 #include "Radio/GTTRadioComponent.h"
+#include "Vehicles/GTTBreakdownDecisionSubsystem.h"
+#include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTDayNightCycle.h"
@@ -33,6 +35,7 @@ void AGTTGameHUD::DrawHUD()
 
     APawn* ControlledPawn = PlayerOwner->GetPawn();
     AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn);
+    AGTTRoadVehicleNativePawn* NativeRoad = Cast<AGTTRoadVehicleNativePawn>(ControlledPawn);
     UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(ControlledPawn);
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn);
     UGTTRadioComponent* Radio = UGTTGameplayStatics::FindRadioComponentForPawn(ControlledPawn);
@@ -95,15 +98,24 @@ void AGTTGameHUD::DrawHUD()
         if (Radio && Radio->IsRadioOn())
             DrawHudText(Radio->GetDisplayLine(), FLinearColor(0.48f,0.88f,1.0f,1.0f), LeftX, BottomY+(VehicleAlert.IsEmpty()?19.0f:43.0f), 0.82f);
     }
+    else if (NativeRoad)
+    {
+        DrawHudText(TEXT("VEHICLE"), FLinearColor(0.52f,0.72f,0.95f,1.0f), LeftX, BottomY-46.0f, 0.78f);
+        DrawHudText(BuildNativeRoadStatus(NativeRoad), FLinearColor::White, LeftX, BottomY-25.0f, 0.94f);
+        const FString RecoveryLine = BuildNativeRoadRecovery(NativeRoad);
+        if (!RecoveryLine.IsEmpty()) DrawHudText(RecoveryLine, FLinearColor(1.0f,0.46f,0.14f,1.0f), LeftX, BottomY+1.0f, 0.84f);
+        if (Radio && Radio->IsRadioOn())
+            DrawHudText(Radio->GetDisplayLine(), FLinearColor(0.48f,0.88f,1.0f,1.0f), LeftX, BottomY+(RecoveryLine.IsEmpty()?1.0f:25.0f), 0.82f);
+    }
     else if (Combat)
     {
         const FLinearColor CombatColor = Combat->GetHealthPercent()<0.3f ? FLinearColor(1.0f,0.20f,0.10f,1.0f) : FLinearColor(1.0f,0.68f,0.22f,1.0f);
         DrawHudText(Combat->GetCombatStatusText(), CombatColor, LeftX, BottomY+8.0f, 0.90f);
     }
 
-    const FString ContextHint = BuildContextHint(ControlledPawn, Vehicle);
+    const FString ContextHint = BuildContextHint(ControlledPawn, Vehicle, NativeRoad);
     if (!ContextHint.IsEmpty())
-        DrawHudText(ContextHint, FLinearColor(0.68f,0.78f,0.90f,1.0f), FMath::Max(LeftX,Canvas->ClipX-500.0f), Canvas->ClipY-42.0f, 0.76f);
+        DrawHudText(ContextHint, FLinearColor(0.68f,0.78f,0.90f,1.0f), FMath::Max(LeftX,Canvas->ClipX-620.0f), Canvas->ClipY-42.0f, 0.76f);
 }
 
 void AGTTGameHUD::DrawHudText(const FString& Text,const FLinearColor& Color,float X,float Y,float Scale)
@@ -136,9 +148,10 @@ FString AGTTGameHUD::BuildPrimaryObjective() const
     return FString();
 }
 
-FString AGTTGameHUD::BuildContextHint(const APawn* ControlledPawn,const AGTTVehicleBase* Vehicle) const
+FString AGTTGameHUD::BuildContextHint(const APawn* ControlledPawn,const AGTTVehicleBase* Vehicle,const AGTTRoadVehicleNativePawn* NativeRoad) const
 {
     if (Vehicle) return TEXT("E interact  |  F exit vehicle  |  R radio  |  F5 save  F9 load");
+    if (NativeRoad) return TEXT("F exit vehicle  |  R radio  |  T / D-Pad Up roadside tow  |  F5 save  F9 load");
     if (ControlledPawn) return TEXT("E interact  |  LMB attack  |  Q next weapon  |  G drop");
     return FString();
 }
@@ -159,6 +172,37 @@ FString AGTTGameHUD::BuildVehicleAlert(const AGTTVehicleBase* Vehicle) const
     if (Vehicle->GetFuelPercent()<0.15f) return TEXT("WARNING  |  LOW FUEL");
     if (Vehicle->GetEngineTemperatureC()>108.0f) return TEXT("WARNING  |  ENGINE TEMPERATURE HIGH");
     return FString();
+}
+
+FString AGTTGameHUD::BuildNativeRoadStatus(const AGTTRoadVehicleNativePawn* Vehicle) const
+{
+    if (!Vehicle) return FString();
+    const FGTTRoadVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
+    const FGTTRoadBodyDamageSnapshot Body = Vehicle->GetBodyDamageSnapshot();
+    const float BodyHealth = FMath::Min(FMath::Min(Body.FrontHealth, Body.RearHealth), FMath::Min(Body.LeftHealth, Body.RightHealth));
+    return FString::Printf(TEXT("%s  |  %.0f km/h  |  FUEL %.0f L  |  CONDITION %.0f%%  |  TIRES %.0f%%  |  BODY %.0f%%"),
+        *Vehicle->GetVehicleDisplayName().ToString(), Vehicle->GetVelocity().Size()*0.036f, State.FuelLiters,
+        State.ConditionPercent*100.0f, State.TireIntegrity*100.0f, BodyHealth*100.0f);
+}
+
+FString AGTTGameHUD::BuildNativeRoadRecovery(const AGTTRoadVehicleNativePawn* Vehicle) const
+{
+    if (!Vehicle || !GetWorld()) return FString();
+    const UGTTBreakdownDecisionSubsystem* Decision = GetWorld()->GetSubsystem<UGTTBreakdownDecisionSubsystem>();
+    if (!Decision) return FString();
+    const FGTTBreakdownAssessment Assessment = Decision->AssessVehicle(Vehicle);
+    if (Assessment.Recommendation == EGTTBreakdownRecommendation::DriveNormally && Assessment.Severity < 0.20f) return FString();
+    const TCHAR* Recommendation = TEXT("MONITOR");
+    const TCHAR* Choice = TEXT("");
+    switch (Assessment.Recommendation)
+    {
+        case EGTTBreakdownRecommendation::LimpToWorkshop: Recommendation = TEXT("LIMP TO WORKSHOP"); Choice = TEXT(" | T tow optional"); break;
+        case EGTTBreakdownRecommendation::TowRecommended: Recommendation = TEXT("TOW RECOMMENDED"); Choice = TEXT(" | T CALL TOW"); break;
+        case EGTTBreakdownRecommendation::Immobilized: Recommendation = TEXT("IMMOBILIZED"); Choice = TEXT(" | T CALL TOW"); break;
+        default: break;
+    }
+    return FString::Printf(TEXT("RECOVERY  |  %s  |  DAMAGE %.0f%%  |  TOW $%d  |  REPAIR ~$%d%s"),
+        Recommendation, Assessment.Severity*100.0f, Assessment.TowEstimate, Assessment.RepairEstimate, Choice);
 }
 
 FString AGTTGameHUD::BuildMissionText() const

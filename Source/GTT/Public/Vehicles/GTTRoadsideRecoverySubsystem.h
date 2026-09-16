@@ -17,6 +17,7 @@ struct FGTTRoadsideRecoveryRuntime
     float CooldownSeconds = 0.0f;
     EGTTRoadsideRecoveryMode Mode = EGTTRoadsideRecoveryMode::None;
     bool bAnnounced = false;
+    bool bTowRequested = false;
 };
 
 UCLASS()
@@ -26,10 +27,18 @@ class GTT_API UGTTRoadsideRecoverySubsystem : public UTickableWorldSubsystem
 public:
     virtual void Tick(float DeltaSeconds) override;
     virtual TStatId GetStatId() const override;
+
+    /** Player-authorized roadside tow. Normal assistance never auto-tows at wanted 0. */
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Recovery")
+    bool RequestRoadsideTow(AGTTRoadVehicleNativePawn* Vehicle);
+
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Recovery")
+    bool IsRoadsideTowPending(const AGTTRoadVehicleNativePawn* Vehicle) const;
+
 private:
     bool IsRecoveryEligible(const AGTTRoadVehicleNativePawn* Vehicle) const;
     void UpdateVehicle(AGTTRoadVehicleNativePawn* Vehicle, float DeltaSeconds);
-    void CompleteRecovery(AGTTRoadVehicleNativePawn* Vehicle, EGTTRoadsideRecoveryMode Mode);
+    bool CompleteRecovery(AGTTRoadVehicleNativePawn* Vehicle, EGTTRoadsideRecoveryMode Mode);
     int32 CalculateRoadsideCost(const AGTTRoadVehicleNativePawn* Vehicle) const;
     int32 CalculateImpoundCost(const AGTTRoadVehicleNativePawn* Vehicle, int32 WantedLevel) const;
     FVector GetWorkshopDropLocation(const AGTTRoadVehicleNativePawn* Vehicle) const;
