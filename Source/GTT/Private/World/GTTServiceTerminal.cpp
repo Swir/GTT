@@ -1,11 +1,13 @@
 #include "World/GTTServiceTerminal.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTBreakdownDecisionSubsystem.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
@@ -57,6 +59,16 @@ namespace
         return false;
     }
 
+    bool NativeRoadNeedsMechanicalService(const AGTTRoadVehicleNativePawn* Vehicle)
+    {
+        if (!Vehicle) return false;
+        const FGTTRoadVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
+        const FGTTRoadBodyDamageSnapshot Body = Vehicle->GetBodyDamageSnapshot();
+        const bool bBodyDamaged = Body.FrontHealth < 0.999f || Body.RearHealth < 0.999f ||
+            Body.LeftHealth < 0.999f || Body.RightHealth < 0.999f || Body.CoolingStress > 0.01f || Body.DetachedPanelCount > 0;
+        return State.ConditionPercent < 0.999f || State.TireIntegrity < 0.999f || bBodyDamaged;
+    }
+
     AGTTVehicleBase* FindFieldmasterMirror(UWorld* World, const AGTTFieldmasterNativePawn* Native)
     {
         if (!World || !Native) return nullptr;
@@ -93,6 +105,14 @@ int32 AGTTServiceTerminal::GetNativeRoadRepairQuote(const AGTTRoadVehicleNativeP
     return Decision ? Decision->CalculateRepairEstimate(Vehicle, WorkshopServiceCost) : WorkshopServiceCost + Vehicle->GetBodyDamageRepairSurcharge();
 }
 
+int32 AGTTServiceTerminal::GetNativeRoadFuelQuote(const AGTTRoadVehicleNativePawn* Vehicle) const
+{
+    if (!Vehicle) return 0;
+    const FGTTRoadVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
+    const float MissingLiters = FMath::Max(0.0f, Vehicle->GetFuelCapacityLiters() - State.FuelLiters);
+    return MissingLiters <= KINDA_SMALL_NUMBER ? 0 : FMath::Max(1, FMath::CeilToInt(MissingLiters * NativeFuelPricePerLiter));
+}
+
 void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
 {
     APawn* Pawn = Cast<APawn>(Interactor);
@@ -105,13 +125,38 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         return;
     }
 
+    AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
+
     if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
     {
-        if (!NativeRoad->NeedsNativeWorkshopService())
+        const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
+        const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad);
+        const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < NativeRoad->GetFuelCapacityLiters();
+
+        if (!bNeedsMechanical && !bNeedsFuel)
         {
             Economy->PushMessage(TEXT("Workshop: that Native road vehicle is already ready to go."));
             return;
         }
+
+        // Fuel-only visits use a dedicated per-litre quote instead of charging a full damage-service fee.
+        if (!bNeedsMechanical && bNeedsFuel)
+        {
+            const int32 FuelCost = GetNativeRoadFuelQuote(NativeRoad);
+            const float MissingLiters = FMath::Max(0.0f, NativeRoad->GetFuelCapacityLiters() - State.FuelLiters);
+            if (!Economy->SpendCash(FuelCost, FString::Printf(TEXT("%s fuel - $%d"), *NativeRoad->GetVehicleDisplayName().ToString(), FuelCost))) return;
+            const float Added = NativeRoad->RefuelNativeVehicle(MissingLiters);
+            if (Added <= KINDA_SMALL_NUMBER)
+            {
+                Economy->AddCash(FuelCost, TEXT("Native road refuel rollback"));
+                Economy->PushMessage(TEXT("Workshop: refuel could not be applied; payment returned."));
+                return;
+            }
+            Economy->PushMessage(FString::Printf(TEXT("%s refuelled %.1f L for $%d. Mechanical state was not changed."), *NativeRoad->GetVehicleDisplayName().ToString(), Added, FuelCost), 5.0f);
+            if (GameMode) GameMode->SaveProgress();
+            return;
+        }
+
         const int32 BodyParts = NativeRoad->GetBodyDamageRepairSurcharge();
         const int32 TotalCost = GetNativeRoadRepairQuote(NativeRoad);
         if (!Economy->SpendCash(TotalCost, FString::Printf(TEXT("Native road workshop estimate - $%d"), TotalCost))) return;
@@ -122,6 +167,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
             return;
         }
         Economy->PushMessage(FString::Printf(TEXT("%s repaired + refuelled for $%d (structural parts $%d)."), *NativeRoad->GetVehicleDisplayName().ToString(), TotalCost, BodyParts), 6.0f);
+        if (GameMode) GameMode->SaveProgress();
         return;
     }
 
@@ -144,6 +190,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
             return;
         }
         Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled; Native Chaos state synchronized."), *Native->GetVehicleDisplayName().ToString()), 5.0f);
+        if (GameMode) GameMode->SaveProgress();
         return;
     }
 
@@ -156,6 +203,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     Vehicle->RepairVehicle(100000.0f);
     Vehicle->RefuelVehicle(100000.0f);
     Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled."), *Vehicle->GetVehicleDisplayName().ToString()), 5.0f);
+    if (GameMode) GameMode->SaveProgress();
 }
 
 FText AGTTServiceTerminal::GetInteractionText_Implementation() const
@@ -167,12 +215,14 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
 
     if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
     {
-        const int32 Quote = GetNativeRoadRepairQuote(NativeRoad);
-        if (!NativeRoad->NeedsNativeWorkshopService())
-        {
+        const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
+        const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad);
+        const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < NativeRoad->GetFuelCapacityLiters();
+        if (!bNeedsMechanical && !bNeedsFuel)
             return FText::FromString(FString::Printf(TEXT("Workshop: %s is ready"), *NativeRoad->GetVehicleDisplayName().ToString()));
-        }
-        return FText::FromString(FString::Printf(TEXT("Workshop: repair + refuel %s ($%d estimate)"), *NativeRoad->GetVehicleDisplayName().ToString(), Quote));
+        if (!bNeedsMechanical && bNeedsFuel)
+            return FText::FromString(FString::Printf(TEXT("Refuel %s ($%d exact fuel quote)"), *NativeRoad->GetVehicleDisplayName().ToString(), GetNativeRoadFuelQuote(NativeRoad)));
+        return FText::FromString(FString::Printf(TEXT("Workshop: repair + refuel %s ($%d estimate)"), *NativeRoad->GetVehicleDisplayName().ToString(), GetNativeRoadRepairQuote(NativeRoad)));
     }
 
     if (AGTTFieldmasterNativePawn* Native = FindActiveNativeFieldmaster(GetWorld(), GetActorLocation(), VehicleSearchRadius))

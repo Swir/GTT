@@ -17,6 +17,8 @@ struct GTT_API FGTTGarageFleetSnapshot
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") FString DisplayName;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") float ConditionPercent = 1.0f;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") float FuelPercent = 1.0f;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") float FuelLiters = 0.0f;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") float FuelCapacityLiters = 0.0f;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") float TireIntegrity = 1.0f;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") float BodyHealth = 1.0f;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") int32 EngineUpgradeLevel = 0;
@@ -24,8 +26,13 @@ struct GTT_API FGTTGarageFleetSnapshot
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") bool bNativeAuthority = false;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") bool bOccupied = false;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") FString ServiceStatus = TEXT("READY");
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") FString NextServiceAction = TEXT("NONE");
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") int32 RepairEstimate = 0;
     UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") int32 TowEstimate = 0;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") int32 FuelEstimate = 0;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") int32 TireServiceEstimate = 0;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") int32 NextEngineUpgradeCost = 0;
+    UPROPERTY(BlueprintReadOnly, Category="GTT|Garage") int32 NextTireUpgradeCost = 0;
 };
 
 UCLASS()
