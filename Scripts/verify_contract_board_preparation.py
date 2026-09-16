@@ -28,9 +28,9 @@ checks = {
     "four legal offers spawn beside garage": all(token in contract_cpp for token in [
         'FarmCargoJob', 'HeavyHaulJob', 'TimberHaulJob', 'FieldMowingJob',
         'SpawnActor<AGTTContractBoardTerminal>', 'Board->Configure(Entry.JobTag)']),
-    "offer surfaces authoritative fleet readiness": all(token in contract_cpp for token in [
-        'AssessJobReadiness(JobTag)', 'GetSlotSnapshot', 'RecommendedRoleForJob',
-        'MissionReadinessLabel', 'MaximumNetReward']),
+    "offer uses authoritative fleet readiness": all(token in contract_cpp for token in [
+        'AssessJobReadiness(JobTag)', 'GetSlotSnapshot', 'RecommendedRoleForJob', 'MaximumNetReward']),
+    "board surfaces readiness label": 'MissionReadinessLabel' in terminal_cpp,
     "real reward ranges documented in runtime catalog": all(token in contract_cpp for token in [
         'return 220;', 'return 355;', 'return 900;', 'return 1150;', 'return 340;', 'return 450;', 'return 390;', 'return 470;']),
     "prep charges real economy": 'SpendCash(Offer.PreparationEstimate' in contract_cpp and 'Fleet preparation refund' in contract_cpp,
