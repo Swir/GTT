@@ -54,8 +54,6 @@ void AGTTFarmJobDirector::BeginPlay()
     Super::BeginPlay();
     if (!GetWorld()) return;
 
-    // 0.1.4 extends TRUSTED+ CARGO work from Hill Farm to the existing North Wood Yard.
-    // The extra terminal is owned by this director so the prototype world does not need a duplicate route definition.
     if (AGTTFarmJobTerminal* FinalStop = GetWorld()->SpawnActor<AGTTFarmJobTerminal>(FVector(7850.0f, 1120.0f, 55.0f), FRotator::ZeroRotator))
     {
         FinalStop->SetTerminalType(EGTTFarmJobTerminalType::FinalFinish);
@@ -174,6 +172,7 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
     RouteTierAtStart = 1;
     CargoUnitsReserved = 0;
     CargoCommodityAtStart = TEXT("ANIMAL FEED");
+    CargoPriorityAtStart = TEXT("HILL FARM DIRECT");
     bPoliceIncidentDuringRun = false;
     if (GetWorld())
     {
@@ -186,14 +185,17 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
             }
             if (!Logistics->CanAcceptCargoContract())
             {
-                PushMessage(PlayerPawn, FString::Printf(TEXT("CARGO MARKET HAS NO OPEN LOAD: %s. Demand and depot stock rotate with the next rural work day."), *Logistics->GetCargoStockSummary()), 7.0f);
+                PushMessage(PlayerPawn, FString::Printf(TEXT("CARGO MARKET HAS NO OPEN LOAD: %s. Backlog survives into the next work day and new orders/restock are applied there."), *Logistics->GetCargoStockSummary()), 7.0f);
                 return false;
             }
             MarketMultiplierAtStart = Logistics->GetCargoMarketMultiplier();
-            RouteTierAtStart = Logistics->GetCargoRouteTier();
+            const int32 CapabilityTier = Logistics->GetCargoRouteTier();
+            RouteTierAtStart = Logistics->GetActiveCargoOrderTier();
             CargoCommodityAtStart = Logistics->GetCargoCommodityLabel();
-            PushMessage(PlayerPawn, FString::Printf(TEXT("CARGO MARKET: %s | %s | REP %s %d | payout x%.2f locked for this contract."),
-                *Logistics->GetCargoMarketLabel(), *Logistics->GetCargoStockSummary(), *Logistics->GetTierLabel(), Logistics->GetReputation(), MarketMultiplierAtStart), 7.0f);
+            CargoPriorityAtStart = Logistics->GetCargoOrderPriorityLabel();
+            PushMessage(PlayerPawn, FString::Printf(TEXT("CARGO ORDER: %s | %s | CAP T%d / ORDER T%d | REP %s %d | payout x%.2f locked."),
+                *CargoPriorityAtStart, *Logistics->GetCargoStockSummary(), CapabilityTier, RouteTierAtStart,
+                *Logistics->GetTierLabel(), Logistics->GetReputation(), MarketMultiplierAtStart), 7.5f);
         }
 
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
@@ -237,8 +239,8 @@ bool AGTTFarmJobDirector::TryStartJob(APawn* PlayerPawn)
     const FString RouteText = RouteTierAtStart >= 2
         ? TEXT("FEED DEPOT -> HILL FARM relay -> NORTH WOOD YARD")
         : TEXT("FEED DEPOT -> HILL FARM");
-    PushMessage(PlayerPawn, FString::Printf(TEXT("FARM CONTRACT T%d: %s | %s x%d reserved. Mulebox 1200 gets a role bonus."),
-        RouteTierAtStart, *RouteText, *CargoCommodityAtStart, CargoUnitsReserved), 7.0f);
+    PushMessage(PlayerPawn, FString::Printf(TEXT("FARM CONTRACT T%d: %s | %s x%d reserved | %s. Mulebox 1200 gets a role bonus."),
+        RouteTierAtStart, *RouteText, *CargoCommodityAtStart, CargoUnitsReserved, *CargoPriorityAtStart), 7.0f);
     return true;
 }
 
@@ -256,23 +258,30 @@ bool AGTTFarmJobDirector::TryPickupCargo(APawn* PlayerPawn)
     }
 
     LoadedMulebox = Cast<AGTTFarmVanPawn>(Vehicle);
+    const float CargoLoadFactor = RouteTierAtStart >= 3 ? 1.20f : 1.0f;
     if (LoadedNativeMulebox.IsValid())
     {
-        LoadedNativeMulebox->SetCargoLoadFactor(1.0f);
-        PushMessage(PlayerPawn, TEXT("NATIVE MULEBOX LOADED: cargo weight now affects Chaos throttle and high-speed steering."), 5.0f);
+        if (RouteTierAtStart >= 3) LoadedNativeMulebox->SetCargoLoadFactor(CargoLoadFactor);
+        else LoadedNativeMulebox->SetCargoLoadFactor(1.0f);
+        PushMessage(PlayerPawn, RouteTierAtStart >= 3
+            ? TEXT("NATIVE MULEBOX BULK-LOADED: 4-unit order adds extra cargo mass to Chaos throttle and high-speed steering.")
+            : TEXT("NATIVE MULEBOX LOADED: cargo weight now affects Chaos throttle and high-speed steering."), 5.5f);
     }
     else if (LoadedMulebox.IsValid())
     {
-        LoadedMulebox->SetCargoLoadFactor(1.0f);
-        PushMessage(PlayerPawn, TEXT("MULEBOX LOADED: cargo weight now affects throttle and high-speed steering."), 5.0f);
+        if (RouteTierAtStart >= 3) LoadedMulebox->SetCargoLoadFactor(CargoLoadFactor);
+        else LoadedMulebox->SetCargoLoadFactor(1.0f);
+        PushMessage(PlayerPawn, RouteTierAtStart >= 3
+            ? TEXT("MULEBOX BULK-LOADED: 4-unit order carries extra handling load.")
+            : TEXT("MULEBOX LOADED: cargo weight now affects throttle and high-speed steering."), 5.0f);
     }
 
     Stage = EGTTFarmJobStage::DeliverCargo;
-    TimeRemaining = DeliveryTimeLimit + (RouteTierAtStart >= 2 ? ExtendedRouteExtraTime : 0.0f);
+    TimeRemaining = DeliveryTimeLimit + (RouteTierAtStart >= 2 ? ExtendedRouteExtraTime : 0.0f) + (RouteTierAtStart >= 3 ? BulkRouteExtraTime : 0.0f);
     CargoIntegrity = 1.0f;
     PushMessage(PlayerPawn, RouteTierAtStart >= 2
-        ? FString::Printf(TEXT("%s LOADED: first handoff HILL FARM, then continue the same load to NORTH WOOD YARD. One timer, one cargo condition."), *CargoCommodityAtStart)
-        : FString::Printf(TEXT("%s LOADED: deliver to HILL FARM before time runs out. Keep the vehicle intact."), *CargoCommodityAtStart), 7.0f);
+        ? FString::Printf(TEXT("%s LOADED: first handoff HILL FARM, then continue the same load to NORTH WOOD YARD. %s | one timer, one cargo condition."), *CargoCommodityAtStart, *CargoPriorityAtStart)
+        : FString::Printf(TEXT("%s LOADED: deliver to HILL FARM before time runs out. %s | keep the vehicle intact."), *CargoCommodityAtStart, *CargoPriorityAtStart), 7.0f);
     return true;
 }
 
@@ -309,8 +318,8 @@ bool AGTTFarmJobDirector::TryCompleteJob(APawn* PlayerPawn)
     if (RouteTierAtStart >= 2)
     {
         Stage = EGTTFarmJobStage::DeliverFinalStop;
-        PushMessage(PlayerPawn, FString::Printf(TEXT("HILL FARM RELAY SIGNED: keep the same load moving to NORTH WOOD YARD. %.0fs remain | cargo %.0f%% | chain bonus $%d."),
-            TimeRemaining, CargoIntegrity * 100.0f, RouteTierAtStart >= 3 ? ReliableChainBonus : TrustedChainBonus), 7.0f);
+        PushMessage(PlayerPawn, FString::Printf(TEXT("HILL FARM RELAY SIGNED: keep the same load moving to NORTH WOOD YARD. %.0fs remain | cargo %.0f%% | chain bonus $%d | %s."),
+            TimeRemaining, CargoIntegrity * 100.0f, RouteTierAtStart >= 3 ? ReliableChainBonus : TrustedChainBonus, *CargoPriorityAtStart), 7.0f);
         return true;
     }
 
@@ -331,7 +340,7 @@ bool AGTTFarmJobDirector::TryCompleteFinalStop(APawn* PlayerPawn)
 
 bool AGTTFarmJobDirector::CompleteCargoContract(APawn* PlayerPawn, bool bExtendedRoute)
 {
-    const float ActiveTimeLimit = DeliveryTimeLimit + (RouteTierAtStart >= 2 ? ExtendedRouteExtraTime : 0.0f);
+    const float ActiveTimeLimit = DeliveryTimeLimit + (RouteTierAtStart >= 2 ? ExtendedRouteExtraTime : 0.0f) + (RouteTierAtStart >= 3 ? BulkRouteExtraTime : 0.0f);
     const float TimeRatio = ActiveTimeLimit > 0.0f ? TimeRemaining / ActiveTimeLimit : 0.0f;
     const int32 IntegrityReward = FMath::RoundToInt(BaseReward * FMath::Clamp(CargoIntegrity, 0.0f, 1.0f));
     const int32 Bonus = TimeRatio >= FastDeliveryThreshold ? FastDeliveryBonus : 0;
@@ -345,13 +354,14 @@ bool AGTTFarmJobDirector::CompleteCargoContract(APawn* PlayerPawn, bool bExtende
     {
         Economy->AddCash(TotalReward, FString::Printf(TEXT("Rural cargo delivery: +$%d"), TotalReward));
         Economy->PushMessage(
-            FString::Printf(TEXT("DELIVERY COMPLETE: $%d | cargo %.0f%% | %.0fs left%s%s%s | MARKET x%.2f%s"),
+            FString::Printf(TEXT("DELIVERY COMPLETE: $%d | cargo %.0f%% | %.0fs left%s%s%s | MARKET x%.2f%s | %s"),
                 TotalReward, CargoIntegrity * 100.0f, TimeRemaining,
                 Bonus > 0 ? TEXT(" | FAST BONUS") : TEXT(""),
                 RoleBonus > 0 ? TEXT(" | MULEBOX ROLE BONUS") : TEXT(""),
                 FleetPayoutMultiplier < 0.999f ? TEXT(" | UNPREPARED FLEET PENALTY") : TEXT(""),
                 MarketMultiplierAtStart,
-                bExtendedRoute ? TEXT(" | CHAIN COMPLETE") : TEXT("")),
+                bExtendedRoute ? TEXT(" | CHAIN COMPLETE") : TEXT(""),
+                *CargoPriorityAtStart),
             8.0f);
     }
 
@@ -376,6 +386,7 @@ bool AGTTFarmJobDirector::CompleteCargoContract(APawn* PlayerPawn, bool bExtende
     RouteTierAtStart = 1;
     CargoUnitsReserved = 0;
     CargoCommodityAtStart = TEXT("ANIMAL FEED");
+    CargoPriorityAtStart = TEXT("HILL FARM DIRECT");
     bPoliceIncidentDuringRun = false;
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
     return true;
@@ -386,17 +397,17 @@ FString AGTTFarmJobDirector::GetObjectiveText() const
     switch (Stage)
     {
         case EGTTFarmJobStage::ReachPickup:
-            return FString::Printf(TEXT("FARM CARGO T%d | Reach FEED DEPOT and load %s x%d | market x%.2f"),
-                RouteTierAtStart, *CargoCommodityAtStart, CargoUnitsReserved, MarketMultiplierAtStart);
+            return FString::Printf(TEXT("FARM CARGO T%d | %s | FEED DEPOT | %s x%d | market x%.2f"),
+                RouteTierAtStart, *CargoPriorityAtStart, *CargoCommodityAtStart, CargoUnitsReserved, MarketMultiplierAtStart);
         case EGTTFarmJobStage::DeliverCargo:
-            return FString::Printf(TEXT("FARM CARGO | HILL FARM %s | %.0fs | cargo %.0f%%%s%s"),
+            return FString::Printf(TEXT("FARM CARGO | HILL FARM %s | %.0fs | cargo %.0f%%%s%s | %s"),
                 RouteTierAtStart >= 2 ? TEXT("RELAY") : TEXT("DELIVERY"), TimeRemaining, CargoIntegrity * 100.0f,
                 (LoadedMulebox.IsValid() || LoadedNativeMulebox.IsValid()) ? TEXT(" | MULEBOX LOADED") : TEXT(""),
-                FleetPayoutMultiplier < 0.999f ? TEXT(" | PREP PENALTY") : TEXT(""));
+                FleetPayoutMultiplier < 0.999f ? TEXT(" | PREP PENALTY") : TEXT(""), *CargoPriorityAtStart);
         case EGTTFarmJobStage::DeliverFinalStop:
-            return FString::Printf(TEXT("FARM CARGO | NORTH WOOD YARD FINAL | %.0fs | cargo %.0f%% | market x%.2f%s"),
+            return FString::Printf(TEXT("FARM CARGO | NORTH WOOD YARD FINAL | %.0fs | cargo %.0f%% | market x%.2f%s | %s"),
                 TimeRemaining, CargoIntegrity * 100.0f, MarketMultiplierAtStart,
-                bPoliceIncidentDuringRun ? TEXT(" | POLICE INCIDENT") : TEXT(""));
+                bPoliceIncidentDuringRun ? TEXT(" | POLICE INCIDENT") : TEXT(""), *CargoPriorityAtStart);
         default:
             return FString();
     }
@@ -425,8 +436,9 @@ void AGTTFarmJobDirector::FailJob(APawn* PlayerPawn, const FString& Reason)
     RouteTierAtStart = 1;
     CargoUnitsReserved = 0;
     CargoCommodityAtStart = TEXT("ANIMAL FEED");
+    CargoPriorityAtStart = TEXT("HILL FARM DIRECT");
     bPoliceIncidentDuringRun = false;
-    PushMessage(PlayerPawn, FString::Printf(TEXT("FARM JOB FAILED: %s Reputation/streak consequence saved. Reserved cargo is lost; buyer demand remains open."), *Reason), 7.0f);
+    PushMessage(PlayerPawn, FString::Printf(TEXT("FARM JOB FAILED: %s Reputation/streak consequence saved. Reserved cargo is lost; buyer demand remains open and creates backlog pressure for future orders."), *Reason), 7.0f);
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
 }
 
