@@ -30,6 +30,16 @@ void AGTTRoadblock::SetResponseTier(int32 NewTier)
     if(Sign) Sign->SetText(FText::FromString(FString::Printf(TEXT("COUNTY ROADBLOCK T%d\nSPIKE STRIP"),ResponseTier)));
 }
 
+FVector AGTTRoadblock::GetSpikeStripWorldLocation() const
+{
+    return SpikeStrip ? SpikeStrip->GetComponentLocation() : GetActorLocation();
+}
+
+FVector AGTTRoadblock::GetSpikeApproachDirection() const
+{
+    return GetActorForwardVector().GetSafeNormal2D();
+}
+
 void AGTTRoadblock::HandleSpikeHit(UPrimitiveComponent*,AActor* OtherActor,UPrimitiveComponent*,FVector,const FHitResult&)
 {
     if(!OtherActor||!GetWorld()) return;

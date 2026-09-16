@@ -76,5 +76,6 @@ jobs:
       - { name: Verify roadblock spike consequences, run: 'python Scripts/verify_roadblock_spike_consequences.py' }
       - { name: Verify Native Chaos spike-strip parity, run: 'python Scripts/verify_native_spike_parity.py' }
       - { name: Verify Native roadblock runtime evidence gate, run: 'python Scripts/verify_native_roadblock_runtime_gate.py' }
+      - { name: Verify physical Native roadblock crossing, run: 'python Scripts/verify_physical_roadblock_crossing.py' }
       - { name: Verify packaged gameplay smoke and demo gate integration, run: 'python Scripts/verify_packaged_gameplay_smoke.py' }
       - { name: Verify deterministic packaged demo scenario, run: 'python Scripts/verify_deterministic_demo_scenario.py' }
