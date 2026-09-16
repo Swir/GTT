@@ -27,6 +27,15 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics")
     int32 GetLifetimeRevenue() const { return LifetimeRevenue; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
+    int32 GetCargoCompletedRuns() const { return CargoCompletedRuns; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
+    int32 GetCargoFailedRuns() const { return CargoFailedRuns; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
+    int32 GetCargoLifetimeRevenue() const { return CargoLifetimeRevenue; }
+
     UFUNCTION(BlueprintPure, Category="GTT|Logistics")
     FString GetTierLabel() const;
 
@@ -42,18 +51,46 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics")
     float GetRoadCourierRewardMultiplier() const;
 
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
+    bool IsCargoDepotWindowOpen() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
+    FString GetCargoScheduleLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
+    int32 GetCargoRouteTier() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
+    float GetCargoMarketMultiplier() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
+    FString GetCargoMarketLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|History")
+    FString GetRecentHistorySummary() const;
+
     void RecordCourierSuccess(int32 Payout, float ParcelIntegrity, bool bFastDelivery, bool bPoliceIncident, int32 NativeImpacts);
     void RecordCourierFailure(bool bSevereFailure);
+    void RecordCargoSuccess(int32 Payout, float CargoIntegrity, bool bFastDelivery, bool bPoliceIncident, bool bExtendedRoute);
+    void RecordCargoFailure(float CargoIntegrity, bool bSevereFailure);
 
     void CaptureToSave(UGTTSaveGame* Save) const;
     void RestoreFromSave(const UGTTSaveGame* Save);
 
 private:
     float GetTimeOfDayHours() const;
+    int32 GetDayNumber() const;
+    void AppendHistory(FName ContractTag, int32 Payout, int32 QualityPercent);
 
     int32 Reputation = 0;
     int32 CleanStreak = 0;
     int32 CompletedRuns = 0;
     int32 FailedRuns = 0;
     int32 LifetimeRevenue = 0;
+    int32 CargoCompletedRuns = 0;
+    int32 CargoFailedRuns = 0;
+    int32 CargoLifetimeRevenue = 0;
+    TArray<FName> RecentContractTags;
+    TArray<int32> RecentPayouts;
+    TArray<int32> RecentQualityPercent;
 };
