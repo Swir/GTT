@@ -63,9 +63,16 @@ bool AGTTStructuralGameMode::SaveProgress()
     }
 
     const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
-    UE_LOG(LogGTT, bSaved ? Log : Error,
-        TEXT("STRUCTURAL_SAVE result=%s version=%d vehicles=%d"),
-        bSaved ? TEXT("PASS") : TEXT("FAIL"), Save->SaveVersion, Save->RoadStructuralDamage.Num());
+    if (bSaved)
+    {
+        UE_LOG(LogGTT, Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d"),
+            Save->SaveVersion, Save->RoadStructuralDamage.Num());
+    }
+    else
+    {
+        UE_LOG(LogGTT, Error, TEXT("STRUCTURAL_SAVE result=FAIL version=%d vehicles=%d"),
+            Save->SaveVersion, Save->RoadStructuralDamage.Num());
+    }
     return bSaved;
 }
 
