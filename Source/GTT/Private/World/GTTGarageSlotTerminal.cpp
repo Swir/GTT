@@ -147,9 +147,11 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
     FGTTGarageFleetSnapshot Snapshot;
     if (Fleet) Fleet->GetSlotSnapshot(SlotIndex, Snapshot);
 
-    AGTTRoadVehicleNativePawn* NativeRoad = Fleet ? Fleet->FindActiveNativeRoadVehicle(Vehicle->GetPersistentVehicleId()) : nullptr;
+    const FName VehicleId = Vehicle->GetPersistentVehicleId();
+    const bool bNativeRoadSlot = VehicleId == FName(TEXT("Rattleback82")) || VehicleId == FName(TEXT("Mulebox1200"));
+    AGTTRoadVehicleNativePawn* NativeRoad = (Fleet && bNativeRoadSlot) ? Fleet->FindActiveNativeRoadVehicle(VehicleId) : nullptr;
     AGTTFieldmasterNativePawn* NativeFieldmaster = nullptr;
-    if (!NativeRoad && Vehicle->GetPersistentVehicleId() == FName(TEXT("RustyFieldmaster60")))
+    if (!NativeRoad && VehicleId == FName(TEXT("RustyFieldmaster60")))
     {
         NativeFieldmaster = ResolveActiveNativeFieldmaster(GetWorld());
     }
