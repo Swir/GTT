@@ -12,10 +12,10 @@ checks={
  'handling authority proof': all(x in scenario for x in ('throttle_limit_before','throttle_limit_after','steering_limit_before','steering_limit_after')),
  'continued damaged driving': 'POST_SPIKE_ESCAPE' in scenario and 'FMath::Sin(Phase*2.2f)*0.65f' in scenario and 'Phase>=3.f' in scenario,
  '26 core step completion': 'DEMO_SCENARIO_COMPLETE result=PASS steps=26' in scenario,
- 'evaluator schema v9 retains post spike': 'gtt.demo-scenario.v9' in eval_ps and "'POST_SPIKE_ESCAPE'" in eval_ps,
+ 'evaluator schema v10 retains post spike': 'gtt.demo-scenario.v10' in eval_ps and "'POST_SPIKE_ESCAPE'" in eval_ps,
  'evaluator hard gates control authority': 'Native handling consequence did not prove reduced control authority' in eval_ps,
  'evaluator hard gates continued motion': 'Native vehicle did not continue a measurable damaged escape' in eval_ps,
- 'win64 0.0.92 route': "default: '0.0.92'" in workflow and 'damage persistence recovery' in workflow,
+ 'win64 0.0.93 route': "default: '0.0.93'" in workflow and 'persistent structural damage' in workflow,
  'origin docs retained': 'Post-Spike Escape Dynamics' in changelog and 'Post-Spike Escape Dynamics' in playtest,
 }
 failed=[name for name,ok in checks.items() if not ok]

@@ -66,6 +66,9 @@ public:
         SyncLegacyMirror();
         return MigrationSnapshot.TireIntegrity < PreviousTires;
     }
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Damage") bool ApplyScriptedImpactDamage(float ImpactSpeedKmh, EGTTRoadDamageZone Zone);
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Save") void RestorePersistentBodyDamage(const FGTTRoadBodyDamageSnapshot& InDamage, int32 DetachedPanelMask);
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Save") void FlushNativePersistenceMirror();
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fleet") bool IsNativeReady() const { return bNativeReady; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fleet") bool IsLegacyTakeoverActive() const { return bTakeoverActive; }
@@ -83,6 +86,7 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") int32 GetNativeImpactCount() const { return NativeImpactCount; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") EGTTRoadDamageZone GetLastImpactZone() const { return LastImpactZone; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") FGTTRoadBodyDamageSnapshot GetBodyDamageSnapshot() const { return BodyDamage; }
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Damage") int32 GetDetachedPanelMask() const;
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Workshop") bool NeedsNativeWorkshopService() const;
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Workshop") int32 GetBodyDamageRepairSurcharge() const;
 

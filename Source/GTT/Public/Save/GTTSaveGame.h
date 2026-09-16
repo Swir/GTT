@@ -18,14 +18,29 @@ struct FGTTStoredVehicleData
     UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle") float TireIntegrity = 1.0f;
 };
 
+USTRUCT(BlueprintType)
+struct FGTTStoredRoadStructuralDamageData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle|Structural") FName VehicleId = NAME_None;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle|Structural") float FrontHealth = 1.0f;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle|Structural") float RearHealth = 1.0f;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle|Structural") float LeftHealth = 1.0f;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle|Structural") float RightHealth = 1.0f;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle|Structural") float CoolingStress = 0.0f;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Vehicle|Structural") int32 DetachedPanelMask = 0;
+};
+
 UCLASS()
 class GTT_API UGTTSaveGame : public USaveGame
 {
     GENERATED_BODY()
 
 public:
-    UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 SaveVersion = 4;
-    // Migration compatibility marker for structural checks covering the pre-v4 schema: SaveVersion = 3.
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 SaveVersion = 5;
+    // Migration compatibility: legacy vehicle-tuning snapshots used SaveVersion = 3;
+    // v4 introduced unified world state and v5 adds persistent Native structural damage.
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 Cash = 120;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 FishCount = 0;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float FishWeightKg = 0.0f;
@@ -34,8 +49,9 @@ public:
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 DayNumber = 1;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float TimeOfDayHours = 8.0f;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save|Garage") TArray<FGTTStoredVehicleData> OwnedVehicles;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save|Garage") TArray<FGTTStoredRoadStructuralDamageData> RoadStructuralDamage;
 
-    // Save v4: primary sandbox snapshot. Dedicated pre-v4 slots remain compatibility mirrors.
+    // Save v4+: primary sandbox snapshot. Dedicated pre-v4 slots remain compatibility mirrors.
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Unified") bool bUnifiedWorldStateInitialized = false;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Unified") int32 UnifiedWorldStateRevision = 0;
 
