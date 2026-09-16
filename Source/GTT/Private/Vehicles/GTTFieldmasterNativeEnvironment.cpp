@@ -72,11 +72,11 @@ void AGTTFieldmasterNativePawn::NotifyHit(UPrimitiveComponent* MyComp, AActor* O
     {
         SyncLegacyMirror();
         UE_LOG(LogGTT, Log,
-            TEXT("NATIVE_IMPACT_DAMAGE vehicle=RustyFieldmaster60 speed_kmh=%.1f condition=%.1f tire_integrity=%.2f condition_delta=%.1f tire_delta=%.3f"),
+            TEXT("NATIVE_IMPACT_DAMAGE vehicle=RustyFieldmaster60 speed_kmh=%.1f condition=%.1f%% tire_integrity=%.2f condition_delta=%.1f%% tire_delta=%.3f"),
             ImpactSpeedKmh,
-            MigrationSnapshot.ConditionPercent,
+            MigrationSnapshot.ConditionPercent * 100.0f,
             MigrationSnapshot.TireIntegrity,
-            PreviousCondition - MigrationSnapshot.ConditionPercent,
+            (PreviousCondition - MigrationSnapshot.ConditionPercent) * 100.0f,
             PreviousTires - MigrationSnapshot.TireIntegrity);
     }
 }
@@ -135,8 +135,8 @@ void AGTTFieldmasterNativePawn::ApplyNativeImpactDamage(float ImpactSpeedKmh, fl
     }
 
     const float Severity = FMath::Clamp((ImpactSpeedKmh - MinimumImpactSpeedKmh) / 55.0f, 0.0f, 1.75f);
-    const float BodyDamage = Severity * 13.0f * FMath::Max(0.0f, DamageScale);
-    MigrationSnapshot.ConditionPercent = FMath::Clamp(MigrationSnapshot.ConditionPercent - BodyDamage, 0.0f, 100.0f);
+    const float BodyDamageRatio = Severity * 0.13f * FMath::Max(0.0f, DamageScale);
+    MigrationSnapshot.ConditionPercent = FMath::Clamp(MigrationSnapshot.ConditionPercent - BodyDamageRatio, 0.0f, 1.0f);
 
     if (ImpactSpeedKmh > SevereImpactSpeedKmh)
     {
