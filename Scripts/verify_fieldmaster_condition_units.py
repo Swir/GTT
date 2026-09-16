@@ -18,7 +18,8 @@ workflow = read(".github/workflows/project-sanity.yml")
 checks = {
     "snapshot default is normalized healthy": "float ConditionPercent = 1.0f;" in header,
     "snapshot editor range documents normalized ratio": 'meta=(ClampMin="0.0", ClampMax="1.0")' in header,
-    "legacy source is normalized": "return FMath::Clamp(Condition / MaxCondition, 0.0f, 1.0f);" in vehicle,
+    "legacy source is normalized": "Condition / MaxCondition" in vehicle and "float AGTTVehicleBase::GetConditionPercent() const" in vehicle,
+    "legacy condition stays clamped to MaxCondition": "Condition = FMath::Clamp(Condition - DamageAmount, 0.0f, MaxCondition);" in vehicle and "Condition = FMath::Clamp(Condition + RepairAmount, 0.0f, MaxCondition);" in vehicle,
     "native import consumes legacy ratio directly": "Snapshot.ConditionPercent = LegacyVehicle->GetConditionPercent();" in pawn,
     "legacy mirror receives normalized ratio directly": "MigrationSnapshot.ConditionPercent,\n        MigrationSnapshot.FuelLiters" in pawn,
     "native collision damage uses ratio magnitude": "const float BodyDamageRatio = Severity * 0.13f" in environment,
