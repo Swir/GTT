@@ -5,7 +5,7 @@ on:
       version:
         description: 'GTT version label for the package'
         required: true
-        default: '0.0.91'
+        default: '0.0.92'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -19,7 +19,7 @@ on:
 permissions: { contents: read }
 jobs:
   package-and-smoke:
-    name: UE 5.8 Win64 package + post-spike escape dynamics evidence
+    name: UE 5.8 Win64 package + damage persistence recovery evidence
     runs-on: [self-hosted, windows, x64, unreal-5.8]
     timeout-minutes: 90
     env:
@@ -40,13 +40,13 @@ jobs:
         run: ./Scripts/package_windows.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -Configuration "$env:GTT_CONFIGURATION" -ArchiveDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -SkipZip
       - name: Runtime smoke test packaged EXE with deterministic scenario
         shell: pwsh
-        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 20
-      - name: Evaluate deterministic post-spike escape dynamics scenario
+        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 90 -LaunchTimeoutSeconds 105
+      - name: Evaluate spike damage persistence and workshop recovery scenario
         shell: pwsh
         run: ./Scripts/evaluate_demo_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Evaluate packaged gameplay smoke
         shell: pwsh
-        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 20
+        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 90
       - name: Re-validate evidence bundle
         shell: pwsh
         run: |
