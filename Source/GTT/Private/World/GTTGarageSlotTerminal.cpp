@@ -101,10 +101,12 @@ void AGTTGarageSlotTerminal::RefreshLabel()
 
     const FString NativeTag = Snapshot.bNativeAuthority ? TEXT(" [N]") : TEXT("");
     const FString ActiveTag = Snapshot.bPreferredDispatch ? TEXT(" [ACTIVE]") : TEXT("");
+    const FString LoadoutTag = Snapshot.bRoleLoadout ? TEXT(" [LOADOUT]") : TEXT("");
     Label->SetText(FText::FromString(FString::Printf(
-        TEXT("GARAGE %d%s\n%s%s | %s | %s\nC %.0f  F %.0f  T %.0f  B %.0f\nE - DISPATCH $%d"),
+        TEXT("GARAGE %d%s%s\n%s%s | %s | %s\nC %.0f  F %.0f  T %.0f  B %.0f\nE - DISPATCH $%d"),
         SlotIndex + 1,
         *ActiveTag,
+        *LoadoutTag,
         *Snapshot.DisplayName.ToUpper(),
         *NativeTag,
         *UGTTGarageFleetSubsystem::FleetRoleLabel(Snapshot.Role),
@@ -231,8 +233,8 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
     {
         ServiceHint = FString::Printf(TEXT(" %s; workshop estimate $%d."), *Snapshot.ServiceStatus, Snapshot.RepairEstimate);
     }
-    Economy->PushMessage(FString::Printf(TEXT("SLOT %d DISPATCH: %s delivered for $%d and set ACTIVE.%s Damage, fuel and tuning were preserved."),
-        SlotIndex + 1, *DisplayName, RecallServiceCost, *ServiceHint), 6.0f);
+    Economy->PushMessage(FString::Printf(TEXT("SLOT %d DISPATCH: %s delivered for $%d, set ACTIVE and saved as the %s mission loadout.%s Damage, fuel and tuning were preserved."),
+        SlotIndex + 1, *DisplayName, RecallServiceCost, *UGTTGarageFleetSubsystem::FleetRoleLabel(Snapshot.Role), *ServiceHint), 6.0f);
 }
 
 FText AGTTGarageSlotTerminal::GetInteractionText_Implementation() const
@@ -245,10 +247,11 @@ FText AGTTGarageSlotTerminal::GetInteractionText_Implementation() const
         return FText::Format(NSLOCTEXT("GTT", "GarageSlotEmptyFleet", "Garage slot {0}: empty"), FText::AsNumber(SlotIndex + 1));
     }
 
-    return FText::FromString(FString::Printf(TEXT("Dispatch slot %d: %s [%s%s] ($%d)"),
+    return FText::FromString(FString::Printf(TEXT("Dispatch slot %d: %s [%s%s%s] ($%d)"),
         SlotIndex + 1,
         *Snapshot.DisplayName,
         *UGTTGarageFleetSubsystem::FleetRoleLabel(Snapshot.Role),
         Snapshot.bPreferredDispatch ? TEXT(" ACTIVE") : TEXT(""),
+        Snapshot.bRoleLoadout ? TEXT(" LOADOUT") : TEXT(""),
         RecallServiceCost));
 }
