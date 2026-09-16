@@ -30,6 +30,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|FarmJob")
     void SetTerminalType(EGTTFarmJobTerminalType InType) { TerminalType = InType; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|FarmJob")
+    EGTTFarmJobTerminalType GetTerminalType() const { return TerminalType; }
+
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|FarmJob")
     TObjectPtr<UStaticMeshComponent> Mesh;

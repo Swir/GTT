@@ -76,6 +76,7 @@ void AGTTContractBoardTerminal::RefreshLabel()
     {
         const UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>();
         const bool bScheduleOpen = Logistics && Logistics->IsCargoDepotWindowOpen();
+        const bool bMarketLoadAvailable = Logistics && Logistics->CanAcceptCargoContract();
         const float MarketMultiplier = Logistics ? Logistics->GetCargoMarketMultiplier() : 1.0f;
         const int32 RouteTier = Logistics ? Logistics->GetCargoRouteTier() : 1;
         const int32 RouteBonus = RouteTier >= 3 ? 120 : (RouteTier >= 2 ? 70 : 0);
@@ -83,10 +84,11 @@ void AGTTContractBoardTerminal::RefreshLabel()
         const int32 DisplayMax = FMath::RoundToInt(static_cast<float>(Offer.MaximumReward + RouteBonus) * MarketMultiplier);
         const int32 DisplayNetMax = FMath::Max(0, DisplayMax - Offer.PreparationEstimate);
         const FString Action = Offer.bNeedsPreparation ? TEXT("E - PREP") :
-            (bScheduleOpen && Offer.bCanAcceptNow ? TEXT("E - ACCEPT") : (!bScheduleOpen ? TEXT("CLOSED") : TEXT("UNAVAILABLE")));
+            (bScheduleOpen && bMarketLoadAvailable && Offer.bCanAcceptNow ? TEXT("E - ACCEPT") :
+                (!bScheduleOpen ? TEXT("CLOSED") : (!bMarketLoadAvailable ? TEXT("STOCK/DEMAND FULL") : TEXT("UNAVAILABLE"))));
 
         Label->SetText(FText::FromString(FString::Printf(
-            TEXT("CONTRACT BOARD\n%s | %s | T%d\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\n%s | %s\nREP %s %d | CARGO %d/%d\n%s\n%s"),
+            TEXT("CONTRACT BOARD\n%s | %s | T%d\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\n%s | %s\n%s\nREP %s %d | CARGO %d/%d\n%s\n%s"),
             *Offer.Title.ToUpper(), *Role, RouteTier,
             DisplayBase, DisplayMax,
             *Vehicle, *Readiness,
@@ -98,6 +100,7 @@ void AGTTContractBoardTerminal::RefreshLabel()
             DisplayNetMax,
             Logistics ? *Logistics->GetCargoMarketLabel() : TEXT("MARKET OFFLINE"),
             Logistics ? *Logistics->GetCargoScheduleLabel() : TEXT("LOGISTICS OFFLINE"),
+            Logistics ? *Logistics->GetCargoStockSummary() : TEXT("DEPOT STATE OFFLINE"),
             Logistics ? *Logistics->GetTierLabel().ToUpper() : TEXT("NEWCOMER"),
             Logistics ? Logistics->GetReputation() : 0,
             Logistics ? Logistics->GetCargoCompletedRuns() : 0,
@@ -153,9 +156,10 @@ void AGTTContractBoardTerminal::Interact_Implementation(AActor* Interactor)
     const FGTTContractBoardOffer Offer = Contracts->BuildOffer(JobTag);
     const UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>();
     const bool bCargoScheduleOpen = JobTag != FarmCargoJob || (Logistics && Logistics->IsCargoDepotWindowOpen());
+    const bool bCargoMarketOpen = JobTag != FarmCargoJob || (Logistics && Logistics->CanAcceptCargoContract());
     FString Summary;
     bool bSuccess = false;
-    if (Offer.bCanAcceptNow && bCargoScheduleOpen)
+    if (Offer.bCanAcceptNow && bCargoScheduleOpen && bCargoMarketOpen)
     {
         bSuccess = Contracts->TryAcceptContract(Pawn, JobTag, Summary);
     }
@@ -170,6 +174,12 @@ void AGTTContractBoardTerminal::Interact_Implementation(AActor* Interactor)
         Summary = Logistics
             ? FString::Printf(TEXT("%s is %s. CARGO prep stays available while staff are off shift; acceptance opens at 07:00."), *Offer.Title, *Logistics->GetCargoScheduleLabel())
             : TEXT("Cargo logistics service unavailable.");
+    }
+    else if (JobTag == FarmCargoJob && !bCargoMarketOpen)
+    {
+        Summary = Logistics
+            ? FString::Printf(TEXT("No CARGO load is available right now: %s. Daily restock and contract rotation happen with the next rural work day."), *Logistics->GetCargoStockSummary())
+            : TEXT("Cargo market state unavailable.");
     }
     else if (!Offer.bScheduleOpen)
     {
@@ -195,6 +205,7 @@ FText AGTTContractBoardTerminal::GetInteractionText_Implementation() const
     {
         const UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>();
         const bool bScheduleOpen = Logistics && Logistics->IsCargoDepotWindowOpen();
+        const bool bMarketLoadAvailable = Logistics && Logistics->CanAcceptCargoContract();
         const float MarketMultiplier = Logistics ? Logistics->GetCargoMarketMultiplier() : 1.0f;
         const int32 RouteTier = Logistics ? Logistics->GetCargoRouteTier() : 1;
         const int32 RouteBonus = RouteTier >= 3 ? 120 : (RouteTier >= 2 ? 70 : 0);
@@ -210,10 +221,17 @@ FText AGTTContractBoardTerminal::GetInteractionText_Implementation() const
                 Logistics ? *Logistics->GetCargoScheduleLabel() : TEXT("LOGISTICS OFFLINE"),
                 Logistics ? *Logistics->GetCargoMarketLabel() : TEXT("MARKET OFFLINE")));
         }
+        if (!bMarketLoadAvailable)
+        {
+            return FText::FromString(FString::Printf(TEXT("%s | NO LOAD | %s"), *Offer.Title,
+                Logistics ? *Logistics->GetCargoStockSummary() : TEXT("MARKET OFFLINE")));
+        }
         if (Offer.bCanAcceptNow)
         {
-            return FText::FromString(FString::Printf(TEXT("Accept %s T%d | max $%d | %s"),
-                *Offer.Title, RouteTier, DisplayMax, Logistics ? *Logistics->GetCargoMarketLabel() : TEXT("MARKET")));
+            return FText::FromString(FString::Printf(TEXT("Accept %s T%d | max $%d | %s | %s"),
+                *Offer.Title, RouteTier, DisplayMax,
+                Logistics ? *Logistics->GetCargoMarketLabel() : TEXT("MARKET"),
+                Logistics ? *Logistics->GetCargoStockSummary() : TEXT("STOCK OFFLINE")));
         }
     }
 
