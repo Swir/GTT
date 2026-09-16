@@ -10,6 +10,7 @@
 #include "Vehicles/GTTTractorPawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
+#include "World/GTTGarageFleetSubsystem.h"
 
 AGTTHeavyHaulDirector::AGTTHeavyHaulDirector()
 {
@@ -99,6 +100,21 @@ float AGTTHeavyHaulDirector::GetContractTowConditionFactor() const
 bool AGTTHeavyHaulDirector::TryStartContract(APawn* PlayerPawn)
 {
     if (!CanTakeContract(PlayerPawn) || !Trailer) return false;
+
+    if (GetWorld())
+    {
+        if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+        {
+            const FGTTFleetMissionAssessment Assessment = Fleet->AssessJobReadiness(FName(TEXT("HeavyHaul")));
+            PushMessage(PlayerPawn, Fleet->BuildJobDispatchHint(FName(TEXT("HeavyHaul"))), 6.0f);
+            if (Assessment.Readiness == EGTTFleetMissionReadiness::Unavailable || Assessment.Readiness == EGTTFleetMissionReadiness::ServiceRequired)
+            {
+                PushMessage(PlayerPawn, TEXT("HEAVY HAUL BLOCKED: prep a mission-ready TRACTOR loadout before accepting this contract."), 5.5f);
+                return false;
+            }
+        }
+    }
+
     if (!FindEligibleNativeTowVehicle(TrailerYardLocation, 1800.0f) && !FindEligibleTowVehicle(TrailerYardLocation, 1800.0f))
     {
         PushMessage(PlayerPawn, TEXT("HEAVY HAUL requires your owned Fieldmaster tractor in usable condition near the farm."), 5.0f);
