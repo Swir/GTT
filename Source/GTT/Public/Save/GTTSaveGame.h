@@ -42,8 +42,9 @@ public:
     // Migration compatibility: legacy vehicle-tuning snapshots used SaveVersion = 3;
     // v4 introduced unified world state, v5 added persistent Native structural damage,
     // v6 persists the active garage dispatch vehicle, v7 adds per-role mission loadouts,
-    // and v8 persists rural logistics reputation/history. 0.1.4 extends v8 additively with
-    // CARGO market/history fields so existing v8 profiles safely receive default values.
+    // and v8 persists rural logistics reputation/history. 0.1.4 and 0.1.5 extend v8 additively
+    // with CARGO history plus persistent depot stock/demand/rotation so existing v8 profiles
+    // safely receive default market values without invalidating earlier migration guarantees.
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 Cash = 120;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 FishCount = 0;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float FishWeightKg = 0.0f;
@@ -66,6 +67,11 @@ public:
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Cargo") int32 LogisticsCargoCompletedRuns = 0;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Cargo") int32 LogisticsCargoFailedRuns = 0;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Cargo") int32 LogisticsCargoLifetimeRevenue = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 LogisticsMarketDay = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 FeedDepotStock = 10;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 HillFarmDemand = 6;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 WoodYardDemand = 4;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 CargoRotationIndex = 0;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<FName> LogisticsRecentContractTags;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<int32> LogisticsRecentPayouts;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<int32> LogisticsRecentQualityPercent;
