@@ -10,6 +10,10 @@
 namespace
 {
     constexpr int32 GarageWorkshopBaseCost = 75;
+    constexpr int32 GarageTireServiceCost = 65;
+    constexpr int32 GarageEngineBaseCost = 240;
+    constexpr int32 GarageTireUpgradeBaseCost = 170;
+    constexpr float GarageFuelPricePerLiter = 3.25f;
 
     float MinimumBodyHealth(const FGTTRoadBodyDamageSnapshot& Body)
     {
@@ -25,6 +29,24 @@ namespace
             case EGTTBreakdownRecommendation::Immobilized: return TEXT("IMMOBILE");
             default: return TEXT("READY");
         }
+    }
+
+    void PopulateServicePlan(FGTTGarageFleetSnapshot& Snapshot)
+    {
+        Snapshot.FuelEstimate = Snapshot.FuelCapacityLiters > 0.0f
+            ? FMath::Max(0, FMath::CeilToInt(FMath::Max(0.0f, Snapshot.FuelCapacityLiters - Snapshot.FuelLiters) * GarageFuelPricePerLiter))
+            : 0;
+        Snapshot.TireServiceEstimate = Snapshot.TireIntegrity < 0.80f ? GarageTireServiceCost : 0;
+        Snapshot.NextEngineUpgradeCost = Snapshot.EngineUpgradeLevel < 3 ? GarageEngineBaseCost * (Snapshot.EngineUpgradeLevel + 1) : 0;
+        Snapshot.NextTireUpgradeCost = Snapshot.TireUpgradeLevel < 3 ? GarageTireUpgradeBaseCost * (Snapshot.TireUpgradeLevel + 1) : 0;
+
+        if (Snapshot.bOccupied) Snapshot.NextServiceAction = TEXT("IN USE");
+        else if (Snapshot.ServiceStatus == TEXT("IMMOBILE") || Snapshot.ServiceStatus == TEXT("TOW") || Snapshot.ServiceStatus == TEXT("LIMP") || Snapshot.ServiceStatus == TEXT("SERVICE")) Snapshot.NextServiceAction = TEXT("WORKSHOP");
+        else if (Snapshot.TireServiceEstimate > 0) Snapshot.NextServiceAction = TEXT("TIRES");
+        else if (Snapshot.FuelEstimate > 0) Snapshot.NextServiceAction = TEXT("REFUEL");
+        else if (Snapshot.NextEngineUpgradeCost > 0) Snapshot.NextServiceAction = TEXT("ENGINE TUNE");
+        else if (Snapshot.NextTireUpgradeCost > 0) Snapshot.NextServiceAction = TEXT("TIRE UPGRADE");
+        else Snapshot.NextServiceAction = TEXT("COMPLETE");
     }
 }
 
@@ -104,7 +126,9 @@ TArray<FGTTGarageFleetSnapshot> UGTTGarageFleetSubsystem::BuildFleetSnapshot(int
         Snapshot.VehicleId = Vehicle->GetPersistentVehicleId();
         Snapshot.DisplayName = Vehicle->GetVehicleDisplayName().ToString();
         Snapshot.ConditionPercent = FMath::Clamp(Vehicle->GetConditionPercent(), 0.0f, 1.0f);
-        Snapshot.FuelPercent = FMath::Clamp(Vehicle->GetFuelPercent(), 0.0f, 1.0f);
+        Snapshot.FuelCapacityLiters = FMath::Max(0.0f, Vehicle->GetFuelCapacity());
+        Snapshot.FuelLiters = FMath::Clamp(Vehicle->GetFuelLiters(), 0.0f, Snapshot.FuelCapacityLiters);
+        Snapshot.FuelPercent = Snapshot.FuelCapacityLiters > KINDA_SMALL_NUMBER ? Snapshot.FuelLiters / Snapshot.FuelCapacityLiters : 1.0f;
         Snapshot.TireIntegrity = FMath::Clamp(Vehicle->GetTireIntegrity(), 0.0f, 1.0f);
         Snapshot.EngineUpgradeLevel = Vehicle->GetEngineUpgradeLevel();
         Snapshot.TireUpgradeLevel = Vehicle->GetTireUpgradeLevel();
@@ -114,11 +138,12 @@ TArray<FGTTGarageFleetSnapshot> UGTTGarageFleetSubsystem::BuildFleetSnapshot(int
         {
             const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
             const FGTTRoadBodyDamageSnapshot Body = NativeRoad->GetBodyDamageSnapshot();
-            const float Capacity = Snapshot.VehicleId == FName(TEXT("Mulebox1200")) ? 62.0f : 42.0f;
 
             Snapshot.DisplayName = NativeRoad->GetVehicleDisplayName().ToString();
             Snapshot.ConditionPercent = FMath::Clamp(State.ConditionPercent, 0.0f, 1.0f);
-            Snapshot.FuelPercent = FMath::Clamp(State.FuelLiters / FMath::Max(1.0f, Capacity), 0.0f, 1.0f);
+            Snapshot.FuelCapacityLiters = NativeRoad->GetFuelCapacityLiters();
+            Snapshot.FuelLiters = FMath::Clamp(State.FuelLiters, 0.0f, Snapshot.FuelCapacityLiters);
+            Snapshot.FuelPercent = Snapshot.FuelCapacityLiters > KINDA_SMALL_NUMBER ? Snapshot.FuelLiters / Snapshot.FuelCapacityLiters : 1.0f;
             Snapshot.TireIntegrity = FMath::Clamp(State.TireIntegrity, 0.0f, 1.0f);
             Snapshot.BodyHealth = MinimumBodyHealth(Body);
             Snapshot.EngineUpgradeLevel = State.EngineUpgradeLevel;
@@ -130,7 +155,7 @@ TArray<FGTTGarageFleetSnapshot> UGTTGarageFleetSubsystem::BuildFleetSnapshot(int
             {
                 const FGTTBreakdownAssessment Assessment = Breakdown->AssessVehicle(NativeRoad, GarageWorkshopBaseCost);
                 Snapshot.ServiceStatus = Snapshot.bOccupied ? TEXT("IN USE") : BreakdownStatus(Assessment.Recommendation);
-                Snapshot.RepairEstimate = Assessment.RepairEstimate;
+                Snapshot.RepairEstimate = NativeRoad->NeedsNativeWorkshopService() ? Assessment.RepairEstimate : 0;
                 Snapshot.TowEstimate = Assessment.TowEstimate;
             }
         }
@@ -143,7 +168,9 @@ TArray<FGTTGarageFleetSnapshot> UGTTGarageFleetSubsystem::BuildFleetSnapshot(int
                 const FGTTVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
                 Snapshot.DisplayName = Native->GetVehicleDisplayName().ToString();
                 Snapshot.ConditionPercent = FMath::Clamp(State.ConditionPercent, 0.0f, 1.0f);
-                Snapshot.FuelPercent = FMath::Clamp(State.FuelLiters / FMath::Max(1.0f, Vehicle->GetFuelCapacity()), 0.0f, 1.0f);
+                Snapshot.FuelCapacityLiters = FMath::Max(0.0f, Vehicle->GetFuelCapacity());
+                Snapshot.FuelLiters = FMath::Clamp(State.FuelLiters, 0.0f, Snapshot.FuelCapacityLiters);
+                Snapshot.FuelPercent = Snapshot.FuelCapacityLiters > KINDA_SMALL_NUMBER ? Snapshot.FuelLiters / Snapshot.FuelCapacityLiters : 1.0f;
                 Snapshot.TireIntegrity = FMath::Clamp(State.TireIntegrity, 0.0f, 1.0f);
                 Snapshot.EngineUpgradeLevel = State.EngineUpgradeLevel;
                 Snapshot.TireUpgradeLevel = State.TireUpgradeLevel;
@@ -165,6 +192,7 @@ TArray<FGTTGarageFleetSnapshot> UGTTGarageFleetSubsystem::BuildFleetSnapshot(int
             Snapshot.ServiceStatus = TEXT("IN USE");
         }
 
+        PopulateServicePlan(Snapshot);
         Result.Add(Snapshot);
     }
 
@@ -189,12 +217,16 @@ FString UGTTGarageFleetSubsystem::BuildFleetSummary(int32 MaxSlots) const
     for (const FGTTGarageFleetSnapshot& Vehicle : Fleet)
     {
         const FString NativeTag = Vehicle.bNativeAuthority ? TEXT(" N") : TEXT("");
-        FString Quote;
-        if (Vehicle.RepairEstimate > 0)
-        {
-            Quote = FString::Printf(TEXT(" | repair ~$%d tow ~$%d"), Vehicle.RepairEstimate, Vehicle.TowEstimate);
-        }
-        Summary += FString::Printf(TEXT("\n%d %s%s | %s | C%.0f F%.0f T%.0f B%.0f%s"),
+        FString Costs;
+        if (Vehicle.RepairEstimate > 0) Costs += FString::Printf(TEXT(" repair~$%d"), Vehicle.RepairEstimate);
+        if (Vehicle.FuelEstimate > 0) Costs += FString::Printf(TEXT(" fuel~$%d"), Vehicle.FuelEstimate);
+        if (Vehicle.TireServiceEstimate > 0) Costs += FString::Printf(TEXT(" tires$%d"), Vehicle.TireServiceEstimate);
+        if (Vehicle.NextEngineUpgradeCost > 0) Costs += FString::Printf(TEXT(" eng$%d"), Vehicle.NextEngineUpgradeCost);
+        if (Vehicle.NextTireUpgradeCost > 0) Costs += FString::Printf(TEXT(" grip$%d"), Vehicle.NextTireUpgradeCost);
+        if (Vehicle.TowEstimate > 0 && (Vehicle.ServiceStatus == TEXT("TOW") || Vehicle.ServiceStatus == TEXT("IMMOBILE")))
+            Costs += FString::Printf(TEXT(" tow~$%d"), Vehicle.TowEstimate);
+
+        Summary += FString::Printf(TEXT("\n%d %s%s | %s | C%.0f F%.0f T%.0f B%.0f | E%d/3 G%d/3 | NEXT %s%s"),
             Vehicle.SlotIndex + 1,
             *Vehicle.DisplayName,
             *NativeTag,
@@ -203,7 +235,10 @@ FString UGTTGarageFleetSubsystem::BuildFleetSummary(int32 MaxSlots) const
             Vehicle.FuelPercent * 100.0f,
             Vehicle.TireIntegrity * 100.0f,
             Vehicle.BodyHealth * 100.0f,
-            *Quote);
+            Vehicle.EngineUpgradeLevel,
+            Vehicle.TireUpgradeLevel,
+            *Vehicle.NextServiceAction,
+            *Costs);
     }
     return Summary;
 }

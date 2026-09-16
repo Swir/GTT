@@ -57,6 +57,35 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle") void ExitNativeVehicle();
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Cargo") virtual void SetCargoLoadFactor(float NewLoadFactor);
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Workshop") bool ApplyNativeWorkshopService();
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Service") bool RepairNativeTires()
+    {
+        if (!bTakeoverActive || MigrationSnapshot.TireIntegrity >= 0.999f) return false;
+        MigrationSnapshot.TireIntegrity = 1.0f;
+        SyncLegacyMirror();
+        return true;
+    }
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Service") bool InstallNativeEngineUpgrade()
+    {
+        if (!bTakeoverActive || MigrationSnapshot.EngineUpgradeLevel >= 3) return false;
+        MigrationSnapshot.EngineUpgradeLevel = FMath::Clamp(MigrationSnapshot.EngineUpgradeLevel + 1, 0, 3);
+        SyncLegacyMirror();
+        return true;
+    }
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Service") bool InstallNativeTireUpgrade()
+    {
+        if (!bTakeoverActive || MigrationSnapshot.TireUpgradeLevel >= 3) return false;
+        MigrationSnapshot.TireUpgradeLevel = FMath::Clamp(MigrationSnapshot.TireUpgradeLevel + 1, 0, 3);
+        SyncLegacyMirror();
+        return true;
+    }
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Service") float RefuelNativeVehicle(float Liters)
+    {
+        if (!bTakeoverActive || Liters <= 0.0f) return 0.0f;
+        const float Before = MigrationSnapshot.FuelLiters;
+        MigrationSnapshot.FuelLiters = FMath::Clamp(MigrationSnapshot.FuelLiters + Liters, 0.0f, FuelCapacityLiters);
+        SyncLegacyMirror();
+        return MigrationSnapshot.FuelLiters - Before;
+    }
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Damage") bool ApplyPoliceSpikeDamage(float TireDamage, float ConditionDamage)
     {
         if (!bNativeReady || !bTakeoverActive) return false;
@@ -76,6 +105,7 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle") FText GetVehicleDisplayName() const { return NativeDisplayName; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle") APawn* GetDriverPawn() const { return PreviousPawn.Get(); }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Cargo") float GetCargoLoadFactor() const { return CargoLoadFactor; }
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Service") float GetFuelCapacityLiters() const { return FuelCapacityLiters; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Migration") FGTTRoadVehicleMigrationSnapshot GetMigrationSnapshot() const { return MigrationSnapshot; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") float GetRuntimeWheelRisk() const { return RuntimeWheelRisk; }
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Runtime") int32 GetRuntimeWheelContacts() const { return RuntimeWheelContacts; }
