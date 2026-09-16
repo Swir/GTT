@@ -80,5 +80,6 @@ jobs:
       - { name: Verify post-spike escape dynamics, run: 'python Scripts/verify_post_spike_escape.py' }
       - { name: Verify spike damage persistence and workshop recovery, run: 'python Scripts/verify_damage_persistence_recovery.py' }
       - { name: Verify persistent Native structural damage, run: 'python Scripts/verify_structural_damage_persistence.py' }
+      - { name: Verify persistent structural limp-home dynamics, run: 'python Scripts/verify_structural_limp_home.py' }
       - { name: Verify packaged gameplay smoke and demo gate integration, run: 'python Scripts/verify_packaged_gameplay_smoke.py' }
       - { name: Verify deterministic packaged demo scenario, run: 'python Scripts/verify_deterministic_demo_scenario.py' }
