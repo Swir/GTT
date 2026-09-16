@@ -6,14 +6,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 required = {
     "Source/GTT/Public/Save/GTTSaveGame.h": [
-        "SaveVersion = 6", "bUnifiedWorldStateInitialized", "UnifiedWorldStateRevision",
+        "SaveVersion = 7", "bUnifiedWorldStateInitialized", "UnifiedWorldStateRevision",
         "CombatWeaponTypes", "CombatEquippedWeaponType", "CombatShotgunAmmo",
         "MainStoryStage", "Arc3Stage", "Arc4Stage", "Arc4StartingFactionVictories",
         "bArc4ContrabandPrepared", "FactionVictories", "RustDogsDefeated",
         "StoneCrowsDefeated", "MudJackalsDefeated", "ContrabandUnits", "ContrabandValue",
         "bInsuranceActive", "ImpoundedVehicleId", "PendingImpoundFee",
         "LifetimeFenceRevenue", "SpeedingCitations", "RoadStructuralDamage",
-        "PreferredGarageVehicleId"
+        "PreferredGarageVehicleId", "PreferredTractorVehicleId", "PreferredRoadVehicleId", "PreferredCargoVehicleId"
     ],
     "Source/GTT/Public/Save/GTTUnifiedSaveSubsystem.h": [
         "GTT_Prototype_01", "GTT_Combat_01", "GTT_MainStory_01", "GTT_MainStory_Arc3_01",
@@ -71,4 +71,4 @@ if missing:
 if "- [x] Consolidate combat/story/faction slots into primary sandbox SaveGame" not in roadmap:
     raise SystemExit("[FAIL] unified-save roadmap milestone is not checked")
 
-print(f"[OK] unified world state structurally sane with schema v6 forward compatibility; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
+print(f"[OK] unified world state structurally sane with schema v7 forward compatibility; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
