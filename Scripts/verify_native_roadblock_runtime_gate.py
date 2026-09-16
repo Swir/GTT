@@ -10,10 +10,10 @@ checks = {
     'native spike API': 'ApplyPoliceSpikeDamage' in native,
     'evaluator requires native consequence': 'ROADBLOCK_SPIKE_CONSEQUENCE vehicle=' in eval_ps and 'path=NATIVE_CHAOS' in eval_ps,
     'tire before/after hard gate': 'nativeSpikeAfter -ge $nativeSpikeBefore' in eval_ps and 'nativeSpikeDelta -le 0' in eval_ps,
-    'evidence schema': 'gtt.demo-scenario.v10' in eval_ps,
-    'evidence fields': all(x in eval_ps for x in ['native_spike_consequence_passed','native_spike_tire_delta','physical_crossing_passed','post_spike_escape_passed','damage_persistence_passed','workshop_recovery_passed','structural_persistence_passed','structural_repair_passed']),
-    'win64 milestone': "default: '0.0.93'" in workflow and 'persistent structural damage evidence' in workflow,
+    'evidence schema': 'gtt.demo-scenario.v11' in eval_ps,
+    'evidence fields': all(x in eval_ps for x in ['native_spike_consequence_passed','native_spike_tire_delta','physical_crossing_passed','post_spike_escape_passed','damage_persistence_passed','workshop_recovery_passed','structural_persistence_passed','structural_repair_passed','structural_handling_passed','structural_reload_handling_passed','structural_drive_recovery_passed']),
+    'win64 milestone': "default: '0.0.94'" in workflow and 'structural limp-home evidence' in workflow,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed: raise SystemExit('Native roadblock runtime gate verification failed: ' + ', '.join(failed))
-print(f'Native roadblock runtime evidence gate verified ({len(checks)}/{len(checks)} checks).')
+print(f'Native roadblock runtime evidence gate retained under 0.0.94 ({len(checks)}/{len(checks)} checks).')
