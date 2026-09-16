@@ -6,13 +6,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 required = {
     "Source/GTT/Public/Save/GTTSaveGame.h": [
-        "SaveVersion = 4", "bUnifiedWorldStateInitialized", "UnifiedWorldStateRevision",
+        "SaveVersion = 5", "bUnifiedWorldStateInitialized", "UnifiedWorldStateRevision",
         "CombatWeaponTypes", "CombatEquippedWeaponType", "CombatShotgunAmmo",
         "MainStoryStage", "Arc3Stage", "Arc4Stage", "Arc4StartingFactionVictories",
         "bArc4ContrabandPrepared", "FactionVictories", "RustDogsDefeated",
         "StoneCrowsDefeated", "MudJackalsDefeated", "ContrabandUnits", "ContrabandValue",
         "bInsuranceActive", "ImpoundedVehicleId", "PendingImpoundFee",
-        "LifetimeFenceRevenue", "SpeedingCitations"
+        "LifetimeFenceRevenue", "SpeedingCitations", "RoadStructuralDamage"
     ],
     "Source/GTT/Public/Save/GTTUnifiedSaveSubsystem.h": [
         "GTT_Prototype_01", "GTT_Combat_01", "GTT_MainStory_01", "GTT_MainStory_Arc3_01",
@@ -20,7 +20,7 @@ required = {
         "ConsolidateLegacySlots", "HydrateCompatibilityMirrors"
     ],
     "Source/GTT/Private/Save/GTTUnifiedSaveSubsystem.cpp": [
-        "Never manufacture a primary save on a brand-new profile", "SaveVersion = 4",
+        "Never manufacture a primary save on a brand-new profile", "FMath::Max(Primary->SaveVersion, 4)",
         "bUnifiedWorldStateInitialized = true", "UnifiedWorldStateRevision",
         "UGTTCombatSave", "UGTTMainStorySave", "UGTTArc3Save", "UGTTArc4Save",
         "UGTTFactionSaveGame", "UGTTRuralEconomySave", "SaveGameToSlot",
@@ -70,4 +70,4 @@ if missing:
 if "- [x] Consolidate combat/story/faction slots into primary sandbox SaveGame" not in roadmap:
     raise SystemExit("[FAIL] unified-save roadmap milestone is not checked")
 
-print(f"[OK] unified world state structurally sane; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
+print(f"[OK] unified world state structurally sane with schema v5 forward compatibility; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
