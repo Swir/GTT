@@ -25,11 +25,16 @@ private:
     bool bCrimeInjected = false;
     bool bControlActionLogged = false;
     bool bRoadblockCrossingStaged = false;
+    bool bPostSpikeEscapeStarted = false;
     float Elapsed = 0.0f;
     float PursuitStartDistance = -1.0f;
     float RoadblockCrossingStartSeconds = -1.0f;
+    float PostSpikeEscapeStartSeconds = -1.0f;
+    float PostSpikeStartSpeedCmS = 0.0f;
     float RoadblockBaselineTires = 1.0f;
     float RoadblockBaselineWheelRisk = 0.0f;
+    float RoadblockBaselineThrottleLimit = 1.0f;
+    float RoadblockBaselineSteeringLimit = 1.0f;
     TWeakObjectPtr<AGTTPolicePursuitVehicle> ObservedPursuitVehicle;
     TWeakObjectPtr<AGTTRoadVehicleNativePawn> RoadblockTestVehicle;
     TWeakObjectPtr<AGTTRoadblock> RoadblockTestActor;
