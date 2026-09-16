@@ -47,8 +47,12 @@ if failed:
 
 required_style = [
     '<!-- SWIR-ROADMAP-STANDARD:v1 -->',
+    '<!-- ROADMAP-PROGRESS:START -->',
+    'alt="CI"',
+    'alt="Roadmap progress"',
+    'alt="Completed"',
+    'alt="Status"',
     '## 📊 Overall progress',
-    'CI-', 'ROADMAP-', 'DONE-', 'STATUS-'
 ]
 for token in required_style:
     if token not in roadmap:
@@ -66,8 +70,10 @@ bar = '█' * filled + '░' * (20 - filled)
 for token in (
     f'ROADMAP-{percent:.1f}%25',
     f'DONE-{done}%2F{total}',
+    'STATUS-IN%20PROGRESS',
     f'{bar} {percent:.1f}%',
     f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |',
+    '<!-- ROADMAP-PROGRESS:END -->',
 ):
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
