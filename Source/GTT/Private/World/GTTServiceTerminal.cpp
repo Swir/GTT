@@ -160,7 +160,27 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
 
 FText AGTTServiceTerminal::GetInteractionText_Implementation() const
 {
-    return ServiceType == EGTTServiceType::FishBuyer ? NSLOCTEXT("GTT", "SellFish", "Sell all fish") : NSLOCTEXT("GTT", "WorkshopService", "Inspect + repair nearby vehicle (damage-based quote)");
+    if (ServiceType == EGTTServiceType::FishBuyer)
+    {
+        return NSLOCTEXT("GTT", "SellFish", "Sell all fish");
+    }
+
+    if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
+    {
+        const int32 Quote = GetNativeRoadRepairQuote(NativeRoad);
+        if (!NativeRoad->NeedsNativeWorkshopService())
+        {
+            return FText::FromString(FString::Printf(TEXT("Workshop: %s is ready"), *NativeRoad->GetVehicleDisplayName().ToString()));
+        }
+        return FText::FromString(FString::Printf(TEXT("Workshop: repair + refuel %s ($%d estimate)"), *NativeRoad->GetVehicleDisplayName().ToString(), Quote));
+    }
+
+    if (AGTTFieldmasterNativePawn* Native = FindActiveNativeFieldmaster(GetWorld(), GetActorLocation(), VehicleSearchRadius))
+    {
+        return FText::FromString(FString::Printf(TEXT("Workshop: inspect %s ($%d base service)"), *Native->GetVehicleDisplayName().ToString(), WorkshopServiceCost));
+    }
+
+    return NSLOCTEXT("GTT", "WorkshopService", "Inspect + repair nearby vehicle (damage-based quote)");
 }
 
 AGTTVehicleBase* AGTTServiceTerminal::FindNearestVehicle() const

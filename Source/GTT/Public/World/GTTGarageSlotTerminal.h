@@ -40,7 +40,6 @@ protected:
 private:
     AGTTVehicleBase* ResolveSlotVehicle() const;
     void RefreshLabel();
-    int32 GetVehicleSortPriority(const AGTTVehicleBase* Vehicle) const;
 
     int32 SlotIndex = 0;
     float RefreshClock = 0.0f;

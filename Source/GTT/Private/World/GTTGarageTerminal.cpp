@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTVehicleBase.h"
+#include "World/GTTGarageFleetSubsystem.h"
 #include "World/GTTGarageSlotTerminal.h"
 
 AGTTGarageTerminal::AGTTGarageTerminal()
@@ -44,17 +45,17 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Pawn);
     if (!Economy) return;
 
-    AGTTVehicleBase* NearestVehicle = nullptr;
+    AGTTVehicleBase* NearestUnownedVehicle = nullptr;
     float BestDistSq = FMath::Square(VehicleSearchRadius);
     for (TActorIterator<AGTTVehicleBase> It(GetWorld()); It; ++It)
     {
         AGTTVehicleBase* Vehicle = *It;
-        if (!Vehicle || Vehicle->GetPersistentVehicleId().IsNone()) continue;
+        if (!Vehicle || Vehicle->IsOwnedByPlayer() || Vehicle->GetPersistentVehicleId().IsNone()) continue;
         const float DistSq = FVector::DistSquared2D(GetActorLocation(), Vehicle->GetActorLocation());
         if (DistSq <= BestDistSq)
         {
             BestDistSq = DistSq;
-            NearestVehicle = Vehicle;
+            NearestUnownedVehicle = Vehicle;
         }
     }
 
@@ -65,9 +66,15 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
         return;
     }
 
-    if (NearestVehicle)
+    if (NearestUnownedVehicle)
     {
-        GameMode->TryRegisterVehicle(NearestVehicle, Pawn, RegistrationCost);
+        GameMode->TryRegisterVehicle(NearestUnownedVehicle, Pawn, RegistrationCost);
+        return;
+    }
+
+    if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+    {
+        Economy->PushMessage(Fleet->BuildFleetSummary(FleetSlotCount) + TEXT("\nUse the numbered bay terminal to recall a vehicle; recall never repairs damage."), 8.0f);
         return;
     }
 
@@ -76,7 +83,15 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
 
 FText AGTTGarageTerminal::GetInteractionText_Implementation() const
 {
-    return FText::Format(
-        NSLOCTEXT("GTT", "GarageRegisterExplicitSlots", "Register nearby vehicle (${0}) / use numbered slots to recall"),
-        FText::AsNumber(RegistrationCost));
+    int32 OwnedCount = 0;
+    if (GetWorld())
+    {
+        if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
+        {
+            OwnedCount = Fleet->BuildFleetSnapshot(FleetSlotCount).Num();
+        }
+    }
+
+    return FText::FromString(FString::Printf(TEXT("Garage office: inspect fleet %d/%d / register nearby vehicle ($%d)"),
+        OwnedCount, FleetSlotCount, RegistrationCost));
 }
