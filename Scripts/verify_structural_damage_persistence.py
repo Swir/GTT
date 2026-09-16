@@ -41,12 +41,12 @@ checks = {
     'primary save verification': 'Saved->SaveVersion < 5' in evidence_cpp and 'RoadStructuralDamage.FindByPredicate' in evidence_cpp,
     'paid workshop surcharge proof': 'SavedRepairSurcharge' in evidence_cpp and 'Paid > SavedRepairSurcharge' in evidence_cpp and 'Interact_Implementation(PlayerPawn)' in evidence_cpp,
     'runtime PASS evidence': all(x in evidence_cpp for x in ['DEMO_SCENARIO_STRUCTURAL_PERSISTENCE', 'DEMO_SCENARIO_STRUCTURAL_REPAIR', 'DEMO_SCENARIO_STRUCTURAL_RECOVERY result=PASS']),
-    'evaluator schema v10': 'gtt.demo-scenario.v10' in evaluator and 'required_step_count=30' in evaluator and "step='STRUCTURAL_PERSISTENCE'" in evaluator and "step='STRUCTURAL_REPAIR'" in evaluator,
+    'evaluator retains structural gates': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator and "step='STRUCTURAL_PERSISTENCE'" in evaluator and "step='STRUCTURAL_REPAIR'" in evaluator,
     'evaluator structural hard gates': 'structural_persistence_passed' in evaluator and 'structural_repair_passed' in evaluator and 'structural_recovery_complete' in evaluator,
-    'workflow 0.0.93': "default: '0.0.93'" in workflow and 'persistent structural damage evidence' in workflow,
-    '105 second packaged route': '-MinimumAliveSeconds 105 -LaunchTimeoutSeconds 120' in workflow and '-MinimumRuntimeSeconds 105' in workflow,
+    'workflow advanced to 0.0.94': "default: '0.0.94'" in workflow and 'structural limp-home evidence' in workflow,
+    '125 second packaged route': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
     'sanity wired': 'Verify persistent Native structural damage' in sanity and 'verify_structural_damage_persistence.py' in sanity,
-    'docs': '0.0.93' in playtest and 'STRUCTURAL_PERSISTENCE' in playtest and 'STRUCTURAL_REPAIR' in playtest and '0.0.93' in changelog,
+    'origin docs retained': '0.0.93' in playtest and 'STRUCTURAL_PERSISTENCE' in playtest and 'STRUCTURAL_REPAIR' in playtest and '0.0.93' in changelog,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
@@ -61,11 +61,8 @@ remaining = total - done
 percent = round(done * 100.0 / total, 1)
 filled = round(done * 20.0 / total)
 bar = '█' * filled + '░' * (20 - filled)
-for token in (
-    f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {percent:.1f}%',
-    f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'
-):
+for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
 
-print(f'[OK] Persistent Native structural damage + workshop recovery verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
+print(f'[OK] Persistent Native structural damage + workshop recovery retained ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
