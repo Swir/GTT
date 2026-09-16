@@ -10,9 +10,9 @@ checks = {
     'native spike API': 'ApplyPoliceSpikeDamage' in native,
     'evaluator requires native consequence': 'ROADBLOCK_SPIKE_CONSEQUENCE vehicle=' in eval_ps and 'path=NATIVE_CHAOS' in eval_ps,
     'tire before/after hard gate': 'nativeSpikeAfter -ge $nativeSpikeBefore' in eval_ps and 'nativeSpikeDelta -le 0' in eval_ps,
-    'evidence schema': 'gtt.demo-scenario.v7' in eval_ps,
-    'evidence fields': 'native_spike_consequence_passed' in eval_ps and 'native_spike_tire_delta' in eval_ps and 'physical_crossing_passed' in eval_ps,
-    'win64 milestone': '0.0.90' in workflow and 'physical native roadblock crossing evidence' in workflow,
+    'evidence schema': 'gtt.demo-scenario.v8' in eval_ps,
+    'evidence fields': 'native_spike_consequence_passed' in eval_ps and 'native_spike_tire_delta' in eval_ps and 'physical_crossing_passed' in eval_ps and 'post_spike_escape_passed' in eval_ps,
+    'win64 milestone': "default: '0.0.91'" in workflow and 'post-spike escape dynamics evidence' in workflow,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed: raise SystemExit('Native roadblock runtime gate verification failed: ' + ', '.join(failed))
