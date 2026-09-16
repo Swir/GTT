@@ -38,9 +38,10 @@ class GTT_API UGTTSaveGame : public USaveGame
     GENERATED_BODY()
 
 public:
-    UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 SaveVersion = 5;
+    UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 SaveVersion = 6;
     // Migration compatibility: legacy vehicle-tuning snapshots used SaveVersion = 3;
-    // v4 introduced unified world state and v5 adds persistent Native structural damage.
+    // v4 introduced unified world state, v5 added persistent Native structural damage,
+    // and v6 persists the player's preferred garage dispatch vehicle.
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 Cash = 120;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 FishCount = 0;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float FishWeightKg = 0.0f;
@@ -50,6 +51,7 @@ public:
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float TimeOfDayHours = 8.0f;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save|Garage") TArray<FGTTStoredVehicleData> OwnedVehicles;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save|Garage") TArray<FGTTStoredRoadStructuralDamageData> RoadStructuralDamage;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Garage") FName PreferredGarageVehicleId = NAME_None;
 
     // Save v4+: primary sandbox snapshot. Dedicated pre-v4 slots remain compatibility mirrors.
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Unified") bool bUnifiedWorldStateInitialized = false;

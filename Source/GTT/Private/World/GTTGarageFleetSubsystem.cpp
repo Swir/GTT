@@ -15,6 +15,13 @@ namespace
     constexpr int32 GarageTireUpgradeBaseCost = 170;
     constexpr float GarageFuelPricePerLiter = 3.25f;
 
+    const FName FieldmasterId(TEXT("RustyFieldmaster60"));
+    const FName RattlebackId(TEXT("Rattleback82"));
+    const FName MuleboxId(TEXT("Mulebox1200"));
+    const FName FarmCargoJob(TEXT("FarmCargo"));
+    const FName HeavyHaulJob(TEXT("HeavyHaul"));
+    const FName RoadRunJob(TEXT("RoadRun"));
+
     float MinimumBodyHealth(const FGTTRoadBodyDamageSnapshot& Body)
     {
         return FMath::Min(FMath::Min(Body.FrontHealth, Body.RearHealth), FMath::Min(Body.LeftHealth, Body.RightHealth));
@@ -54,10 +61,37 @@ int32 UGTTGarageFleetSubsystem::GetVehicleSortPriority(const AGTTVehicleBase* Ve
 {
     if (!Vehicle) return 1000;
     const FName Id = Vehicle->GetPersistentVehicleId();
-    if (Id == FName(TEXT("RustyFieldmaster60"))) return 0;
-    if (Id == FName(TEXT("Rattleback82"))) return 10;
-    if (Id == FName(TEXT("Mulebox1200"))) return 20;
+    if (Id == FieldmasterId) return 0;
+    if (Id == RattlebackId) return 10;
+    if (Id == MuleboxId) return 20;
     return 100 + static_cast<int32>(GetTypeHash(Id) % 500);
+}
+
+EGTTGarageFleetRole UGTTGarageFleetSubsystem::ClassifyVehicleRole(FName VehicleId)
+{
+    if (VehicleId == FieldmasterId) return EGTTGarageFleetRole::Tractor;
+    if (VehicleId == RattlebackId) return EGTTGarageFleetRole::Road;
+    if (VehicleId == MuleboxId) return EGTTGarageFleetRole::Cargo;
+    return EGTTGarageFleetRole::Utility;
+}
+
+FString UGTTGarageFleetSubsystem::FleetRoleLabel(EGTTGarageFleetRole Role)
+{
+    switch (Role)
+    {
+        case EGTTGarageFleetRole::Tractor: return TEXT("TRACTOR");
+        case EGTTGarageFleetRole::Road: return TEXT("ROAD");
+        case EGTTGarageFleetRole::Cargo: return TEXT("CARGO");
+        default: return TEXT("UTILITY");
+    }
+}
+
+FName UGTTGarageFleetSubsystem::RecommendedVehicleForJob(FName JobTag)
+{
+    if (JobTag == FarmCargoJob) return MuleboxId;
+    if (JobTag == HeavyHaulJob) return FieldmasterId;
+    if (JobTag == RoadRunJob) return RattlebackId;
+    return NAME_None;
 }
 
 TArray<AGTTVehicleBase*> UGTTGarageFleetSubsystem::GatherOwnedVehicles() const
@@ -82,6 +116,71 @@ TArray<AGTTVehicleBase*> UGTTGarageFleetSubsystem::GatherOwnedVehicles() const
         return A.GetPersistentVehicleId().ToString() < B.GetPersistentVehicleId().ToString();
     });
     return Vehicles;
+}
+
+bool UGTTGarageFleetSubsystem::IsOwnedFleetVehicle(FName VehicleId) const
+{
+    if (VehicleId.IsNone()) return false;
+    const TArray<AGTTVehicleBase*> Vehicles = GatherOwnedVehicles();
+    return Vehicles.ContainsByPredicate([VehicleId](const AGTTVehicleBase* Vehicle)
+    {
+        return Vehicle && Vehicle->GetPersistentVehicleId() == VehicleId;
+    });
+}
+
+bool UGTTGarageFleetSubsystem::SetPreferredVehicleId(FName VehicleId)
+{
+    if (!IsOwnedFleetVehicle(VehicleId)) return false;
+    PreferredVehicleId = VehicleId;
+    return true;
+}
+
+void UGTTGarageFleetSubsystem::RestorePreferredVehicleId(FName VehicleId)
+{
+    if (IsOwnedFleetVehicle(VehicleId))
+    {
+        PreferredVehicleId = VehicleId;
+        return;
+    }
+
+    const TArray<AGTTVehicleBase*> Vehicles = GatherOwnedVehicles();
+    PreferredVehicleId = Vehicles.Num() > 0 && Vehicles[0] ? Vehicles[0]->GetPersistentVehicleId() : NAME_None;
+}
+
+bool UGTTGarageFleetSubsystem::IsPreferredVehicleFitForJob(FName JobTag) const
+{
+    const FName Recommended = RecommendedVehicleForJob(JobTag);
+    return !Recommended.IsNone() && PreferredVehicleId == Recommended;
+}
+
+FString UGTTGarageFleetSubsystem::BuildJobDispatchHint(FName JobTag) const
+{
+    const FName Recommended = RecommendedVehicleForJob(JobTag);
+    if (Recommended.IsNone()) return TEXT("FLEET: use a healthy vehicle suited to the contract.");
+
+    const TArray<FGTTGarageFleetSnapshot> Fleet = BuildFleetSnapshot(8);
+    const FGTTGarageFleetSnapshot* RecommendedSnapshot = Fleet.FindByPredicate([Recommended](const FGTTGarageFleetSnapshot& Snapshot)
+    {
+        return Snapshot.VehicleId == Recommended;
+    });
+
+    if (!RecommendedSnapshot)
+    {
+        return FString::Printf(TEXT("FLEET GAP: recommended %s is not registered in your garage."), *Recommended.ToString());
+    }
+
+    const FString Role = FleetRoleLabel(RecommendedSnapshot->Role);
+    if (RecommendedSnapshot->bPreferredDispatch)
+    {
+        return FString::Printf(TEXT("FLEET READY: %s [%s] is your active dispatch vehicle | %s."),
+            *RecommendedSnapshot->DisplayName, *Role, *RecommendedSnapshot->ServiceStatus);
+    }
+
+    return FString::Printf(TEXT("FLEET TIP: dispatch slot %d %s [%s] for this job | %s | recall sets it active."),
+        RecommendedSnapshot->SlotIndex + 1,
+        *RecommendedSnapshot->DisplayName,
+        *Role,
+        *RecommendedSnapshot->ServiceStatus);
 }
 
 AGTTVehicleBase* UGTTGarageFleetSubsystem::ResolveLegacyVehicleForSlot(int32 SlotIndex) const
@@ -125,6 +224,8 @@ TArray<FGTTGarageFleetSnapshot> UGTTGarageFleetSubsystem::BuildFleetSnapshot(int
         Snapshot.SlotIndex = Index;
         Snapshot.VehicleId = Vehicle->GetPersistentVehicleId();
         Snapshot.DisplayName = Vehicle->GetVehicleDisplayName().ToString();
+        Snapshot.Role = ClassifyVehicleRole(Snapshot.VehicleId);
+        Snapshot.bPreferredDispatch = Snapshot.VehicleId == PreferredVehicleId;
         Snapshot.ConditionPercent = FMath::Clamp(Vehicle->GetConditionPercent(), 0.0f, 1.0f);
         Snapshot.FuelCapacityLiters = FMath::Max(0.0f, Vehicle->GetFuelCapacity());
         Snapshot.FuelLiters = FMath::Clamp(Vehicle->GetFuelLiters(), 0.0f, Snapshot.FuelCapacityLiters);
@@ -159,7 +260,7 @@ TArray<FGTTGarageFleetSnapshot> UGTTGarageFleetSubsystem::BuildFleetSnapshot(int
                 Snapshot.TowEstimate = Assessment.TowEstimate;
             }
         }
-        else if (Snapshot.VehicleId == FName(TEXT("RustyFieldmaster60")))
+        else if (Snapshot.VehicleId == FieldmasterId)
         {
             for (TActorIterator<AGTTFieldmasterNativePawn> It(GetWorld()); It; ++It)
             {
@@ -214,9 +315,19 @@ FString UGTTGarageFleetSubsystem::BuildFleetSummary(int32 MaxSlots) const
     FString Summary = FString::Printf(TEXT("GARAGE FLEET %d/%d"), Fleet.Num(), FMath::Max(1, MaxSlots));
     if (Fleet.Num() == 0) return Summary + TEXT(" | no registered vehicles");
 
+    if (!PreferredVehicleId.IsNone())
+    {
+        if (const FGTTGarageFleetSnapshot* Preferred = Fleet.FindByPredicate([this](const FGTTGarageFleetSnapshot& Snapshot)
+            { return Snapshot.VehicleId == PreferredVehicleId; }))
+        {
+            Summary += FString::Printf(TEXT(" | ACTIVE %s [%s]"), *Preferred->DisplayName, *FleetRoleLabel(Preferred->Role));
+        }
+    }
+
     for (const FGTTGarageFleetSnapshot& Vehicle : Fleet)
     {
         const FString NativeTag = Vehicle.bNativeAuthority ? TEXT(" N") : TEXT("");
+        const FString ActiveTag = Vehicle.bPreferredDispatch ? TEXT(" ACTIVE") : TEXT("");
         FString Costs;
         if (Vehicle.RepairEstimate > 0) Costs += FString::Printf(TEXT(" repair~$%d"), Vehicle.RepairEstimate);
         if (Vehicle.FuelEstimate > 0) Costs += FString::Printf(TEXT(" fuel~$%d"), Vehicle.FuelEstimate);
@@ -226,10 +337,12 @@ FString UGTTGarageFleetSubsystem::BuildFleetSummary(int32 MaxSlots) const
         if (Vehicle.TowEstimate > 0 && (Vehicle.ServiceStatus == TEXT("TOW") || Vehicle.ServiceStatus == TEXT("IMMOBILE")))
             Costs += FString::Printf(TEXT(" tow~$%d"), Vehicle.TowEstimate);
 
-        Summary += FString::Printf(TEXT("\n%d %s%s | %s | C%.0f F%.0f T%.0f B%.0f | E%d/3 G%d/3 | NEXT %s%s"),
+        Summary += FString::Printf(TEXT("\n%d %s%s | %s%s | %s | C%.0f F%.0f T%.0f B%.0f | E%d/3 G%d/3 | NEXT %s%s"),
             Vehicle.SlotIndex + 1,
             *Vehicle.DisplayName,
             *NativeTag,
+            *FleetRoleLabel(Vehicle.Role),
+            *ActiveTag,
             *Vehicle.ServiceStatus,
             Vehicle.ConditionPercent * 100.0f,
             Vehicle.FuelPercent * 100.0f,

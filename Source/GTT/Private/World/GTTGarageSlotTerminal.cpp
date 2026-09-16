@@ -100,11 +100,14 @@ void AGTTGarageSlotTerminal::RefreshLabel()
     }
 
     const FString NativeTag = Snapshot.bNativeAuthority ? TEXT(" [N]") : TEXT("");
+    const FString ActiveTag = Snapshot.bPreferredDispatch ? TEXT(" [ACTIVE]") : TEXT("");
     Label->SetText(FText::FromString(FString::Printf(
-        TEXT("GARAGE %d\n%s%s | %s\nC %.0f  F %.0f  T %.0f  B %.0f\nE - RECALL $%d"),
+        TEXT("GARAGE %d%s\n%s%s | %s | %s\nC %.0f  F %.0f  T %.0f  B %.0f\nE - DISPATCH $%d"),
         SlotIndex + 1,
+        *ActiveTag,
         *Snapshot.DisplayName.ToUpper(),
         *NativeTag,
+        *UGTTGarageFleetSubsystem::FleetRoleLabel(Snapshot.Role),
         *Snapshot.ServiceStatus,
         Snapshot.ConditionPercent * 100.0f,
         Snapshot.FuelPercent * 100.0f,
@@ -125,7 +128,7 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
     {
         if (Wanted->GetWantedLevel() > 0)
         {
-            Economy->PushMessage(TEXT("Garage recall locked while police are looking for you."), 4.0f);
+            Economy->PushMessage(TEXT("Garage dispatch locked while police are looking for you."), 4.0f);
             return;
         }
     }
@@ -133,7 +136,7 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
     {
         if (GameMode->GetWildlifeAlertLevel() > 0)
         {
-            Economy->PushMessage(TEXT("Garage recall locked while the game warden is looking for you."), 4.0f);
+            Economy->PushMessage(TEXT("Garage dispatch locked while the game warden is looking for you."), 4.0f);
             return;
         }
     }
@@ -160,12 +163,12 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
 
     if ((NativeRoad && NativeRoad->GetDriverPawn() != nullptr) || (NativeFieldmaster && NativeFieldmaster->IsOccupied()) || (!NativeRoad && !NativeFieldmaster && Vehicle->IsOccupied()))
     {
-        Economy->PushMessage(TEXT("Cannot recall a vehicle while someone is driving it."), 3.0f);
+        Economy->PushMessage(TEXT("Cannot dispatch a vehicle while someone is driving it."), 3.0f);
         return;
     }
     if (Economy->GetCash() < RecallServiceCost)
     {
-        Economy->PushMessage(FString::Printf(TEXT("Recall service costs $%d."), RecallServiceCost), 3.0f);
+        Economy->PushMessage(FString::Printf(TEXT("Garage dispatch service costs $%d."), RecallServiceCost), 3.0f);
         return;
     }
 
@@ -201,12 +204,19 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
 
     if (!bRecalled)
     {
-        Economy->PushMessage(TEXT("That vehicle cannot be recalled right now."), 3.0f);
+        Economy->PushMessage(TEXT("That vehicle cannot be dispatched right now."), 3.0f);
         return;
     }
 
-    if (!Economy->SpendCash(RecallServiceCost, FString::Printf(TEXT("Garage recall service: -$%d"), RecallServiceCost)))
+    if (!Economy->SpendCash(RecallServiceCost, FString::Printf(TEXT("Garage dispatch service: -$%d"), RecallServiceCost)))
     {
+        return;
+    }
+
+    if (!Fleet || !Fleet->SetPreferredVehicleId(VehicleId))
+    {
+        Economy->AddCash(RecallServiceCost, TEXT("Garage dispatch preference refund"));
+        Economy->PushMessage(TEXT("Dispatch could not be committed to the fleet registry; payment refunded."), 4.0f);
         return;
     }
 
@@ -221,7 +231,7 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
     {
         ServiceHint = FString::Printf(TEXT(" %s; workshop estimate $%d."), *Snapshot.ServiceStatus, Snapshot.RepairEstimate);
     }
-    Economy->PushMessage(FString::Printf(TEXT("SLOT %d RECALL: %s delivered for $%d.%s Damage, fuel and tuning were preserved."),
+    Economy->PushMessage(FString::Printf(TEXT("SLOT %d DISPATCH: %s delivered for $%d and set ACTIVE.%s Damage, fuel and tuning were preserved."),
         SlotIndex + 1, *DisplayName, RecallServiceCost, *ServiceHint), 6.0f);
 }
 
@@ -235,6 +245,10 @@ FText AGTTGarageSlotTerminal::GetInteractionText_Implementation() const
         return FText::Format(NSLOCTEXT("GTT", "GarageSlotEmptyFleet", "Garage slot {0}: empty"), FText::AsNumber(SlotIndex + 1));
     }
 
-    return FText::FromString(FString::Printf(TEXT("Recall slot %d: %s [%s] ($%d)"),
-        SlotIndex + 1, *Snapshot.DisplayName, *Snapshot.ServiceStatus, RecallServiceCost));
+    return FText::FromString(FString::Printf(TEXT("Dispatch slot %d: %s [%s%s] ($%d)"),
+        SlotIndex + 1,
+        *Snapshot.DisplayName,
+        *UGTTGarageFleetSubsystem::FleetRoleLabel(Snapshot.Role),
+        Snapshot.bPreferredDispatch ? TEXT(" ACTIVE") : TEXT(""),
+        RecallServiceCost));
 }
