@@ -29,10 +29,10 @@ public:
     bool TryCompleteBorrowedTractor(AGTTVehicleBase* Vehicle);
 
     UFUNCTION(BlueprintCallable, Category="GTT|Save")
-    bool SaveProgress();
+    virtual bool SaveProgress();
 
     UFUNCTION(BlueprintCallable, Category="GTT|Save")
-    bool LoadProgress();
+    virtual bool LoadProgress();
 
     UFUNCTION(BlueprintCallable, Category="GTT|Police")
     bool TryArrestPlayer(APawn* PursuedPawn);
