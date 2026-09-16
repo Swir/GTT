@@ -66,6 +66,30 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     FString GetCargoMarketLabel() const;
 
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Market")
+    FString GetCargoCommodityLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Market")
+    FString GetCargoStockSummary() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Market")
+    int32 GetFeedDepotStock() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Market")
+    int32 GetHillFarmDemand() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Market")
+    int32 GetWoodYardDemand() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Market")
+    bool CanAcceptCargoContract() const;
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Logistics|Cargo|Market")
+    bool ReserveCargoContract(int32 RouteTier, int32& OutReservedUnits, FString& OutReason);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Logistics|Cargo|Market")
+    void SettleCargoContract(int32 ReservedUnits, bool bExtendedRoute, bool bSuccess);
+
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|History")
     FString GetRecentHistorySummary() const;
 
@@ -81,6 +105,7 @@ private:
     float GetTimeOfDayHours() const;
     int32 GetDayNumber() const;
     void AppendHistory(FName ContractTag, int32 Payout, int32 QualityPercent);
+    void EnsureCargoMarketForCurrentDay() const;
 
     int32 Reputation = 0;
     int32 CleanStreak = 0;
@@ -90,6 +115,15 @@ private:
     int32 CargoCompletedRuns = 0;
     int32 CargoFailedRuns = 0;
     int32 CargoLifetimeRevenue = 0;
+
+    // 0.1.5 persistent living-market state. Mutable because read-only board queries can be
+    // the first touch after the world day rolls over and therefore lazily apply daily restock.
+    mutable int32 MarketDay = 0;
+    mutable int32 FeedDepotStock = 10;
+    mutable int32 HillFarmDemand = 6;
+    mutable int32 WoodYardDemand = 4;
+    mutable int32 CargoRotationIndex = 0;
+
     TArray<FName> RecentContractTags;
     TArray<int32> RecentPayouts;
     TArray<int32> RecentQualityPercent;
