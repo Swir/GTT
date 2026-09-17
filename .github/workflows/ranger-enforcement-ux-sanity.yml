@@ -1,0 +1,22 @@
+name: GTT 0.1.24 enforcement UX and civilian roadside sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ranger-enforcement-ux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify previous roadside and traffic contract
+        run: python Scripts/verify_ranger_roadside_traffic.py
+      - name: Verify enforcement HUD, civilian scene response and lane-aware traffic
+        run: python Scripts/verify_ranger_enforcement_ux.py
