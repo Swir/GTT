@@ -3,6 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 header = (ROOT / "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h").read_text(encoding="utf-8")
 cpp = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp").read_text(encoding="utf-8")
+movement = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp").read_text(encoding="utf-8")
 statics = (ROOT / "Source/GTT/Private/Core/GTTGameplayStatics.cpp").read_text(encoding="utf-8")
 garage = (ROOT / "Source/GTT/Private/World/GTTGarageSlotTerminal.cpp").read_text(encoding="utf-8")
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
@@ -29,9 +30,17 @@ for token in [
     "SyncLegacyMirror",
     "RestorePersistentState",
     "MigrationSnapshot.FuelLiters",
-    "SetTargetGear",
+    "Movement->HoldFieldmasterStopped",
 ]:
     assert token in cpp, f"native takeover implementation missing {token}"
+
+for token in [
+    "SetTargetGear",
+    "SetThrottleInput",
+    "SetSteeringInput",
+    "SetBrakeInput",
+]:
+    assert token in movement, f"dedicated native movement missing takeover drive command {token}"
 
 assert "AGTTFieldmasterNativePawn" in statics
 assert "ResolveGTTDriverPawn" in statics
@@ -56,4 +65,4 @@ assert "Win64" in playtest
 assert "fallback" in playtest.lower()
 assert "Verify Fieldmaster native runtime takeover" in workflow
 
-print("Fieldmaster native runtime takeover sanity passed; roadmap remains 125/130 (96.2%)")
+print("Fieldmaster native runtime takeover sanity passed through dedicated Chaos movement; roadmap remains 125/130 (96.2%)")
