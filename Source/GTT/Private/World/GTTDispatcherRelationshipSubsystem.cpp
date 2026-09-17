@@ -114,13 +114,37 @@ int32 UGTTDispatcherRelationshipSubsystem::GetCargoReservationHoldMinutes() cons
     return 35;
 }
 
+int32 UGTTDispatcherRelationshipSubsystem::GetEffectiveCargoReservationHoldMinutes() const
+{
+    const int32 RelationshipHoldMinutes = GetCargoReservationHoldMinutes();
+    const UGTTLogisticsReputationSubsystem* Logistics = GetLogistics();
+    if (!Logistics) return RelationshipHoldMinutes;
+
+    const int32 PrioritySlaMinutes = Logistics->GetCargoPriorityPickupSlaMinutes();
+    if (PrioritySlaMinutes <= 0) return RelationshipHoldMinutes;
+
+    // Trust can buy a longer ordinary hold, but it cannot make an emergency order stop being
+    // urgent. The persisted clean chain can add a small earned grace period inside the SLA API.
+    return FMath::Min(RelationshipHoldMinutes, PrioritySlaMinutes);
+}
+
 FString UGTTDispatcherRelationshipSubsystem::GetCargoReservationFavorLabel() const
 {
     const int32 Relationship = GetFeedDispatcherRelationship();
-    if (Relationship >= 70) return TEXT("PREFERRED FAVOR: DOUBLE DESK / 110 MIN HOLD");
-    if (Relationship >= 45) return TEXT("TRUST FAVOR: DOUBLE DESK / 80 MIN HOLD");
-    if (Relationship >= 25) return TEXT("KNOWN DRIVER: 50 MIN HOLD");
-    return TEXT("STANDARD DESK: 35 MIN HOLD");
+    FString BaseLabel;
+    if (Relationship >= 70) BaseLabel = TEXT("PREFERRED FAVOR: DOUBLE DESK / 110 MIN HOLD");
+    else if (Relationship >= 45) BaseLabel = TEXT("TRUST FAVOR: DOUBLE DESK / 80 MIN HOLD");
+    else if (Relationship >= 25) BaseLabel = TEXT("KNOWN DRIVER: 50 MIN HOLD");
+    else BaseLabel = TEXT("STANDARD DESK: 35 MIN HOLD");
+
+    const UGTTLogisticsReputationSubsystem* Logistics = GetLogistics();
+    const int32 PrioritySlaMinutes = Logistics ? Logistics->GetCargoPriorityPickupSlaMinutes() : 0;
+    if (PrioritySlaMinutes > 0)
+    {
+        return FString::Printf(TEXT("%s | PRIORITY SLA %d MIN | EFFECTIVE %d MIN"),
+            *BaseLabel, PrioritySlaMinutes, GetEffectiveCargoReservationHoldMinutes());
+    }
+    return BaseLabel;
 }
 
 FString UGTTDispatcherRelationshipSubsystem::GetContractDeskSummary() const
@@ -136,9 +160,9 @@ FString UGTTDispatcherRelationshipSubsystem::GetContractDeskSummary() const
     }
     const FString Cargo = CargoOptions.Num() > 0 ? FString::Join(CargoOptions, TEXT("/")) : TEXT("NONE");
     const FString Road = Logistics->IsRoadCourierWindowOpen() ? TEXT("ROAD OPEN") : TEXT("ROAD CLOSED");
-    return FString::Printf(TEXT("DESK CARGO %s | %s | FEED %s %d | %s | %s"),
+    return FString::Printf(TEXT("DESK CARGO %s | %s | FEED %s %d | %s | %s | %s"),
         *Cargo, *Road, *GetFeedRelationshipLabel(), GetFeedDispatcherRelationship(),
-        *GetCargoReservationFavorLabel(), *Logistics->GetCargoReservationSummary());
+        *GetCargoReservationFavorLabel(), *Logistics->GetCargoReservationSummary(), *Logistics->GetPriorityChainSummary());
 }
 
 FString UGTTDispatcherRelationshipSubsystem::GetDispatcherReaction(FName RoleTag) const
