@@ -7,6 +7,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Ranger/GTTRangerRoadStopSubsystem.h"
 #include "TimerManager.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
@@ -25,11 +26,32 @@ void AGTTRangerAIController::BeginPlay()
     GetWorldTimerManager().SetTimer(PursuitTimer, this, &AGTTRangerAIController::UpdatePursuit, RepathInterval, true, 0.2f);
 }
 
+void AGTTRangerAIController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (GetWorld())
+    {
+        if (UGTTRangerRoadStopSubsystem* RoadStop = GetWorld()->GetSubsystem<UGTTRangerRoadStopSubsystem>())
+        {
+            RoadStop->EndStop(this);
+        }
+    }
+    Super::EndPlay(EndPlayReason);
+}
+
 void AGTTRangerAIController::ResetRoadStopState()
 {
+    if (GetWorld())
+    {
+        if (UGTTRangerRoadStopSubsystem* RoadStop = GetWorld()->GetSubsystem<UGTTRangerRoadStopSubsystem>())
+        {
+            RoadStop->EndStop(this);
+        }
+    }
+
     bRoadStopActive = false;
     bRoadStopEvasionEscalated = false;
     bSearchHoldMessageShown = false;
+    bComplianceReminderShown = false;
     RoadStopTimeRemaining = 0.0f;
     ComplianceHoldElapsed = 0.0f;
 }
@@ -91,9 +113,14 @@ bool AGTTRangerAIController::TryResolveRoadsideSearch(APawn* Target)
         PushRangerMessage(Target, TEXT("WARDEN SEARCH COMPLETE: no rural contraband found. Citation resolved."), 4.5f);
     }
 
+    if (UGTTRangerRoadStopSubsystem* RoadStop = GetWorld()->GetSubsystem<UGTTRangerRoadStopSubsystem>())
+    {
+        RoadStop->EndStop(this);
+    }
     bRoadStopActive = false;
     ComplianceHoldElapsed = 0.0f;
     bSearchHoldMessageShown = false;
+    bComplianceReminderShown = false;
     RoadStopTimeRemaining = 0.0f;
     return true;
 }
@@ -119,9 +146,14 @@ void AGTTRangerAIController::EscalateRoadStopEvasion(APawn* Target)
         PushRangerMessage(Target, TEXT("FLED WARDEN STOP: county police escalation requested."), 5.0f);
     }
 
+    if (UGTTRangerRoadStopSubsystem* RoadStop = GetWorld()->GetSubsystem<UGTTRangerRoadStopSubsystem>())
+    {
+        RoadStop->MarkFlee(this, 4.5f);
+    }
     bRoadStopEvasionEscalated = true;
     bRoadStopActive = false;
     bSearchHoldMessageShown = false;
+    bComplianceReminderShown = false;
     RoadStopTimeRemaining = 0.0f;
     ComplianceHoldElapsed = 0.0f;
 }
@@ -144,35 +176,82 @@ void AGTTRangerAIController::UpdatePursuit()
         RangerCharacter->GetCharacterMovement()->MaxWalkSpeed = BaseChaseSpeed + AlertLevel * SpeedPerAlertLevel;
     }
 
-    MoveToActor(Target, AcceptanceRadius, true, true, true, nullptr, true);
-
+    UGTTRangerRoadStopSubsystem* RoadStopSubsystem = GetWorld()->GetSubsystem<UGTTRangerRoadStopSubsystem>();
     const float DistanceSquared = FVector::DistSquared2D(RangerPawn->GetActorLocation(), Target->GetActorLocation());
     const bool bVehicleTarget = IsVehicleTarget(Target);
+
+    if (bRoadStopActive && (!bVehicleTarget || AlertLevel < RoadStopAlertLevel))
+    {
+        ResetRoadStopState();
+    }
+
+    // A driver who has already fled this incident remains a pursuit target; do not let
+    // the legacy proximity citation silently erase the police escalation on the next tick.
+    if (bRoadStopEvasionEscalated)
+    {
+        MoveToActor(Target, AcceptanceRadius, true, true, true, nullptr, true);
+        return;
+    }
+
+    MoveToActor(Target, AcceptanceRadius, true, true, true, nullptr, true);
 
     if (bVehicleTarget && AlertLevel >= RoadStopAlertLevel && !bRoadStopEvasionEscalated)
     {
         if (!bRoadStopActive && DistanceSquared <= FMath::Square(RoadStopOrderRadius))
         {
-            bRoadStopActive = true;
-            RoadStopTimeRemaining = RoadStopGraceSeconds;
-            ComplianceHoldElapsed = 0.0f;
-            bSearchHoldMessageShown = false;
-            PushRangerMessage(
-                Target,
-                FString::Printf(TEXT("WARDEN ROAD STOP: pull over below %.1f km/h and hold still. %.0fs compliance window."),
-                    RoadStopComplianceSpeedKmh, RoadStopGraceSeconds),
-                5.0f);
+            const bool bAcquiredStop = !RoadStopSubsystem || RoadStopSubsystem->BeginStop(
+                this, Target, RangerPawn->GetActorLocation(), RoadStopGraceSeconds);
+            if (bAcquiredStop)
+            {
+                bRoadStopActive = true;
+                RoadStopTimeRemaining = RoadStopGraceSeconds;
+                ComplianceHoldElapsed = 0.0f;
+                bSearchHoldMessageShown = false;
+                bComplianceReminderShown = false;
+                PushRangerMessage(
+                    Target,
+                    FString::Printf(TEXT("WARDEN ROAD STOP: pull onto the shoulder below %.1f km/h and hold still. %.0fs compliance window."),
+                        RoadStopComplianceSpeedKmh, RoadStopGraceSeconds),
+                    5.0f);
+            }
+        }
+
+        // Only one ranger owns the roadside contact. Reinforcement stages behind the stop
+        // instead of standing in the traffic lane or issuing a duplicate citation.
+        if (!bRoadStopActive && RoadStopSubsystem &&
+            RoadStopSubsystem->IsStopForTarget(Target) && !RoadStopSubsystem->IsOwnedBy(this))
+        {
+            MoveToLocation(
+                RoadStopSubsystem->GetRangerSupportPoint(RoadStopShoulderOffset + 70.0f, RoadStopRearOffset),
+                RoadStopStagingAcceptanceRadius + 45.0f,
+                true, true, true, false, nullptr, true);
+            return;
         }
 
         if (bRoadStopActive)
         {
+            if (RoadStopSubsystem)
+            {
+                MoveToLocation(
+                    RoadStopSubsystem->GetRangerStagingPoint(RoadStopShoulderOffset, RoadStopRearOffset),
+                    RoadStopStagingAcceptanceRadius,
+                    true, true, true, false, nullptr, true);
+            }
+
             const float SpeedKmh = GetTargetSpeedKmh(Target);
             const bool bInsideSearchRadius = DistanceSquared <= FMath::Square(RoadStopSearchRadius);
             const bool bCompliantSpeed = SpeedKmh <= RoadStopComplianceSpeedKmh;
 
             RoadStopTimeRemaining = FMath::Max(0.0f, RoadStopTimeRemaining - RepathInterval);
 
-            if (bCompliantSpeed && bInsideSearchRadius)
+            if (!bComplianceReminderShown && RoadStopTimeRemaining <= 2.25f && !bCompliantSpeed)
+            {
+                bComplianceReminderShown = true;
+                PushRangerMessage(Target, TEXT("WARDEN STOP: COMPLY NOW - slow down and hold on the shoulder, or the stop becomes an evasion."), 3.0f);
+            }
+
+            const bool bSearching = bCompliantSpeed && bInsideSearchRadius;
+            if (bSearching)
             {
                 ComplianceHoldElapsed += RepathInterval;
                 if (!bSearchHoldMessageShown)
@@ -184,17 +263,24 @@ void AGTTRangerAIController::UpdatePursuit()
                             RoadStopComplianceHoldSeconds),
                         4.0f);
                 }
-
-                if (ComplianceHoldElapsed >= RoadStopComplianceHoldSeconds && TryResolveRoadsideSearch(Target))
-                {
-                    StopMovement();
-                    return;
-                }
             }
             else
             {
                 ComplianceHoldElapsed = 0.0f;
                 bSearchHoldMessageShown = false;
+            }
+
+            if (RoadStopSubsystem)
+            {
+                RoadStopSubsystem->UpdateStop(
+                    this, Target, RoadStopTimeRemaining, ComplianceHoldElapsed,
+                    RoadStopComplianceHoldSeconds, SpeedKmh, bSearching);
+            }
+
+            if (bSearching && ComplianceHoldElapsed >= RoadStopComplianceHoldSeconds && TryResolveRoadsideSearch(Target))
+            {
+                StopMovement();
+                return;
             }
 
             if (RoadStopTimeRemaining <= 0.0f && SpeedKmh >= RoadStopFleeSpeedKmh)

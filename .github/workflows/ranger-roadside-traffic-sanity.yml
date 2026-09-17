@@ -1,0 +1,22 @@
+name: GTT 0.1.23 ranger roadside positioning and traffic sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ranger-roadside-traffic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify previous ranger road-stop contract
+        run: python Scripts/verify_ranger_road_stop.py
+      - name: Verify roadside staging, traffic reaction and surrender UX
+        run: python Scripts/verify_ranger_roadside_traffic.py

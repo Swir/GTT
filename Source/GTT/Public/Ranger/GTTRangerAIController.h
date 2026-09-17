@@ -25,6 +25,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger", meta=(ClampMin="0.2"))
     float RepathInterval = 0.75f;
@@ -65,6 +66,15 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger|RoadStop", meta=(ClampMin="0.0"))
     float RoadStopEvasionWantedHeat = 45.0f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger|RoadStop", meta=(ClampMin="50.0"))
+    float RoadStopShoulderOffset = 190.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger|RoadStop", meta=(ClampMin="0.0"))
+    float RoadStopRearOffset = 85.0f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger|RoadStop", meta=(ClampMin="25.0"))
+    float RoadStopStagingAcceptanceRadius = 65.0f;
+
 private:
     void UpdatePursuit();
     void ResetRoadStopState();
@@ -78,6 +88,7 @@ private:
     bool bRoadStopActive = false;
     bool bRoadStopEvasionEscalated = false;
     bool bSearchHoldMessageShown = false;
+    bool bComplianceReminderShown = false;
     float RoadStopTimeRemaining = 0.0f;
     float ComplianceHoldElapsed = 0.0f;
 };

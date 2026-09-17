@@ -3,6 +3,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
+#include "Ranger/GTTRangerRoadStopSubsystem.h"
 #include "World/GTTWorldPerformanceSubsystem.h"
 #include "GTT.h"
 
@@ -87,12 +88,26 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
+    float RangerStopSpeedScale = 1.0f;
+    bool bRangerStopHold = false;
+    bYieldingForRangerStop = false;
+    bHoldingForRangerStop = false;
+    if (GetWorld())
+    {
+        if (const UGTTRangerRoadStopSubsystem* RoadStop = GetWorld()->GetSubsystem<UGTTRangerRoadStopSubsystem>())
+        {
+            bYieldingForRangerStop = RoadStop->GetTrafficResponse(
+                GetActorLocation(), GetActorForwardVector(), RangerStopSpeedScale, bRangerStopHold);
+            bHoldingForRangerStop = bYieldingForRangerStop && bRangerStopHold;
+        }
+    }
+
     bool bAllowExpensiveQueries = true;
     if (GetWorld())
     {
         if (UGTTWorldPerformanceSubsystem* Performance = GetWorld()->GetSubsystem<UGTTWorldPerformanceSubsystem>())
         {
-            const bool bForceCritical = IsOccupied() || IncidentStopRemaining > 0.0f || bIncidentDisabled;
+            const bool bForceCritical = IsOccupied() || IncidentStopRemaining > 0.0f || bIncidentDisabled || bYieldingForRangerStop;
             const float BudgetInterval = Performance->GetRecommendedTickInterval(this, bForceCritical);
             const float TrafficInterval = bForceCritical ? 0.0f : FMath::Min(BudgetInterval, 0.35f);
             if (!FMath::IsNearlyEqual(GetActorTickInterval(), TrafficInterval, 0.01f))
@@ -107,6 +122,14 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
     HornVisualRemaining = FMath::Max(0.0f, HornVisualRemaining - DeltaSeconds);
     IncidentStopRemaining = FMath::Max(0.0f, IncidentStopRemaining - DeltaSeconds);
     IncidentLimpRemaining = FMath::Max(0.0f, IncidentLimpRemaining - DeltaSeconds);
+
+    if (HornText && bYieldingForRangerStop && !bIncidentDisabled)
+    {
+        HornText->SetText(bHoldingForRangerStop
+            ? NSLOCTEXT("GTT", "TrafficRangerStop", "STOP")
+            : NSLOCTEXT("GTT", "TrafficRangerSlow", "SLOW"));
+        HornVisualRemaining = FMath::Max(HornVisualRemaining, 0.30f);
+    }
 
     if (HornText)
     {
@@ -141,6 +164,21 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
         return;
     }
 
+    if (bHoldingForRangerStop)
+    {
+        if (VehicleMesh->IsSimulatingPhysics())
+        {
+            FVector FlatVelocity = VehicleMesh->GetPhysicsLinearVelocity();
+            FlatVelocity.Z = 0.0f;
+            if (!FlatVelocity.IsNearlyZero())
+            {
+                VehicleMesh->AddForce(-FlatVelocity.GetSafeNormal() * TrafficDriveForce * 1.45f, NAME_None, true);
+            }
+        }
+        StuckTime = 0.0f;
+        return;
+    }
+
     FVector ToTarget = RoutePoints[CurrentRoutePoint] - GetActorLocation();
     ToTarget.Z = 0.0f;
     if (ToTarget.SizeSquared2D() <= FMath::Square(RoutePointRadius))
@@ -161,7 +199,8 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
     const float ForwardAlignment = FVector::DotProduct(Forward, DesiredDirection);
     float Steering = FMath::Clamp(FVector::DotProduct(Right, DesiredDirection) * 2.1f, -1.0f, 1.0f);
     const float Speed = GetVelocity().Size2D();
-    const float EffectiveCruiseSpeedCm = IncidentLimpRemaining > 0.0f ? TargetCruiseSpeedCm * 0.52f : TargetCruiseSpeedCm;
+    const float LimpScale = IncidentLimpRemaining > 0.0f ? 0.52f : 1.0f;
+    const float EffectiveCruiseSpeedCm = TargetCruiseSpeedCm * LimpScale * RangerStopSpeedScale;
 
     bool bObstacleAhead = false;
     FHitResult ObstacleHit;
@@ -177,6 +216,11 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
     float Throttle = Speed < EffectiveCruiseSpeedCm
         ? FMath::Clamp(0.35f + ForwardAlignment * 0.35f, 0.12f, IncidentLimpRemaining > 0.0f ? 0.42f : 0.72f)
         : 0.05f;
+
+    if (bYieldingForRangerStop && Speed > EffectiveCruiseSpeedCm * 1.05f)
+    {
+        Throttle = -0.10f;
+    }
 
     if (IncidentLimpRemaining > 0.0f)
     {
@@ -197,7 +241,7 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
         }
     }
 
-    if (Speed < 55.0f && !bObstacleAhead)
+    if (Speed < 55.0f && !bObstacleAhead && !bYieldingForRangerStop)
     {
         StuckTime += DeltaSeconds;
         if (StuckTime >= StuckRecoverySeconds)
@@ -233,6 +277,14 @@ FText AGTTTrafficCarPawn::GetInteractionText_Implementation() const
     if (IncidentStopRemaining > 0.0f)
     {
         return NSLOCTEXT("GTT", "TrafficCarIncident", "Traffic vehicle - crash response");
+    }
+    if (bHoldingForRangerStop)
+    {
+        return NSLOCTEXT("GTT", "TrafficCarRangerHold", "Traffic vehicle - yielding at warden stop");
+    }
+    if (bYieldingForRangerStop)
+    {
+        return NSLOCTEXT("GTT", "TrafficCarRangerSlow", "Traffic vehicle - slowing for warden stop");
     }
     return NSLOCTEXT("GTT", "TrafficCarBusy", "Traffic vehicle - driver inside");
 }
