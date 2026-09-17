@@ -54,8 +54,21 @@ start_match = re.search(r"StartDelaySeconds\s*=\s*([0-9.]+)f", scenario_cpp)
 deadline_match = re.search(r"GlobalDeadlineSeconds\s*=\s*([0-9.]+)f", scenario_cpp)
 if not start_match or float(start_match.group(1)) < 75.0:
     errors.append("drivetrain evidence starts before the core 75-second demo scenario is guaranteed finished")
-if not deadline_match or float(deadline_match.group(1)) > 124.0:
-    errors.append("drivetrain evidence deadline no longer leaves margin before the 125-second smoke minimum")
+
+# Do not hard-code the historical 125-second package window: later evidence phases may
+# legitimately extend it. Instead prove that the configured packaged runtime outlives
+# the drivetrain deadline with a safety margin and that launch timeout is larger again.
+runtime_match = re.search(r"-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)", win64)
+if not runtime_match:
+    errors.append("Win64 evidence workflow does not expose parseable smoke lifetime/timeout values")
+else:
+    minimum_alive = int(runtime_match.group(1))
+    launch_timeout = int(runtime_match.group(2))
+    deadline = float(deadline_match.group(1)) if deadline_match else 10**9
+    if minimum_alive < int(deadline + 3.0):
+        errors.append(f"packaged runtime minimum {minimum_alive}s does not outlive drivetrain deadline {deadline:.1f}s with >=3s margin")
+    if launch_timeout <= minimum_alive:
+        errors.append(f"launch timeout {launch_timeout}s must exceed minimum alive time {minimum_alive}s")
 
 # Exactly three explicit target-gear commands are expected: initial forward, safe reverse, safe return.
 gear_writes = scenario_cpp.count("Movement->SetTargetGear(")
@@ -81,7 +94,6 @@ for token in [
 for token in [
     "evaluate_drivetrain_scenario.ps1",
     "NATIVE_DRIVETRAIN_SCENARIO.json",
-    "MinimumAliveSeconds 125",
 ]:
     if token not in win64:
         errors.append(f"Win64 evidence workflow missing deterministic drivetrain gate: {token}")
@@ -150,5 +162,5 @@ if errors:
 print("GTT 0.1.17 deterministic drivetrain scenario verification OK")
 print(" - late packaged scenario avoids racing the existing 0-75 second demo controls")
 print(" - automatic upshift, safe reverse commit, reverse motion and safe forward return are evidence-gated")
-print(" - Win64 candidate workflow persists NATIVE_DRIVETRAIN_SCENARIO.json")
+print(f" - Win64 candidate runtime window is {minimum_alive}s with a {launch_timeout}s launch timeout")
 print(f" - Roadmap remains honest at {checked}/{total} ({checked / total * 100:.1f}%)")
