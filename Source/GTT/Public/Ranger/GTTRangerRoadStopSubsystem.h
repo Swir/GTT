@@ -38,8 +38,9 @@ struct FGTTRangerRoadStopPresentation
  *
  * 0.1.25 gives each incident a stable roadside frame: a lane anchor used by
  * ambient traffic, a physical shoulder target the player must actually reach,
- * ranger staging positions and a patrol-unit parking transform. Keeping these
- * derived from one frame prevents the scene from drifting behind a moving car.
+ * ranger staging positions and a patrol-unit parking transform. 0.1.26 exposes
+ * that exact same target as a world-space presentation transform, keeping the
+ * marker visual-only rather than creating a second source of compliance truth.
  */
 UCLASS()
 class GTT_API UGTTRangerRoadStopSubsystem : public UWorldSubsystem
@@ -64,6 +65,7 @@ public:
     FVector GetPullOverTargetLocation() const { return PullOverTargetLocation; }
     float GetPullOverDistanceCm(const APawn* Target) const;
     bool IsTargetInPullOverZone(const APawn* Target, float AcceptanceRadiusCm = 275.0f) const;
+    bool GetPullOverMarkerTransform(FTransform& OutTransform) const;
     bool GetPatrolVehicleTransform(FTransform& OutTransform) const;
 
     bool GetTrafficResponse(const FVector& VehicleLocation, const FVector& VehicleForward,
