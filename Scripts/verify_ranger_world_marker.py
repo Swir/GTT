@@ -50,8 +50,8 @@ for needle, label in [
     ("RangerPullOverMarkerLabel", "original pull-over label"),
     ("GetPullOverMarkerTransform", "marker follows shared authority"),
     ("LineTraceSingleByObjectType", "grounding trace"),
-    ("ECC_WorldStatic", "dynamic vehicles excluded from grounding"),
-    ("Hit.ImpactPoint.Z + 4.0f", "surface offset avoiding z-fighting"),
+    ("ECC_WorldStatic", "dynamic vehicles excluded from marker grounding"),
+    ("Hit.ImpactPoint.Z + 4.0f", "surface offset avoiding marker z-fighting"),
     ("RoadStop->GetPhase() == EGTTRangerRoadStopPhase::Search", "phase-aware declutter"),
     ("MarkerLabel->SetVisibility(!bSearchPhase", "SEARCH floating-label declutter"),
     ("DirectionChevron->SetVisibility(!bSearchPhase", "SEARCH chevron declutter"),
@@ -84,11 +84,14 @@ for needle, label in [
     require(director_cpp, needle, label)
 
 # Patrol scene has real light components, not only toggled geometry. SEARCH is
-# intentionally distinct from the alternating roadside warning beacons.
+# intentionally distinct from the alternating roadside warning beacons, and the
+# parked actor is projected onto WorldStatic instead of trusting vehicle-pivot Z.
 for needle, label in [
     ("BeaconLightLeft", "left beacon point light"),
     ("BeaconLightRight", "right beacon point light"),
     ("SearchLamp", "search scene lamp"),
+    ("ResolveGroundedLocation", "patrol ground projection API"),
+    ("GroundClearanceCm = 8.0f", "bounded patrol ground clearance"),
     ("UpdateBeacons(float DeltaSeconds, bool bSearchPhase)", "phase-aware patrol presentation"),
 ]:
     require(patrol_h, needle, label)
@@ -97,6 +100,9 @@ for needle, label in [
     ("CreateDefaultSubobject<UPointLightComponent>(TEXT(\"BeaconLightRight\"))", "right real light creation"),
     ("CreateDefaultSubobject<USpotLightComponent>(TEXT(\"SearchLamp\"))", "search lamp creation"),
     ("RoadStop->GetPhase() == EGTTRangerRoadStopPhase::Search", "search phase integration"),
+    ("ResolveGroundedLocation(SceneTransform.GetLocation())", "grounded patrol deployment"),
+    ("ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic)", "WorldStatic-only patrol ground trace"),
+    ("Hit.ImpactPoint.Z + GroundClearanceCm", "patrol surface clearance"),
     ("BeaconLightLeft->SetVisibility(bLeft, true)", "left light synchronization"),
     ("BeaconLightRight->SetVisibility(!bLeft, true)", "right light synchronization"),
     ("SearchLamp->SetVisibility(bSearchPhase, true)", "search-only scene lighting"),
@@ -133,7 +139,8 @@ require(workflow, "python Scripts/verify_ranger_world_marker.py", "0.1.26 milest
 
 print("GTT 0.1.26 world-space pull-over marker / patrol lighting sanity: PASS")
 print("- COMPLY/SEARCH presentation consumes the fixed road-stop target and cannot create compliance independently")
-print("- marker grounds against WorldStatic, stays non-colliding, declutters during SEARCH and disappears outside traffic control")
-print("- patrol support now synchronizes real beacon lights and enables a dedicated SEARCH scene lamp")
+print("- marker and patrol support independently project to WorldStatic while ignoring dynamic vehicles")
+print("- marker stays non-colliding, declutters during SEARCH and disappears outside traffic control")
+print("- patrol support synchronizes real beacon lights and enables a dedicated SEARCH scene lamp")
 print("- 0.1.25 physical roadside behavior remains the regression baseline")
 print("- roadmap remains truthfully locked at 125/130 (96.2%); no Win64/demo claim is inferred")
