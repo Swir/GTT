@@ -36,6 +36,7 @@ jobs:
       - { name: Verify native Chaos setup contract, run: 'python Scripts/verify_native_chaos_setup.py' }
       - { name: Verify native Chaos powertrain contract, run: 'python Scripts/verify_native_chaos_powertrain.py' }
       - { name: Verify Fieldmaster native pawn acceptance, run: 'python Scripts/verify_fieldmaster_native_pawn.py' }
+      - { name: Verify dedicated Fieldmaster Chaos movement, run: 'python Scripts/verify_fieldmaster_dedicated_chaos_movement.py' }
       - { name: Verify Win64 runtime evidence pipeline, run: 'python Scripts/verify_win64_evidence_pipeline.py' }
       - { name: Verify Fieldmaster native gameplay handoff, run: 'python Scripts/verify_fieldmaster_native_handoff.py' }
       - { name: Verify Fieldmaster native runtime takeover, run: 'python Scripts/verify_fieldmaster_native_takeover.py' }
