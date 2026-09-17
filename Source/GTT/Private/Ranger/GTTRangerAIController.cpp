@@ -210,7 +210,7 @@ void AGTTRangerAIController::UpdatePursuit()
                 bComplianceReminderShown = false;
                 PushRangerMessage(
                     Target,
-                    FString::Printf(TEXT("WARDEN ROAD STOP: pull onto the shoulder below %.1f km/h and hold still. %.0fs compliance window."),
+                    FString::Printf(TEXT("WARDEN ROAD STOP: move to the shoulder marker, slow below %.1f km/h and hold still. %.0fs compliance window."),
                         RoadStopComplianceSpeedKmh, RoadStopGraceSeconds),
                     5.0f);
             }
@@ -239,15 +239,34 @@ void AGTTRangerAIController::UpdatePursuit()
             }
 
             const float SpeedKmh = GetTargetSpeedKmh(Target);
-            const bool bInsideSearchRadius = DistanceSquared <= FMath::Square(RoadStopSearchRadius);
+            // 0.1.25 makes compliance spatial instead of accepting any low-speed vehicle
+            // that happens to remain near the ranger. The shared roadside scene owns the
+            // fixed shoulder target; legacy fallback keeps the old path safe if unavailable.
+            const bool bInsideSearchRadius = RoadStopSubsystem
+                ? RoadStopSubsystem->IsTargetInPullOverZone(Target, RoadStopSearchRadius)
+                : DistanceSquared <= FMath::Square(RoadStopSearchRadius);
+            const float PullOverDistanceCm = RoadStopSubsystem
+                ? RoadStopSubsystem->GetPullOverDistanceCm(Target)
+                : 0.0f;
             const bool bCompliantSpeed = SpeedKmh <= RoadStopComplianceSpeedKmh;
 
             RoadStopTimeRemaining = FMath::Max(0.0f, RoadStopTimeRemaining - RepathInterval);
 
-            if (!bComplianceReminderShown && RoadStopTimeRemaining <= 2.25f && !bCompliantSpeed)
+            if (!bComplianceReminderShown && RoadStopTimeRemaining <= 2.25f && (!bCompliantSpeed || !bInsideSearchRadius))
             {
                 bComplianceReminderShown = true;
-                PushRangerMessage(Target, TEXT("WARDEN STOP: COMPLY NOW - slow down and hold on the shoulder, or the stop becomes an evasion."), 3.0f);
+                if (!bInsideSearchRadius)
+                {
+                    PushRangerMessage(
+                        Target,
+                        FString::Printf(TEXT("WARDEN STOP: COMPLY NOW - move into the shoulder marker (%.0f m), then stop or the stop becomes an evasion."),
+                            PullOverDistanceCm / 100.0f),
+                        3.0f);
+                }
+                else
+                {
+                    PushRangerMessage(Target, TEXT("WARDEN STOP: COMPLY NOW - slow down and hold on the shoulder, or the stop becomes an evasion."), 3.0f);
+                }
             }
 
             const bool bSearching = bCompliantSpeed && bInsideSearchRadius;
@@ -274,7 +293,8 @@ void AGTTRangerAIController::UpdatePursuit()
             {
                 RoadStopSubsystem->UpdateStop(
                     this, Target, RoadStopTimeRemaining, ComplianceHoldElapsed,
-                    RoadStopComplianceHoldSeconds, SpeedKmh, bSearching);
+                    RoadStopComplianceHoldSeconds, SpeedKmh, bSearching,
+                    RoadStopComplianceSpeedKmh, bInsideSearchRadius);
             }
 
             if (bSearching && ComplianceHoldElapsed >= RoadStopComplianceHoldSeconds && TryResolveRoadsideSearch(Target))

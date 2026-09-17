@@ -28,14 +28,18 @@ struct FGTTRangerRoadStopPresentation
     UPROPERTY(BlueprintReadOnly) float Progress01 = 0.0f;
     UPROPERTY(BlueprintReadOnly) float SecondsRemaining = 0.0f;
     UPROPERTY(BlueprintReadOnly) float ObservedSpeedKmh = 0.0f;
+    UPROPERTY(BlueprintReadOnly) bool bInPullOverZone = false;
+    UPROPERTY(BlueprintReadOnly) float PullOverDistanceMeters = 0.0f;
+    UPROPERTY(BlueprintReadOnly) FVector PullOverWorldLocation = FVector::ZeroVector;
 };
 
 /**
  * Single world authority for an active warden vehicle stop.
  *
- * The subsystem keeps ranger positioning, ambient-traffic yielding, civilian
- * scene response and the player-facing enforcement phase on one shared state
- * instead of letting each ranger, NPC or traffic car invent its own incident.
+ * 0.1.25 gives each incident a stable roadside frame: a lane anchor used by
+ * ambient traffic, a physical shoulder target the player must actually reach,
+ * ranger staging positions and a patrol-unit parking transform. Keeping these
+ * derived from one frame prevents the scene from drifting behind a moving car.
  */
 UCLASS()
 class GTT_API UGTTRangerRoadStopSubsystem : public UWorldSubsystem
@@ -46,16 +50,21 @@ public:
     bool BeginStop(AGTTRangerAIController* Controller, APawn* Target, const FVector& RangerLocation, float GraceSeconds);
     void UpdateStop(AGTTRangerAIController* Controller, APawn* Target, float SecondsRemaining,
         float HoldElapsed, float HoldRequired, float TargetSpeedKmh, bool bSearching,
-        float ComplianceSpeedLimitKmh = 2.5f);
+        float InComplianceSpeedLimitKmh = 2.5f, bool bInPullOverZone = false);
     void MarkFlee(AGTTRangerAIController* Controller, float DisplaySeconds = 4.5f);
     void EndStop(AGTTRangerAIController* Controller);
 
     bool IsOwnedBy(const AGTTRangerAIController* Controller) const;
     bool IsStopForTarget(const APawn* Target) const;
     bool HasTrafficControl() const;
+    bool HasPatrolScene() const;
 
     FVector GetRangerStagingPoint(float LateralOffsetCm, float RearOffsetCm) const;
     FVector GetRangerSupportPoint(float LateralOffsetCm, float RearOffsetCm) const;
+    FVector GetPullOverTargetLocation() const { return PullOverTargetLocation; }
+    float GetPullOverDistanceCm(const APawn* Target) const;
+    bool IsTargetInPullOverZone(const APawn* Target, float AcceptanceRadiusCm = 275.0f) const;
+    bool GetPatrolVehicleTransform(FTransform& OutTransform) const;
 
     bool GetTrafficResponse(const FVector& VehicleLocation, const FVector& VehicleForward,
         float& OutSpeedScale, bool& bOutHold) const;
@@ -79,6 +88,7 @@ private:
     TWeakObjectPtr<APawn> ActiveTarget;
     EGTTRangerRoadStopPhase Phase = EGTTRangerRoadStopPhase::None;
     FVector StopLocation = FVector::ZeroVector;
+    FVector PullOverTargetLocation = FVector::ZeroVector;
     FVector RoadForward = FVector::ForwardVector;
     float ShoulderSide = 1.0f;
     float RemainingSeconds = 0.0f;
@@ -88,6 +98,12 @@ private:
     float ObservedTargetSpeedKmh = 0.0f;
     float ComplianceSpeedLimitKmh = 2.5f;
     float FleeDisplayUntilSeconds = 0.0f;
+    bool bTargetInPullOverZone = false;
+
+    static constexpr float PullOverAheadCm = 700.0f;
+    static constexpr float PullOverLateralCm = 420.0f;
+    static constexpr float PullOverAcceptanceRadiusCm = 275.0f;
+    static constexpr float PatrolVehicleRearOffsetCm = 520.0f;
 
     static constexpr float TrafficSlowRadiusCm = 2200.0f;
     static constexpr float TrafficHoldRadiusCm = 650.0f;

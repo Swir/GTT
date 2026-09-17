@@ -6,6 +6,7 @@
 
 class APawn;
 class AGTTRangerPawn;
+class AGTTRangerPatrolVehicle;
 
 UCLASS()
 class GTT_API AGTTRangerDirector : public AActor
@@ -28,9 +29,15 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Ranger")
     bool IsNightReinforcementActive() const { return bNightReinforcementActive; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Ranger")
+    bool IsPatrolVehicleAvailable() const { return PatrolVehicle.IsValid(); }
+
 protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger")
     TSubclassOf<AGTTRangerPawn> RangerClass;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger")
+    TSubclassOf<AGTTRangerPatrolVehicle> PatrolVehicleClass;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger", meta=(ClampMin="0.25"))
     float ResponseInterval = 1.0f;
@@ -51,6 +58,7 @@ private:
 
     FTimerHandle ResponseTimer;
     TArray<TWeakObjectPtr<AGTTRangerPawn>> ActiveRangers;
+    TWeakObjectPtr<AGTTRangerPatrolVehicle> PatrolVehicle;
     int32 EnforcementTier = 0;
     bool bPoliceHandoffIssued = false;
     bool bNightReinforcementActive = false;
