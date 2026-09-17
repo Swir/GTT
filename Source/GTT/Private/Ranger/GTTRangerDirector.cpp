@@ -7,6 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Ranger/GTTRangerPatrolVehicle.h"
 #include "Ranger/GTTRangerPawn.h"
+#include "Ranger/GTTRangerPullOverMarker.h"
 #include "TimerManager.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTDayNightCycle.h"
@@ -16,22 +17,32 @@ AGTTRangerDirector::AGTTRangerDirector()
     PrimaryActorTick.bCanEverTick = false;
     RangerClass = AGTTRangerPawn::StaticClass();
     PatrolVehicleClass = AGTTRangerPatrolVehicle::StaticClass();
+    PullOverMarkerClass = AGTTRangerPullOverMarker::StaticClass();
 }
 
 void AGTTRangerDirector::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Keep one lightweight patrol/support unit resident and hidden. The road-stop
-    // subsystem drives its deployment, so spawning it here does not create a
-    // second incident authority or make it part of the player garage/save fleet.
-    if (GetWorld() && PatrolVehicleClass)
+    // Keep lightweight presentation actors resident and hidden. The road-stop
+    // subsystem is still the only incident authority; these actors merely render
+    // its stable scene transform without entering the garage/save/economy stacks.
+    if (GetWorld())
     {
         FActorSpawnParameters SpawnParams;
         SpawnParams.Owner = this;
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        PatrolVehicle = GetWorld()->SpawnActor<AGTTRangerPatrolVehicle>(
-            PatrolVehicleClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+
+        if (PatrolVehicleClass)
+        {
+            PatrolVehicle = GetWorld()->SpawnActor<AGTTRangerPatrolVehicle>(
+                PatrolVehicleClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+        }
+        if (PullOverMarkerClass)
+        {
+            PullOverMarker = GetWorld()->SpawnActor<AGTTRangerPullOverMarker>(
+                PullOverMarkerClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+        }
     }
 
     GetWorldTimerManager().SetTimer(ResponseTimer, this, &AGTTRangerDirector::UpdateResponse, ResponseInterval, true, 0.35f);
