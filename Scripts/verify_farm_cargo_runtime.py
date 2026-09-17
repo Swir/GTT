@@ -159,10 +159,11 @@ def main() -> None:
     if (done, total) != (125, 130):
         raise AssertionError(f"runtime-only milestone must not alter roadmap completion: {done}/{total}")
     for token in (
-        "125 / 130",
-        "96.2%",
+        "DONE-125%2F130",
+        "ROADMAP-96.2%25",
         "███████████████████░ 96.2%",
-        "assets/readme/progress-mini.svg",
+        "| **125** | **5** | **130** | **96.2%** |",
+        "../assets/readme/progress-mini.svg",
     ):
         if token not in roadmap:
             raise AssertionError(f"roadmap dashboard drift: missing {token}")
