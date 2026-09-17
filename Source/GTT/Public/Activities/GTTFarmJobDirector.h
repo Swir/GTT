@@ -6,6 +6,7 @@
 
 class AGTTFarmVanPawn;
 class AGTTMuleboxNativePawn;
+class UGTTSaveGame;
 
 UENUM(BlueprintType)
 enum class EGTTFarmJobStage : uint8
@@ -52,6 +53,13 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|FarmJob")
     FString GetObjectiveText() const;
+
+    // 0.1.30: the active cargo route is captured into the existing primary SaveGame. These
+    // hooks intentionally do not own vehicle identity; GTTFarmCargoAuthoritySubsystem stores
+    // and restores that stable ID, then hands the resolved actor back here for cargo physics.
+    void CaptureActiveCargoToSave(UGTTSaveGame* Save) const;
+    void RestoreActiveCargoFromSave(const UGTTSaveGame* Save);
+    void AdoptRestoredCargoVehicle(APawn* Vehicle);
 
 protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|FarmJob", meta=(ClampMin="30.0"))
