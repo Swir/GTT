@@ -124,8 +124,14 @@ def main() -> None:
     readme = read("README.md")
     if "<!-- SWIR-README-STANDARD:v2 -->" not in readme:
         raise AssertionError("README v2 marker missing or downgraded")
-    if "0.1.28" not in readme or "assets/readme/progress-card.svg" not in readme:
-        raise AssertionError("README is stale for 0.1.28 or missing progress card")
+    for token in (
+        "assets/readme/progress-card.svg",
+        "UGTTFarmCargoAuthoritySubsystem",
+        "exact loaded vehicle",
+        "No public demo release is available yet.",
+    ):
+        if token not in readme:
+            raise AssertionError(f"README regressed the 0.1.28 physical cargo authority contract: {token}")
     if "## 🔎 Search Keywords" not in readme:
         raise AssertionError("README Search Keywords section regressed")
 
