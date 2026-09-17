@@ -60,9 +60,9 @@ for forbidden, label in [
     if forbidden in header or forbidden in cpp:
         raise AssertionError(f"unexpected {label}: {forbidden}")
 
-# README must follow the canonical SWIR family marker and include useful project SEO
-# without using a competitor/trademark keyword for discoverability.
-require(readme, "<!-- SWIR-README-STANDARD:v1 -->", "SWIR README standard marker")
+# README follows the current canonical SWIR README PRO v2 marker and keeps useful
+# project SEO without using unrelated commercial-game branding for discoverability.
+require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "SWIR README v2 standard marker")
 require(readme, "## 🔎 Search Keywords", "mandatory search-keyword section")
 require(readme, "Unreal Engine 5.8", "truthful engine requirement")
 require(readme, "No public demo release is available yet", "truthful release status")
@@ -94,5 +94,5 @@ print("GTT 0.1.22 ranger road-stop/search/evasion sanity: PASS")
 print("- alert-2+ vehicle enforcement now requires a real stop before citation/search resolution")
 print("- fleeing a warden stop escalates through the existing Wanted/Police system exactly once per incident")
 print("- roadside search reuses authoritative fish and rural-contraband seizure paths")
-print("- README now follows SWIR README PRO and includes compliant discoverability keywords")
+print("- README follows the current SWIR README PRO v2 marker and compliant discoverability keywords")
 print("- roadmap remains truthfully locked at 125/130 (96.2%)")
