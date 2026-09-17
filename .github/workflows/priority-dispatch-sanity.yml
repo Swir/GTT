@@ -1,0 +1,20 @@
+name: GTT 0.1.10 priority dispatch sanity
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  priority-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify shared ROAD CARGO priority dispatch and rush contracts
+        run: python Scripts/verify_priority_dispatch_rush.py
