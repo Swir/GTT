@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version (for example 0.0.27)
+        description: Release version (for example 0.1.14)
         required: true
-        default: '0.0.27'
+        default: '0.1.14'
       configuration:
         description: Unreal build configuration
         required: true
@@ -22,47 +22,33 @@ concurrency:
 
 jobs:
   package-win64:
-    # This intentionally requires a project-controlled machine with UE 5.8 installed.
-    # GitHub-hosted runners do not ship with the Unreal Engine toolchain/content.
+    # Requires a project-controlled Windows x64 machine with UE 5.8 installed.
     runs-on: [self-hosted, Windows, X64, unreal-5.8]
     timeout-minutes: 120
     env:
       UE_ROOT: C:\Program Files\Epic Games\UE_5.8
       RELEASE_DIR: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}
-
+      PREFLIGHT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.preflight.json
+      ATTEMPT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.attempt.json
     steps:
       - name: Checkout source and LFS assets
         uses: actions/checkout@v4
         with:
           lfs: true
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
-      - name: Run repository sanity suite
+      - name: Run repository release and Win64 contract sanity
         shell: pwsh
         run: |
           python Scripts/verify_project.py
-          python Scripts/verify_combat.py
-          python Scripts/verify_arc3.py
-          python Scripts/verify_heavy_haul.py
-          python Scripts/verify_factions.py
-          python Scripts/verify_rural_economy.py
-          python Scripts/verify_arc4.py
-          python Scripts/verify_unified_save.py
-          python Scripts/verify_world_performance.py
-          python Scripts/verify_player_experience.py
           python Scripts/verify_release_pipeline.py
-
-      - name: Verify Unreal Automation Tool
+          python Scripts/verify_win64_evidence_pipeline.py
+      - name: Win64 runner and Unreal 5.8 preflight
         shell: pwsh
-        run: |
-          $uat = Join-Path $env:UE_ROOT 'Engine\Build\BatchFiles\RunUAT.bat'
-          if (-not (Test-Path $uat)) { throw "UE 5.8 RunUAT not found at $uat" }
-
+        run: ./Scripts/preflight_win64_unreal.ps1 -EngineRoot "$env:UE_ROOT" -ProjectFile "${{ github.workspace }}\GTT.uproject" -OutputPath "$env:PREFLIGHT_FILE"
       - name: Build cook package validate and hash
         shell: pwsh
         run: |
@@ -71,7 +57,6 @@ jobs:
             -Configuration "${{ inputs.configuration }}" `
             -Version "${{ inputs.version }}" `
             -ArchiveDirectory "$env:RELEASE_DIR"
-
       - name: Upload validated Win64 package
         uses: actions/upload-artifact@v4
         with:
@@ -79,8 +64,21 @@ jobs:
           path: |
             ${{ env.RELEASE_DIR }}.zip
             ${{ env.RELEASE_DIR }}.zip.sha256
-            ${{ env.RELEASE_DIR }}/BUILD_INFO.json
-            ${{ env.RELEASE_DIR }}/PACKAGE_VALIDATION.json
-            ${{ env.RELEASE_DIR }}/SHA256SUMS.txt
+            ${{ env.RELEASE_DIR }}\WIN64_PREFLIGHT.json
+            ${{ env.RELEASE_DIR }}\BUILD_ATTEMPT.json
+            ${{ env.RELEASE_DIR }}\BUILD_INFO.json
+            ${{ env.RELEASE_DIR }}\PACKAGE_VALIDATION.json
+            ${{ env.RELEASE_DIR }}\SHA256SUMS.txt
           if-no-files-found: error
+          retention-days: 14
+      - name: Upload Win64 failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GTT-${{ inputs.version }}-release-failure-diagnostics
+          path: |
+            ${{ env.PREFLIGHT_FILE }}
+            ${{ env.ATTEMPT_FILE }}
+            ${{ github.workspace }}\Saved\Logs\**
+          if-no-files-found: warn
           retention-days: 14

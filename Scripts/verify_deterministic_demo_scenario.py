@@ -57,9 +57,10 @@ checks = {
     'workflow order': workflow_order_ok,
     'extended packaged runtime': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
     'artifact retained': '\\DEMO_SCENARIO.json' in workflow,
-    'version': "default: '0.0.94'" in workflow,
+    'current candidate version': "default: '0.1.14'" in workflow,
+    'current build evidence': all(x in workflow for x in ['WIN64_PREFLIGHT.json', 'BUILD_ATTEMPT.json', 'RUNTIME_SMOKE.json', 'DEMO_TECHNICAL_GATE.json']),
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
-    raise SystemExit('0.0.94 deterministic demo scenario verification failed: ' + ', '.join(failed))
-print(f'0.0.94 deterministic demo scenario verification passed ({len(checks)} checks).')
+    raise SystemExit('Deterministic demo scenario verification failed: ' + ', '.join(failed))
+print(f'Deterministic demo scenario verification passed under current 0.1.14 candidate workflow ({len(checks)} checks).')

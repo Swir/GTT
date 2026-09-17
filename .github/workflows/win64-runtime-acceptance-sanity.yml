@@ -1,0 +1,42 @@
+name: GTT 0.1.14 Win64 runtime acceptance sanity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Scripts/preflight_win64_unreal.ps1'
+      - 'Scripts/package_windows.ps1'
+      - 'Scripts/validate_windows_package.ps1'
+      - 'Scripts/verify_win64_evidence_pipeline.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/release-windows.yml'
+      - '.github/workflows/win64-runtime-acceptance-sanity.yml'
+      - 'Docs/RELEASE_WINDOWS.md'
+      - 'Docs/PLAYTEST_0.1.14.md'
+      - 'GTT.uproject'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Scripts/preflight_win64_unreal.ps1'
+      - 'Scripts/package_windows.ps1'
+      - 'Scripts/validate_windows_package.ps1'
+      - 'Scripts/verify_win64_evidence_pipeline.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/release-windows.yml'
+      - '.github/workflows/win64-runtime-acceptance-sanity.yml'
+      - 'Docs/RELEASE_WINDOWS.md'
+      - 'Docs/PLAYTEST_0.1.14.md'
+      - 'GTT.uproject'
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify Win64 runtime acceptance evidence contract
+        run: python Scripts/verify_win64_evidence_pipeline.py
+      - name: Verify existing dedicated Fieldmaster Chaos movement contract
+        run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
