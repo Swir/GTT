@@ -1,0 +1,24 @@
+name: GTT 0.1.27 demo vertical slice integration sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  demo-vertical-slice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify unified contract preparation baseline
+        run: python Scripts/verify_contract_board_preparation.py
+      - name: Verify previous world-space enforcement presentation
+        run: python Scripts/verify_ranger_world_marker.py
+      - name: Verify 0.1.27 legal-work vertical slice integration
+        run: python Scripts/verify_demo_vertical_slice.py
