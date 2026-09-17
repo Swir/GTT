@@ -54,6 +54,32 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics")
     FString GetRoadSupplySignalLabel() const;
 
+    // 0.1.10 shared priority dispatch. These values are derived from the same persistent
+    // stock/demand/backlog state as the living market, so no parallel mission state is created.
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
+    int32 GetRoadPriorityUrgency() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
+    int32 GetCargoPriorityUrgency() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
+    float GetRoadPriorityRewardMultiplier() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
+    float GetRoadPriorityTimeScale() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
+    float GetCargoPriorityRewardMultiplier() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
+    FString GetPriorityDispatchLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
+    FString GetPriorityDispatchSummary() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
+    FString GetPriorityVehicleLabel() const;
+
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     bool IsCargoDepotWindowOpen() const;
 

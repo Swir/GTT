@@ -187,11 +187,12 @@ bool AGTTRoadRunDirector::TryStartContract(APawn* PlayerPawn)
     NativeImpactCountDuringRun = 0;
     StatusMessageCooldown = 0.0f;
     bPoliceIncidentDuringRun = false;
-    RewardMultiplierAtStart = Logistics->GetRoadCourierRewardMultiplier();
+    RewardMultiplierAtStart = Logistics->GetRoadCourierRewardMultiplier() * Logistics->GetRoadPriorityRewardMultiplier();
     SetMarkerState(true, false, false);
     PushMessage(PlayerPawn, FString::Printf(
-        TEXT("PARTS COURIER: Rattleback -> PARTS DEPOT -> HILL FARM -> NORTH WOOD YARD. %s | REP %s %d | payout x%.2f."),
-        *Logistics->GetRoadCourierScheduleLabel(), *Logistics->GetTierLabel(), Logistics->GetReputation(), RewardMultiplierAtStart), 8.0f);
+        TEXT("PARTS COURIER: Rattleback -> PARTS DEPOT -> HILL FARM -> NORTH WOOD YARD. %s | REP %s %d | payout x%.2f | %s."),
+        *Logistics->GetRoadCourierScheduleLabel(), *Logistics->GetTierLabel(), Logistics->GetReputation(), RewardMultiplierAtStart,
+        *Logistics->GetPriorityDispatchLabel()), 8.0f);
     return true;
 }
 
@@ -227,7 +228,14 @@ bool AGTTRoadRunDirector::IsRattlebackControlled(APawn*& OutControlledVehicle) c
 void AGTTRoadRunDirector::BeginDelivery(APawn* PlayerPawn, APawn* ControlledVehicle)
 {
     Stage = EGTTRoadRunStage::RelayHillFarm;
-    TimeRemaining = DeliveryTimeLimit;
+    float PriorityTimeScale = 1.0f;
+    FString PriorityLabel(TEXT("STANDARD DISPATCH"));
+    if (const UGTTLogisticsReputationSubsystem* Logistics = GetWorld() ? GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>() : nullptr)
+    {
+        PriorityTimeScale = Logistics->GetRoadPriorityTimeScale();
+        PriorityLabel = Logistics->GetPriorityDispatchLabel();
+    }
+    TimeRemaining = DeliveryTimeLimit * PriorityTimeScale;
     ParcelIntegrity = 1.0f;
     NativeImpactCountDuringRun = 0;
     NativeImpactBaseline = 0;
@@ -236,7 +244,8 @@ void AGTTRoadRunDirector::BeginDelivery(APawn* PlayerPawn, APawn* ControlledVehi
         NativeImpactBaseline = NativeRoad->GetNativeImpactCount();
     }
     SetMarkerState(false, true, false);
-    PushMessage(PlayerPawn, TEXT("PARTS LOADED: first signature is at HILL FARM. The clock and shipment integrity now run continuously through both delivery legs."), 7.0f);
+    PushMessage(PlayerPawn, FString::Printf(TEXT("PARTS LOADED: first signature HILL FARM, then NORTH WOOD YARD. %s locks a %.0fs delivery window; shipment integrity and police risk run through both legs."),
+        *PriorityLabel, TimeRemaining), 7.5f);
 }
 
 void AGTTRoadRunDirector::CompleteRelay(APawn* PlayerPawn)
