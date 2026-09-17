@@ -1,0 +1,24 @@
+name: GTT 0.1.19 loaded trailer runtime exercise sanity
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify 0.1.19 deterministic loaded authored-trailer exercise
+        run: python Scripts/verify_trailer_runtime_exercise.py
+      - name: Regress authored trailer runtime source contract
+        run: python Scripts/verify_authored_trailer_runtime.py
+      - name: Regress 0.1.18 runtime acceptance closure
+        run: python Scripts/verify_runtime_acceptance_closure.py
+      - name: Regress deterministic drivetrain contract
+        run: python Scripts/verify_deterministic_drivetrain_scenario.py
+      - name: Regress packaged gameplay smoke
+        run: python Scripts/verify_packaged_gameplay_smoke.py
