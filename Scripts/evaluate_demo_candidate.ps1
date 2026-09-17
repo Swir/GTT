@@ -16,8 +16,9 @@ $gameplayPath=Join-Path $PackageDirectory 'GAMEPLAY_SMOKE.json'
 $nativePath=Join-Path $PackageDirectory 'NATIVE_CHAOS_RUNTIME.json'
 $drivePath=Join-Path $PackageDirectory 'NATIVE_DRIVETRAIN_SCENARIO.json'
 $trailerPath=Join-Path $PackageDirectory 'NATIVE_TRAILER_RUNTIME.json'
+$farmCargoPath=Join-Path $PackageDirectory 'FARM_CARGO_RUNTIME.json'
 
-foreach($p in @($buildPath,$smokePath,$scenarioPath,$gameplayPath,$nativePath,$drivePath,$trailerPath,$RuntimeLog)){
+foreach($p in @($buildPath,$smokePath,$scenarioPath,$gameplayPath,$nativePath,$drivePath,$trailerPath,$farmCargoPath,$RuntimeLog)){
     if(-not(Test-Path $p)){throw "Required demo evidence missing: $p"}
 }
 
@@ -28,6 +29,7 @@ $gameplay=Get-Content -Raw $gameplayPath|ConvertFrom-Json
 $native=Get-Content -Raw $nativePath|ConvertFrom-Json
 $drive=Get-Content -Raw $drivePath|ConvertFrom-Json
 $trailer=Get-Content -Raw $trailerPath|ConvertFrom-Json
+$farmCargo=Get-Content -Raw $farmCargoPath|ConvertFrom-Json
 $log=Get-Content -Raw $RuntimeLog
 
 if($smoke.result -ne 'PASS'){throw 'Packaged runtime smoke did not PASS.'}
@@ -36,6 +38,7 @@ if($gameplay.result -ne 'PASS'){throw 'Packaged gameplay smoke did not PASS.'}
 if($native.result -ne 'PASS'){throw 'Native Chaos runtime telemetry did not PASS.'}
 if($drive.result -ne 'PASS'){throw 'Deterministic Native drivetrain scenario did not PASS.'}
 if($trailer.result -ne 'PASS'){throw 'Authored trailer runtime acceptance did not PASS.'}
+if($farmCargo.result -ne 'PASS'){throw 'Farm Cargo packaged runtime exercise did not PASS.'}
 if($build.platform -ne 'Win64'){throw 'Build evidence is not Win64.'}
 
 if($native.schema -ne 'gtt.native-chaos-runtime.v1'){throw "Native Chaos runtime schema mismatch: $($native.schema)"}
@@ -54,6 +57,12 @@ if([int]$trailer.authored_active_samples -lt 2 -or [int]$trailer.native_tow_samp
 if([int]$trailer.dual_contact_samples -lt 2 -or [int]$trailer.safe_hitch_samples -lt 2){throw 'Authored trailer runtime did not prove dual wheel contact plus safe hitch alignment.'}
 if($trailer.valid_trailer_instances.Count -lt 1){throw 'Authored trailer runtime did not identify a valid final rig instance.'}
 
+if($farmCargo.schema -ne 'gtt.farm-cargo-runtime.v1'){throw "Farm Cargo runtime schema mismatch: $($farmCargo.schema)"}
+if(-not $farmCargo.exact_vehicle_bound -or -not $farmCargo.wrong_vehicle_rejected -or -not $farmCargo.same_vehicle_hill_to_final){throw 'Farm Cargo runtime did not prove exact physical vehicle continuity and wrong-vehicle rejection.'}
+if([int]$farmCargo.payout_delta -le 0 -or [int]$farmCargo.cargo_completed_runs_delta -ne 1 -or [int]$farmCargo.logistics_reputation_delta -le 0){throw 'Farm Cargo runtime did not prove authoritative payout, one completion record and reputation gain.'}
+if(-not $farmCargo.post_delivery_save -or -not $farmCargo.authority_cleared){throw 'Farm Cargo runtime did not prove post-delivery persistence and authority cleanup.'}
+if([int]$farmCargo.diagnostic_failure_count -ne 0){throw 'Farm Cargo runtime scenario reported diagnostic failures.'}
+
 if($scenario.schema -ne 'gtt.demo-scenario.v11'){throw "Demo scenario schema mismatch: $($scenario.schema)"}
 if([int]$scenario.required_step_count -ne 33 -or $scenario.steps.Count -ne 33){throw 'Demo scenario does not contain the complete 33-step 0.0.94 evidence route.'}
 foreach($field in @('structural_handling_passed','structural_reload_handling_passed','structural_drive_recovery_passed','structural_drive_complete')){
@@ -61,7 +70,7 @@ foreach($field in @('structural_handling_passed','structural_reload_handling_pas
 }
 
 if($ExpectedGitSha -and $ExpectedGitSha -ne 'unknown' -and $build.git_sha -ne $ExpectedGitSha){throw "Build SHA mismatch: package=$($build.git_sha), expected=$ExpectedGitSha"}
-foreach($e in @($scenario,$gameplay,$native,$drive,$trailer)){
+foreach($e in @($scenario,$gameplay,$native,$drive,$trailer,$farmCargo)){
     if($e.git_sha -and $ExpectedGitSha -and $e.git_sha -ne $ExpectedGitSha){throw 'Runtime evidence SHA mismatch.'}
 }
 
@@ -96,7 +105,7 @@ if($RequireVisual){
 
 # Compatibility note for the 0.1.15 source-contract verifier: schema=5 was the previous gate revision.
 $evidence=[ordered]@{
-    schema=6
+    schema=7
     game='Grand Theft Tractor'
     result='PASS'
     git_sha=$build.git_sha
@@ -127,8 +136,14 @@ $evidence=[ordered]@{
     trailer_native_tow_samples=$trailer.native_tow_samples
     trailer_dual_contact_samples=$trailer.dual_contact_samples
     trailer_safe_hitch_samples=$trailer.safe_hitch_samples
+    farm_cargo_runtime='PASS'
+    farm_cargo_schema=$farmCargo.schema
+    farm_cargo_route=$farmCargo.route
+    farm_cargo_payout_delta=$farmCargo.payout_delta
+    farm_cargo_reputation_delta=$farmCargo.logistics_reputation_delta
+    farm_cargo_wrong_vehicle_rejected=$farmCargo.wrong_vehicle_rejected
     visual_acceptance=$visualStatus
     evaluated_utc=(Get-Date).ToUniversalTime().ToString('o')
 }
 $evidence|ConvertTo-Json -Depth 8|Set-Content -Encoding UTF8 (Join-Path $PackageDirectory 'DEMO_TECHNICAL_GATE.json')
-Write-Host "[GTT] Demo technical evidence gate: PASS (schema 6 / scenario v11 / drivetrain PASS / authored trailer runtime PASS / native Chaos telemetry PASS / recovery=$recoveryStatus)"
+Write-Host "[GTT] Demo technical evidence gate: PASS (schema 7 / scenario v11 / drivetrain PASS / authored trailer PASS / Farm Cargo runtime PASS / native Chaos telemetry PASS / recovery=$recoveryStatus)"
