@@ -82,7 +82,7 @@ bool AGTTRangerAIController::TryResolveRoadsideSearch(APawn* Target)
     {
         PushRangerMessage(
             Target,
-            FString::Printf(TEXT("WARDEN SEARCH: %d contraband unit%s seized | fence value $%d lost."),
+            FString::Printf(TEXT("WARDEN SEIZURE: roadside search found %d contraband unit%s | fence value $%d lost."),
                 ConfiscatedUnits, ConfiscatedUnits == 1 ? TEXT("") : TEXT("s"), ConfiscatedValue),
             5.5f);
     }
