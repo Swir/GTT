@@ -34,6 +34,8 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") bool IsFactionHostile() const { return HostileArchetype != EGTTHostileArchetype::Civilian; }
     UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") EGTTHostileArchetype GetHostileArchetype() const { return HostileArchetype; }
     UFUNCTION(BlueprintPure, Category="GTT|NPC|Combat") FString GetArchetypeLabel() const;
+    UFUNCTION(BlueprintPure, Category="GTT|NPC|Enforcement") bool IsReactingToRangerStop() const { return bReactingToRangerStop; }
+    UFUNCTION(BlueprintPure, Category="GTT|NPC|Enforcement") bool IsObservingRangerStop() const { return bObservingRangerStop; }
 protected:
     void ChooseNewWanderTarget();
     FVector GetScheduleCenter() const;
@@ -48,6 +50,7 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Crime", meta=(ClampMin="0.0")) float WitnessHeat = 9.0f;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Movement", meta=(ClampMin="100.0")) float WanderRadius = 750.0f;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Movement", meta=(ClampMin="0.0")) float WanderSpeed = 135.0f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Enforcement", meta=(ClampMin="0.0")) float RangerStopReactionSpeed = 185.0f;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Combat") float MaxHealth = 100.0f;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Combat") float RetaliationDistance = 175.0f;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|NPC|Combat") float RetaliationDamage = 7.0f;
@@ -69,5 +72,7 @@ private:
     FVector LastHitDirection = FVector::ForwardVector;
     bool bKnockedOut = false;
     bool bBrawlParticipant = false;
+    bool bReactingToRangerStop = false;
+    bool bObservingRangerStop = false;
     EGTTHostileArchetype HostileArchetype = EGTTHostileArchetype::Civilian;
 };
