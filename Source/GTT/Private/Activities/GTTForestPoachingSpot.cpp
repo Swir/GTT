@@ -9,6 +9,7 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
+#include "World/GTTDayNightCycle.h"
 #include "World/GTTRuralEconomySubsystem.h"
 
 AGTTForestPoachingSpot::AGTTForestPoachingSpot()
@@ -42,12 +43,20 @@ void AGTTForestPoachingSpot::Interact_Implementation(AActor* Interactor)
         return;
     }
     NextAllowedAttemptTime = Now + AttemptCooldownSeconds;
-    GameMode->ReportWildlifeCrime(Pawn, WildlifeHeatPerAttempt);
+
+    const AGTTDayNightCycle* DayNight = GameMode->GetDayNightCycle();
+    const bool bNight = DayNight && DayNight->IsNight();
+    const float HeatSeverity = WildlifeHeatPerAttempt * (bNight ? NightWildlifeHeatMultiplier : 1.0f);
+    GameMode->ReportWildlifeCrime(Pawn, HeatSeverity);
 
     const float Roll = FMath::FRand();
     if (Roll < 0.32f)
     {
-        Economy->PushMessage(TEXT("POACHING: nothing found, but the game warden noticed activity."), 4.0f);
+        Economy->PushMessage(
+            bNight
+                ? TEXT("NIGHT POACHING: nothing found. Warden heat rises faster after dark.")
+                : TEXT("POACHING: nothing found, but the game warden noticed activity."),
+            4.0f);
         return;
     }
 
@@ -72,10 +81,15 @@ void AGTTForestPoachingSpot::Interact_Implementation(AActor* Interactor)
         Units = 3;
     }
 
+    if (bNight)
+    {
+        EstimatedValue = FMath::RoundToInt(static_cast<float>(EstimatedValue) * NightFenceValueMultiplier);
+    }
+
     RuralEconomy->AddContraband(Pawn, Units, EstimatedValue, Species);
     Economy->PushMessage(
-        FString::Printf(TEXT("POACHING SUCCESS: %s stashed | fence value ~$%d | WARDEN ALERT %d/3"),
-            *Species, EstimatedValue, GameMode->GetWildlifeAlertLevel()),
+        FString::Printf(TEXT("%sPOACHING SUCCESS: %s stashed | fence value ~$%d | WARDEN ALERT %d/3"),
+            bNight ? TEXT("NIGHT RISK + REWARD | ") : TEXT(""), *Species, EstimatedValue, GameMode->GetWildlifeAlertLevel()),
         6.0f);
 }
 
