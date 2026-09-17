@@ -72,19 +72,6 @@ float UGTTLogisticsReputationSubsystem::GetRoadPriorityTimeScale() const
     }
 }
 
-float UGTTLogisticsReputationSubsystem::GetCargoPriorityRewardMultiplier() const
-{
-    // CARGO already has the living-market multiplier. This bounded rush factor is deliberately
-    // smaller than ROAD because T2/T3 also carry route bonuses and physical load penalties.
-    switch (GetCargoPriorityUrgency())
-    {
-        case 3: return 1.10f;
-        case 2: return 1.07f;
-        case 1: return 1.04f;
-        default: return 1.0f;
-    }
-}
-
 FString UGTTLogisticsReputationSubsystem::GetPriorityVehicleLabel() const
 {
     const int32 RoadUrgency = GetRoadPriorityUrgency();
@@ -122,12 +109,11 @@ FString UGTTLogisticsReputationSubsystem::GetPriorityDispatchSummary() const
 
     const int32 RoadBonusPercent = FMath::RoundToInt((GetRoadPriorityRewardMultiplier() - 1.0f) * 100.0f);
     const int32 RoadWindowPercent = FMath::RoundToInt(GetRoadPriorityTimeScale() * 100.0f);
-    const int32 CargoBonusPercent = FMath::RoundToInt((GetCargoPriorityRewardMultiplier() - 1.0f) * 100.0f);
 
     return FString::Printf(
-        TEXT("%s | VEHICLE %s | ROAD U%d %s +%d%% reward / %d%% window | CARGO U%d %s +%d%% demand premium | stock %d | hill %d | wood %d | backlog %d"),
+        TEXT("%s | VEHICLE %s | ROAD U%d %s +%d%% reward / %d%% window | CARGO U%d %s | stock %d | hill %d | wood %d | backlog %d"),
         *GetPriorityDispatchLabel(), *GetPriorityVehicleLabel(),
         RoadUrgency, UrgencyLabel(RoadUrgency), RoadBonusPercent, RoadWindowPercent,
-        CargoUrgency, UrgencyLabel(CargoUrgency), CargoBonusPercent,
+        CargoUrgency, UrgencyLabel(CargoUrgency),
         FeedDepotStock, HillFarmDemand, WoodYardDemand, CargoBacklogPressure);
 }
