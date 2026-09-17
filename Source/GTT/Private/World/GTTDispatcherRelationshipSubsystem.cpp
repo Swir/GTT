@@ -2,6 +2,7 @@
 
 #include "Engine/World.h"
 #include "World/GTTLogisticsReputationSubsystem.h"
+#include "World/GTTLogisticsRoutePlanner.h"
 
 namespace
 {
@@ -30,17 +31,14 @@ int32 UGTTDispatcherRelationshipSubsystem::CalculateRelationship(FName RoleTag) 
     int32 Score = 0;
     if (RoleTag == FeedDepotDispatcherRole)
     {
-        // The dispatcher values reliable cargo throughput most strongly.
         Score = 15 + CargoWins * 6 - CargoLosses * 8 + FMath::Min(CleanStreak, 6) * 3 + Reputation / 4;
     }
     else if (RoleTag == HillFarmReceiverRole)
     {
-        // Hill Farm cares about cargo completion and clean handling, but is slightly more forgiving.
         Score = 20 + CargoWins * 5 - CargoLosses * 7 + FMath::Min(CleanStreak, 6) * 2 + Reputation / 5;
     }
     else if (RoleTag == WoodYardForemanRole)
     {
-        // The foreman sees both Mulebox relay work and Rattleback parts traffic.
         Score = 15 + CargoWins * 4 + RoadWins * 3 - CargoLosses * 6 - RoadLosses * 5 + Reputation / 5;
     }
     return FMath::Clamp(Score, 0, 100);
@@ -101,7 +99,6 @@ bool UGTTDispatcherRelationshipSubsystem::CanAccessCargoTier(int32 Tier) const
 
 int32 UGTTDispatcherRelationshipSubsystem::GetCargoReservationCapacity() const
 {
-    // TRUSTED/PREFERRED drivers can protect a second real load; everybody else gets one hold.
     return GetFeedDispatcherRelationship() >= 45 ? 2 : 1;
 }
 
@@ -123,9 +120,14 @@ int32 UGTTDispatcherRelationshipSubsystem::GetEffectiveCargoReservationHoldMinut
     const int32 PrioritySlaMinutes = Logistics->GetCargoPriorityPickupSlaMinutes();
     if (PrioritySlaMinutes <= 0) return RelationshipHoldMinutes;
 
-    // Trust can buy a longer ordinary hold, but it cannot make an emergency order stop being
-    // urgent. The persisted clean chain can add a small earned grace period inside the SLA API.
-    return FMath::Min(RelationshipHoldMinutes, PrioritySlaMinutes);
+    // Preserve the 0.1.11 emergency ceiling first, then apply the 0.1.12 cross-lane planner.
+    // This keeps relationship trust meaningful while making a competing, materially stronger
+    // ROAD emergency release scarce CARGO stock sooner if the player does not collect it.
+    const int32 PriorityLimitedHold = FMath::Min(RelationshipHoldMinutes, PrioritySlaMinutes);
+    const int32 ConflictHoldMinutes = FGTTLogisticsRoutePlanner::GetCargoConflictHoldCapMinutes(GetWorld());
+    return ConflictHoldMinutes > 0
+        ? FMath::Min(PriorityLimitedHold, ConflictHoldMinutes)
+        : PriorityLimitedHold;
 }
 
 FString UGTTDispatcherRelationshipSubsystem::GetCargoReservationFavorLabel() const
@@ -141,8 +143,12 @@ FString UGTTDispatcherRelationshipSubsystem::GetCargoReservationFavorLabel() con
     const int32 PrioritySlaMinutes = Logistics ? Logistics->GetCargoPriorityPickupSlaMinutes() : 0;
     if (PrioritySlaMinutes > 0)
     {
-        return FString::Printf(TEXT("%s | PRIORITY SLA %d MIN | EFFECTIVE %d MIN"),
-            *BaseLabel, PrioritySlaMinutes, GetEffectiveCargoReservationHoldMinutes());
+        const int32 ConflictHoldMinutes = FGTTLogisticsRoutePlanner::GetCargoConflictHoldCapMinutes(GetWorld());
+        const FString Conflict = ConflictHoldMinutes > 0
+            ? FString::Printf(TEXT(" | ROUTE CONFLICT CAP %d MIN"), ConflictHoldMinutes)
+            : TEXT("");
+        return FString::Printf(TEXT("%s | PRIORITY SLA %d MIN | EFFECTIVE %d MIN%s"),
+            *BaseLabel, PrioritySlaMinutes, GetEffectiveCargoReservationHoldMinutes(), *Conflict);
     }
     return BaseLabel;
 }
@@ -160,9 +166,10 @@ FString UGTTDispatcherRelationshipSubsystem::GetContractDeskSummary() const
     }
     const FString Cargo = CargoOptions.Num() > 0 ? FString::Join(CargoOptions, TEXT("/")) : TEXT("NONE");
     const FString Road = Logistics->IsRoadCourierWindowOpen() ? TEXT("ROAD OPEN") : TEXT("ROAD CLOSED");
-    return FString::Printf(TEXT("DESK CARGO %s | %s | FEED %s %d | %s | %s | %s"),
+    return FString::Printf(TEXT("DESK CARGO %s | %s | FEED %s %d | %s | %s | %s | %s"),
         *Cargo, *Road, *GetFeedRelationshipLabel(), GetFeedDispatcherRelationship(),
-        *GetCargoReservationFavorLabel(), *Logistics->GetCargoReservationSummary(), *Logistics->GetPriorityChainSummary());
+        *GetCargoReservationFavorLabel(), *Logistics->GetCargoReservationSummary(), *Logistics->GetPriorityChainSummary(),
+        *FGTTLogisticsRoutePlanner::BuildSummary(GetWorld()));
 }
 
 FString UGTTDispatcherRelationshipSubsystem::GetDispatcherReaction(FName RoleTag) const
