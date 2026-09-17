@@ -6,6 +6,7 @@ movement_h = (ROOT / "Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComp
 movement_cpp = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp").read_text(encoding="utf-8")
 pawn_h = (ROOT / "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h").read_text(encoding="utf-8")
 pawn_cpp = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp").read_text(encoding="utf-8")
+authority_cpp = (ROOT / "Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp").read_text(encoding="utf-8")
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
 playtest = (ROOT / "Docs/PLAYTEST_0.1.13.md").read_text(encoding="utf-8")
 changelog = (ROOT / "CHANGELOG.d/0.1.13.md").read_text(encoding="utf-8")
@@ -22,7 +23,9 @@ for token in [
 ]:
     assert token in movement_h, f"dedicated Fieldmaster movement header missing {token}"
 
-# The component owns canonical Chaos wheels/powertrain and the real Chaos input authority.
+# The component owns canonical Chaos wheels/powertrain and condition/terrain-scaled inputs.
+# Since 0.1.16 gear direction is intentionally owned by the shared drivetrain authority so
+# this 0.1.13 component cannot pin an automatic gearbox to first gear or bypass the interlock.
 for token in [
     "ConfigureCanonicalWheelSetups",
     "ValidateCanonicalWheelSetups",
@@ -32,12 +35,15 @@ for token in [
     "SetThrottleInput(EffectiveThrottle)",
     "SetSteeringInput(EffectiveSteering)",
     "SetBrakeInput",
-    "SetTargetGear",
     "TireIntegrity",
     "TerrainGripFactor",
     "ConditionPercent",
+    "UGTTNativeDriveDynamicsSubsystem",
 ]:
     assert token in movement_cpp, f"dedicated Fieldmaster movement implementation missing {token}"
+assert "SetTargetGear(" not in movement_cpp, "Fieldmaster component must not bypass shared drivetrain gear authority"
+assert "Movement->SetTargetGear(Authority.StableDirection, true)" in authority_cpp
+assert "GearMatchesDirection" in authority_cpp
 
 # The actual tractor pawn must replace AWheeledVehiclePawn's default movement subobject.
 for token in [
@@ -94,4 +100,4 @@ assert "Win64" in playtest and "packaged" in playtest.lower()
 assert "GTT 0.1.13" in changelog
 assert "Verify dedicated Fieldmaster Chaos movement" in workflow
 
-print("GTT 0.1.13 dedicated Fieldmaster Chaos movement source gate passed; packaged runtime acceptance intentionally remains open")
+print("GTT 0.1.13 dedicated Fieldmaster Chaos movement source gate passed; shared 0.1.16 drivetrain authority owns gear direction and packaged runtime acceptance remains open")
