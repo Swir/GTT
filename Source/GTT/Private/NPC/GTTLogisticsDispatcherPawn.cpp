@@ -2,11 +2,23 @@
 
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Core/GTTGameMode.h"
+#include "Core/GTTGameplayStatics.h"
+#include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 #include "World/GTTDayNightCycle.h"
+#include "World/GTTLogisticsReputationSubsystem.h"
+
+namespace
+{
+    const FName FeedDepotDispatcherRole(TEXT("FeedDepotDispatcher"));
+    const FName HillFarmReceiverRole(TEXT("HillFarmReceiver"));
+    const FName WoodYardForemanRole(TEXT("WoodYardForeman"));
+}
 
 AGTTLogisticsDispatcherPawn::AGTTLogisticsDispatcherPawn()
 {
@@ -79,6 +91,103 @@ FVector AGTTLogisticsDispatcherPawn::ResolveScheduleTarget() const
     return IsOnShift() ? WorkLocation : HomeLocation;
 }
 
+FString AGTTLogisticsDispatcherPawn::BuildOnShiftStatusLine() const
+{
+    if (!GetWorld()) return TEXT("LOGISTICS OFFLINE");
+    const UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>();
+    if (!Logistics) return TEXT("LOGISTICS OFFLINE");
+
+    if (RoleTag == FeedDepotDispatcherRole)
+    {
+        return FString::Printf(TEXT("E NEGOTIATE | T%d | %s"),
+            Logistics->GetActiveCargoOrderTier(), *Logistics->GetCargoNegotiationOptionsLabel());
+    }
+    if (RoleTag == HillFarmReceiverRole)
+    {
+        return FString::Printf(TEXT("HILL NEED %d | E STATUS"), Logistics->GetHillFarmDemand());
+    }
+    if (RoleTag == WoodYardForemanRole)
+    {
+        return FString::Printf(TEXT("WOOD NEED %d | E STATUS"), Logistics->GetWoodYardDemand());
+    }
+    return TEXT("E TALK");
+}
+
+void AGTTLogisticsDispatcherPawn::Interact_Implementation(AActor* Interactor)
+{
+    APawn* PlayerPawn = Cast<APawn>(Interactor);
+    if (!PlayerPawn || !GetWorld()) return;
+
+    UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn);
+    UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>();
+    if (!Economy || !Logistics) return;
+
+    if (!IsOnShift())
+    {
+        Economy->PushMessage(FString::Printf(TEXT("%s is off shift. Rural logistics staff return at 07:00."), *DisplayName), 4.5f);
+        return;
+    }
+
+    if (RoleTag == FeedDepotDispatcherRole)
+    {
+        FString Summary;
+        const bool bChanged = Logistics->CycleCargoNegotiatedOrder(Summary);
+        Economy->PushMessage(bChanged
+            ? FString::Printf(TEXT("FEED DISPATCH NEGOTIATION: %s"), *Summary)
+            : Summary,
+            bChanged ? 7.0f : 5.0f);
+        if (bChanged)
+        {
+            if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
+        }
+        return;
+    }
+
+    if (RoleTag == HillFarmReceiverRole)
+    {
+        Economy->PushMessage(FString::Printf(TEXT("HILL RECEIVER: need %d units. Current %s | %s. Wanted drivers get no legal handoff."),
+            Logistics->GetHillFarmDemand(), *Logistics->GetCargoNegotiationStatusLabel(), *Logistics->GetCargoCommodityLabel()), 6.0f);
+        return;
+    }
+
+    if (RoleTag == WoodYardForemanRole)
+    {
+        Economy->PushMessage(FString::Printf(TEXT("WOOD FOREMAN: need %d units, backlog pressure %d. Current %s | %s."),
+            Logistics->GetWoodYardDemand(), Logistics->GetCargoBacklogPressure(),
+            *Logistics->GetCargoNegotiationStatusLabel(), *Logistics->GetRoadSupplySignalLabel()), 6.0f);
+        return;
+    }
+
+    Economy->PushMessage(FString::Printf(TEXT("%s: %s"), *DisplayName, *Logistics->GetCargoStockSummary()), 5.0f);
+}
+
+FText AGTTLogisticsDispatcherPawn::GetInteractionText_Implementation() const
+{
+    if (!GetWorld()) return FText::GetEmpty();
+    const UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>();
+    if (!Logistics) return FText::FromString(TEXT("Logistics unavailable"));
+
+    if (!IsOnShift())
+    {
+        return FText::FromString(FString::Printf(TEXT("%s off shift | 07:00-17:30"), *DisplayName));
+    }
+    if (RoleTag == FeedDepotDispatcherRole)
+    {
+        return FText::FromString(FString::Printf(TEXT("Negotiate CARGO order | %s"), *Logistics->GetCargoNegotiationStatusLabel()));
+    }
+    if (RoleTag == HillFarmReceiverRole)
+    {
+        return FText::FromString(FString::Printf(TEXT("Ask Hill Receiver | need %d | order T%d"),
+            Logistics->GetHillFarmDemand(), Logistics->GetActiveCargoOrderTier()));
+    }
+    if (RoleTag == WoodYardForemanRole)
+    {
+        return FText::FromString(FString::Printf(TEXT("Ask Wood Foreman | need %d | backlog %d"),
+            Logistics->GetWoodYardDemand(), Logistics->GetCargoBacklogPressure()));
+    }
+    return FText::FromString(FString::Printf(TEXT("Talk to %s"), *DisplayName));
+}
+
 void AGTTLogisticsDispatcherPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
@@ -97,7 +206,7 @@ void AGTTLogisticsDispatcherPawn::Tick(float DeltaSeconds)
 
     if (RoleLabel)
     {
-        const FString Shift = IsOnShift() ? TEXT("ON SHIFT") : TEXT("OFF SHIFT");
+        const FString Shift = IsOnShift() ? BuildOnShiftStatusLine() : TEXT("OFF SHIFT | 07:00");
         RoleLabel->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *DisplayName.ToUpper(), *Shift)));
     }
 }

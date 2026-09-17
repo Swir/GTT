@@ -78,6 +78,7 @@ jobs:
       - { name: Verify living CARGO market and dynamic contract chain, run: 'python Scripts/verify_living_cargo_market.py' }
       - { name: 'Verify rural dispatchers, depot stock, and contract rotation', run: 'python Scripts/verify_rural_dispatch_stock.py' }
       - { name: Verify dynamic rural orders and supply-chain consequences, run: 'python Scripts/verify_dynamic_rural_orders.py' }
+      - { name: Verify interactive dispatchers and rural order negotiation, run: 'python Scripts/verify_interactive_dispatch_negotiation.py' }
       - { name: Verify Native trailer authored-rig acceptance and hitch safety, run: 'python Scripts/verify_native_trailer_acceptance.py' }
       - { name: Verify authored trailer runtime takeover and wheel-contact dynamics, run: 'python Scripts/verify_authored_trailer_runtime.py' }
       - { name: Verify Native fleet rollover safety and emergency righting, run: 'python Scripts/verify_native_rollover_safety.py' }
