@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Ranger/GTTRangerRoadStopSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
@@ -54,8 +55,22 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
+    FVector RangerSafeLocation = GetActorLocation();
+    FVector RangerFocusLocation = GetActorLocation();
+    bool bRangerNeedsMove = false;
+    bool bRangerSceneResponse = false;
+    if (!bKnockedOut && !CombatTarget.IsValid() && !bBrawlParticipant && !IsFactionHostile() && GetWorld())
+    {
+        if (const UGTTRangerRoadStopSubsystem* RoadStop = GetWorld()->GetSubsystem<UGTTRangerRoadStopSubsystem>())
+        {
+            bRangerSceneResponse = RoadStop->GetCivilianResponse(
+                GetActorLocation(), RangerSafeLocation, RangerFocusLocation, bRangerNeedsMove);
+        }
+    }
+
     EGTTWorldSimulationTier SimulationTier = EGTTWorldSimulationTier::Critical;
-    const bool bUrgentSimulation = bKnockedOut || CombatTarget.IsValid() || bBrawlParticipant || IsFactionHostile() || HitReactionTimeRemaining > 0.0f || AttackPresentationTimeRemaining > 0.0f;
+    const bool bUrgentSimulation = bKnockedOut || CombatTarget.IsValid() || bBrawlParticipant || IsFactionHostile() ||
+        HitReactionTimeRemaining > 0.0f || AttackPresentationTimeRemaining > 0.0f || bRangerSceneResponse;
     if (GetWorld())
     {
         if (UGTTWorldPerformanceSubsystem* Performance = GetWorld()->GetSubsystem<UGTTWorldPerformanceSubsystem>())
@@ -81,6 +96,42 @@ void AGTTCitizenPawn::Tick(float DeltaSeconds)
         return;
     }
     if(CombatTarget.IsValid()) { UpdateCombatBehavior(DeltaSeconds); return; }
+
+    if (bRangerSceneResponse)
+    {
+        bReactingToRangerStop = true;
+        bObservingRangerStop = !bRangerNeedsMove;
+        GetCharacterMovement()->MaxWalkSpeed = RangerStopReactionSpeed;
+
+        if (bRangerNeedsMove)
+        {
+            FVector ToSafe = RangerSafeLocation - GetActorLocation();
+            ToSafe.Z = 0.0f;
+            if (!ToSafe.IsNearlyZero())
+            {
+                AddMovementInput(ToSafe.GetSafeNormal2D(), 1.0f);
+            }
+        }
+        else
+        {
+            FVector ToStop = RangerFocusLocation - GetActorLocation();
+            ToStop.Z = 0.0f;
+            if (!ToStop.IsNearlyZero())
+            {
+                const FRotator DesiredRotation = ToStop.Rotation();
+                SetActorRotation(FMath::RInterpTo(GetActorRotation(), DesiredRotation, DeltaSeconds, 2.8f));
+            }
+        }
+        return;
+    }
+
+    if (bReactingToRangerStop)
+    {
+        bReactingToRangerStop = false;
+        bObservingRangerStop = false;
+        GetCharacterMovement()->MaxWalkSpeed = WanderSpeed;
+        ChooseNewWanderTarget();
+    }
 
     if(SimulationTier == EGTTWorldSimulationTier::Dormant) return;
 
