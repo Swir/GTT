@@ -38,7 +38,7 @@ function Has-Token([string]$Line, [string]$Key, [string]$Value) {
     return $Line -match "(?:^|\s)$([regex]::Escape($Key))=$([regex]::Escape($Value))(?:\s|$)"
 }
 
-$failures = New-Object System.Collections.Generic.List[string]
+$failures = [System.Collections.Generic.List[string]]::new()
 if ($build.platform -ne 'Win64') { $failures.Add('build platform is not Win64') }
 if ($smoke.result -ne 'PASS') { $failures.Add('packaged runtime smoke did not PASS') }
 if ($scenario.result -ne 'PASS') { $failures.Add('deterministic demo scenario did not PASS') }
@@ -62,7 +62,7 @@ $maxSlipMagnitude = 0.0
 $maxSlipAngle = 0.0
 $maxAxleImbalance = 0.0
 $minTractionAuthority = 1.0
-$observedGears = New-Object System.Collections.Generic.HashSet[int]
+$observedGears = [System.Collections.Generic.HashSet[int]]::new()
 $movementActiveSamples = 0
 $suspensionReadySamples = 0
 $commandSamples = 0
