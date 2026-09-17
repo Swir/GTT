@@ -101,16 +101,16 @@ FString AGTTLogisticsDispatcherPawn::BuildOnShiftStatusLine() const
 
     if (RoleTag == FeedDepotDispatcherRole)
     {
-        return FString::Printf(TEXT("E DESK | T%d | %s %d"),
+        return FString::Printf(TEXT("E NEGOTIATE | DESK T%d | %s %d"),
             Logistics->GetActiveCargoOrderTier(), *Relationships->GetFeedRelationshipLabel(), Relationships->GetFeedDispatcherRelationship());
     }
     if (RoleTag == HillFarmReceiverRole)
     {
-        return FString::Printf(TEXT("HILL %d | E STATUS | %s"), Logistics->GetHillFarmDemand(), *Relationships->GetHillRelationshipLabel());
+        return FString::Printf(TEXT("HILL NEED %d | E STATUS | %s"), Logistics->GetHillFarmDemand(), *Relationships->GetHillRelationshipLabel());
     }
     if (RoleTag == WoodYardForemanRole)
     {
-        return FString::Printf(TEXT("WOOD %d | E STATUS | %s"), Logistics->GetWoodYardDemand(), *Relationships->GetWoodRelationshipLabel());
+        return FString::Printf(TEXT("WOOD NEED %d | E STATUS | %s"), Logistics->GetWoodYardDemand(), *Relationships->GetWoodRelationshipLabel());
     }
     return TEXT("E TALK");
 }
@@ -155,7 +155,7 @@ void AGTTLogisticsDispatcherPawn::Interact_Implementation(AActor* Interactor)
             *Relationships->GetFeedRelationshipLabel(), Relationships->GetFeedDispatcherRelationship(), AccessTier,
             *Relationships->GetDispatcherReaction(FeedDepotDispatcherRole));
         Economy->PushMessage(bChanged
-            ? FString::Printf(TEXT("FEED CONTRACT DESK: %s | %s | %s"), *Summary, *RelationshipLine, *Relationships->GetContractDeskSummary())
+            ? FString::Printf(TEXT("FEED DISPATCH NEGOTIATION | CONTRACT DESK: %s | %s | %s"), *Summary, *RelationshipLine, *Relationships->GetContractDeskSummary())
             : FString::Printf(TEXT("%s | %s"), *Summary, *RelationshipLine),
             bChanged ? 8.0f : 6.0f);
         if (bChanged)
@@ -200,7 +200,7 @@ FText AGTTLogisticsDispatcherPawn::GetInteractionText_Implementation() const
     }
     if (RoleTag == FeedDepotDispatcherRole)
     {
-        return FText::FromString(FString::Printf(TEXT("Open transport desk | %s | access T%d | %s"),
+        return FText::FromString(FString::Printf(TEXT("Negotiate CARGO order | %s | access T%d | %s"),
             *Relationships->GetFeedRelationshipLabel(), Relationships->GetCargoDeskAccessTier(), *Logistics->GetCargoNegotiationStatusLabel()));
     }
     if (RoleTag == HillFarmReceiverRole)
