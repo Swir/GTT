@@ -7,6 +7,7 @@ movement_h = (ROOT / 'Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComp
 movement_cpp = (ROOT / 'Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp').read_text(encoding='utf-8')
 scenario = (ROOT / 'Source/GTT/Private/Core/GTTDemoSmokeScenarioSubsystem.cpp').read_text(encoding='utf-8')
 evaluator = (ROOT / 'Scripts/evaluate_fieldmaster_chaos_telemetry.ps1').read_text(encoding='utf-8')
+fixture = (ROOT / 'Scripts/test_fieldmaster_chaos_telemetry.ps1').read_text(encoding='utf-8')
 demo_gate = (ROOT / 'Scripts/evaluate_demo_candidate.ps1').read_text(encoding='utf-8')
 workflow = (ROOT / '.github/workflows/win64-package-evidence.yml').read_text(encoding='utf-8')
 dedicated = (ROOT / '.github/workflows/win64-runtime-acceptance-sanity.yml').read_text(encoding='utf-8')
@@ -49,6 +50,13 @@ for token in [
     assert token in evaluator, f'telemetry evaluator missing hard runtime gate: {token}'
 
 for token in [
+    'fixture-sha', 'drive_torque=428.0', 'drive_torque=391.0',
+    "-replace 'drive_torque=428.0','drive_torque=0.0'", 'Negative telemetry fixture unexpectedly passed',
+    'FIELDMASTER_CHAOS_TELEMETRY.json',
+]:
+    assert token in fixture, f'telemetry evaluator fixture missing positive/negative case: {token}'
+
+for token in [
     'FIELDMASTER_CHAOS_TELEMETRY.json', 'gtt.fieldmaster-chaos-telemetry.v1',
     "fieldmaster_native_chaos_telemetry='PASS'", 'fieldmaster_telemetry_samples', 'schema=4',
 ]:
@@ -60,8 +68,11 @@ for token in [
 ]:
     assert token in workflow, f'Win64 package evidence workflow missing telemetry route: {token}'
 
-assert 'verify_fieldmaster_runtime_telemetry.py' in dedicated
-assert 'GTT 0.1.15 Native Chaos runtime telemetry sanity' in dedicated
+for token in [
+    'verify_fieldmaster_runtime_telemetry.py', 'GTT 0.1.15 Native Chaos runtime telemetry sanity',
+    'test_fieldmaster_chaos_telemetry.ps1', 'Exercise Fieldmaster telemetry evaluator with positive and negative fixtures',
+]:
+    assert token in dedicated, f'dedicated 0.1.15 sanity workflow missing {token}'
 for text in (playtest, changelog, release_doc):
     assert 'FIELDMASTER_CHAOS_TELEMETRY.json' in text, 'milestone/release docs missing telemetry evidence manifest'
 assert 'GTT 0.1.15' in changelog and '0.1.15' in playtest
@@ -82,4 +93,4 @@ for item in [
 ]:
     assert f'- [ ] {item}' in roadmap, f'runtime-only roadmap item closed without real runtime proof: {item}'
 
-print('GTT 0.1.15 Fieldmaster Native Chaos runtime telemetry source/evidence contract OK; roadmap remains truthful at 125/130')
+print('GTT 0.1.15 Fieldmaster Native Chaos runtime telemetry source/evidence contract OK; parser fixtures wired; roadmap remains truthful at 125/130')
