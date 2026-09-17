@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parents[1]
 h = (root / 'Source/GTT/Public/Core/GTTDemoSmokeScenarioSubsystem.h').read_text(encoding='utf-8')
@@ -28,6 +29,15 @@ scenario_step = 'Evaluate structural limp-home, persistence and workshop recover
 packaged_step = 'Evaluate packaged gameplay smoke'
 workflow_order_ok = scenario_step in workflow and packaged_step in workflow and workflow.index(scenario_step) < workflow.index(packaged_step)
 
+runtime_match = re.search(r'-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)', workflow)
+gameplay_runtime_match = re.search(r'-MinimumRuntimeSeconds\s+(\d+)', workflow)
+runtime_window_ok = False
+if runtime_match and gameplay_runtime_match:
+    minimum_alive = int(runtime_match.group(1))
+    launch_timeout = int(runtime_match.group(2))
+    gameplay_minimum = int(gameplay_runtime_match.group(1))
+    runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
+
 checks = {
     'core world subsystem': 'UTickableWorldSubsystem' in h,
     'recovery world subsystem': 'UTickableWorldSubsystem' in recovery_h,
@@ -55,7 +65,7 @@ checks = {
     'evaluator recovery gates': all(x in eval_ps for x in ['damage_persistence_passed', 'workshop_recovery_passed', 'damage_recovery_complete', 'structural_persistence_passed', 'structural_repair_passed', 'structural_recovery_complete', 'structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
     'demo gate consumes scenario': "scenario.result -ne 'PASS'" in demo,
     'workflow order': workflow_order_ok,
-    'extended packaged runtime': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
+    'extended packaged runtime': runtime_window_ok,
     'artifact retained': '\\DEMO_SCENARIO.json' in workflow,
     'current candidate version': "default: '0.1.14'" in workflow,
     'current build evidence': all(x in workflow for x in ['WIN64_PREFLIGHT.json', 'BUILD_ATTEMPT.json', 'RUNTIME_SMOKE.json', 'DEMO_TECHNICAL_GATE.json']),
@@ -63,4 +73,4 @@ checks = {
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit('Deterministic demo scenario verification failed: ' + ', '.join(failed))
-print(f'Deterministic demo scenario verification passed under current 0.1.14 candidate workflow ({len(checks)} checks).')
+print(f'Deterministic demo scenario verification passed under current 0.1.14 candidate workflow ({len(checks)} checks; runtime={minimum_alive}s, timeout={launch_timeout}s).')

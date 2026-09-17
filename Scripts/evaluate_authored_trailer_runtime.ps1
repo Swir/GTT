@@ -81,6 +81,73 @@ if ($grounded.Count -lt 2) { $failures.Add("both authored trailer wheels were no
 if ($safe.Count -lt 2) { $failures.Add("hitch alignment/contact safety was not proven in at least two samples ($($safe.Count))") }
 if ($trailers.Count -lt 1) { $failures.Add('no valid authored trailer instance was observed') }
 
+$scenarioSamplePattern = 'NATIVE_TRAILER_SCENARIO_SAMPLE\s+speed_kmh=(?<speed>[0-9.]+)\s+distance_cm=(?<distance>[0-9.]+)\s+loaded=(?<loaded>[01])\s+attached=(?<attached>[01])\s+active=(?<active>[01])\s+contacts=(?<contacts>[0-9.]+)\s+left=(?<left>[01])\s+right=(?<right>[01])\s+hitch_error_cm=(?<hitch>-?[0-9.]+)\s+articulation_deg=(?<articulation>-?[0-9.]+)\s+cargo_integrity=(?<cargo>[0-9.]+)\s+trailer_integrity=(?<trailer>[0-9.]+)\s+hitch_load=(?<hitchLoad>[0-9.]+)'
+$scenarioSamples = [System.Collections.Generic.List[object]]::new()
+foreach ($line in $lines) {
+    $match = [regex]::Match($line, $scenarioSamplePattern)
+    if (-not $match.Success) { continue }
+    $scenarioSamples.Add([pscustomobject]@{
+        speed_kmh = [double]::Parse($match.Groups['speed'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        distance_cm = [double]::Parse($match.Groups['distance'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        loaded = [int]$match.Groups['loaded'].Value
+        attached = [int]$match.Groups['attached'].Value
+        active = [int]$match.Groups['active'].Value
+        contacts = [double]::Parse($match.Groups['contacts'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        left = [int]$match.Groups['left'].Value
+        right = [int]$match.Groups['right'].Value
+        hitch_error_cm = [double]::Parse($match.Groups['hitch'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        articulation_deg = [double]::Parse($match.Groups['articulation'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        cargo_integrity = [double]::Parse($match.Groups['cargo'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        trailer_integrity = [double]::Parse($match.Groups['trailer'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        hitch_load = [double]::Parse($match.Groups['hitchLoad'].Value,[Globalization.CultureInfo]::InvariantCulture)
+    })
+}
+
+$scenarioCompletePattern = 'NATIVE_TRAILER_SCENARIO_COMPLETE\s+result=(?<result>PASS|FAIL)\s+route=loaded-authored-tow\s+attachment=(?<attachment>[01])\s+authored=(?<authored>[01])\s+loaded=(?<loaded>[01])\s+stopped=(?<stopped>[01])\s+max_speed_kmh=(?<speed>[0-9.]+)\s+distance_cm=(?<distance>[0-9.]+)\s+dual_contact_samples=(?<dual>\d+)\s+safe_samples=(?<safe>\d+)\s+max_hitch_error_cm=(?<hitch>[0-9.]+)\s+max_articulation_deg=(?<articulation>[0-9.]+)\s+min_cargo_integrity=(?<cargo>[0-9.]+)\s+final_speed_kmh=(?<finalSpeed>[0-9.]+)'
+$scenarioComplete = $null
+foreach ($line in $lines) {
+    $match = [regex]::Match($line, $scenarioCompletePattern)
+    if (-not $match.Success) { continue }
+    $scenarioComplete = [pscustomobject]@{
+        result = $match.Groups['result'].Value
+        attachment = [int]$match.Groups['attachment'].Value
+        authored = [int]$match.Groups['authored'].Value
+        loaded = [int]$match.Groups['loaded'].Value
+        stopped = [int]$match.Groups['stopped'].Value
+        max_speed_kmh = [double]::Parse($match.Groups['speed'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        distance_cm = [double]::Parse($match.Groups['distance'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        dual_contact_samples = [int]$match.Groups['dual'].Value
+        safe_samples = [int]$match.Groups['safe'].Value
+        max_hitch_error_cm = [double]::Parse($match.Groups['hitch'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        max_articulation_deg = [double]::Parse($match.Groups['articulation'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        min_cargo_integrity = [double]::Parse($match.Groups['cargo'].Value,[Globalization.CultureInfo]::InvariantCulture)
+        final_speed_kmh = [double]::Parse($match.Groups['finalSpeed'].Value,[Globalization.CultureInfo]::InvariantCulture)
+    }
+}
+
+$scenarioDiagnosticFailures = @($lines | Where-Object { $_ -match 'NATIVE_TRAILER_SCENARIO phase=DIAGNOSTIC result=FAIL' })
+$movingLoadedSafe = @($scenarioSamples | Where-Object {
+    $_.speed_kmh -ge 4.0 -and $_.loaded -eq 1 -and $_.attached -eq 1 -and $_.active -eq 1 -and
+    $_.contacts -ge 0.999 -and $_.left -eq 1 -and $_.right -eq 1 -and $_.hitch_error_cm -le 80.0
+})
+
+if (-not $scenarioComplete) {
+    $failures.Add('no NATIVE_TRAILER_SCENARIO_COMPLETE marker was found')
+} else {
+    if ($scenarioComplete.result -ne 'PASS') { $failures.Add('deterministic loaded authored-trailer scenario did not PASS') }
+    if ($scenarioComplete.attachment -ne 1 -or $scenarioComplete.authored -ne 1 -or $scenarioComplete.loaded -ne 1 -or $scenarioComplete.stopped -ne 1) {
+        $failures.Add('trailer scenario did not prove attachment, authored takeover, loaded tow, and controlled stop')
+    }
+    if ($scenarioComplete.max_speed_kmh -lt 4.0) { $failures.Add("trailer scenario max speed was below 4 km/h ($($scenarioComplete.max_speed_kmh))") }
+    if ($scenarioComplete.distance_cm -lt 900.0) { $failures.Add("trailer scenario distance was below 900 cm ($($scenarioComplete.distance_cm))") }
+    if ($scenarioComplete.dual_contact_samples -lt 8 -or $scenarioComplete.safe_samples -lt 8) {
+        $failures.Add('trailer scenario did not sustain dual-wheel contact and safe hitch for at least eight moving samples')
+    }
+    if ($scenarioComplete.max_hitch_error_cm -gt 110.0) { $failures.Add("trailer scenario exceeded hard hitch envelope ($($scenarioComplete.max_hitch_error_cm) cm)") }
+}
+if ($movingLoadedSafe.Count -lt 8) { $failures.Add("fewer than eight safe moving loaded trailer samples were observed ($($movingLoadedSafe.Count))") }
+if ($scenarioDiagnosticFailures.Count -gt 0) { $failures.Add("trailer scenario emitted diagnostic failures ($($scenarioDiagnosticFailures.Count))") }
+
 $maxHitchError = if ($attached.Count) { [double](($attached | Measure-Object hitch_error_cm -Maximum).Maximum) } else { $null }
 $maxArticulation = if ($attached.Count) { [double](($attached | Measure-Object articulation_deg -Maximum).Maximum) } else { $null }
 $maxStabilization = if ($attached.Count) { [double](($attached | Measure-Object stabilization -Maximum).Maximum) } else { $null }
@@ -109,6 +176,16 @@ $evidence = [ordered]@{
     max_stabilization_load = $maxStabilization
     min_left_clearance_cm = $minLeftClearance
     min_right_clearance_cm = $minRightClearance
+    deterministic_loaded_tow = if ($scenarioComplete) { $scenarioComplete.result } else { 'MISSING' }
+    loaded_motion_samples = $scenarioSamples.Count
+    safe_loaded_motion_samples = $movingLoadedSafe.Count
+    loaded_tow_max_speed_kmh = if ($scenarioComplete) { $scenarioComplete.max_speed_kmh } else { $null }
+    loaded_tow_distance_cm = if ($scenarioComplete) { $scenarioComplete.distance_cm } else { $null }
+    loaded_tow_max_hitch_error_cm = if ($scenarioComplete) { $scenarioComplete.max_hitch_error_cm } else { $null }
+    loaded_tow_max_articulation_deg = if ($scenarioComplete) { $scenarioComplete.max_articulation_deg } else { $null }
+    loaded_tow_min_cargo_integrity = if ($scenarioComplete) { $scenarioComplete.min_cargo_integrity } else { $null }
+    controlled_stop_proven = if ($scenarioComplete) { [bool]($scenarioComplete.stopped -eq 1) } else { $false }
+    trailer_scenario_diagnostic_failures = $scenarioDiagnosticFailures.Count
     requires_final_authored_rig = $true
     source_native_chaos_runtime = $native.result
     source_drivetrain_scenario = $drivetrain.result
@@ -122,5 +199,5 @@ if ($result -ne 'PASS') {
     exit 5
 }
 
-Write-Host "[GTT] Authored trailer runtime acceptance: PASS (samples=$($samples.Count), attached=$($attached.Count), grounded=$($grounded.Count), safe=$($safe.Count))."
+Write-Host "[GTT] Authored trailer runtime acceptance: PASS (samples=$($samples.Count), attached=$($attached.Count), grounded=$($grounded.Count), safe=$($safe.Count), loaded-motion=$($movingLoadedSafe.Count))."
 Write-Host "[GTT] Evidence: $OutputPath"

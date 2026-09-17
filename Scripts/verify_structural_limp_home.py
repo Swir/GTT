@@ -15,6 +15,15 @@ playtest = (root / 'Docs/PLAYTEST_0.0.94.md').read_text(encoding='utf-8')
 changelog = (root / 'CHANGELOG.d/0.0.94.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
+runtime = re.search(r'-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)', workflow)
+gameplay_runtime = re.search(r'-MinimumRuntimeSeconds\s+(\d+)', workflow)
+runtime_window_ok = bool(runtime and gameplay_runtime)
+if runtime_window_ok:
+    minimum_alive = int(runtime.group(1))
+    launch_timeout = int(runtime.group(2))
+    gameplay_minimum = int(gameplay_runtime.group(1))
+    runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
+
 checks = {
     'runtime world subsystem': 'UGTTStructuralDriveConsequenceSubsystem : public UTickableWorldSubsystem' in sub_h,
     'drive-state contract': all(x in sub_h for x in ['FGTTStructuralDriveState', 'DamageSeverity', 'DragRatePerSecond', 'LateralPullRate', 'PowerRetention', 'SteeringRetention', 'bLimpHomeActive']),
@@ -38,7 +47,7 @@ checks = {
     'evaluator new hard steps': all(x in evaluator for x in ["step='STRUCTURAL_HANDLING'", "step='STRUCTURAL_RELOAD_HANDLING'", "step='STRUCTURAL_DRIVE_RECOVERY'"]),
     'evaluator new hard gates': all(x in evaluator for x in ['structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
     'current Win64 candidate route': "default: '0.1.14'" in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
-    '125 second packaged route': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
+    'extended packaged runtime': runtime_window_ok,
     'sanity wired': 'Verify persistent structural limp-home dynamics' in sanity and 'verify_structural_limp_home.py' in sanity,
     'docs': '0.0.94' in playtest and 'STRUCTURAL_HANDLING' in playtest and '0.0.94' in changelog and 'limp-home' in changelog.lower(),
 }
@@ -63,4 +72,4 @@ for token in (
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
 
-print(f'[OK] Persistent structural limp-home dynamics verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
+print(f'[OK] Persistent structural limp-home dynamics verified ({len(checks)} checks; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}%.')
