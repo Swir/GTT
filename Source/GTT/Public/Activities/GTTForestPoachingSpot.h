@@ -27,6 +27,12 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Poaching", meta=(ClampMin="1.0"))
     float WildlifeHeatPerAttempt = 31.0f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Poaching|Night", meta=(ClampMin="1.0", ClampMax="2.0"))
+    float NightWildlifeHeatMultiplier = 1.25f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Poaching|Night", meta=(ClampMin="1.0", ClampMax="2.0"))
+    float NightFenceValueMultiplier = 1.18f;
+
 private:
     double NextAllowedAttemptTime = 0.0;
 };
