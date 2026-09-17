@@ -1,0 +1,47 @@
+name: GTT 0.1.13 dedicated Fieldmaster Chaos movement sanity
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComponent.h'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativeEnvironment.cpp'
+      - 'Scripts/verify_fieldmaster_dedicated_chaos_movement.py'
+      - 'Docs/PLAYTEST_0.1.13.md'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/fieldmaster-dedicated-chaos-sanity.yml'
+      - '.github/workflows/project-sanity.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComponent.h'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativeEnvironment.cpp'
+      - 'Scripts/verify_fieldmaster_dedicated_chaos_movement.py'
+      - 'Docs/PLAYTEST_0.1.13.md'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/fieldmaster-dedicated-chaos-sanity.yml'
+      - '.github/workflows/project-sanity.yml'
+  workflow_dispatch:
+
+jobs:
+  dedicated-fieldmaster-chaos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify dedicated Fieldmaster Chaos movement
+        run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
+      - name: Preserve native takeover regression contract
+        run: python Scripts/verify_fieldmaster_native_takeover.py
+      - name: Preserve native environment regression contract
+        run: python Scripts/verify_fieldmaster_native_environment.py
+      - name: Preserve Native drivetrain authority regression contract
+        run: python Scripts/verify_native_drivetrain_authority.py
