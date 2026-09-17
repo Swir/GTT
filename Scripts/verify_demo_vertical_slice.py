@@ -57,15 +57,23 @@ def main() -> None:
     terminal_cpp = require_tokens(
         "Source/GTT/Private/Activities/GTTFarmJobTerminal.cpp",
         "LegalHandoffMaxSpeedKmh = 3.0f",
-        "GetVelocity().Size2D() * 0.036f",
-        "BlockUnsafeDriveByHandoff",
-        "stop the cargo vehicle before handoff",
+        "ValidateBoundCargoHandoff",
+        "ValidateHandoff(HandoffLocation, LegalHandoffVehicleRadiusCm, LegalHandoffMaxSpeedKmh",
         "TryCompleteJob",
         "TryCompleteFinalStop",
     )
     for case in ("EGTTFarmJobTerminalType::Finish", "EGTTFarmJobTerminalType::FinalFinish"):
         if case not in terminal_cpp:
             raise AssertionError(f"handoff guard does not cover {case}")
+
+    # 0.1.28 strengthened the 0.1.27 no-drive-by guard by binding the exact loaded vehicle.
+    # Keep this older vertical-slice gate semantic rather than requiring the removed helper name.
+    require_tokens(
+        "Source/GTT/Private/Activities/GTTFarmCargoAuthoritySubsystem.cpp",
+        "GetVelocity().Size2D() * 0.036f",
+        "FVector::Dist2D",
+        "FARM_CARGO_AUTHORITY event=HANDOFF_CHECK result=PASS",
+    )
 
     contract_board = require_tokens(
         "Source/GTT/Private/World/GTTContractBoardSubsystem.cpp",
@@ -128,7 +136,7 @@ def main() -> None:
     )
 
     print("GTT 0.1.27 demo vertical-slice source contract: PASS")
-    print("Verified: contract -> cargo -> world guidance -> safe handoff -> economy/reputation/save authority chain.")
+    print("Verified: contract -> cargo -> world guidance -> safe same-vehicle handoff -> economy/reputation/save authority chain.")
     print("Roadmap remains truthful at 125/130 (96.2%); no runtime blocker was closed by source-only checks.")
 
 

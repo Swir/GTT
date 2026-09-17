@@ -24,6 +24,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 > **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
 
+<p align="center">
+  <img width="100%" src="../assets/readme/progress-mini.svg" alt="GTT roadmap progress — 125 of 130 tasks complete, 96.2 percent" />
+</p>
+
 ## 0.1 — Tractor Theft Prototype
 - [x] Unreal C++ project/module skeleton
 - [x] Third-person character + interaction
