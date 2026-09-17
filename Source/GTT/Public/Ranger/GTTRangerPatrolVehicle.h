@@ -4,7 +4,9 @@
 #include "GameFramework/Actor.h"
 #include "GTTRangerPatrolVehicle.generated.h"
 
+class UPointLightComponent;
 class USceneComponent;
+class USpotLightComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
 
@@ -30,43 +32,27 @@ public:
 protected:
     virtual void BeginPlay() override;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<USceneComponent> SceneRoot;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> Body;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> Cabin;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> FrontBumper;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> WheelFrontLeft;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> WheelFrontRight;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> WheelRearLeft;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> WheelRearRight;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> BeaconLeft;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UStaticMeshComponent> BeaconRight;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol")
-    TObjectPtr<UTextRenderComponent> WardenLabel;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<USceneComponent> SceneRoot;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> Body;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> Cabin;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> FrontBumper;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> WheelFrontLeft;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> WheelFrontRight;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> WheelRearLeft;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> WheelRearRight;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> BeaconLeft;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UStaticMeshComponent> BeaconRight;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UPointLightComponent> BeaconLightLeft;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UPointLightComponent> BeaconLightRight;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<USpotLightComponent> SearchLamp;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Ranger|Patrol") TObjectPtr<UTextRenderComponent> WardenLabel;
 
 private:
     void SetRoadsideDeployed(bool bDeployed);
-    void UpdateBeacons(float DeltaSeconds);
+    FVector ResolveGroundedLocation(const FVector& DesiredLocation) const;
+    void UpdateBeacons(float DeltaSeconds, bool bSearchPhase);
 
     bool bRoadsideDeployed = false;
     float BeaconClock = 0.0f;
+    static constexpr float GroundClearanceCm = 8.0f;
 };

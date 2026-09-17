@@ -1,9 +1,12 @@
 #include "Ranger/GTTRangerPatrolVehicle.h"
 
+#include "Components/PointLightComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/World.h"
 #include "Ranger/GTTRangerRoadStopSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -75,6 +78,31 @@ AGTTRangerPatrolVehicle::AGTTRangerPatrolVehicle()
     BeaconRight->SetupAttachment(SceneRoot);
     ConfigureVisualPart(BeaconRight, SphereMesh, FVector(-20.0f, 34.0f, 151.0f), FVector(0.16f));
 
+    BeaconLightLeft = CreateDefaultSubobject<UPointLightComponent>(TEXT("BeaconLightLeft"));
+    BeaconLightLeft->SetupAttachment(BeaconLeft);
+    BeaconLightLeft->SetLightColor(FLinearColor(1.0f, 0.50f, 0.04f));
+    BeaconLightLeft->SetIntensity(2800.0f);
+    BeaconLightLeft->SetAttenuationRadius(650.0f);
+    BeaconLightLeft->SetCastShadows(false);
+
+    BeaconLightRight = CreateDefaultSubobject<UPointLightComponent>(TEXT("BeaconLightRight"));
+    BeaconLightRight->SetupAttachment(BeaconRight);
+    BeaconLightRight->SetLightColor(FLinearColor(1.0f, 0.50f, 0.04f));
+    BeaconLightRight->SetIntensity(2800.0f);
+    BeaconLightRight->SetAttenuationRadius(650.0f);
+    BeaconLightRight->SetCastShadows(false);
+
+    SearchLamp = CreateDefaultSubobject<USpotLightComponent>(TEXT("SearchLamp"));
+    SearchLamp->SetupAttachment(SceneRoot);
+    SearchLamp->SetRelativeLocation(FVector(105.0f, 0.0f, 118.0f));
+    SearchLamp->SetRelativeRotation(FRotator(-24.0f, 0.0f, 0.0f));
+    SearchLamp->SetLightColor(FLinearColor(0.76f, 0.88f, 1.0f));
+    SearchLamp->SetIntensity(3400.0f);
+    SearchLamp->SetAttenuationRadius(1150.0f);
+    SearchLamp->SetInnerConeAngle(18.0f);
+    SearchLamp->SetOuterConeAngle(34.0f);
+    SearchLamp->SetCastShadows(false);
+
     WardenLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("WardenLabel"));
     WardenLabel->SetupAttachment(SceneRoot);
     WardenLabel->SetText(NSLOCTEXT("GTT", "RangerPatrolVehicleLabel", "WARDEN"));
@@ -87,13 +115,14 @@ AGTTRangerPatrolVehicle::AGTTRangerPatrolVehicle()
 void AGTTRangerPatrolVehicle::BeginPlay()
 {
     Super::BeginPlay();
-    // The actor is pre-spawned by the ranger director so it can appear without
-    // hitching when a stop begins, but must be invisible/non-blocking at rest.
     bRoadsideDeployed = false;
     SetActorHiddenInGame(true);
     SetActorEnableCollision(false);
     BeaconLeft->SetVisibility(false, true);
     BeaconRight->SetVisibility(false, true);
+    BeaconLightLeft->SetVisibility(false, true);
+    BeaconLightRight->SetVisibility(false, true);
+    SearchLamp->SetVisibility(false, true);
 }
 
 void AGTTRangerPatrolVehicle::Tick(float DeltaSeconds)
@@ -112,12 +141,12 @@ void AGTTRangerPatrolVehicle::Tick(float DeltaSeconds)
     }
 
     SetActorLocationAndRotation(
-        SceneTransform.GetLocation(),
+        ResolveGroundedLocation(SceneTransform.GetLocation()),
         SceneTransform.GetRotation(),
         false,
         nullptr,
         ETeleportType::TeleportPhysics);
-    UpdateBeacons(DeltaSeconds);
+    UpdateBeacons(DeltaSeconds, RoadStop->GetPhase() == EGTTRangerRoadStopPhase::Search);
 }
 
 void AGTTRangerPatrolVehicle::SetRoadsideDeployed(bool bDeployed)
@@ -134,13 +163,42 @@ void AGTTRangerPatrolVehicle::SetRoadsideDeployed(bool bDeployed)
     {
         BeaconLeft->SetVisibility(false, true);
         BeaconRight->SetVisibility(false, true);
+        BeaconLightLeft->SetVisibility(false, true);
+        BeaconLightRight->SetVisibility(false, true);
+        SearchLamp->SetVisibility(false, true);
     }
 }
 
-void AGTTRangerPatrolVehicle::UpdateBeacons(float DeltaSeconds)
+FVector AGTTRangerPatrolVehicle::ResolveGroundedLocation(const FVector& DesiredLocation) const
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return DesiredLocation;
+    }
+
+    FHitResult Hit;
+    const FVector TraceStart = DesiredLocation + FVector(0.0f, 0.0f, 450.0f);
+    const FVector TraceEnd = DesiredLocation - FVector(0.0f, 0.0f, 1000.0f);
+    FCollisionObjectQueryParams ObjectQuery;
+    ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GTTRangerPatrolGround), false, this);
+    if (World->LineTraceSingleByObjectType(Hit, TraceStart, TraceEnd, ObjectQuery, QueryParams))
+    {
+        FVector Grounded = DesiredLocation;
+        Grounded.Z = Hit.ImpactPoint.Z + GroundClearanceCm;
+        return Grounded;
+    }
+    return DesiredLocation;
+}
+
+void AGTTRangerPatrolVehicle::UpdateBeacons(float DeltaSeconds, bool bSearchPhase)
 {
     BeaconClock += DeltaSeconds;
     const bool bLeft = FMath::Fmod(BeaconClock * 3.4f, 1.0f) < 0.5f;
     BeaconLeft->SetVisibility(bLeft, true);
     BeaconRight->SetVisibility(!bLeft, true);
+    BeaconLightLeft->SetVisibility(bLeft, true);
+    BeaconLightRight->SetVisibility(!bLeft, true);
+    SearchLamp->SetVisibility(bSearchPhase, true);
 }
