@@ -38,6 +38,15 @@ function Read-Integer([string]$Line, [string]$Key) {
     return [int]$value
 }
 
+function Require-IntegerField([string]$Line, [string]$Key, [string]$Context) {
+    $value = Read-Integer $Line $Key
+    if ($null -eq $value) {
+        $failures.Add("$Context missing required integer field '$Key'")
+        return $null
+    }
+    return $value
+}
+
 if ($build.platform -ne 'Win64') { $failures.Add('build platform is not Win64') }
 if ($smoke.result -ne 'PASS') { $failures.Add('packaged runtime smoke did not PASS') }
 if ($ExpectedGitSha -and $ExpectedGitSha -ne 'unknown' -and $build.git_sha -ne $ExpectedGitSha) {
@@ -69,29 +78,70 @@ if (-not $persistence) { $failures.Add('post-delivery SaveProgress evidence was 
 if (-not $complete) { $failures.Add('Farm Cargo route did not complete with PASS') }
 if ($diagnostics.Count -gt 0) { $failures.Add("scenario logged $($diagnostics.Count) diagnostic failure(s)") }
 
-$routeTier = Read-Integer $prepare 'active_order_tier'
-$wrongVehiclePass = if ($wrongVehicle) { 1 } else { 0 }
-$sameVehicle = Read-Integer $hill 'same_vehicle'
-$payoutDelta = Read-Integer $final 'payout_delta'
-$cargoRunsDelta = Read-Integer $final 'cargo_runs_delta'
-$reputationDelta = Read-Integer $final 'reputation_delta'
-$authorityCleared = Read-Integer $final 'authority_cleared'
-$savePass = Read-Integer $persistence 'explicit_save'
-$completeWrongVehicle = Read-Integer $complete 'wrong_vehicle_rejected'
-$completeSameVehicle = Read-Integer $complete 'same_vehicle'
-$completeAuthority = Read-Integer $complete 'authority_cleared'
+$routeTier = Require-IntegerField $prepare 'active_order_tier' 'PREPARE'
+$sameVehicle = Require-IntegerField $hill 'same_vehicle' 'HILL_HANDOFF'
+$payoutDelta = Require-IntegerField $final 'payout_delta' 'FINAL_HANDOFF'
+$cargoRunsDelta = Require-IntegerField $final 'cargo_runs_delta' 'FINAL_HANDOFF'
+$reputationDelta = Require-IntegerField $final 'reputation_delta' 'FINAL_HANDOFF'
+$authorityCleared = Require-IntegerField $final 'authority_cleared' 'FINAL_HANDOFF'
+$savePass = Require-IntegerField $persistence 'explicit_save' 'PERSISTENCE'
+
+$completeAccepted = Require-IntegerField $complete 'accepted' 'COMPLETE'
+$completePickup = Require-IntegerField $complete 'pickup' 'COMPLETE'
+$completeWrongVehicle = Require-IntegerField $complete 'wrong_vehicle_rejected' 'COMPLETE'
+$completeHill = Require-IntegerField $complete 'hill' 'COMPLETE'
+$completeFinal = Require-IntegerField $complete 'final' 'COMPLETE'
+$completeSameVehicle = Require-IntegerField $complete 'same_vehicle' 'COMPLETE'
+$completePayout = Require-IntegerField $complete 'payout_delta' 'COMPLETE'
+$completeCargoRuns = Require-IntegerField $complete 'cargo_runs_delta' 'COMPLETE'
+$completeReputation = Require-IntegerField $complete 'reputation_delta' 'COMPLETE'
+$completeSave = Require-IntegerField $complete 'save' 'COMPLETE'
+$completeAuthority = Require-IntegerField $complete 'authority_cleared' 'COMPLETE'
 
 if ($null -ne $routeTier -and $routeTier -lt 2) { $failures.Add("evidence route did not reach tier 2 (active_order_tier=$routeTier)") }
-if ($wrongVehiclePass -ne 1) { $failures.Add('wrong-vehicle probe did not PASS') }
 if ($null -ne $sameVehicle -and $sameVehicle -ne 1) { $failures.Add('Hill handoff did not retain exact physical vehicle identity') }
 if ($null -ne $payoutDelta -and $payoutDelta -le 0) { $failures.Add("delivery payout did not increase cash (delta=$payoutDelta)") }
 if ($null -ne $cargoRunsDelta -and $cargoRunsDelta -ne 1) { $failures.Add("cargo completion history delta was not exactly one (delta=$cargoRunsDelta)") }
 if ($null -ne $reputationDelta -and $reputationDelta -le 0) { $failures.Add("logistics reputation did not increase (delta=$reputationDelta)") }
 if ($null -ne $authorityCleared -and $authorityCleared -ne 1) { $failures.Add('physical cargo authority did not clear after final handoff') }
 if ($null -ne $savePass -and $savePass -ne 1) { $failures.Add('explicit post-delivery SaveProgress check failed') }
-if ($null -ne $completeWrongVehicle -and $completeWrongVehicle -ne 1) { $failures.Add('completion marker lost wrong-vehicle rejection proof') }
-if ($null -ne $completeSameVehicle -and $completeSameVehicle -ne 1) { $failures.Add('completion marker lost same-vehicle continuity proof') }
-if ($null -ne $completeAuthority -and $completeAuthority -ne 1) { $failures.Add('completion marker did not prove authority cleanup') }
+
+foreach ($gate in @(
+    @{ Name = 'accepted'; Value = $completeAccepted },
+    @{ Name = 'pickup'; Value = $completePickup },
+    @{ Name = 'wrong_vehicle_rejected'; Value = $completeWrongVehicle },
+    @{ Name = 'hill'; Value = $completeHill },
+    @{ Name = 'final'; Value = $completeFinal },
+    @{ Name = 'same_vehicle'; Value = $completeSameVehicle },
+    @{ Name = 'save'; Value = $completeSave },
+    @{ Name = 'authority_cleared'; Value = $completeAuthority }
+)) {
+    if ($null -ne $gate.Value -and $gate.Value -ne 1) {
+        $failures.Add("completion marker gate '$($gate.Name)' was not 1 (value=$($gate.Value))")
+    }
+}
+if ($null -ne $completePayout -and $completePayout -le 0) { $failures.Add("completion marker payout was not positive (delta=$completePayout)") }
+if ($null -ne $completeCargoRuns -and $completeCargoRuns -ne 1) { $failures.Add("completion marker cargo run delta was not exactly one (delta=$completeCargoRuns)") }
+if ($null -ne $completeReputation -and $completeReputation -le 0) { $failures.Add("completion marker reputation was not positive (delta=$completeReputation)") }
+
+if ($null -ne $payoutDelta -and $null -ne $completePayout -and $payoutDelta -ne $completePayout) {
+    $failures.Add("payout evidence disagrees between FINAL_HANDOFF and COMPLETE ($payoutDelta vs $completePayout)")
+}
+if ($null -ne $cargoRunsDelta -and $null -ne $completeCargoRuns -and $cargoRunsDelta -ne $completeCargoRuns) {
+    $failures.Add("cargo run evidence disagrees between FINAL_HANDOFF and COMPLETE ($cargoRunsDelta vs $completeCargoRuns)")
+}
+if ($null -ne $reputationDelta -and $null -ne $completeReputation -and $reputationDelta -ne $completeReputation) {
+    $failures.Add("reputation evidence disagrees between FINAL_HANDOFF and COMPLETE ($reputationDelta vs $completeReputation)")
+}
+if ($null -ne $sameVehicle -and $null -ne $completeSameVehicle -and $sameVehicle -ne $completeSameVehicle) {
+    $failures.Add("same-vehicle evidence disagrees between HILL_HANDOFF and COMPLETE ($sameVehicle vs $completeSameVehicle)")
+}
+if ($null -ne $savePass -and $null -ne $completeSave -and $savePass -ne $completeSave) {
+    $failures.Add("save evidence disagrees between PERSISTENCE and COMPLETE ($savePass vs $completeSave)")
+}
+if ($null -ne $authorityCleared -and $null -ne $completeAuthority -and $authorityCleared -ne $completeAuthority) {
+    $failures.Add("authority cleanup evidence disagrees between FINAL_HANDOFF and COMPLETE ($authorityCleared vs $completeAuthority)")
+}
 
 $result = if ($failures.Count -eq 0) { 'PASS' } else { 'FAIL' }
 $evidence = [ordered]@{
@@ -103,14 +153,14 @@ $evidence = [ordered]@{
     git_sha = $build.git_sha
     route = 'Feed Depot -> Hill Farm -> North Wood Yard'
     active_order_tier = $routeTier
-    exact_vehicle_bound = [bool]$pickup
-    wrong_vehicle_rejected = [bool]$wrongVehicle
-    same_vehicle_hill_to_final = ($sameVehicle -eq 1)
+    exact_vehicle_bound = ($completePickup -eq 1)
+    wrong_vehicle_rejected = ($completeWrongVehicle -eq 1)
+    same_vehicle_hill_to_final = ($sameVehicle -eq 1 -and $completeSameVehicle -eq 1)
     payout_delta = $payoutDelta
     cargo_completed_runs_delta = $cargoRunsDelta
     logistics_reputation_delta = $reputationDelta
-    post_delivery_save = ($savePass -eq 1)
-    authority_cleared = ($authorityCleared -eq 1)
+    post_delivery_save = ($savePass -eq 1 -and $completeSave -eq 1)
+    authority_cleared = ($authorityCleared -eq 1 -and $completeAuthority -eq 1)
     diagnostic_failure_count = $diagnostics.Count
     failures = @($failures)
     evaluated_utc = (Get-Date).ToUniversalTime().ToString('o')
