@@ -1,6 +1,8 @@
 # GTT Windows Release Pipeline
 
-GTT 0.1.14 hardens the path from source to a distributable Windows archive and, critically, makes failure evidence durable. The repository still does **not** claim a verified packaged build unless the workflow actually runs on a Windows x64 machine with Unreal Engine 5.8 and the packaged executable passes runtime evidence gates.
+GTT uses a two-stage Windows Demo Release process. A public release is never built after visual review: first a qualifying Unreal Engine 5.8 runner produces one exact packaged candidate plus technical and rendered evidence; only that already-produced ZIP can later be approved and published.
+
+The repository does **not** claim a verified packaged build unless the candidate workflow actually runs on a Windows x64 machine with Unreal Engine 5.8 and the packaged executable passes the runtime evidence gates.
 
 ## Local release build
 
@@ -12,65 +14,69 @@ Requirements:
 - Windows 10/11 SDK.
 - Git + Git LFS with project assets present.
 - At least 25 GiB free on the evidence/output drive by default.
+- A working rendered RHI for the visual-evidence pass; NullRHI is deliberately rejected for screenshots.
 
-Run the preflight first when preparing a runner:
+Run the preflight first:
 
 ```powershell
 ./Scripts/preflight_win64_unreal.ps1 -EngineRoot "C:\Program Files\Epic Games\UE_5.8"
 ```
 
-A passing run writes `Saved\Win64\WIN64_PREFLIGHT.json`. It checks the Windows host, UE root/version, RunUAT, UnrealEditor-Cmd, UnrealBuildTool, project EngineAssociation, Chaos Vehicles plugin, GTT runtime module, Git LFS, MSVC, Windows SDK and disk capacity. A failed preflight also writes JSON evidence before returning non-zero.
-
-Example Shipping package:
+A passing run writes `Saved\Win64\WIN64_PREFLIGHT.json`. Example Shipping package:
 
 ```powershell
-./Scripts/package_windows.ps1 -Configuration Shipping -Version 0.1.14
+./Scripts/package_windows.ps1 -Configuration Shipping -Version 0.1.20
 ```
 
-The package helper re-runs preflight before touching the target archive, then runs Unreal Automation Tool `BuildCookRun` for Win64 with build, cook, stage, pak/IoStore, prerequisites and archive enabled. It captures the UAT attempt even on failure. A success is validated and hashed.
+## Stage 1 — exact-SHA candidate evidence
 
-## Produced build and failure evidence
+`.github/workflows/win64-package-evidence.yml` is the only authoritative candidate producer. It requires `self-hosted, windows, x64, unreal-5.8` and runs preflight; UBT/UAT build/cook/package; package validation; the 178-second packaged technical route; the 33-step gameplay route; Native Chaos telemetry; deterministic forward/reverse drivetrain; loaded authored-trailer runtime; and `DEMO_TECHNICAL_GATE.json`.
 
-A successful package contains:
+It then launches the **same packaged executable a second time without NullRHI** using `-RenderOffscreen` at 1280×720. `UGTTDemoVisualEvidenceSubsystem` captures five deterministic frames: world/gameplay, law pressure, Native vehicle, loaded trailer and final HUD overview. `evaluate_demo_visual_evidence.ps1` verifies the PNGs, resolution/size, non-flat luminance, sampled color variation, runtime markers and frame diversity before writing `DEMO_VISUAL_EVIDENCE.json`.
 
-- `WIN64_PREFLIGHT.json` — schema-v2 host, UE 5.8, toolchain, project and capacity gate.
-- `BUILD_ATTEMPT.json` — schema-v2 UAT start/completion/result, exit code, source Git SHA and error field.
-- `BUILD_INFO.json` — version, configuration, engine label, source SHA and UTC build time.
-- `PACKAGE_VALIDATION.json` — executable, cooked containers, package size and linked preflight/UAT status.
-- `SHA256SUMS.txt` — SHA-256 for every file inside the uncompressed package.
-- `<release>.zip` and `<release>.zip.sha256` when ZIP creation is enabled.
+These automated checks detect broken rendering/capture. They are not aesthetic approval; the manifest deliberately records `human_review_required=true`.
 
-Before the archive exists, external `<archive>.preflight.json` and `<archive>.attempt.json` files preserve the most useful forensic state. The GitHub workflows upload these as failure diagnostics when an eligible runner reaches the job but a required stage fails.
+A successful artifact contains the original candidate ZIP + SHA256, all technical evidence, `VISUAL_RUNTIME_SMOKE.json`, `DEMO_VISUAL_EVIDENCE.json`, `GTT_VISUAL_RUNTIME.log`, and the five screenshots.
 
-The package validator rejects builds that do not carry PASS schema-v2 preflight and build-attempt evidence, do not contain exactly one `GTT.exe`, do not contain cooked `.pak`/`.utoc`/`.ucas` data, are suspiciously small, or contain PDB/LIB/EXP artifacts in Shipping mode.
+## Stage 2 — review the exact packaged candidate
 
-## GitHub Actions paths
+Before publication, download the Stage 1 artifact and inspect all five screenshots at full size. Reject the candidate if the world, vehicles, characters/weapons, traffic/NPCs, lighting/atmosphere, HUD/UI, mission/combat/vehicle slice, placeholders/debug clutter or general presentation contains a demo-critical problem.
 
-`.github/workflows/win64-package-evidence.yml` is the technical-candidate pipeline. It requires:
+When those exact screenshots are good enough to represent GTT publicly, run `.github/workflows/release-windows.yml` with the exact `version`, successful `candidate_run_id`, full 40-character `expected_sha`, `visual_review_passed=true`, meaningful `visual_review_notes`, and `publish_release=true` only when publication is intended.
 
-```text
-self-hosted, windows, x64, unreal-5.8
-```
+The publication workflow runs on `windows-latest` because it **does not rebuild Unreal**. It verifies through the GitHub Actions API that `candidate_run_id` is a successful `Win64 package evidence` run from `main` at exactly `expected_sha`, downloads that already-produced artifact, validates the candidate ZIP SHA256, and expands it only for gate re-evaluation.
 
-It runs preflight, package, packaged EXE runtime smoke, deterministic scenario evidence, gameplay smoke, a second package validation and the demo technical gate. A success artifact includes `WIN64_PREFLIGHT.json`, `BUILD_ATTEMPT.json`, `RUNTIME_SMOKE.json`, `DEMO_SCENARIO.json`, `GAMEPLAY_SMOKE.json`, runtime log and `DEMO_TECHNICAL_GATE.json`.
+`write_demo_visual_acceptance.ps1` writes `DEMO_VISUAL_ACCEPTANCE.json`, binding the authenticated workflow actor, notes, exact Git SHA, rendered-evidence manifest SHA256 and all reviewed screenshot hashes. The full candidate gate is then rerun with `evaluate_demo_candidate.ps1 -RequireVisual`. The publication workflow never invokes preflight, UBT/UAT or `package_windows.ps1`, so it cannot silently replace the reviewed binary.
 
-`.github/workflows/release-windows.yml` is the explicit release-package pipeline. It uses the same preflight and package evidence contract. It must not be treated as a substitute for the technical/runtime candidate gate.
+If `publish_release=true`, the **original candidate ZIP** and `.sha256` are published as a GitHub prerelease together with final visual acceptance/gate evidence and the reviewed screenshots.
 
-`.github/workflows/win64-runtime-acceptance-sanity.yml` is intentionally source-only. It verifies that the contract cannot silently regress on ordinary GitHub-hosted CI; it does not compile Unreal.
+## Authoritative evidence bundle
 
-GitHub-hosted `windows-latest` runners do not provide this project's licensed Unreal Engine 5.8 installation/content. Until an eligible self-hosted runner is connected and actually executes the UE workflows, `Full Win64 CI/build runner` remains open.
+- `WIN64_PREFLIGHT.json`
+- `BUILD_ATTEMPT.json`
+- `BUILD_INFO.json`
+- `PACKAGE_VALIDATION.json`
+- `SHA256SUMS.txt`
+- `RUNTIME_SMOKE.json`
+- `DEMO_SCENARIO.json`
+- `GAMEPLAY_SMOKE.json`
+- `NATIVE_CHAOS_RUNTIME.json`
+- `NATIVE_DRIVETRAIN_SCENARIO.json`
+- `NATIVE_TRAILER_RUNTIME.json`
+- `GTT_RUNTIME.log`
+- `DEMO_TECHNICAL_GATE.json`
+- `VISUAL_RUNTIME_SMOKE.json`
+- `DEMO_VISUAL_EVIDENCE.json`
+- `GTT_VISUAL_RUNTIME.log`
+- `DemoVisualEvidence/GTT_visual_*.png`
+- candidate `.zip` and `.zip.sha256`
+
+`DEMO_VISUAL_ACCEPTANCE.json` is intentionally created only after a reviewer has inspected the exact candidate screenshots.
 
 ## Release acceptance gate
 
-Before calling a Windows build technically verified, all evidence must refer to the exact candidate commit:
+A Demo Release is eligible only when all evidence refers to the same candidate commit and original ZIP: source sanity green; real UE 5.8 Win64 preflight/build/package PASS; packaged runtime/gameplay PASS; Native Chaos/drivetrain/loaded trailer PASS; technical gate PASS; non-NullRHI rendered run PASS; five-scene `DEMO_VISUAL_EVIDENCE.json` PASS; human review of those exact images; `DEMO_VISUAL_ACCEPTANCE.json` bound to the SHA/hashes; and a final `-RequireVisual` gate PASS. No demo-critical blocker may remain.
 
-1. Project/source sanity green.
-2. `WIN64_PREFLIGHT.json` PASS on the real Windows/UE 5.8 runner.
-3. `BUILD_ATTEMPT.json` PASS with UAT exit code 0.
-4. `PACKAGE_VALIDATION.json` PASS plus valid hashes/archive.
-5. `RUNTIME_SMOKE.json`, deterministic scenario and gameplay smoke PASS on packaged `GTT.exe`.
-6. `DEMO_TECHNICAL_GATE.json` PASS.
+GitHub-hosted `windows-latest` runners do not provide this project's licensed Unreal Engine 5.8 installation/content. Until an eligible self-hosted runner actually executes Stage 1, `Full Win64 CI/build runner` stays open and no Demo Release should be claimed.
 
-A **Demo Release** has one additional non-automated requirement: visual acceptance of the exact packaged candidate. World/vehicle/character presentation, HUD/UI, lighting, NPC/traffic density and the playable mission/combat/vehicle slice must be good enough to represent the intended game publicly. Source CI, a preflight PASS, or even a compile by itself is not visual acceptance.
-
-See `Docs/PLAYTEST_0.1.14.md` for the runtime and visual acceptance matrix.
+See `Docs/PLAYTEST_0.1.20.md` for the detailed 30-step visual and publication integrity matrix.

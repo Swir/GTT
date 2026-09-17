@@ -19,9 +19,9 @@ on:
 permissions: { contents: read }
 jobs:
   package-and-smoke:
-    name: UE 5.8 Win64 package + runtime evidence
+    name: UE 5.8 Win64 package + runtime + rendered evidence
     runs-on: [self-hosted, windows, x64, unreal-5.8]
-    timeout-minutes: 90
+    timeout-minutes: 100
     env:
       GTT_VERSION: ${{ inputs.version }}
       GTT_CONFIGURATION: ${{ inputs.configuration }}
@@ -57,7 +57,7 @@ jobs:
       - name: Evaluate authored trailer rig, hitch and dual-wheel runtime
         shell: pwsh
         run: ./Scripts/evaluate_authored_trailer_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Re-validate evidence bundle
+      - name: Re-validate technical evidence bundle
         shell: pwsh
         run: |
           ./Scripts/validate_windows_package.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Configuration "$env:GTT_CONFIGURATION" -Version "$env:GTT_VERSION"
@@ -65,11 +65,27 @@ jobs:
       - name: Evaluate demo technical candidate
         shell: pwsh
         run: ./Scripts/evaluate_demo_candidate.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
+      - name: Run rendered visual evidence route without NullRHI
+        shell: pwsh
+        run: ./Scripts/capture_demo_visual_evidence.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 178 -LaunchTimeoutSeconds 205
+      - name: Validate deterministic rendered visual evidence
+        shell: pwsh
+        run: ./Scripts/evaluate_demo_visual_evidence.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_VISUAL_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
+      - name: Verify complete candidate evidence bundle
+        shell: pwsh
+        run: |
+          foreach($f in @('DEMO_TECHNICAL_GATE.json','VISUAL_RUNTIME_SMOKE.json','DEMO_VISUAL_EVIDENCE.json','GTT_VISUAL_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing from complete candidate."}}
+          $shots=@(Get-ChildItem (Join-Path $env:GTT_PACKAGE_DIR 'DemoVisualEvidence') -File -Filter 'GTT_visual_*.png')
+          if($shots.Count -ne 5){throw "Expected exactly five rendered review screenshots, found $($shots.Count)."}
       - name: Build final ZIP and hash
         shell: pwsh
         run: |
-          $zip="$env:GTT_PACKAGE_DIR.zip";if(Test-Path $zip){Remove-Item -Force $zip};Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal;$hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant();Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
-      - name: Upload verified Win64 evidence
+          $zip="$env:GTT_PACKAGE_DIR.zip"
+          if(Test-Path $zip){Remove-Item -Force $zip}
+          Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal
+          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
+      - name: Upload exact-SHA Win64 candidate evidence
         uses: actions/upload-artifact@v4
         with:
           name: GTT-${{ inputs.version }}-Win64-technical-candidate
@@ -88,9 +104,13 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_TRAILER_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_TECHNICAL_GATE.json
+            ${{ env.GTT_PACKAGE_DIR }}\VISUAL_RUNTIME_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json
+            ${{ env.GTT_PACKAGE_DIR }}\GTT_VISUAL_RUNTIME.log
+            ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\*.png
           if-no-files-found: error
           retention-days: 14
-      - name: Upload Win64-failure-diagnostics
+      - name: Upload Win64 failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -102,6 +122,10 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_DRIVETRAIN_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_TRAILER_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
+            ${{ env.GTT_PACKAGE_DIR }}\VISUAL_RUNTIME_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json
+            ${{ env.GTT_PACKAGE_DIR }}\GTT_VISUAL_RUNTIME.log
+            ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\*.png
             ${{ github.workspace }}\Saved\Logs\**
           if-no-files-found: warn
           retention-days: 14

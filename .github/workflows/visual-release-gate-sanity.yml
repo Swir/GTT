@@ -1,0 +1,20 @@
+name: GTT 0.1.20 visual release gate sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify deterministic rendered evidence and exact-candidate release gate
+        run: python Scripts/verify_visual_release_gate.py
