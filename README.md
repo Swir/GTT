@@ -23,11 +23,15 @@
 
 ## Project status
 
+![Grand Theft Tractor roadmap progress — 125 of 130 roadmap items complete (96.2%), PRE-ALPHA](assets/readme/progress-card.svg)
+
+Roadmap completion: **125 / 130 (96.2%)** — **PRE-ALPHA**. This measures the authoritative Roadmap checklist only; **demo/release readiness is a separate runtime + visual gate**.
+
 GTT is in **pre-alpha active development**. The repository contains a large playable-systems foundation, source-level CI and Windows packaging/evidence automation, but the first public demo is intentionally gated behind real Unreal Engine 5.8 Win64 packaging, packaged-EXE runtime smoke tests and rendered visual acceptance.
 
 **No public demo release is available yet.** Source CI passing does not mean a Windows demo EXE has been verified.
 
-Current development milestone: **0.1.26 — World-space pull-over guidance and warden patrol lighting**.
+Current development milestone: **0.1.28 — exact Farm Cargo vehicle authority and packaged vertical-slice runtime evidence**.
 
 ## What is GTT?
 
@@ -44,8 +48,8 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
-| 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. |
-| 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
+| 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo handoff is locked to the exact vehicle that received the physical load. |
+| 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog, route planning and a packaged Farm Cargo acceptance route that observes real payout/reputation/save authority. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
 | 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy and campaign systems. |
@@ -108,13 +112,17 @@ GTT uses a C++ gameplay core with Blueprint-friendly APIs. Major systems are sep
 
 Vehicle development currently uses a guarded migration model: proven gameplay state remains available while native Chaos components gain dedicated runtime evidence and acceptance checks. This prevents a source-only configuration change from being mistaken for verified packaged physics behavior.
 
+Farm Cargo follows the same authority rule. `UGTTFarmCargoAuthoritySubsystem` remembers the exact actor that received the load, while the established job director remains authoritative for timers/cargo integrity, the economy for cash, the logistics subsystem for reputation/market state, Wanted for police consequences and the GameMode save path for persistence.
+
 ## Verification
 
-The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
+The repository contains Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
+
+0.1.28 adds a separate packaged Farm Cargo exercise. A future qualifying candidate must launch `-GTTFarmCargoScenario`, prove that a wrong/decoy vehicle cannot finish the contract, finish with the exact loaded vehicle under the legal yard/speed limits, observe real payout/logistics progression and write `FARM_CARGO_RUNTIME.json`. This evidence is now consumed by the technical demo gate; the existence of the scripts alone is not runtime verification.
 
 Important distinction:
 
-- **Source-contract CI:** verifies repository structure, wiring, invariants and regression contracts.
+- **Source-contract CI:** verifies repository structure, wiring, invariants, deterministic SVG output and regression contracts.
 - **Unreal runtime acceptance:** must come from an actual UE 5.8 Win64 build/package run.
 - **Demo acceptance:** additionally requires packaged-EXE smoke testing and visual approval of the exact candidate.
 
@@ -123,6 +131,8 @@ Important distinction:
 The authoritative roadmap is [`Docs/ROADMAP.md`](Docs/ROADMAP.md).
 
 Current truth: **125 / 130 tasks complete (96.2%)**. The remaining items are deliberately limited to real Native Chaos, authored-trailer and Win64 runtime/build acceptance blockers; they are not closed by source CI alone.
+
+The SVG progress card is generated from that same checklist by `Scripts/generate_progress_svg.py`. It is presentation only and must never be interpreted as demo readiness.
 
 ## Releases / downloads
 
@@ -138,8 +148,9 @@ GTT/
 ├── Config/                  # Unreal project/input configuration
 ├── Content/                 # Unreal project assets
 ├── Docs/                    # roadmap, playtests and design/acceptance notes
-├── Scripts/                 # milestone and release sanity verifiers
+├── Scripts/                 # milestone, progress and release sanity verifiers
 ├── Source/GTT/              # runtime C++ gameplay module
+├── assets/readme/           # SWIR hero + generated progress graphics
 ├── CHANGELOG.d/             # milestone changelog fragments
 ├── GTT.uproject
 └── README.md

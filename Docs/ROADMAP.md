@@ -13,6 +13,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 ## 📊 Overall progress
 
+![GTT roadmap progress — 125 of 130 roadmap items complete (96.2%), PRE-ALPHA](../assets/readme/progress-mini.svg)
+
+**Roadmap completion:** **125 / 130 (96.2%)** — **PRE-ALPHA**. Release/demo readiness is tracked separately by the Win64 runtime and visual gates.
+
 ```text
 ███████████████████░ 96.2%
 ```
@@ -23,6 +27,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
+
+> **0.1.28 packaged vertical-slice gate:** Farm Cargo now locks handoff authority to the exact vehicle that accepted the physical load, and a dedicated packaged runtime route must prove wrong-vehicle rejection, legal handoff, real payout/logistics progression and save before the technical demo candidate can PASS. This strengthens release evidence but intentionally does **not** close any Native Chaos, trailer-asset or Win64-runner checkbox below.
 
 ## 0.1 — Tractor Theft Prototype
 - [x] Unreal C++ project/module skeleton

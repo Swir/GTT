@@ -1,0 +1,24 @@
+name: GTT 0.1.28 Farm Cargo authority and runtime evidence sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  farm-cargo-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify previous demo vertical-slice baseline
+        run: python Scripts/verify_demo_vertical_slice.py
+      - name: Verify SWIR Progress SVG PRO output is current
+        run: python Scripts/generate_progress_svg.py --check
+      - name: Verify 0.1.28 exact cargo authority and packaged-runtime contract
+        run: python Scripts/verify_farm_cargo_authority.py

@@ -5,7 +5,7 @@ on:
       version:
         description: 'GTT version label for the package'
         required: true
-        default: '0.1.14'
+        default: '0.1.28'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -57,11 +57,17 @@ jobs:
       - name: Evaluate authored trailer rig, hitch and dual-wheel runtime
         shell: pwsh
         run: ./Scripts/evaluate_authored_trailer_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
+      - name: Run packaged Farm Cargo vertical-slice runtime exercise
+        shell: pwsh
+        run: ./Scripts/smoke_test_farm_cargo_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -LaunchTimeoutSeconds 70
+      - name: Evaluate exact loaded-vehicle Farm Cargo authority and progression
+        shell: pwsh
+        run: ./Scripts/evaluate_farm_cargo_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_FARM_CARGO_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Re-validate technical evidence bundle
         shell: pwsh
         run: |
           ./Scripts/validate_windows_package.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Configuration "$env:GTT_CONFIGURATION" -Version "$env:GTT_VERSION"
-          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','NATIVE_CHAOS_RUNTIME.json','NATIVE_DRIVETRAIN_SCENARIO.json','NATIVE_TRAILER_RUNTIME.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
+          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','NATIVE_CHAOS_RUNTIME.json','NATIVE_DRIVETRAIN_SCENARIO.json','NATIVE_TRAILER_RUNTIME.json','FARM_CARGO_SMOKE.json','FARM_CARGO_RUNTIME.json','GTT_FARM_CARGO_RUNTIME.log','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
       - name: Evaluate demo technical candidate
         shell: pwsh
         run: ./Scripts/evaluate_demo_candidate.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
@@ -83,7 +89,7 @@ jobs:
           $zip="$env:GTT_PACKAGE_DIR.zip"
           if(Test-Path $zip){Remove-Item -Force $zip}
           Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal
-          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip.FullName).Hash.ToLowerInvariant()
           Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
       - name: Upload verified Win64 evidence
         uses: actions/upload-artifact@v4
@@ -102,6 +108,9 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_CHAOS_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_DRIVETRAIN_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_TRAILER_RUNTIME.json
+            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RUNTIME.json
+            ${{ env.GTT_PACKAGE_DIR }}\GTT_FARM_CARGO_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_TECHNICAL_GATE.json
             ${{ env.GTT_PACKAGE_DIR }}\VISUAL_RUNTIME_SMOKE.json
@@ -121,6 +130,9 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_CHAOS_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_DRIVETRAIN_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_TRAILER_RUNTIME.json
+            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RUNTIME.json
+            ${{ env.GTT_PACKAGE_DIR }}\GTT_FARM_CARGO_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\VISUAL_RUNTIME_SMOKE.json
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json

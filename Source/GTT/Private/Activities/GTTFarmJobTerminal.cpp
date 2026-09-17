@@ -1,41 +1,22 @@
 #include "Activities/GTTFarmJobTerminal.h"
 
+#include "Activities/GTTFarmCargoAuthoritySubsystem.h"
 #include "Activities/GTTFarmJobDirector.h"
 #include "Components/StaticMeshComponent.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Vehicles/GTTRoadVehicleNativePawn.h"
-#include "Vehicles/GTTVehicleBase.h"
 
 namespace
 {
-constexpr float LegalHandoffMaxSpeedKmh = 3.0f;
-
-bool IsControlledCargoVehicleMovingTooFast(const UObject* WorldContextObject, float& OutSpeedKmh)
+void PushCargoAuthorityFailure(APawn* PlayerPawn, const FString& FailureReason)
 {
-    OutSpeedKmh = 0.0f;
-    APawn* ControlledPawn = UGameplayStatics::GetPlayerPawn(WorldContextObject, 0);
-    const bool bVehicleControlled = Cast<AGTTVehicleBase>(ControlledPawn) != nullptr || Cast<AGTTRoadVehicleNativePawn>(ControlledPawn) != nullptr;
-    if (!ControlledPawn || !bVehicleControlled) return false;
-
-    OutSpeedKmh = ControlledPawn->GetVelocity().Size2D() * 0.036f;
-    return OutSpeedKmh > LegalHandoffMaxSpeedKmh;
-}
-
-bool BlockUnsafeDriveByHandoff(const UObject* WorldContextObject, APawn* PlayerPawn)
-{
-    float SpeedKmh = 0.0f;
-    if (!IsControlledCargoVehicleMovingTooFast(WorldContextObject, SpeedKmh)) return false;
-
+    if (!PlayerPawn || FailureReason.IsEmpty()) return;
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
     {
-        Economy->PushMessage(FString::Printf(
-            TEXT("DELIVERY YARD: stop the cargo vehicle before handoff (%.1f km/h; max %.1f)."),
-            SpeedKmh, LegalHandoffMaxSpeedKmh), 4.5f);
+        Economy->PushMessage(FString::Printf(TEXT("DELIVERY YARD: %s"), *FailureReason), 5.0f);
     }
-    return true;
 }
 }
 
@@ -56,22 +37,67 @@ void AGTTFarmJobTerminal::Interact_Implementation(AActor* Interactor)
 {
     APawn* Pawn = Cast<APawn>(Interactor);
     AGTTFarmJobDirector* Director = Cast<AGTTFarmJobDirector>(UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass()));
-    if (!Pawn || !Director) return;
+    UWorld* World = GetWorld();
+    UGTTFarmCargoAuthoritySubsystem* CargoAuthority = World ? World->GetSubsystem<UGTTFarmCargoAuthoritySubsystem>() : nullptr;
+    if (!Pawn || !Director || !CargoAuthority) return;
 
     switch (TerminalType)
     {
         case EGTTFarmJobTerminalType::Start:
+            if (Director->GetStage() == EGTTFarmJobStage::Idle) CargoAuthority->ResetForNewContract();
             Director->TryStartJob(Pawn);
             break;
+
         case EGTTFarmJobTerminalType::Pickup:
-            Director->TryPickupCargo(Pawn);
+            // Lock the exact actor before the director applies physical load state. If the
+            // director rejects pickup for any reason, roll the lock back in the same action.
+            if (!CargoAuthority->CaptureLoadedVehicle(Pawn))
+            {
+                PushCargoAuthorityFailure(Pawn, TEXT("park a working cargo vehicle at the Feed Depot before loading."));
+                break;
+            }
+            if (!Director->TryPickupCargo(Pawn))
+            {
+                CargoAuthority->ClearLoadedVehicle(TEXT("pickup-rejected"));
+            }
             break;
+
         case EGTTFarmJobTerminalType::Finish:
-            if (!BlockUnsafeDriveByHandoff(this, Pawn)) Director->TryCompleteJob(Pawn);
+        {
+            FString FailureReason;
+            float SpeedKmh = 0.0f;
+            float DistanceCm = 0.0f;
+            if (!CargoAuthority->ValidateHandoff(GetActorLocation(), FailureReason, SpeedKmh, DistanceCm))
+            {
+                PushCargoAuthorityFailure(Pawn, FailureReason);
+                break;
+            }
+            if (Director->TryCompleteJob(Pawn))
+            {
+                const bool bContractComplete = Director->GetStage() == EGTTFarmJobStage::Idle;
+                CargoAuthority->MarkAcceptedHandoff(TEXT("HILL_FARM"), bContractComplete, SpeedKmh, DistanceCm);
+                if (bContractComplete) CargoAuthority->ClearLoadedVehicle(TEXT("contract-complete"));
+            }
             break;
+        }
+
         case EGTTFarmJobTerminalType::FinalFinish:
-            if (!BlockUnsafeDriveByHandoff(this, Pawn)) Director->TryCompleteFinalStop(Pawn);
+        {
+            FString FailureReason;
+            float SpeedKmh = 0.0f;
+            float DistanceCm = 0.0f;
+            if (!CargoAuthority->ValidateHandoff(GetActorLocation(), FailureReason, SpeedKmh, DistanceCm))
+            {
+                PushCargoAuthorityFailure(Pawn, FailureReason);
+                break;
+            }
+            if (Director->TryCompleteFinalStop(Pawn))
+            {
+                CargoAuthority->MarkAcceptedHandoff(TEXT("NORTH_WOOD_YARD"), true, SpeedKmh, DistanceCm);
+                CargoAuthority->ClearLoadedVehicle(TEXT("contract-complete"));
+            }
             break;
+        }
     }
 }
 
@@ -82,11 +108,11 @@ FText AGTTFarmJobTerminal::GetInteractionText_Implementation() const
         case EGTTFarmJobTerminalType::Start:
             return NSLOCTEXT("GTT", "FarmJobStartV3", "Take rural cargo contract");
         case EGTTFarmJobTerminalType::Pickup:
-            return NSLOCTEXT("GTT", "FarmJobPickupV2", "Load feed cargo");
+            return NSLOCTEXT("GTT", "FarmJobPickupV3", "Load cargo into this vehicle");
         case EGTTFarmJobTerminalType::Finish:
-            return NSLOCTEXT("GTT", "FarmJobFinishV4", "Stop and hand off cargo at Hill Farm");
+            return NSLOCTEXT("GTT", "FarmJobFinishV5", "Stop the loaded vehicle and hand off cargo at Hill Farm");
         case EGTTFarmJobTerminalType::FinalFinish:
-            return NSLOCTEXT("GTT", "FarmJobFinalFinishV2", "Stop and complete North Wood Yard handoff");
+            return NSLOCTEXT("GTT", "FarmJobFinalFinishV3", "Stop the loaded vehicle and complete North Wood Yard handoff");
     }
     return FText::GetEmpty();
 }

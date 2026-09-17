@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="180" viewBox="0 0 1200 180" role="img" aria-labelledby="progress-title progress-desc">
+  <title id="progress-title">Grand Theft Tractor — Roadmap completion: 96.2%</title>
+  <desc id="progress-desc">Grand Theft Tractor. Measured scope: Roadmap completion. Status: PRE-ALPHA. Verified counter: 125 / 130 roadmap items. Progress: 96.2%. This graphic measures roadmap checklist completion, not demo or release readiness.</desc>
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#02050A" />
+      <stop offset="1" stop-color="#07111C" />
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0088FF" />
+      <stop offset="1" stop-color="#62E5FF" />
+    </linearGradient>
+    <filter id="soft-glow" x="-20%" y="-100%" width="140%" height="300%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" fill="none" stroke="#62E5FF" stroke-opacity="0.035" stroke-width="1" />
+    </pattern>
+    <clipPath id="track-clip">
+      <rect x="50" y="128" width="1100" height="18" rx="9" />
+    </clipPath>
+  </defs>
+  <rect x="1" y="1" width="1198" height="178" rx="22" fill="url(#panel)" stroke="#62E5FF" stroke-opacity="0.34" stroke-width="2" />
+  <rect x="2" y="2" width="1196" height="176" rx="21" fill="url(#grid)" />
+  <text id="project-name" x="50" y="48" fill="#F4FAFF" font-family="Segoe UI,Arial,sans-serif" font-size="28" font-weight="700">Grand Theft Tractor</text>
+  <text id="scope-label" x="50" y="78" fill="#8DA8B8" font-family="Segoe UI,Arial,sans-serif" font-size="17">Measured scope: Roadmap completion</text>
+  <text id="status-label" x="1150" y="48" text-anchor="end" fill="#62E5FF" font-family="Segoe UI,Arial,sans-serif" font-size="16" font-weight="700">PRE-ALPHA</text>
+  <text id="counter-label" x="1150" y="78" text-anchor="end" fill="#8DA8B8" font-family="Segoe UI,Arial,sans-serif" font-size="16">125 / 130 roadmap items</text>
+  <text id="percent-label" x="50" y="112" fill="#F4FAFF" font-family="Segoe UI,Arial,sans-serif" font-size="22" font-weight="700">96.2%</text>
+  <text x="112" y="112" fill="#8DA8B8" font-family="Segoe UI,Arial,sans-serif" font-size="14">verified progress</text>
+  <rect x="50" y="128" width="1100" height="18" rx="9" fill="#0A1A28" stroke="#62E5FF" stroke-opacity="0.18" />
+  <rect id="progress-fill" x="50" y="128" width="1057.692308" height="18" rx="9" fill="url(#bar)" clip-path="url(#track-clip)" filter="url(#soft-glow)" />
+  <text id="release-note" x="50" y="166" fill="#8DA8B8" font-family="Segoe UI,Arial,sans-serif" font-size="13">Demo / release readiness is a separate runtime + visual gate.</text>
+</svg>
