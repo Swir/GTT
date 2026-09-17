@@ -27,7 +27,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 **No public demo release is available yet.** Source CI passing does not mean a Windows demo EXE has been verified.
 
-Current development milestone: **0.1.22 — Ranger road stops, roadside search and flee escalation**.
+Current development milestone: **0.1.24 — Warden enforcement UX, civilian roadside response and lane-aware traffic**.
 
 ## What is GTT?
 
@@ -43,7 +43,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
 | 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
-| 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure and vehicle road stops. |
+| 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware vehicle road stops, compact COMPLY/SEARCH/FLEE HUD and nearby civilian roadside reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. |
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
