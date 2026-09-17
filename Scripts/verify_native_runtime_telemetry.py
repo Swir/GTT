@@ -61,7 +61,8 @@ for token in [
     assert token in evaluator, f"missing runtime evaluator contract token: {token}"
 
 for token in [
-    "default: '0.1.15'",
+    "workflow_dispatch:",
+    "runs-on: [self-hosted, windows, x64, unreal-5.8]",
     "evaluate_native_chaos_runtime.ps1",
     "NATIVE_CHAOS_RUNTIME.json",
     "Upload verified Win64 evidence",
