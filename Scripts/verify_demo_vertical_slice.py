@@ -27,7 +27,7 @@ def main() -> None:
         "Source/GTT/Public/Activities/GTTFarmRouteBeacon.h",
         "class GTT_API AGTTFarmRouteBeacon",
         "IsRouteBeaconDeployed",
-        "presentation only",
+        "Presentation-only world-space guidance",
     )
     beacon_cpp = require_tokens(
         "Source/GTT/Private/Activities/GTTFarmRouteBeacon.cpp",
@@ -98,10 +98,16 @@ def main() -> None:
     checked = len(re.findall(r"^\s*-\s*\[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
     unchecked = len(re.findall(r"^\s*-\s*\[ \]", roadmap, flags=re.MULTILINE))
     total = checked + unchecked
-    if (checked, total) != (125, 130):
-        raise AssertionError(f"roadmap checkbox truth changed unexpectedly: {checked}/{total}")
+    if (checked, unchecked, total) != (125, 5, 130):
+        raise AssertionError(f"roadmap checkbox truth changed unexpectedly: checked={checked}, open={unchecked}, total={total}")
     if "96.2%" not in roadmap or "███████████████████░ 96.2%" not in roadmap:
         raise AssertionError("roadmap dashboard is stale or malformed")
+
+    readme = read("README.md")
+    if "<!-- SWIR-README-STANDARD:v2 -->" not in readme:
+        raise AssertionError("README must track the current canonical SWIR README PRO v2 marker")
+    if "## 🔎 Search Keywords" not in readme or "No public demo release is available yet" not in readme:
+        raise AssertionError("README discoverability/release-truth contract regressed")
 
     playtest = require_tokens(
         "Docs/PLAYTEST_0.1.27.md",
