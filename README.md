@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.29 — deterministic packaged Farm Cargo runtime exercise and evidence gating**.
+Current development milestone: **0.1.30 — persistent Farm Cargo recovery, exact-vehicle rebinding and primary-save hardening**.
 
 ## What is GTT?
 
@@ -52,7 +52,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
-| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy and campaign systems. |
+| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery. |
 | 📻 Original radio framework | Four fictional stations with track rotation and project-owned/cleared audio workflow. |
 | 🎮 Input support | Keyboard/mouse plus controller mappings for movement, vehicles, interaction, combat, radio and save/load. |
 
@@ -112,15 +112,15 @@ GTT uses a C++ gameplay core with Blueprint-friendly APIs. Major systems are sep
 
 Vehicle development currently uses a guarded migration model: proven gameplay state remains available while native Chaos components gain dedicated runtime evidence and acceptance checks. This prevents a source-only configuration change from being mistaken for verified packaged physics behavior.
 
-Farm Cargo uses the same pattern for physical delivery authority: the job director owns contract/economy state, while `UGTTFarmCargoAuthoritySubsystem` binds the exact loaded vehicle and verifies that same physical actor is present and stopped at buyer handoffs. Presentation markers do not own payout, reputation, Wanted or save state.
+Farm Cargo uses the same pattern for physical delivery authority: the job director owns contract/economy state, while `UGTTFarmCargoAuthoritySubsystem` binds the exact loaded vehicle and verifies that same physical vehicle is present and stopped at buyer handoffs. Since 0.1.30, the active route and stable persistent vehicle ID are saved in the existing primary snapshot; after load or actor recreation, authority may rebind only an actor carrying that exact ID. Presentation markers do not own payout, reputation, Wanted or save state.
 
-Milestone 0.1.29 adds an opt-in packaged-runtime exercise that drives the existing Farm Cargo path through the real terminals and authorities: contract acceptance, exact-vehicle pickup binding, deliberate wrong-vehicle rejection, Hill Farm relay, North Wood Yard completion, payout/reputation observation and save verification. The harness is inert during normal play and only counts as runtime evidence when a qualifying packaged Win64 run produces the expected evidence manifest.
+Milestone 0.1.29 added an opt-in packaged-runtime exercise that drives the existing Farm Cargo path through real terminals and authorities: contract acceptance, exact-vehicle pickup binding, deliberate wrong-vehicle rejection, Hill Farm relay, North Wood Yard completion, payout/reputation observation and save verification. Milestone 0.1.30 hardens the ordinary player save path around that same loop: ReachPickup, loaded delivery and Hill Farm relay checkpoints persist without re-reserving stock, the exact cargo vehicle can recover after save/load or garage actor recreation, and a legacy writer can no longer downgrade the primary snapshot to schema v3. The evidence harness remains inert during normal play.
 
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
 
-For Farm Cargo, a successful future packaged candidate must produce `FARM_CARGO_RUNTIME.json` with the `gtt.farm-cargo-runtime.v1` schema. The source-side harness and evaluator can be validated by CI, but **a manifest is not claimed until the packaged Unreal executable actually runs and emits the required PASS evidence**.
+For Farm Cargo, a successful future packaged candidate must produce `FARM_CARGO_RUNTIME.json` with the `gtt.farm-cargo-runtime.v1` schema. The source-side harness, exact-vehicle authority and persistent recovery contracts can be validated by CI, but **a manifest is not claimed until the packaged Unreal executable actually runs and emits the required PASS evidence**.
 
 The roadmap graphics are deterministic outputs of `Scripts/generate_progress_svg.py`; `--check` verifies checklist mathematics, XML, bounded fill geometry, README/Roadmap embeds and separation between roadmap completion and release readiness.
 
