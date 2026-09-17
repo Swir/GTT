@@ -160,8 +160,12 @@ void AGTTLogisticsDispatcherPawn::Interact_Implementation(AActor* Interactor)
         FString ReservationSummary;
         if (bChanged)
         {
+            // Keep the relationship allowance visible for backwards-compatible desk behavior,
+            // but actually write an emergency order with the stricter live pickup SLA.
+            const int32 RelationshipHoldMinutes = Relationships->GetCargoReservationHoldMinutes();
+            const int32 EffectiveHoldMinutes = Relationships->GetEffectiveCargoReservationHoldMinutes();
             const bool bReserved = Logistics->ReserveNegotiatedCargoOrder(
-                Relationships->GetCargoReservationHoldMinutes(),
+                EffectiveHoldMinutes,
                 Relationships->GetCargoReservationCapacity(),
                 ReservationSummary);
             if (!bReserved)
@@ -170,7 +174,8 @@ void AGTTLogisticsDispatcherPawn::Interact_Implementation(AActor* Interactor)
             }
             else
             {
-                Summary = FString::Printf(TEXT("%s | %s"), *Summary, *ReservationSummary);
+                Summary = FString::Printf(TEXT("%s | %s | HOLD %d MIN (relationship allowance %d)"),
+                    *Summary, *ReservationSummary, EffectiveHoldMinutes, RelationshipHoldMinutes);
             }
         }
 
