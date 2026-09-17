@@ -91,10 +91,10 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     SetSteeringInput(EffectiveSteering);
     SetBrakeInput(FMath::IsNearlyZero(RequestedThrottle, DirectionDeadZone) ? IdleBrakeInput : 0.0f);
 
-    if (!FMath::IsNearlyZero(RequestedThrottle, DirectionDeadZone))
-    {
-        SetTargetGear(RequestedThrottle < 0.0f ? -1 : 1, true);
-    }
+    // Direction selection is intentionally NOT performed here. UGTTNativeDriveDynamicsSubsystem is
+    // the single final drivetrain authority for Fieldmaster, Rattleback and Mulebox. Keeping
+    // SetTargetGear out of the per-tick Fieldmaster command path lets Chaos automatic forward gears
+    // upshift normally and prevents this component from bypassing the shared forward/reverse interlock.
 }
 
 void UGTTFieldmasterChaosMovementComponent::HoldFieldmasterStopped()
