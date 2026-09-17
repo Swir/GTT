@@ -3,6 +3,7 @@
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
