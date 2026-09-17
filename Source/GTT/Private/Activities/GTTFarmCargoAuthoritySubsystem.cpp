@@ -77,10 +77,9 @@ APawn* UGTTFarmCargoAuthoritySubsystem::ResolveVehicleLoadedAtDepot(APawn* Playe
     APawn* Controlled = UGameplayStatics::GetPlayerPawn(this, 0);
     if (AGTTMuleboxNativePawn* NativeMulebox = Cast<AGTTMuleboxNativePawn>(Controlled))
     {
-        if (NativeMulebox->IsNativeReady() && NativeMulebox->IsLegacyTakeoverActive())
-        {
-            return NativeMulebox;
-        }
+        // Mirror AGTTFarmJobDirector::TryPickupCargo exactly: a controlled native Mulebox is
+        // the loaded actor. Runtime native readiness remains the existing Chaos acceptance gate.
+        return NativeMulebox;
     }
 
     return FindNearbyLegacyWorkVehicle(this, PlayerPawn, DepotVehicleSearchRadiusCm);
