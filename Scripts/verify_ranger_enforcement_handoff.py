@@ -75,8 +75,8 @@ for needle, label in [
 # falsely close any of the five Win64/runtime hardware acceptance blockers.
 require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock")
 require(roadmap, "📊 Overall progress", "roadmap dashboard heading")
-checked = len(re.findall(r"^- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
-open_items = len(re.findall(r"^- \[ \]", roadmap, flags=re.MULTILINE))
+checked = len(re.findall(r"^\s*- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
+open_items = len(re.findall(r"^\s*- \[ \]", roadmap, flags=re.MULTILINE))
 total = checked + open_items
 if (checked, open_items, total) != (125, 5, 130):
     raise AssertionError(f"roadmap checkbox truth changed unexpectedly: checked={checked}, open={open_items}, total={total}")
