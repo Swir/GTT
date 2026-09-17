@@ -34,11 +34,16 @@ bool UGTTRangerRoadStopSubsystem::BeginStop(
     }
 
     const bool bExistingLiveStop =
-        (Phase == EGTTRangerRoadStopPhase::Comply || Phase == EGTTRangerRoadStopPhase::Search) &&
+        (Phase == EGTTRangerRoadStopPhase::Comply ||
+         Phase == EGTTRangerRoadStopPhase::Search ||
+         Phase == EGTTRangerRoadStopPhase::Flee) &&
         ActiveController.IsValid() && ActiveTarget.IsValid();
-    if (bExistingLiveStop && ActiveController.Get() != Controller)
+    if (bExistingLiveStop)
     {
-        return false;
+        // COMPLY/SEARCH belongs to one primary ranger. FLEE remains latched for
+        // the wildlife incident so reinforcement cannot immediately re-stop or
+        // proximity-cite a driver that already accepted the police escalation.
+        return ActiveController.Get() == Controller && Phase != EGTTRangerRoadStopPhase::Flee;
     }
 
     ActiveController = Controller;
@@ -109,14 +114,14 @@ bool UGTTRangerRoadStopSubsystem::IsOwnedBy(const AGTTRangerAIController* Contro
 
 bool UGTTRangerRoadStopSubsystem::IsStopForTarget(const APawn* Target) const
 {
-    if (!Target || ActiveTarget.Get() != Target)
+    if (!Target || ActiveTarget.Get() != Target || !ActiveController.IsValid())
     {
         return false;
     }
 
     return Phase == EGTTRangerRoadStopPhase::Comply ||
         Phase == EGTTRangerRoadStopPhase::Search ||
-        (Phase == EGTTRangerRoadStopPhase::Flee && IsFleeDisplayVisible());
+        Phase == EGTTRangerRoadStopPhase::Flee;
 }
 
 bool UGTTRangerRoadStopSubsystem::HasTrafficControl() const

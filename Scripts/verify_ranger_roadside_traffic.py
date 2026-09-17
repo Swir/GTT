@@ -37,6 +37,8 @@ for needle, label in [
     require(subsystem_h, needle, label)
 
 for needle, label in [
+    ("Phase == EGTTRangerRoadStopPhase::Flee", "flee latch blocks immediate re-stop"),
+    ("ActiveController.Get() == Controller && Phase != EGTTRangerRoadStopPhase::Flee", "single-owner/reacquire guard"),
     ("ApproachDot <= 0.20f", "approach-direction filter"),
     ("LateralDistanceCm > TrafficCorridorHalfWidthCm", "cross-road/corridor filter"),
     ("Phase == EGTTRangerRoadStopPhase::Search", "search-phase traffic hold"),
@@ -107,7 +109,8 @@ for text, label in [(playtest, "playtest"), (changelog, "changelog")]:
     require(text.lower(), "roadside", f"{label} roadside coverage")
 
 print("GTT 0.1.23 ranger roadside positioning / traffic sanity: PASS")
-print("- one world-authoritative road stop now coordinates primary ranger, reinforcement and ambient traffic")
+print("- one world-authoritative road stop coordinates primary ranger, reinforcement and ambient traffic")
+print("- FLEE stays latched for the live wildlife incident so reinforcement cannot re-stop/proximity-cite it")
 print("- traffic progressively slows, physically holds near the stop and resumes without a persistent queue state")
 print("- post-evasion proximity citations cannot erase a police escalation on the following ranger tick")
 print("- roadmap remains truthfully locked at 125/130 (96.2%)")
