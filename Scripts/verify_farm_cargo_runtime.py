@@ -86,7 +86,28 @@ def main() -> None:
         "wrong-vehicle handoff rejection was not proven",
         "FARM_CARGO_RUNTIME_COMPLETE",
         "FARM_CARGO_RUNTIME.json",
+        "Require-IntegerField",
+        "missing required integer field",
+        "completion marker gate",
+        "evidence disagrees between FINAL_HANDOFF and COMPLETE",
     )
+    for required_field in (
+        "active_order_tier",
+        "same_vehicle",
+        "payout_delta",
+        "cargo_runs_delta",
+        "reputation_delta",
+        "authority_cleared",
+        "accepted",
+        "pickup",
+        "wrong_vehicle_rejected",
+        "hill",
+        "final",
+        "save",
+    ):
+        if evaluator.count(f"'{required_field}'") < 1:
+            raise AssertionError(f"Farm Cargo evaluator does not explicitly require {required_field}")
+
     smoke = require(
         "Scripts/smoke_test_windows.ps1",
         "-GTTDemoSmokeScenario",
@@ -106,7 +127,7 @@ def main() -> None:
         "gtt.farm-cargo-runtime.v1",
         "farm_cargo_runtime='PASS'",
     )
-    _ = evaluator, smoke, package_flow, candidate
+    _ = smoke, package_flow, candidate
 
     playtest = require(
         "Docs/PLAYTEST_0.1.29.md",
@@ -146,16 +167,20 @@ def main() -> None:
         if token not in roadmap:
             raise AssertionError(f"roadmap dashboard drift: missing {token}")
 
-    readme = text("README.md")
-    if "<!-- SWIR-README-STANDARD:v2 -->" not in readme:
-        raise AssertionError("README PRO v2 marker missing or downgraded")
-    if "## 🔎 Search Keywords" not in readme:
-        raise AssertionError("README Search Keywords missing")
-    if "assets/readme/progress-card.svg" not in readme:
-        raise AssertionError("SWIR Progress card missing from README")
+    readme = require(
+        "README.md",
+        "<!-- SWIR-README-STANDARD:v2 -->",
+        "## 🔎 Search Keywords",
+        "assets/readme/progress-card.svg",
+        "0.1.29",
+        "FARM_CARGO_RUNTIME.json",
+        "No public demo release is available yet.",
+    )
+    if "release readiness remains not ready" not in readme.lower():
+        raise AssertionError("README must keep roadmap completion separate from release readiness")
 
     subprocess.run([sys.executable, str(ROOT / "Scripts/generate_progress_svg.py"), "--check"], check=True)
-    print("[OK] GTT 0.1.29 Farm Cargo packaged-runtime harness is wired through exact-vehicle authority, payout/reputation/save observation, Win64 evidence and demo technical gate.")
+    print("[OK] GTT 0.1.29 Farm Cargo packaged-runtime harness is wired through exact-vehicle authority, payout/reputation/save observation, strict Win64 evidence fields and the demo technical gate.")
     print("[OK] Roadmap remains 125/130 (96.2%); Progress SVG values remain derived from the protected checklist; release readiness remains separate.")
 
 
