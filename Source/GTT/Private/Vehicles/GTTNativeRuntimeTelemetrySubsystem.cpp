@@ -94,11 +94,17 @@ void UGTTNativeRuntimeTelemetrySubsystem::SampleFieldmaster(AGTTFieldmasterNativ
     AGTTFarmTrailer* Trailer = FindAttachedTrailer(GetWorld(), Vehicle);
     const float TowLoad = Trailer ? Trailer->GetTowLoadFactor() : 0.0f;
     const float SpeedKmh = Vehicle->GetVelocity().Size() * 0.036f;
+    const float SignedSpeedKmh = FVector::DotProduct(Vehicle->GetVelocity(), Vehicle->GetActorForwardVector()) * 0.036f;
+    const bool bAutomaticGears = Movement->TransmissionSetup.bUseAutomaticGears;
+    const int32 ForwardGearCount = Movement->TransmissionSetup.ForwardGearRatios.Num();
 
     UE_LOG(LogGTT, Log,
-        TEXT("NATIVE_FIELDMASTER_RUNTIME_TELEMETRY vehicle=RustyFieldmaster60 movement=ACTIVE speed_kmh=%.2f current_gear=%d throttle=%.2f brake=%.2f steer=%.2f valid_wheels=%d contacts=%d front_contacts=%d rear_contacts=%d suspension_ready=%s suspension_samples=%d suspension_min=%.3f suspension_max=%.3f front_slip_risk=%.3f rear_slip_risk=%.3f max_slip_magnitude=%.2f max_slip_angle=%.2f left_load=%.3f right_load=%.3f axle_imbalance=%.3f traction_authority=%.3f driver=%s trailer=%s tow_load=%.3f"),
+        TEXT("NATIVE_FIELDMASTER_RUNTIME_TELEMETRY vehicle=RustyFieldmaster60 movement=ACTIVE speed_kmh=%.2f signed_speed_kmh=%.2f current_gear=%d automatic_gears=%s forward_gears=%d throttle=%.2f brake=%.2f steer=%.2f valid_wheels=%d contacts=%d front_contacts=%d rear_contacts=%d suspension_ready=%s suspension_samples=%d suspension_min=%.3f suspension_max=%.3f front_slip_risk=%.3f rear_slip_risk=%.3f max_slip_magnitude=%.2f max_slip_angle=%.2f left_load=%.3f right_load=%.3f axle_imbalance=%.3f traction_authority=%.3f driver=%s trailer=%s tow_load=%.3f"),
         SpeedKmh,
+        SignedSpeedKmh,
         Movement->GetCurrentGear(),
+        bAutomaticGears ? TEXT("YES") : TEXT("NO"),
+        ForwardGearCount,
         Movement->GetThrottleInput(),
         Movement->GetBrakeInput(),
         Movement->GetSteeringInput(),
