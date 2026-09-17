@@ -101,8 +101,9 @@ FString AGTTLogisticsDispatcherPawn::BuildOnShiftStatusLine() const
 
     if (RoleTag == FeedDepotDispatcherRole)
     {
-        return FString::Printf(TEXT("E NEGOTIATE | DESK T%d | %s %d"),
-            Logistics->GetActiveCargoOrderTier(), *Relationships->GetFeedRelationshipLabel(), Relationships->GetFeedDispatcherRelationship());
+        return FString::Printf(TEXT("E NEGOTIATE | DESK T%d | Q%d/%d | %s %d"),
+            Logistics->GetActiveCargoOrderTier(), Logistics->GetCargoReservationCount(),
+            Relationships->GetCargoReservationCapacity(), *Relationships->GetFeedRelationshipLabel(), Relationships->GetFeedDispatcherRelationship());
     }
     if (RoleTag == HillFarmReceiverRole)
     {
@@ -142,24 +143,46 @@ void AGTTLogisticsDispatcherPawn::Interact_Implementation(AActor* Interactor)
         for (int32 Attempt = 0; Attempt < 3; ++Attempt)
         {
             bChanged = Logistics->CycleCargoNegotiatedOrder(Summary);
-            if (!bChanged || Logistics->GetActiveCargoOrderTier() <= AccessTier) break;
+            const int32 NegotiatedTier = Logistics->GetNegotiatedCargoOrderTier();
+            // Keep the existing active-tier guard, but when a queued reservation owns the active
+            // slot we must also validate the freshly negotiated tier before protecting stock.
+            if (!bChanged || (Logistics->GetActiveCargoOrderTier() <= AccessTier && NegotiatedTier <= AccessTier)) break;
         }
-        if (bChanged && Logistics->GetActiveCargoOrderTier() > AccessTier)
+        if (bChanged && Logistics->GetNegotiatedCargoOrderTier() > AccessTier)
         {
             Logistics->ClearCargoNegotiatedOrder();
             bChanged = false;
             Summary = FString::Printf(TEXT("Feed Dispatcher trust only covers T%d work right now. Complete clean deliveries to unlock heavier manual reservations."), AccessTier);
         }
 
-        const FString RelationshipLine = FString::Printf(TEXT("%s %d | DESK ACCESS T%d | %s"),
-            *Relationships->GetFeedRelationshipLabel(), Relationships->GetFeedDispatcherRelationship(), AccessTier,
-            *Relationships->GetDispatcherReaction(FeedDepotDispatcherRole));
-        Economy->PushMessage(bChanged
-            ? FString::Printf(TEXT("FEED DISPATCH NEGOTIATION | CONTRACT DESK: %s | %s | %s"), *Summary, *RelationshipLine, *Relationships->GetContractDeskSummary())
-            : FString::Printf(TEXT("%s | %s"), *Summary, *RelationshipLine),
-            bChanged ? 8.0f : 6.0f);
+        FString ReservationSummary;
         if (bChanged)
         {
+            const bool bReserved = Logistics->ReserveNegotiatedCargoOrder(
+                Relationships->GetCargoReservationHoldMinutes(),
+                Relationships->GetCargoReservationCapacity(),
+                ReservationSummary);
+            if (!bReserved)
+            {
+                Summary = FString::Printf(TEXT("%s | HOLD NOT WRITTEN: %s"), *Summary, *ReservationSummary);
+            }
+            else
+            {
+                Summary = FString::Printf(TEXT("%s | %s"), *Summary, *ReservationSummary);
+            }
+        }
+
+        const FString RelationshipLine = FString::Printf(TEXT("%s %d | DESK ACCESS T%d | %s | %s"),
+            *Relationships->GetFeedRelationshipLabel(), Relationships->GetFeedDispatcherRelationship(), AccessTier,
+            *Relationships->GetCargoReservationFavorLabel(), *Relationships->GetDispatcherReaction(FeedDepotDispatcherRole));
+        Economy->PushMessage(bChanged
+            ? FString::Printf(TEXT("FEED DISPATCH NEGOTIATION | CONTRACT DESK: %s | %s | %s"), *Summary, *RelationshipLine, *Relationships->GetContractDeskSummary())
+            : FString::Printf(TEXT("%s | %s | %s"), *Summary, *RelationshipLine, *Logistics->GetCargoReservationSummary()),
+            bChanged ? 9.0f : 6.5f);
+        if (bChanged)
+        {
+            // Even a failed second hold can clear/advance the negotiated selection. Persist the
+            // authoritative queue/market state so a reload cannot restore stock that was held.
             if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
         }
         return;
@@ -167,20 +190,20 @@ void AGTTLogisticsDispatcherPawn::Interact_Implementation(AActor* Interactor)
 
     if (RoleTag == HillFarmReceiverRole)
     {
-        Economy->PushMessage(FString::Printf(TEXT("HILL RECEIVER [%s %d]: need %d units. Current %s | %s. %s Wanted drivers get no legal handoff."),
+        Economy->PushMessage(FString::Printf(TEXT("HILL RECEIVER [%s %d]: need %d units. Current %s | %s | %s. %s Wanted drivers get no legal handoff."),
             *Relationships->GetHillRelationshipLabel(), Relationships->GetHillReceiverRelationship(),
             Logistics->GetHillFarmDemand(), *Logistics->GetCargoNegotiationStatusLabel(), *Logistics->GetCargoCommodityLabel(),
-            *Relationships->GetDispatcherReaction(HillFarmReceiverRole)), 7.0f);
+            *Logistics->GetCargoReservationSummary(), *Relationships->GetDispatcherReaction(HillFarmReceiverRole)), 7.5f);
         return;
     }
 
     if (RoleTag == WoodYardForemanRole)
     {
-        Economy->PushMessage(FString::Printf(TEXT("WOOD FOREMAN [%s %d]: need %d units, backlog pressure %d. Current %s | %s. %s"),
+        Economy->PushMessage(FString::Printf(TEXT("WOOD FOREMAN [%s %d]: need %d units, backlog pressure %d. Current %s | %s | %s. %s"),
             *Relationships->GetWoodRelationshipLabel(), Relationships->GetWoodForemanRelationship(),
             Logistics->GetWoodYardDemand(), Logistics->GetCargoBacklogPressure(),
             *Logistics->GetCargoNegotiationStatusLabel(), *Logistics->GetRoadSupplySignalLabel(),
-            *Relationships->GetDispatcherReaction(WoodYardForemanRole)), 7.0f);
+            *Logistics->GetCargoReservationSummary(), *Relationships->GetDispatcherReaction(WoodYardForemanRole)), 7.5f);
         return;
     }
 
@@ -200,8 +223,9 @@ FText AGTTLogisticsDispatcherPawn::GetInteractionText_Implementation() const
     }
     if (RoleTag == FeedDepotDispatcherRole)
     {
-        return FText::FromString(FString::Printf(TEXT("Negotiate CARGO order | %s | access T%d | %s"),
-            *Relationships->GetFeedRelationshipLabel(), Relationships->GetCargoDeskAccessTier(), *Logistics->GetCargoNegotiationStatusLabel()));
+        return FText::FromString(FString::Printf(TEXT("Negotiate CARGO order | %s | access T%d | queue %d/%d | %s"),
+            *Relationships->GetFeedRelationshipLabel(), Relationships->GetCargoDeskAccessTier(),
+            Logistics->GetCargoReservationCount(), Relationships->GetCargoReservationCapacity(), *Logistics->GetCargoNegotiationStatusLabel()));
     }
     if (RoleTag == HillFarmReceiverRole)
     {

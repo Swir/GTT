@@ -19,6 +19,7 @@ namespace
     constexpr int32 MaxHillFarmDemand = 12;
     constexpr int32 MaxWoodYardDemand = 10;
     constexpr int32 MaxCargoBacklogPressure = 6;
+    constexpr int32 MaxCargoReservations = 2;
 }
 
 float UGTTLogisticsReputationSubsystem::GetTimeOfDayHours() const
@@ -35,9 +36,52 @@ int32 UGTTLogisticsReputationSubsystem::GetDayNumber() const
     return Cycle ? FMath::Max(1, Cycle->GetDayNumber()) : 1;
 }
 
+void UGTTLogisticsReputationSubsystem::ExpireCargoReservations(int32 CurrentDay, float CurrentHour) const
+{
+    const int32 AlignedCount = FMath::Min3(
+        CargoReservedOrderTiers.Num(),
+        CargoReservedUnits.Num(),
+        CargoReservationExpiryHours.Num());
+    CargoReservedOrderTiers.SetNum(AlignedCount);
+    CargoReservedUnits.SetNum(AlignedCount);
+    CargoReservationExpiryHours.SetNum(AlignedCount);
+
+    if (AlignedCount <= 0)
+    {
+        CargoReservationDay = 0;
+        return;
+    }
+
+    const bool bWrongDay = CargoReservationDay <= 0 || CargoReservationDay != CurrentDay;
+    for (int32 Index = CargoReservedOrderTiers.Num() - 1; Index >= 0; --Index)
+    {
+        const bool bExpired = bWrongDay || CargoReservationExpiryHours[Index] <= CurrentHour;
+        if (!bExpired) continue;
+
+        // A hold that expires before pickup releases its stock back to the depot, but it also
+        // raises backlog pressure once: the dispatcher protected scarce stock for a driver who
+        // did not arrive. Removing the entry makes this consequence idempotent across queries.
+        FeedDepotStock = FMath::Clamp(FeedDepotStock + FMath::Max(0, CargoReservedUnits[Index]), 0, MaxFeedDepotStock);
+        CargoBacklogPressure = FMath::Clamp(CargoBacklogPressure + 1, 0, MaxCargoBacklogPressure);
+        CargoReservedOrderTiers.RemoveAt(Index);
+        CargoReservedUnits.RemoveAt(Index);
+        CargoReservationExpiryHours.RemoveAt(Index);
+    }
+
+    if (CargoReservedOrderTiers.Num() <= 0)
+    {
+        CargoReservationDay = 0;
+    }
+}
+
 void UGTTLogisticsReputationSubsystem::EnsureCargoMarketForCurrentDay() const
 {
     const int32 CurrentDay = GetDayNumber();
+    const float CurrentHour = GetTimeOfDayHours();
+
+    // Reservations are true stock commitments. Expire/release them before applying a new-day
+    // restock so stale holds cannot make stock disappear forever or survive into another shift.
+    ExpireCargoReservations(CurrentDay, CurrentHour);
 
     // Negotiated orders are same-shift commitments. A saved choice from an earlier world day
     // must not silently override a fresh stock/demand picture after the next rural restock.
@@ -182,6 +226,14 @@ int32 UGTTLogisticsReputationSubsystem::GetActiveCargoOrderTier() const
 {
     EnsureCargoMarketForCurrentDay();
 
+    // Oldest stock-backed reservation always owns the next CARGO pickup. This makes the queue
+    // operational rather than a text-only list and lets the existing FarmJobDirector consume it
+    // through the same GetActiveCargoOrderTier()/ReserveCargoContract path.
+    if (CargoReservationDay == GetDayNumber() && CargoReservedOrderTiers.Num() > 0)
+    {
+        return CargoReservedOrderTiers[0];
+    }
+
     if (CargoNegotiationDay == GetDayNumber() && CargoNegotiatedOrderTier > 0)
     {
         if (IsCargoOrderTierAvailableInternal(CargoNegotiatedOrderTier))
@@ -272,6 +324,11 @@ FString UGTTLogisticsReputationSubsystem::GetCargoNegotiationStatusLabel() const
     EnsureCargoMarketForCurrentDay();
     const int32 MarketTier = GetRecommendedCargoOrderTier();
     const int32 ActiveTier = GetActiveCargoOrderTier();
+    if (GetCargoReservationCount() > 0)
+    {
+        return FString::Printf(TEXT("RESERVED T%d | MARKET T%d | %s"),
+            ActiveTier, MarketTier, *GetCargoReservationSummary());
+    }
     return FString::Printf(TEXT("%s T%d | MARKET T%d | %s"),
         HasExplicitCargoNegotiation() ? TEXT("NEGOTIATED") : TEXT("AUTO"),
         ActiveTier,
@@ -321,6 +378,93 @@ void UGTTLogisticsReputationSubsystem::ClearCargoNegotiatedOrder()
     CargoNegotiationDay = 0;
 }
 
+int32 UGTTLogisticsReputationSubsystem::GetCargoReservationCount() const
+{
+    EnsureCargoMarketForCurrentDay();
+    return CargoReservedOrderTiers.Num();
+}
+
+int32 UGTTLogisticsReputationSubsystem::GetReservedCargoOrderTier() const
+{
+    EnsureCargoMarketForCurrentDay();
+    return CargoReservedOrderTiers.Num() > 0 ? CargoReservedOrderTiers[0] : 0;
+}
+
+FString UGTTLogisticsReputationSubsystem::GetCargoReservationSummary() const
+{
+    EnsureCargoMarketForCurrentDay();
+    if (CargoReservedOrderTiers.Num() <= 0) return TEXT("QUEUE EMPTY");
+
+    TArray<FString> Slots;
+    Slots.Reserve(CargoReservedOrderTiers.Num());
+    for (int32 Index = 0; Index < CargoReservedOrderTiers.Num(); ++Index)
+    {
+        const float Expiry = CargoReservationExpiryHours.IsValidIndex(Index) ? CargoReservationExpiryHours[Index] : CargoCloseHour;
+        const int32 Hour = FMath::FloorToInt(Expiry);
+        const int32 Minute = FMath::Clamp(FMath::RoundToInt((Expiry - static_cast<float>(Hour)) * 60.0f), 0, 59);
+        const int32 Units = CargoReservedUnits.IsValidIndex(Index) ? CargoReservedUnits[Index] : GetCargoOrderUnitsForTier(CargoReservedOrderTiers[Index]);
+        Slots.Add(FString::Printf(TEXT("T%d/%du @ %02d:%02d"), CargoReservedOrderTiers[Index], Units, Hour, Minute));
+    }
+    return FString::Printf(TEXT("QUEUE %d/%d | %s"), CargoReservedOrderTiers.Num(), MaxCargoReservations, *FString::Join(Slots, TEXT(" > ")));
+}
+
+bool UGTTLogisticsReputationSubsystem::ReserveNegotiatedCargoOrder(int32 HoldMinutes, int32 MaxQueue, FString& OutSummary)
+{
+    EnsureCargoMarketForCurrentDay();
+    OutSummary.Reset();
+
+    if (!IsCargoDepotWindowOpen())
+    {
+        OutSummary = TEXT("Dispatcher reservations are only written while the Feed Depot desk is staffed.");
+        return false;
+    }
+
+    const int32 QueueLimit = FMath::Clamp(MaxQueue, 1, MaxCargoReservations);
+    if (CargoReservedOrderTiers.Num() >= QueueLimit)
+    {
+        OutSummary = FString::Printf(TEXT("Reservation queue is full (%d/%d). Finish or let a hold expire before taking another order. %s"),
+            CargoReservedOrderTiers.Num(), QueueLimit, *GetCargoReservationSummary());
+        return false;
+    }
+
+    const int32 CandidateTier =
+        (CargoNegotiationDay == GetDayNumber() && CargoNegotiatedOrderTier > 0)
+        ? CargoNegotiatedOrderTier
+        : GetRecommendedCargoOrderTier();
+
+    if (!IsCargoOrderTierAvailableInternal(CandidateTier))
+    {
+        OutSummary = FString::Printf(TEXT("T%d cannot be held now: free stock or destination demand changed. %s"),
+            CandidateTier, *GetCargoStockSummary());
+        return false;
+    }
+
+    const int32 RequiredStock = GetCargoOrderUnitsForTier(CandidateTier);
+    const float CurrentHour = GetTimeOfDayHours();
+    const float HoldHours = static_cast<float>(FMath::Clamp(HoldMinutes, 15, 120)) / 60.0f;
+    const float ExpiryHour = FMath::Min(CargoCloseHour, CurrentHour + HoldHours);
+    if (ExpiryHour <= CurrentHour + 0.08f)
+    {
+        OutSummary = TEXT("The depot is too close to closing to protect another load today.");
+        return false;
+    }
+
+    FeedDepotStock -= RequiredStock;
+    CargoReservationDay = GetDayNumber();
+    CargoReservedOrderTiers.Add(CandidateTier);
+    CargoReservedUnits.Add(RequiredStock);
+    CargoReservationExpiryHours.Add(ExpiryHour);
+
+    // The reservation, rather than a free-floating negotiated selection, now owns this stock.
+    // Clear the selection so another interaction can negotiate a second slot when trust allows.
+    CargoNegotiatedOrderTier = 0;
+    CargoNegotiationDay = 0;
+
+    OutSummary = FString::Printf(TEXT("STOCK HELD: %s | %s | free depot stock %d. Missing pickup returns stock but adds backlog pressure."),
+        *BuildCargoTierChoiceLabel(CandidateTier), *GetCargoReservationSummary(), FeedDepotStock);
+    return true;
+}
+
 FString UGTTLogisticsReputationSubsystem::GetCargoCommodityLabel() const
 {
     EnsureCargoMarketForCurrentDay();
@@ -360,6 +504,17 @@ FString UGTTLogisticsReputationSubsystem::GetCargoStockSummary() const
 bool UGTTLogisticsReputationSubsystem::CanAcceptCargoContract() const
 {
     EnsureCargoMarketForCurrentDay();
+
+    // A queued load already owns real stock, so acceptance depends on destination demand rather
+    // than the free-stock counter after that stock was removed from circulation.
+    if (CargoReservationDay == GetDayNumber() && CargoReservedOrderTiers.Num() > 0)
+    {
+        const int32 ReservedTier = CargoReservedOrderTiers[0];
+        if (HillFarmDemand <= 0) return false;
+        if (ReservedTier >= 2 && WoodYardDemand <= 0) return false;
+        return true;
+    }
+
     const int32 RouteTier = GetActiveCargoOrderTier();
     const int32 RequiredStock = GetCargoOrderUnits();
     if (FeedDepotStock < RequiredStock || HillFarmDemand <= 0) return false;
@@ -373,8 +528,26 @@ bool UGTTLogisticsReputationSubsystem::ReserveCargoContract(int32 RouteTier, int
     OutReservedUnits = 0;
     OutReason.Reset();
 
+    // 0.1.9: if the next dispatcher reservation matches the job being started, consume that
+    // stock-backed queue entry without debiting depot stock a second time.
+    if (CargoReservationDay == GetDayNumber() && CargoReservedOrderTiers.Num() > 0 &&
+        CargoReservedOrderTiers[0] == RouteTier)
+    {
+        OutReservedUnits = CargoReservedUnits.IsValidIndex(0)
+            ? CargoReservedUnits[0]
+            : GetCargoOrderUnitsForTier(RouteTier);
+        CargoReservedOrderTiers.RemoveAt(0);
+        if (CargoReservedUnits.Num() > 0) CargoReservedUnits.RemoveAt(0);
+        if (CargoReservationExpiryHours.Num() > 0) CargoReservationExpiryHours.RemoveAt(0);
+        if (CargoReservedOrderTiers.Num() <= 0) CargoReservationDay = 0;
+
+        OutReason = FString::Printf(TEXT("Consumed protected T%d dispatcher load (%d units) without a second stock debit. %s"),
+            RouteTier, OutReservedUnits, *GetCargoReservationSummary());
+        return true;
+    }
+
     // Keep the original T1/T2 reservation contract explicit for old source verifiers, then
-    // let the new T3 bulk order consume one additional pallet.
+    // let the T3 bulk order consume one additional pallet.
     int32 RequiredStock = RouteTier >= 2 ? 3 : 2;
     if (RouteTier >= 3) RequiredStock = 4;
     if (FeedDepotStock < RequiredStock)
@@ -549,6 +722,10 @@ void UGTTLogisticsReputationSubsystem::CaptureToSave(UGTTSaveGame* Save) const
     Save->CargoBacklogPressure = CargoBacklogPressure;
     Save->CargoNegotiatedOrderTier = CargoNegotiatedOrderTier;
     Save->CargoNegotiationDay = CargoNegotiationDay;
+    Save->CargoReservationDay = CargoReservationDay;
+    Save->CargoReservedOrderTiers = CargoReservedOrderTiers;
+    Save->CargoReservedUnits = CargoReservedUnits;
+    Save->CargoReservationExpiryHours = CargoReservationExpiryHours;
     Save->LogisticsRecentContractTags = RecentContractTags;
     Save->LogisticsRecentPayouts = RecentPayouts;
     Save->LogisticsRecentQualityPercent = RecentQualityPercent;
@@ -574,6 +751,10 @@ void UGTTLogisticsReputationSubsystem::RestoreFromSave(const UGTTSaveGame* Save)
         CargoBacklogPressure = 0;
         CargoNegotiatedOrderTier = 0;
         CargoNegotiationDay = 0;
+        CargoReservationDay = 0;
+        CargoReservedOrderTiers.Reset();
+        CargoReservedUnits.Reset();
+        CargoReservationExpiryHours.Reset();
         RecentContractTags.Reset();
         RecentPayouts.Reset();
         RecentQualityPercent.Reset();
@@ -596,6 +777,26 @@ void UGTTLogisticsReputationSubsystem::RestoreFromSave(const UGTTSaveGame* Save)
     CargoBacklogPressure = FMath::Clamp(Save->CargoBacklogPressure, 0, MaxCargoBacklogPressure);
     CargoNegotiatedOrderTier = FMath::Clamp(Save->CargoNegotiatedOrderTier, 0, 3);
     CargoNegotiationDay = FMath::Max(0, Save->CargoNegotiationDay);
+    CargoReservationDay = FMath::Max(0, Save->CargoReservationDay);
+    CargoReservedOrderTiers = Save->CargoReservedOrderTiers;
+    CargoReservedUnits = Save->CargoReservedUnits;
+    CargoReservationExpiryHours = Save->CargoReservationExpiryHours;
+
+    const int32 ReservationCount = FMath::Min3(
+        CargoReservedOrderTiers.Num(),
+        CargoReservedUnits.Num(),
+        CargoReservationExpiryHours.Num());
+    CargoReservedOrderTiers.SetNum(FMath::Min(ReservationCount, MaxCargoReservations));
+    CargoReservedUnits.SetNum(CargoReservedOrderTiers.Num());
+    CargoReservationExpiryHours.SetNum(CargoReservedOrderTiers.Num());
+    for (int32 Index = 0; Index < CargoReservedOrderTiers.Num(); ++Index)
+    {
+        CargoReservedOrderTiers[Index] = FMath::Clamp(CargoReservedOrderTiers[Index], 1, 3);
+        CargoReservedUnits[Index] = FMath::Clamp(CargoReservedUnits[Index], 2, 4);
+        CargoReservationExpiryHours[Index] = FMath::Clamp(CargoReservationExpiryHours[Index], CargoOpenHour, CargoCloseHour);
+    }
+    if (CargoReservedOrderTiers.Num() <= 0) CargoReservationDay = 0;
+
     RecentContractTags = Save->LogisticsRecentContractTags;
     RecentPayouts = Save->LogisticsRecentPayouts;
     RecentQualityPercent = Save->LogisticsRecentQualityPercent;
