@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/World.h"
 #include "Ranger/GTTRangerRoadStopSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -140,7 +141,7 @@ void AGTTRangerPatrolVehicle::Tick(float DeltaSeconds)
     }
 
     SetActorLocationAndRotation(
-        SceneTransform.GetLocation(),
+        ResolveGroundedLocation(SceneTransform.GetLocation()),
         SceneTransform.GetRotation(),
         false,
         nullptr,
@@ -166,6 +167,29 @@ void AGTTRangerPatrolVehicle::SetRoadsideDeployed(bool bDeployed)
         BeaconLightRight->SetVisibility(false, true);
         SearchLamp->SetVisibility(false, true);
     }
+}
+
+FVector AGTTRangerPatrolVehicle::ResolveGroundedLocation(const FVector& DesiredLocation) const
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return DesiredLocation;
+    }
+
+    FHitResult Hit;
+    const FVector TraceStart = DesiredLocation + FVector(0.0f, 0.0f, 450.0f);
+    const FVector TraceEnd = DesiredLocation - FVector(0.0f, 0.0f, 1000.0f);
+    FCollisionObjectQueryParams ObjectQuery;
+    ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GTTRangerPatrolGround), false, this);
+    if (World->LineTraceSingleByObjectType(Hit, TraceStart, TraceEnd, ObjectQuery, QueryParams))
+    {
+        FVector Grounded = DesiredLocation;
+        Grounded.Z = Hit.ImpactPoint.Z + GroundClearanceCm;
+        return Grounded;
+    }
+    return DesiredLocation;
 }
 
 void AGTTRangerPatrolVehicle::UpdateBeacons(float DeltaSeconds, bool bSearchPhase)
