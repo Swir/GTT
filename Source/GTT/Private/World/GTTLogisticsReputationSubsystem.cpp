@@ -38,6 +38,15 @@ int32 UGTTLogisticsReputationSubsystem::GetDayNumber() const
 void UGTTLogisticsReputationSubsystem::EnsureCargoMarketForCurrentDay() const
 {
     const int32 CurrentDay = GetDayNumber();
+
+    // Negotiated orders are same-shift commitments. A saved choice from an earlier world day
+    // must not silently override a fresh stock/demand picture after the next rural restock.
+    if (CargoNegotiationDay > 0 && CargoNegotiationDay != CurrentDay)
+    {
+        CargoNegotiatedOrderTier = 0;
+        CargoNegotiationDay = 0;
+    }
+
     if (MarketDay == CurrentDay) return;
 
     // New/default v8 profiles already carry sensible opening stock and demand. Stamp the
@@ -136,9 +145,24 @@ int32 UGTTLogisticsReputationSubsystem::GetCargoRouteTier() const
     return 1;
 }
 
-int32 UGTTLogisticsReputationSubsystem::GetActiveCargoOrderTier() const
+int32 UGTTLogisticsReputationSubsystem::GetCargoOrderUnitsForTier(int32 Tier)
 {
-    EnsureCargoMarketForCurrentDay();
+    if (Tier >= 3) return 4;
+    if (Tier >= 2) return 3;
+    return 2;
+}
+
+bool UGTTLogisticsReputationSubsystem::IsCargoOrderTierAvailableInternal(int32 Tier) const
+{
+    if (Tier < 1 || Tier > GetCargoRouteTier()) return false;
+    const int32 RequiredStock = GetCargoOrderUnitsForTier(Tier);
+    if (FeedDepotStock < RequiredStock || HillFarmDemand <= 0) return false;
+    if (Tier >= 2 && WoodYardDemand <= 0) return false;
+    return true;
+}
+
+int32 UGTTLogisticsReputationSubsystem::GetRecommendedCargoOrderTier() const
+{
     const int32 CapabilityTier = GetCargoRouteTier();
     if (CapabilityTier <= 1 || WoodYardDemand <= 0) return 1;
 
@@ -152,6 +176,32 @@ int32 UGTTLogisticsReputationSubsystem::GetActiveCargoOrderTier() const
         return 3;
     }
     return 2;
+}
+
+int32 UGTTLogisticsReputationSubsystem::GetActiveCargoOrderTier() const
+{
+    EnsureCargoMarketForCurrentDay();
+
+    if (CargoNegotiationDay == GetDayNumber() && CargoNegotiatedOrderTier > 0)
+    {
+        if (IsCargoOrderTierAvailableInternal(CargoNegotiatedOrderTier))
+        {
+            return CargoNegotiatedOrderTier;
+        }
+
+        // Stock/demand can change after another completed load. Never keep presenting a
+        // negotiated tier that the same authoritative market can no longer fulfill.
+        CargoNegotiatedOrderTier = 0;
+        CargoNegotiationDay = 0;
+    }
+
+    const int32 RecommendedTier = GetRecommendedCargoOrderTier();
+    if (IsCargoOrderTierAvailableInternal(RecommendedTier)) return RecommendedTier;
+    for (int32 Tier = FMath::Min(GetCargoRouteTier(), 3); Tier >= 1; --Tier)
+    {
+        if (IsCargoOrderTierAvailableInternal(Tier)) return Tier;
+    }
+    return RecommendedTier;
 }
 
 int32 UGTTLogisticsReputationSubsystem::GetCargoOrderUnits() const
@@ -185,6 +235,90 @@ int32 UGTTLogisticsReputationSubsystem::GetCargoBacklogPressure() const
 {
     EnsureCargoMarketForCurrentDay();
     return CargoBacklogPressure;
+}
+
+TArray<int32> UGTTLogisticsReputationSubsystem::GetCargoNegotiationOptions() const
+{
+    EnsureCargoMarketForCurrentDay();
+    TArray<int32> Options;
+    const int32 CapabilityTier = FMath::Clamp(GetCargoRouteTier(), 1, 3);
+    for (int32 Tier = 1; Tier <= CapabilityTier; ++Tier)
+    {
+        if (IsCargoOrderTierAvailableInternal(Tier)) Options.Add(Tier);
+    }
+    return Options;
+}
+
+FString UGTTLogisticsReputationSubsystem::GetCargoNegotiationOptionsLabel() const
+{
+    const TArray<int32> Options = GetCargoNegotiationOptions();
+    if (Options.Num() <= 0) return TEXT("NO OPEN OPTIONS");
+
+    TArray<FString> Labels;
+    Labels.Reserve(Options.Num());
+    for (const int32 Tier : Options) Labels.Add(FString::Printf(TEXT("T%d"), Tier));
+    return FString::Printf(TEXT("OPTIONS %s"), *FString::Join(Labels, TEXT("/")));
+}
+
+bool UGTTLogisticsReputationSubsystem::HasExplicitCargoNegotiation() const
+{
+    EnsureCargoMarketForCurrentDay();
+    return CargoNegotiationDay == GetDayNumber() && CargoNegotiatedOrderTier > 0 &&
+        IsCargoOrderTierAvailableInternal(CargoNegotiatedOrderTier);
+}
+
+FString UGTTLogisticsReputationSubsystem::GetCargoNegotiationStatusLabel() const
+{
+    EnsureCargoMarketForCurrentDay();
+    const int32 MarketTier = GetRecommendedCargoOrderTier();
+    const int32 ActiveTier = GetActiveCargoOrderTier();
+    return FString::Printf(TEXT("%s T%d | MARKET T%d | %s"),
+        HasExplicitCargoNegotiation() ? TEXT("NEGOTIATED") : TEXT("AUTO"),
+        ActiveTier,
+        MarketTier,
+        *GetCargoNegotiationOptionsLabel());
+}
+
+FString UGTTLogisticsReputationSubsystem::BuildCargoTierChoiceLabel(int32 Tier) const
+{
+    if (Tier >= 3)
+    {
+        return TEXT("T3 BULK | 4 units | North Wood chain | +$120 route bonus | HEAVY 1.20x load");
+    }
+    if (Tier >= 2)
+    {
+        return TEXT("T2 RELAY | 3 units | Hill + Wood chain | +$70 route bonus | MEDIUM load");
+    }
+    return TEXT("T1 DIRECT | 2 units | Hill Farm | quickest route | LOW load");
+}
+
+bool UGTTLogisticsReputationSubsystem::CycleCargoNegotiatedOrder(FString& OutSummary)
+{
+    EnsureCargoMarketForCurrentDay();
+    const TArray<int32> Options = GetCargoNegotiationOptions();
+    if (Options.Num() <= 0)
+    {
+        OutSummary = FString::Printf(TEXT("No negotiable CARGO order is currently fulfillable: %s."), *GetCargoStockSummary());
+        return false;
+    }
+
+    const int32 CurrentTier = GetActiveCargoOrderTier();
+    int32 CurrentIndex = Options.IndexOfByKey(CurrentTier);
+    if (CurrentIndex == INDEX_NONE) CurrentIndex = 0;
+    const int32 NextIndex = (CurrentIndex + 1) % Options.Num();
+    CargoNegotiatedOrderTier = Options[NextIndex];
+    CargoNegotiationDay = GetDayNumber();
+
+    const int32 MarketTier = GetRecommendedCargoOrderTier();
+    OutSummary = FString::Printf(TEXT("DISPATCHER DEAL: %s | market recommends T%d | %s. Press interact again to cycle."),
+        *BuildCargoTierChoiceLabel(CargoNegotiatedOrderTier), MarketTier, *GetCargoNegotiationOptionsLabel());
+    return true;
+}
+
+void UGTTLogisticsReputationSubsystem::ClearCargoNegotiatedOrder()
+{
+    CargoNegotiatedOrderTier = 0;
+    CargoNegotiationDay = 0;
 }
 
 FString UGTTLogisticsReputationSubsystem::GetCargoCommodityLabel() const
@@ -381,6 +515,7 @@ void UGTTLogisticsReputationSubsystem::RecordCargoSuccess(
     CargoLifetimeRevenue = FMath::Max(0, CargoLifetimeRevenue + FMath::Max(0, Payout));
     CargoBacklogPressure = FMath::Max(0, CargoBacklogPressure - (bExtendedRoute ? 2 : 1));
     AppendHistory(bExtendedRoute ? FName(TEXT("CargoChain")) : FName(TEXT("FarmCargo")), Payout, FMath::RoundToInt(CargoIntegrity * 100.0f));
+    ClearCargoNegotiatedOrder();
 }
 
 void UGTTLogisticsReputationSubsystem::RecordCargoFailure(float CargoIntegrity, bool bSevereFailure)
@@ -391,6 +526,7 @@ void UGTTLogisticsReputationSubsystem::RecordCargoFailure(float CargoIntegrity, 
     ++CargoFailedRuns;
     CargoBacklogPressure = FMath::Clamp(CargoBacklogPressure + (bSevereFailure ? 2 : 1), 0, MaxCargoBacklogPressure);
     AppendHistory(FName(TEXT("CargoFail")), 0, FMath::RoundToInt(CargoIntegrity * 100.0f));
+    ClearCargoNegotiatedOrder();
 }
 
 void UGTTLogisticsReputationSubsystem::CaptureToSave(UGTTSaveGame* Save) const
@@ -411,6 +547,8 @@ void UGTTLogisticsReputationSubsystem::CaptureToSave(UGTTSaveGame* Save) const
     Save->WoodYardDemand = WoodYardDemand;
     Save->CargoRotationIndex = CargoRotationIndex;
     Save->CargoBacklogPressure = CargoBacklogPressure;
+    Save->CargoNegotiatedOrderTier = CargoNegotiatedOrderTier;
+    Save->CargoNegotiationDay = CargoNegotiationDay;
     Save->LogisticsRecentContractTags = RecentContractTags;
     Save->LogisticsRecentPayouts = RecentPayouts;
     Save->LogisticsRecentQualityPercent = RecentQualityPercent;
@@ -434,6 +572,8 @@ void UGTTLogisticsReputationSubsystem::RestoreFromSave(const UGTTSaveGame* Save)
         WoodYardDemand = 4;
         CargoRotationIndex = 0;
         CargoBacklogPressure = 0;
+        CargoNegotiatedOrderTier = 0;
+        CargoNegotiationDay = 0;
         RecentContractTags.Reset();
         RecentPayouts.Reset();
         RecentQualityPercent.Reset();
@@ -454,6 +594,8 @@ void UGTTLogisticsReputationSubsystem::RestoreFromSave(const UGTTSaveGame* Save)
     WoodYardDemand = FMath::Clamp(Save->WoodYardDemand, 0, MaxWoodYardDemand);
     CargoRotationIndex = FMath::Clamp(Save->CargoRotationIndex, 0, 2);
     CargoBacklogPressure = FMath::Clamp(Save->CargoBacklogPressure, 0, MaxCargoBacklogPressure);
+    CargoNegotiatedOrderTier = FMath::Clamp(Save->CargoNegotiatedOrderTier, 0, 3);
+    CargoNegotiationDay = FMath::Max(0, Save->CargoNegotiationDay);
     RecentContractTags = Save->LogisticsRecentContractTags;
     RecentPayouts = Save->LogisticsRecentPayouts;
     RecentQualityPercent = Save->LogisticsRecentQualityPercent;

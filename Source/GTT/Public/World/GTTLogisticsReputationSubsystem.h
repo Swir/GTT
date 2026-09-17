@@ -65,6 +65,8 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     int32 GetCargoRouteTier() const;
 
+    // The active order is the player's negotiated dispatcher choice when that choice is
+    // still valid; otherwise it falls back to the living market recommendation.
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Orders")
     int32 GetActiveCargoOrderTier() const;
 
@@ -79,6 +81,24 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Orders")
     int32 GetCargoBacklogPressure() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Negotiation")
+    TArray<int32> GetCargoNegotiationOptions() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Negotiation")
+    FString GetCargoNegotiationOptionsLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Negotiation")
+    FString GetCargoNegotiationStatusLabel() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Negotiation")
+    bool HasExplicitCargoNegotiation() const;
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Logistics|Cargo|Negotiation")
+    bool CycleCargoNegotiatedOrder(FString& OutSummary);
+
+    UFUNCTION(BlueprintCallable, Category="GTT|Logistics|Cargo|Negotiation")
+    void ClearCargoNegotiatedOrder();
 
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     float GetCargoMarketMultiplier() const;
@@ -126,6 +146,10 @@ private:
     int32 GetDayNumber() const;
     void AppendHistory(FName ContractTag, int32 Payout, int32 QualityPercent);
     void EnsureCargoMarketForCurrentDay() const;
+    int32 GetRecommendedCargoOrderTier() const;
+    bool IsCargoOrderTierAvailableInternal(int32 Tier) const;
+    static int32 GetCargoOrderUnitsForTier(int32 Tier);
+    FString BuildCargoTierChoiceLabel(int32 Tier) const;
 
     int32 Reputation = 0;
     int32 CleanStreak = 0;
@@ -144,6 +168,12 @@ private:
     mutable int32 WoodYardDemand = 4;
     mutable int32 CargoRotationIndex = 0;
     mutable int32 CargoBacklogPressure = 0;
+
+    // 0 means "follow the market recommendation". A positive tier is an explicit dispatcher
+    // negotiation and only remains authoritative while that tier still has stock, demand and
+    // reputation capability on the same world day.
+    mutable int32 CargoNegotiatedOrderTier = 0;
+    mutable int32 CargoNegotiationDay = 0;
 
     TArray<FName> RecentContractTags;
     TArray<int32> RecentPayouts;
