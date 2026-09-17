@@ -72,6 +72,14 @@ float UGTTLogisticsReputationSubsystem::GetRoadPriorityTimeScale() const
     }
 }
 
+float UGTTLogisticsReputationSubsystem::GetCargoPriorityRewardMultiplier() const
+{
+    // Kept intentionally neutral in 0.1.10. CARGO urgency is a dispatch/routing signal and
+    // existing CARGO economics continue to come from stock, demand, backlog and route tier.
+    // This avoids silently stacking another payout multiplier on the already capped market.
+    return 1.0f;
+}
+
 FString UGTTLogisticsReputationSubsystem::GetPriorityVehicleLabel() const
 {
     const int32 RoadUrgency = GetRoadPriorityUrgency();
