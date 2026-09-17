@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "GTTRangerDirector.generated.h"
 
+class APawn;
 class AGTTRangerPawn;
 
 UCLASS()
