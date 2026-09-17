@@ -19,6 +19,7 @@
 #include "Missions/GTTNightFavorDirector.h"
 #include "Police/GTTPoliceDirector.h"
 #include "Radio/GTTRadioComponent.h"
+#include "Ranger/GTTRangerRoadStopSubsystem.h"
 #include "Vehicles/GTTBreakdownDecisionSubsystem.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
@@ -81,6 +82,8 @@ void AGTTGameHUD::DrawHUD()
         DrawHudText(FString::Printf(TEXT("WARDEN [%s]"), *Marks), FLinearColor(1.0f,0.55f,0.12f,1.0f), LeftX, AlertY, 0.94f);
     }
 
+    DrawRangerStopPanel();
+
     const FString Objective = BuildPrimaryObjective();
     if (!Objective.IsEmpty())
     {
@@ -123,6 +126,35 @@ void AGTTGameHUD::DrawHudText(const FString& Text,const FLinearColor& Color,floa
 {
     if (Text.IsEmpty() || !GEngine) return;
     DrawText(Text,Color,X,Y,GEngine->GetSmallFont(),Scale,false);
+}
+
+void AGTTGameHUD::DrawRangerStopPanel()
+{
+    if (!Canvas || !GetWorld()) return;
+    const UGTTRangerRoadStopSubsystem* RoadStop = GetWorld()->GetSubsystem<UGTTRangerRoadStopSubsystem>();
+    if (!RoadStop) return;
+
+    const FGTTRangerRoadStopPresentation Snapshot = RoadStop->GetPresentationSnapshot();
+    if (!Snapshot.bVisible) return;
+
+    FLinearColor Accent(1.0f, 0.60f, 0.12f, 1.0f);
+    if (Snapshot.Phase == EGTTRangerRoadStopPhase::Search)
+        Accent = FLinearColor(0.20f, 0.84f, 1.0f, 1.0f);
+    else if (Snapshot.Phase == EGTTRangerRoadStopPhase::Flee)
+        Accent = FLinearColor(1.0f, 0.18f, 0.08f, 1.0f);
+
+    const float PanelWidth = FMath::Min(430.0f, Canvas->ClipX - 48.0f);
+    const float PanelHeight = 76.0f;
+    const float X = (Canvas->ClipX - PanelWidth) * 0.5f;
+    const float Y = 30.0f;
+    const float InnerWidth = FMath::Max(0.0f, PanelWidth - 36.0f);
+
+    DrawRect(FLinearColor(0.01f, 0.025f, 0.04f, 0.90f), X, Y, PanelWidth, PanelHeight);
+    DrawRect(Accent, X, Y, 4.0f, PanelHeight);
+    DrawHudText(FString::Printf(TEXT("WARDEN STOP  |  %s"), *Snapshot.PhaseLabel), Accent, X + 16.0f, Y + 9.0f, 0.88f);
+    DrawHudText(Snapshot.Instruction, FLinearColor(0.92f, 0.96f, 1.0f, 1.0f), X + 16.0f, Y + 33.0f, 0.76f);
+    DrawRect(FLinearColor(0.12f, 0.17f, 0.21f, 0.96f), X + 16.0f, Y + 61.0f, InnerWidth, 4.0f);
+    DrawRect(Accent, X + 16.0f, Y + 61.0f, InnerWidth * FMath::Clamp(Snapshot.Progress01, 0.0f, 1.0f), 4.0f);
 }
 
 FString AGTTGameHUD::BuildWantedBar(int32 WantedLevel) const
