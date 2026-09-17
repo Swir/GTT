@@ -88,8 +88,11 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|Chain")
     float GetPriorityChainRewardMultiplier() const;
 
+    // ROAD acceptance is immediately playable, so its depot pickup SLA is expressed in real
+    // gameplay seconds. CARGO holds continue to use world-clock minutes because reservations
+    // are persisted as depot closing-hour timestamps.
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|SLA")
-    int32 GetRoadPriorityPickupSlaMinutes() const;
+    float GetRoadPriorityPickupSlaSeconds() const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|SLA")
     int32 GetCargoPriorityPickupSlaMinutes() const;
