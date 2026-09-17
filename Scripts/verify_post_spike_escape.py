@@ -15,9 +15,9 @@ checks={
  'evaluator schema v11 retains post spike': 'gtt.demo-scenario.v11' in eval_ps and "'POST_SPIKE_ESCAPE'" in eval_ps,
  'evaluator hard gates control authority': 'Native handling consequence did not prove reduced control authority' in eval_ps,
  'evaluator hard gates continued motion': 'Native vehicle did not continue a measurable damaged escape' in eval_ps,
- 'current Win64 candidate route': "default: '0.1.14'" in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+ 'current Win64 candidate route': "default: '0.1.15'" in workflow and 'RUNTIME_SMOKE.json' in workflow and 'FIELDMASTER_CHAOS_TELEMETRY.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
  'origin docs retained': 'Post-Spike Escape Dynamics' in changelog and 'Post-Spike Escape Dynamics' in playtest,
 }
 failed=[name for name,ok in checks.items() if not ok]
 if failed: raise SystemExit('Post-spike escape verification failed: '+', '.join(failed))
-print(f'Post-spike escape dynamics retained under current 0.1.14 candidate workflow ({len(checks)}/{len(checks)} checks).')
+print(f'Post-spike escape dynamics retained under current 0.1.15 candidate workflow ({len(checks)}/{len(checks)} checks).')

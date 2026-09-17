@@ -73,6 +73,8 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     const float Tires01 = FMath::Clamp(TireIntegrity, 0.0f, 1.0f);
     const float Terrain01 = FMath::Clamp(TerrainGripFactor, 0.0f, 1.0f);
 
+    LastRequestedSignedThrottle = RequestedThrottle;
+    LastTerrainGripFactor = Terrain01;
     DriveHealthFactor = bHasFuel
         ? FMath::Lerp(MinimumDamagedDriveFactor, 1.0f, Condition01)
         : 0.0f;
@@ -99,9 +101,83 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
 
 void UGTTFieldmasterChaosMovementComponent::HoldFieldmasterStopped()
 {
+    LastRequestedSignedThrottle = 0.0f;
     EffectiveThrottle = 0.0f;
     EffectiveSteering = 0.0f;
     SetThrottleInput(0.0f);
     SetSteeringInput(0.0f);
     SetBrakeInput(1.0f);
+}
+
+FGTTFieldmasterRuntimeTelemetry UGTTFieldmasterChaosMovementComponent::CaptureRuntimeTelemetry()
+{
+    FGTTFieldmasterRuntimeTelemetry Telemetry;
+    Telemetry.bConfigurationValid = bFieldmasterConfigurationValid;
+    Telemetry.bMovementActive = IsActive();
+    Telemetry.CurrentGear = GetCurrentGear();
+    Telemetry.TargetGear = GetTargetGear();
+    Telemetry.EngineRpm = GetEngineRotationSpeed();
+    Telemetry.EngineMaxRpm = GetEngineMaxRotationSpeed();
+    Telemetry.ForwardSpeedKmh = GetForwardSpeed() * 0.036f;
+    Telemetry.RequestedSignedThrottle = LastRequestedSignedThrottle;
+    Telemetry.EffectiveThrottle = EffectiveThrottle;
+    Telemetry.EffectiveSteering = EffectiveSteering;
+    Telemetry.DriveHealthFactor = DriveHealthFactor;
+    Telemetry.SteeringGripFactor = SteeringGripFactor;
+    Telemetry.TerrainGripFactor = LastTerrainGripFactor;
+
+    float SuspensionMin = 1.0f;
+    float SuspensionMax = 0.0f;
+    const int32 WheelCount = GetNumWheels();
+    Telemetry.Wheels.Reserve(WheelCount);
+
+    for (int32 WheelIndex = 0; WheelIndex < WheelCount; ++WheelIndex)
+    {
+        const FWheelStatus& Status = GetWheelState(WheelIndex);
+        FGTTFieldmasterWheelRuntimeTelemetry Wheel;
+        Wheel.WheelIndex = WheelIndex;
+        Wheel.bValid = Status.bIsValid;
+        Wheel.bInContact = Status.bInContact;
+        Wheel.bSlipping = Status.bIsSlipping;
+        Wheel.bSkidding = Status.bIsSkidding;
+        Wheel.NormalizedSuspensionLength = Status.NormalizedSuspensionLength;
+        Wheel.SpringForce = Status.SpringForce;
+        Wheel.SlipAngle = Status.SlipAngle;
+        Wheel.SlipMagnitude = Status.SlipMagnitude;
+        Wheel.SkidMagnitude = Status.SkidMagnitude;
+        Wheel.DriveTorque = Status.DriveTorque;
+        Wheel.BrakeTorque = Status.BrakeTorque;
+        Telemetry.Wheels.Add(Wheel);
+
+        if (!Status.bIsValid)
+        {
+            continue;
+        }
+
+        ++Telemetry.ValidWheelCount;
+        if (Status.bInContact) ++Telemetry.ContactCount;
+        if (Status.bIsSlipping) ++Telemetry.SlippingWheelCount;
+        if (Status.bIsSkidding) ++Telemetry.SkiddingWheelCount;
+
+        if (FMath::IsFinite(Status.NormalizedSuspensionLength) &&
+            Status.NormalizedSuspensionLength >= 0.0f && Status.NormalizedSuspensionLength <= 1.0f)
+        {
+            ++Telemetry.SuspensionSampleCount;
+            SuspensionMin = FMath::Min(SuspensionMin, Status.NormalizedSuspensionLength);
+            SuspensionMax = FMath::Max(SuspensionMax, Status.NormalizedSuspensionLength);
+        }
+
+        Telemetry.TotalSpringForce += FMath::Abs(Status.SpringForce);
+        Telemetry.MaxSlipMagnitude = FMath::Max(Telemetry.MaxSlipMagnitude, FMath::Abs(Status.SlipMagnitude));
+        Telemetry.TotalDriveTorque += FMath::Abs(Status.DriveTorque);
+        Telemetry.TotalBrakeTorque += FMath::Abs(Status.BrakeTorque);
+    }
+
+    if (Telemetry.SuspensionSampleCount > 0)
+    {
+        Telemetry.SuspensionMin = SuspensionMin;
+        Telemetry.SuspensionMax = SuspensionMax;
+    }
+
+    return Telemetry;
 }

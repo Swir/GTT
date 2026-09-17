@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version (for example 0.1.14)
+        description: Release version (for example 0.1.15)
         required: true
-        default: '0.1.14'
+        default: '0.1.15'
       configuration:
         description: Unreal build configuration
         required: true
@@ -46,6 +46,7 @@ jobs:
           python Scripts/verify_project.py
           python Scripts/verify_release_pipeline.py
           python Scripts/verify_win64_evidence_pipeline.py
+          python Scripts/verify_fieldmaster_runtime_telemetry.py
       - name: Win64 runner and Unreal 5.8 preflight
         shell: pwsh
         run: ./Scripts/preflight_win64_unreal.ps1 -EngineRoot "$env:UE_ROOT" -ProjectFile "${{ github.workspace }}\GTT.uproject" -OutputPath "$env:PREFLIGHT_FILE"

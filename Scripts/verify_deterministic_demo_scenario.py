@@ -36,6 +36,7 @@ checks = {
     'opt-in commandline': all('GTTDemoSmokeScenario' in text for text in [cpp, recovery_cpp, struct_cpp, drive_cpp, smoke]),
     'explicit 26 core markers': all(f'TEXT("{s}")' in cpp for s in core_steps) and 'steps=26' in cpp,
     'native control actuation': all(x in cpp for x in ['SetThrottleInput', 'SetSteeringInput', 'SetBrakeInput', 'DEMO_SCENARIO_CONTROL']),
+    'Fieldmaster dedicated command path': all(x in cpp for x in ['ExerciseFieldmasterControls', 'ApplyFieldmasterDriveCommand', 'CaptureRuntimeTelemetry', 'FIELDMASTER_CHAOS_TELEMETRY']),
     'live wheel motion evidence': all(x in cpp for x in ['GetWheelState', 'bInContact', 'NormalizedSuspensionLength', 'GetVelocity().SizeSquared2D()']),
     'wanted-4 escalation': 'AddHeat(130.f)' in cpp and 'GetWantedLevel()>=4' in cpp,
     'active police response': 'GetActiveFootUnitCount()>0' in cpp,
@@ -54,13 +55,15 @@ checks = {
     'evaluator retains core': all(s in eval_ps for s in core_steps) and 'DEMO_SCENARIO_COMPLETE result=PASS steps=26' in eval_ps,
     'evaluator recovery gates': all(x in eval_ps for x in ['damage_persistence_passed', 'workshop_recovery_passed', 'damage_recovery_complete', 'structural_persistence_passed', 'structural_repair_passed', 'structural_recovery_complete', 'structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
     'demo gate consumes scenario': "scenario.result -ne 'PASS'" in demo,
+    'demo gate consumes Fieldmaster telemetry': 'FIELDMASTER_CHAOS_TELEMETRY.json' in demo and "fieldmaster_native_chaos_telemetry='PASS'" in demo,
     'workflow order': workflow_order_ok,
+    'telemetry before scenario evaluator': 'Evaluate Fieldmaster dedicated Native Chaos telemetry' in workflow and workflow.index('Evaluate Fieldmaster dedicated Native Chaos telemetry') < workflow.index(scenario_step),
     'extended packaged runtime': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
-    'artifact retained': '\\DEMO_SCENARIO.json' in workflow,
-    'current candidate version': "default: '0.1.14'" in workflow,
-    'current build evidence': all(x in workflow for x in ['WIN64_PREFLIGHT.json', 'BUILD_ATTEMPT.json', 'RUNTIME_SMOKE.json', 'DEMO_TECHNICAL_GATE.json']),
+    'artifact retained': '\\DEMO_SCENARIO.json' in workflow and '\\FIELDMASTER_CHAOS_TELEMETRY.json' in workflow,
+    'current candidate version': "default: '0.1.15'" in workflow,
+    'current build evidence': all(x in workflow for x in ['WIN64_PREFLIGHT.json', 'BUILD_ATTEMPT.json', 'RUNTIME_SMOKE.json', 'FIELDMASTER_CHAOS_TELEMETRY.json', 'DEMO_TECHNICAL_GATE.json']),
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit('Deterministic demo scenario verification failed: ' + ', '.join(failed))
-print(f'Deterministic demo scenario verification passed under current 0.1.14 candidate workflow ({len(checks)} checks).')
+print(f'Deterministic demo scenario verification passed under current 0.1.15 candidate workflow ({len(checks)} checks).')

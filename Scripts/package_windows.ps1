@@ -3,7 +3,7 @@ param(
     [ValidateSet("Development", "Shipping")]
     [string]$Configuration = "Shipping",
     [string]$ArchiveDirectory = "",
-    [string]$Version = "0.1.14",
+    [string]$Version = "0.1.15",
     [switch]$SkipZip
 )
 

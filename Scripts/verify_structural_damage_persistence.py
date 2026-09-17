@@ -43,7 +43,7 @@ checks = {
     'runtime PASS evidence': all(x in evidence_cpp for x in ['DEMO_SCENARIO_STRUCTURAL_PERSISTENCE', 'DEMO_SCENARIO_STRUCTURAL_REPAIR', 'DEMO_SCENARIO_STRUCTURAL_RECOVERY result=PASS']),
     'evaluator retains structural gates': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator and "step='STRUCTURAL_PERSISTENCE'" in evaluator and "step='STRUCTURAL_REPAIR'" in evaluator,
     'evaluator structural hard gates': 'structural_persistence_passed' in evaluator and 'structural_repair_passed' in evaluator and 'structural_recovery_complete' in evaluator,
-    'current Win64 candidate evidence': "default: '0.1.14'" in workflow and 'WIN64_PREFLIGHT.json' in workflow and 'BUILD_ATTEMPT.json' in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+    'current Win64 candidate evidence': "default: '0.1.15'" in workflow and 'WIN64_PREFLIGHT.json' in workflow and 'BUILD_ATTEMPT.json' in workflow and 'RUNTIME_SMOKE.json' in workflow and 'FIELDMASTER_CHAOS_TELEMETRY.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
     '125 second packaged route': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
     'sanity wired': 'Verify persistent Native structural damage' in sanity and 'verify_structural_damage_persistence.py' in sanity,
     'origin docs retained': '0.0.93' in playtest and 'STRUCTURAL_PERSISTENCE' in playtest and 'STRUCTURAL_REPAIR' in playtest and '0.0.93' in changelog,
