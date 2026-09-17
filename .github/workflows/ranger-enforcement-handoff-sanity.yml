@@ -1,0 +1,20 @@
+name: GTT 0.1.21 ranger enforcement handoff sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ranger-enforcement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify game-warden escalation, police handoff, night risk and contraband seizure
+        run: python Scripts/verify_ranger_enforcement_handoff.py
