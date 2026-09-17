@@ -23,10 +23,15 @@ try{
     $badLog=Join-Path $Temp 'GTT_RUNTIME_BAD.log';$bad|Set-Content -Encoding UTF8 $badLog
     $pwsh=(Get-Command pwsh -ErrorAction Stop).Source
     & $pwsh -NoProfile -File $Evaluator -PackageDirectory $Temp -RuntimeLog $badLog -ExpectedGitSha 'fixture-sha' -MinimumSamples 3 *> $null
-    if($LASTEXITCODE -eq 0){throw 'Negative telemetry fixture unexpectedly passed without live drive torque.'}
+    $negativeExitCode=$LASTEXITCODE
+    if($negativeExitCode -eq 0){throw 'Negative telemetry fixture unexpectedly passed without live drive torque.'}
 
-    Write-Host '[OK] Fieldmaster telemetry evaluator accepted valid runtime evidence and rejected zero-drive-torque evidence.'
+    Write-Host "[OK] Fieldmaster telemetry evaluator accepted valid runtime evidence and rejected zero-drive-torque evidence (negative exit=$negativeExitCode)."
 }
 finally{
     if(Test-Path $Temp){Remove-Item -Recurse -Force $Temp}
 }
+
+# The negative child process is expected to return non-zero. Do not leak that
+# expected native exit code to the GitHub Actions step after the assertion passed.
+exit 0
