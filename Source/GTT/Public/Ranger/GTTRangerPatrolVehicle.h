@@ -49,8 +49,10 @@ protected:
 
 private:
     void SetRoadsideDeployed(bool bDeployed);
+    FVector ResolveGroundedLocation(const FVector& DesiredLocation) const;
     void UpdateBeacons(float DeltaSeconds, bool bSearchPhase);
 
     bool bRoadsideDeployed = false;
     float BeaconClock = 0.0f;
+    static constexpr float GroundClearanceCm = 8.0f;
 };
