@@ -1,0 +1,22 @@
+name: GTT 0.1.26 world-space pull-over marker and patrol lighting sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ranger-world-marker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify previous physical roadside scene contract
+        run: python Scripts/verify_ranger_roadside_scene.py
+      - name: Verify world-space marker and patrol lighting
+        run: python Scripts/verify_ranger_world_marker.py
