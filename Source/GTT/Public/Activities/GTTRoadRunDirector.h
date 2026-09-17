@@ -74,7 +74,6 @@ private:
     float StatusMessageCooldown = 0.0f;
     bool bPoliceIncidentDuringRun = false;
     float RewardMultiplierAtStart = 1.0f;
-    float PriorityTimeScaleAtStart = 1.0f;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun")
     FVector PartsPickupLocation = FVector(-1250.0f, -470.0f, 80.0f);
