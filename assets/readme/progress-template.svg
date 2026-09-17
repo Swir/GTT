@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SWIR-PROGRESS-SVG-PRO:v1 | TEMPLATE / NOT PROJECT DATA -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="200" viewBox="0 0 1200 200" role="img" aria-label="TEMPLATE / NOT PROJECT DATA">
+  <title>SWIR progress card template — not project data</title>
+  <desc>Reusable local template. Values shown as N/A until generated from an authoritative project source.</desc>
+  <defs>
+    <linearGradient id="progressGradient" x1="0" x2="1"><stop offset="0" stop-color="#0088FF"/><stop offset="1" stop-color="#62E5FF"/></linearGradient>
+    <filter id="progressGlow" x="-10%" y="-120%" width="120%" height="340%"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+  <rect x="0.5" y="0.5" width="1199" height="199" rx="18" fill="#02050A" stroke="#17364A"/>
+  <rect x="14" y="14" width="1172" height="172" rx="14" fill="#07111C" opacity="0.55"/>
+  <path d="M28 48H1172M28 92H1172M28 136H1172" stroke="#102536" stroke-width="1" opacity="0.7"/>
+  <text id="project" x="50" y="39" fill="#F4FAFF" font-family="Segoe UI,Arial,sans-serif" font-size="21" font-weight="700">TEMPLATE / NOT PROJECT DATA</text>
+  <text id="scope" x="50" y="70" fill="#8DA8B8" font-family="Segoe UI,Arial,sans-serif" font-size="14">Measured scope: N/A</text>
+  <text id="status" x="1150" y="39" text-anchor="end" fill="#62E5FF" font-family="Segoe UI,Arial,sans-serif" font-size="15" font-weight="700">N/A</text>
+  <text id="percentage" x="1150" y="83" text-anchor="end" fill="#F4FAFF" font-family="Segoe UI,Arial,sans-serif" font-size="38" font-weight="700">N/A</text>
+  <text id="counter" x="50" y="111" fill="#F4FAFF" font-family="Segoe UI,Arial,sans-serif" font-size="15" font-weight="600">N/A tasks</text>
+  <rect x="50" y="124" width="1100" height="16" rx="8" fill="#02050A" stroke="#17364A"/>
+  <rect id="progress-glow" x="50" y="124" width="0" height="16" rx="8" fill="url(#progressGradient)" opacity="0" filter="url(#progressGlow)"/>
+  <rect id="progress-fill" x="50" y="124" width="0" height="16" rx="8" fill="url(#progressGradient)" opacity="0"/>
+  <text id="readiness" x="50" y="169" fill="#8DA8B8" font-family="Segoe UI,Arial,sans-serif" font-size="13">Release readiness: N/A</text>
+</svg>
