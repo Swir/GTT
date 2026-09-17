@@ -27,7 +27,11 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 **No public demo release is available yet.** Source CI passing does not mean a Windows demo EXE has been verified.
 
-Current development milestone: **0.1.26 — World-space pull-over guidance and warden patrol lighting**.
+<img width="100%" src="assets/readme/progress-card.svg" alt="GTT roadmap checklist progress — 125 of 130 tasks complete, 96.2 percent; release readiness remains not ready" />
+
+Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
+
+Current development milestone: **0.1.28 — Farm Cargo physical vehicle authority and deterministic progress evidence**.
 
 ## What is GTT?
 
@@ -44,7 +48,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
-| 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. |
+| 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
@@ -108,9 +112,13 @@ GTT uses a C++ gameplay core with Blueprint-friendly APIs. Major systems are sep
 
 Vehicle development currently uses a guarded migration model: proven gameplay state remains available while native Chaos components gain dedicated runtime evidence and acceptance checks. This prevents a source-only configuration change from being mistaken for verified packaged physics behavior.
 
+Farm Cargo uses the same pattern for physical delivery authority: the job director owns contract/economy state, while `UGTTFarmCargoAuthoritySubsystem` binds the exact loaded vehicle and verifies that same physical actor is present and stopped at buyer handoffs. Presentation markers do not own payout, reputation, Wanted or save state.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
+
+The roadmap graphics are deterministic outputs of `Scripts/generate_progress_svg.py`; `--check` verifies checklist mathematics, XML, bounded fill geometry, README/Roadmap embeds and separation between roadmap completion and release readiness.
 
 Important distinction:
 
@@ -135,10 +143,11 @@ When the demo gate is genuinely satisfied, verified Windows artifacts and releas
 ```text
 GTT/
 ├── .github/workflows/       # source CI + Win64 evidence/release workflows
+├── assets/readme/           # project hero + deterministic progress SVG assets
 ├── Config/                  # Unreal project/input configuration
 ├── Content/                 # Unreal project assets
 ├── Docs/                    # roadmap, playtests and design/acceptance notes
-├── Scripts/                 # milestone and release sanity verifiers
+├── Scripts/                 # milestone, progress and release sanity verifiers
 ├── Source/GTT/              # runtime C++ gameplay module
 ├── CHANGELOG.d/             # milestone changelog fragments
 ├── GTT.uproject
