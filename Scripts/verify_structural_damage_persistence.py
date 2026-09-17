@@ -20,6 +20,15 @@ playtest = (root / 'Docs/PLAYTEST_0.0.93.md').read_text(encoding='utf-8')
 changelog = (root / 'CHANGELOG.d/0.0.93.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
+runtime = re.search(r'-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)', workflow)
+gameplay_runtime = re.search(r'-MinimumRuntimeSeconds\s+(\d+)', workflow)
+runtime_window_ok = bool(runtime and gameplay_runtime)
+if runtime_window_ok:
+    minimum_alive = int(runtime.group(1))
+    launch_timeout = int(runtime.group(2))
+    gameplay_minimum = int(gameplay_runtime.group(1))
+    runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
+
 checks = {
     'save schema retains structural v5 data under v8+': 'SaveVersion = 8' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
     'exact structural fields': all(x in save_h for x in ['FrontHealth', 'RearHealth', 'LeftHealth', 'RightHealth', 'CoolingStress', 'DetachedPanelMask']),
@@ -44,7 +53,7 @@ checks = {
     'evaluator retains structural gates': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator and "step='STRUCTURAL_PERSISTENCE'" in evaluator and "step='STRUCTURAL_REPAIR'" in evaluator,
     'evaluator structural hard gates': 'structural_persistence_passed' in evaluator and 'structural_repair_passed' in evaluator and 'structural_recovery_complete' in evaluator,
     'current Win64 candidate evidence': "default: '0.1.14'" in workflow and 'WIN64_PREFLIGHT.json' in workflow and 'BUILD_ATTEMPT.json' in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
-    '125 second packaged route': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
+    'extended packaged runtime': runtime_window_ok,
     'sanity wired': 'Verify persistent Native structural damage' in sanity and 'verify_structural_damage_persistence.py' in sanity,
     'origin docs retained': '0.0.93' in playtest and 'STRUCTURAL_PERSISTENCE' in playtest and 'STRUCTURAL_REPAIR' in playtest and '0.0.93' in changelog,
 }
@@ -65,4 +74,4 @@ for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {pe
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
 
-print(f'[OK] Persistent Native structural damage + workshop recovery retained under save v8 ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.')
+print(f'[OK] Persistent Native structural damage + workshop recovery retained under save v8 ({len(checks)} checks; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}%.')
