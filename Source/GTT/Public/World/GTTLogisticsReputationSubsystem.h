@@ -80,6 +80,26 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
     FString GetPriorityVehicleLabel() const;
 
+    // 0.1.11 emergency-dispatch windows and cross-lane priority chain. The chain reuses the
+    // already-persistent clean logistics streak; no parallel save counter is introduced.
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|Chain")
+    int32 GetPriorityChainStreak() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|Chain")
+    float GetPriorityChainRewardMultiplier() const;
+
+    // ROAD acceptance is immediately playable, so its depot pickup SLA is expressed in real
+    // gameplay seconds. CARGO holds continue to use world-clock minutes because reservations
+    // are persisted as depot closing-hour timestamps.
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|SLA")
+    float GetRoadPriorityPickupSlaSeconds() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|SLA")
+    int32 GetCargoPriorityPickupSlaMinutes() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|Chain")
+    FString GetPriorityChainSummary() const;
+
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     bool IsCargoDepotWindowOpen() const;
 

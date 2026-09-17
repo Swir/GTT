@@ -69,9 +69,21 @@ void AGTTRoadRunDirector::Tick(float DeltaSeconds)
 
     if (Stage == EGTTRoadRunStage::CollectParts)
     {
+        // Give a driver physically entering the pickup radius on this frame the handoff before
+        // expiring the SLA, avoiding a one-frame edge-case loss at exactly zero seconds.
         if (bDrivingRattleback && ControlledVehicle && FVector::DistSquared2D(ControlledVehicle->GetActorLocation(), PartsPickupLocation) <= FMath::Square(CheckpointRadius))
         {
             BeginDelivery(PlayerPawn, ControlledVehicle);
+            return;
+        }
+
+        if (PriorityUrgencyAtStart > 0 && PickupSlaRemaining > 0.0f)
+        {
+            PickupSlaRemaining = FMath::Max(0.0f, PickupSlaRemaining - DeltaSeconds);
+            if (PickupSlaRemaining <= 0.0f)
+            {
+                FailContract(PlayerPawn, TEXT("Priority pickup SLA expired before the parts were collected."));
+            }
         }
         return;
     }
@@ -180,6 +192,14 @@ bool AGTTRoadRunDirector::TryStartContract(APawn* PlayerPawn)
         return false;
     }
 
+    // Freeze all accepted emergency terms at dispatch. Market pressure can evolve while the
+    // driver approaches the depot, but the agreed reward, pickup SLA and delivery window cannot.
+    PriorityUrgencyAtStart = Logistics->GetRoadPriorityUrgency();
+    float PriorityTimeScale = Logistics->GetRoadPriorityTimeScale();
+    LockedDeliveryTimeScale = PriorityTimeScale;
+    PriorityLabelAtStart = Logistics->GetPriorityDispatchLabel();
+    PickupSlaRemaining = PriorityUrgencyAtStart > 0 ? Logistics->GetRoadPriorityPickupSlaSeconds() : 0.0f;
+
     Stage = EGTTRoadRunStage::CollectParts;
     TimeRemaining = 0.0f;
     ParcelIntegrity = 1.0f;
@@ -189,10 +209,14 @@ bool AGTTRoadRunDirector::TryStartContract(APawn* PlayerPawn)
     bPoliceIncidentDuringRun = false;
     RewardMultiplierAtStart = Logistics->GetRoadCourierRewardMultiplier() * Logistics->GetRoadPriorityRewardMultiplier();
     SetMarkerState(true, false, false);
+
+    const FString PickupTerms = PriorityUrgencyAtStart > 0
+        ? FString::Printf(TEXT("PICKUP SLA %.0fs"), PickupSlaRemaining)
+        : TEXT("standard pickup window");
     PushMessage(PlayerPawn, FString::Printf(
-        TEXT("PARTS COURIER: Rattleback -> PARTS DEPOT -> HILL FARM -> NORTH WOOD YARD. %s | REP %s %d | payout x%.2f | %s."),
-        *Logistics->GetRoadCourierScheduleLabel(), *Logistics->GetTierLabel(), Logistics->GetReputation(), RewardMultiplierAtStart,
-        *Logistics->GetPriorityDispatchLabel()), 8.0f);
+        TEXT("PARTS COURIER: Rattleback -> PARTS DEPOT -> HILL FARM -> NORTH WOOD YARD. %s | %s | REP %s %d | payout x%.2f | %s."),
+        *Logistics->GetRoadCourierScheduleLabel(), *PickupTerms, *Logistics->GetTierLabel(), Logistics->GetReputation(), RewardMultiplierAtStart,
+        *PriorityLabelAtStart), 8.0f);
     return true;
 }
 
@@ -228,15 +252,10 @@ bool AGTTRoadRunDirector::IsRattlebackControlled(APawn*& OutControlledVehicle) c
 void AGTTRoadRunDirector::BeginDelivery(APawn* PlayerPawn, APawn* ControlledVehicle)
 {
     Stage = EGTTRoadRunStage::RelayHillFarm;
-    float PriorityTimeScale = 1.0f;
-    FString PriorityLabel(TEXT("STANDARD DISPATCH"));
-    if (const UGTTLogisticsReputationSubsystem* Logistics = GetWorld() ? GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>() : nullptr)
-    {
-        PriorityTimeScale = Logistics->GetRoadPriorityTimeScale();
-        PriorityLabel = Logistics->GetPriorityDispatchLabel();
-    }
+    const float PriorityTimeScale = LockedDeliveryTimeScale;
     TimeRemaining = DeliveryTimeLimit * PriorityTimeScale;
     ParcelIntegrity = 1.0f;
+    PickupSlaRemaining = 0.0f;
     NativeImpactCountDuringRun = 0;
     NativeImpactBaseline = 0;
     if (const AGTTRoadVehicleNativePawn* NativeRoad = Cast<AGTTRoadVehicleNativePawn>(ControlledVehicle))
@@ -244,8 +263,8 @@ void AGTTRoadRunDirector::BeginDelivery(APawn* PlayerPawn, APawn* ControlledVehi
         NativeImpactBaseline = NativeRoad->GetNativeImpactCount();
     }
     SetMarkerState(false, true, false);
-    PushMessage(PlayerPawn, FString::Printf(TEXT("PARTS LOADED: first signature HILL FARM, then NORTH WOOD YARD. %s locks a %.0fs delivery window; shipment integrity and police risk run through both legs."),
-        *PriorityLabel, TimeRemaining), 7.5f);
+    PushMessage(PlayerPawn, FString::Printf(TEXT("PARTS LOADED ON TIME: first signature HILL FARM, then NORTH WOOD YARD. %s locks a %.0fs delivery window; shipment integrity and police risk run through both legs."),
+        *PriorityLabelAtStart, TimeRemaining), 7.5f);
 }
 
 void AGTTRoadRunDirector::CompleteRelay(APawn* PlayerPawn)
@@ -298,7 +317,8 @@ void AGTTRoadRunDirector::CompleteContract(APawn* PlayerPawn)
 {
     if (!PlayerPawn || Stage != EGTTRoadRunStage::DeliverParts) return;
 
-    const float TimeRatio = DeliveryTimeLimit > 0.0f ? TimeRemaining / DeliveryTimeLimit : 0.0f;
+    const float ActiveDeliveryTimeLimit = DeliveryTimeLimit * LockedDeliveryTimeScale;
+    const float TimeRatio = ActiveDeliveryTimeLimit > 0.0f ? TimeRemaining / ActiveDeliveryTimeLimit : 0.0f;
     const int32 DamagePenalty = FMath::RoundToInt((1.0f - FMath::Clamp(ParcelIntegrity, 0.0f, 1.0f)) * 160.0f);
     const int32 FastBonus = TimeRatio >= 0.38f ? FastDeliveryBonus : 0;
     const int32 CleanBonus = ParcelIntegrity >= 0.97f && NativeImpactCountDuringRun == 0 && !bPoliceIncidentDuringRun ? CleanRunBonus : 0;
@@ -330,11 +350,15 @@ void AGTTRoadRunDirector::CompleteContract(APawn* PlayerPawn)
 
     Stage = EGTTRoadRunStage::Idle;
     TimeRemaining = 0.0f;
+    PickupSlaRemaining = 0.0f;
     ParcelIntegrity = 1.0f;
     NativeImpactBaseline = 0;
     NativeImpactCountDuringRun = 0;
     bPoliceIncidentDuringRun = false;
     RewardMultiplierAtStart = 1.0f;
+    LockedDeliveryTimeScale = 1.0f;
+    PriorityUrgencyAtStart = 0;
+    PriorityLabelAtStart = TEXT("STANDARD DISPATCH");
     SetMarkerState(false, false, false);
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
 }
@@ -351,11 +375,15 @@ void AGTTRoadRunDirector::FailContract(APawn* PlayerPawn, const FString& Reason,
 
     Stage = EGTTRoadRunStage::Idle;
     TimeRemaining = 0.0f;
+    PickupSlaRemaining = 0.0f;
     ParcelIntegrity = 1.0f;
     NativeImpactBaseline = 0;
     NativeImpactCountDuringRun = 0;
     bPoliceIncidentDuringRun = false;
     RewardMultiplierAtStart = 1.0f;
+    LockedDeliveryTimeScale = 1.0f;
+    PriorityUrgencyAtStart = 0;
+    PriorityLabelAtStart = TEXT("STANDARD DISPATCH");
     SetMarkerState(false, false, false);
     PushMessage(PlayerPawn, FString::Printf(TEXT("PARTS COURIER FAILED: %s Reputation/streak consequence saved."), *Reason), 6.5f);
     if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this))) GameMode->SaveProgress();
@@ -366,7 +394,9 @@ FString AGTTRoadRunDirector::GetObjectiveText() const
     switch (Stage)
     {
         case EGTTRoadRunStage::CollectParts:
-            return TEXT("PARTS COURIER | Rattleback -> VILLAGE PARTS DEPOT");
+            return PriorityUrgencyAtStart > 0
+                ? FString::Printf(TEXT("PARTS COURIER | Rattleback -> VILLAGE PARTS DEPOT | PICKUP SLA %.0fs"), PickupSlaRemaining)
+                : TEXT("PARTS COURIER | Rattleback -> VILLAGE PARTS DEPOT");
         case EGTTRoadRunStage::RelayHillFarm:
             return FString::Printf(TEXT("PARTS COURIER | HILL FARM RELAY | %.0fs | shipment %.0f%%"), TimeRemaining, ParcelIntegrity * 100.0f);
         case EGTTRoadRunStage::DeliverParts:

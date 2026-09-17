@@ -75,6 +75,13 @@ private:
     bool bPoliceIncidentDuringRun = false;
     float RewardMultiplierAtStart = 1.0f;
 
+    // 0.1.11 locks the accepted ROAD emergency contract so market changes while driving to the
+    // depot cannot silently change its payout/timing. STANDARD work keeps PickupSlaRemaining 0.
+    float PickupSlaRemaining = 0.0f;
+    float LockedDeliveryTimeScale = 1.0f;
+    int32 PriorityUrgencyAtStart = 0;
+    FString PriorityLabelAtStart = TEXT("STANDARD DISPATCH");
+
     UPROPERTY(EditDefaultsOnly, Category="GTT|RoadRun")
     FVector PartsPickupLocation = FVector(-1250.0f, -470.0f, 80.0f);
 
