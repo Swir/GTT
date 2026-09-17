@@ -117,6 +117,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [x] Deeper vehicle ownership costs, insurance/impound fees and fines
 - [x] Lane metadata, speed limits and authored junction priorities
 
+> **0.1.22 enforcement expansion:** the existing ranger/game-warden response now includes vehicle road-stop orders, continuous low-speed surrender/search acceptance, fish + rural-contraband seizure through existing authoritative inventories, and one-shot flee escalation into the shared Wanted/Police system. This is a connected gameplay expansion and does not change the five hardware/runtime acceptance blockers counted above.
+
 ## 0.7 — Jobs & Countryside Expansion
 - [x] East-side forest expansion
 - [x] North Wood Yard legal-work expansion

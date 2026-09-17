@@ -105,3 +105,4 @@ jobs:
       - { name: Verify Native Chaos packaged runtime telemetry, run: 'python Scripts/verify_native_runtime_telemetry.py' }
       - { name: Verify automatic drivetrain runtime contract, run: 'python Scripts/verify_automatic_drivetrain_runtime.py' }
       - { name: Verify deterministic Native drivetrain runtime scenario, run: 'python Scripts/verify_deterministic_drivetrain_scenario.py' }
+      - { name: Verify ranger road-stop, search and evasion milestone, run: 'python Scripts/verify_ranger_road_stop.py' }
