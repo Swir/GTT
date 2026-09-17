@@ -100,6 +100,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 - [ ] Dedicated native Chaos drivetrain/suspension/wheel setup
 - [ ] Authored skeletal trailer wheel assets and final hitch sockets
 
+> **0.1.18 runtime evidence closure:** the Win64 technical gate now consumes the deterministic drivetrain manifest and a separate authored-trailer runtime manifest. These source-side acceptance contracts intentionally do **not** close either Native Chaos or trailer asset checkbox until a real UE 5.8 Win64 package produces matching PASS evidence and the rendered result is visually accepted.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
