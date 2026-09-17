@@ -42,12 +42,14 @@ checks = {
     "dispatcher cycles authoritative order with trust filter": all(token in dispatch_cpp for token in (
         "GetCargoDeskAccessTier", "CycleCargoNegotiatedOrder", "GetActiveCargoOrderTier() <= AccessTier",
         "ClearCargoNegotiatedOrder", "Complete clean deliveries", "SaveProgress()")),
+    "0.1.7 dispatcher contract remains visible": all(token in dispatch_cpp for token in (
+        "FEED DISPATCH NEGOTIATION", "E NEGOTIATE", "HILL NEED %d | E STATUS", "WOOD NEED %d | E STATUS")),
     "dispatcher reactions reach all three staff roles": all(token in dispatch_cpp for token in (
         "GetFeedRelationshipLabel", "GetHillRelationshipLabel", "GetWoodRelationshipLabel",
         "GetDispatcherReaction(FeedDepotDispatcherRole)", "GetDispatcherReaction(HillFarmReceiverRole)",
         "GetDispatcherReaction(WoodYardForemanRole)")),
     "world labels remain compact": all(token in dispatch_cpp for token in (
-        "E DESK | T%d", "HILL %d | E STATUS", "WOOD %d | E STATUS")),
+        "E NEGOTIATE | DESK T%d", "HILL NEED %d | E STATUS", "WOOD NEED %d | E STATUS")),
     "cargo board gates acceptance by desk access": all(token in board_cpp for token in (
         "CanAccessCargoTier(RouteTier)", "BUILD DISPATCHER TRUST", "bCargoDeskAccess",
         "Offer.bCanAcceptNow && bCargoScheduleOpen && bCargoMarketOpen && bCargoDeskAccess")),
