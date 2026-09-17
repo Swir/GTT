@@ -76,12 +76,15 @@ done = sum(1 for value in checkboxes if value.lower() == "x")
 total = len(checkboxes)
 remaining = total - done
 progress = round((done / total * 100.0), 1) if total else 0.0
+filled = round(done * 20.0 / total) if total else 0
+bar = "█" * filled + "░" * (20 - filled)
 checks["roadmap checkbox truth is unchanged"] = (done, remaining, total, progress) == (125, 5, 130, 96.2)
 checks["SWIR roadmap dashboard lock remains intact"] = all(token in roadmap for token in (
-    "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "ROADMAP-PROGRESS:START", "ROADMAP-PROGRESS:END",
-    "badge/CI-", "badge/ROADMAP-", "badge/DONE-", "badge/STATUS-",
-    "## 📊 Overall progress", "███████████████████░ 96.2%",
-    "| Completed | Remaining | Total | Progress |", "| **125** | **5** | **130** | **96.2%** |"))
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "<!-- ROADMAP-PROGRESS:START -->", "<!-- ROADMAP-PROGRESS:END -->",
+    'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
+    "## 📊 Overall progress", f"ROADMAP-{progress:.1f}%25", f"DONE-{done}%2F{total}", "STATUS-IN%20PROGRESS",
+    f"{bar} {progress:.1f}%", "| Completed | Remaining | Total | Progress |",
+    f"| **{done}** | **{remaining}** | **{total}** | **{progress:.1f}%** |"))
 
 failed = [name for name, ok in checks.items() if not ok]
 for name, ok in checks.items():
