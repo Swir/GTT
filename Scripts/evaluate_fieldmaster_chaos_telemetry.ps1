@@ -58,12 +58,12 @@ foreach($line in Get-Content $RuntimeLog){
 }
 
 if($samples.Count -lt $MinimumSamples){throw "Only $($samples.Count) Fieldmaster telemetry samples found; need at least $MinimumSamples."}
-if(($samples|Where-Object{$_.config_valid -ne 1}).Count -gt 0){throw 'Fieldmaster emitted telemetry while dedicated configuration was invalid.'}
-if(($samples|Where-Object{$_.active -eq 1}).Count -eq 0){throw 'Fieldmaster Chaos movement was never active.'}
+if(@($samples|Where-Object{$_.config_valid -ne 1}).Count -gt 0){throw 'Fieldmaster emitted telemetry while dedicated configuration was invalid.'}
+if(@($samples|Where-Object{$_.active -eq 1}).Count -eq 0){throw 'Fieldmaster Chaos movement was never active.'}
 
 foreach($s in $samples){
     foreach($value in @($s.rpm,$s.max_rpm,$s.speed_kmh,$s.requested_throttle,$s.throttle,$s.steering,$s.drive_health,$s.steering_grip,$s.terrain_grip,$s.suspension_min,$s.suspension_max,$s.spring_force,$s.max_slip,$s.drive_torque,$s.brake_torque)){
-        if([double]::IsNaN($value)-or[double]::IsInfinity($value)){throw 'Non-finite value found in Fieldmaster Chaos telemetry.'}
+        if([double]::IsNaN($value) -or [double]::IsInfinity($value)){throw 'Non-finite value found in Fieldmaster Chaos telemetry.'}
     }
     if($s.valid_wheels -lt 0 -or $s.valid_wheels -gt 4 -or $s.contacts -lt 0 -or $s.contacts -gt 4 -or $s.suspension_samples -lt 0 -or $s.suspension_samples -gt 4){throw 'Invalid Fieldmaster wheel/contact counters.'}
     if($s.throttle -lt -0.001 -or $s.throttle -gt 1.001){throw 'Effective Fieldmaster throttle escaped 0..1.'}
