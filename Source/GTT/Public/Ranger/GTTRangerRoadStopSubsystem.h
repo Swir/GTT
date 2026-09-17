@@ -65,7 +65,15 @@ public:
     FVector GetPullOverTargetLocation() const { return PullOverTargetLocation; }
     float GetPullOverDistanceCm(const APawn* Target) const;
     bool IsTargetInPullOverZone(const APawn* Target, float AcceptanceRadiusCm = 275.0f) const;
-    bool GetPullOverMarkerTransform(FTransform& OutTransform) const;
+    bool GetPullOverMarkerTransform(FTransform& OutTransform) const
+    {
+        if (!HasTrafficControl())
+        {
+            return false;
+        }
+        OutTransform = FTransform(RoadForward.Rotation(), PullOverTargetLocation, FVector::OneVector);
+        return true;
+    }
     bool GetPatrolVehicleTransform(FTransform& OutTransform) const;
 
     bool GetTrafficResponse(const FVector& VehicleLocation, const FVector& VehicleForward,
