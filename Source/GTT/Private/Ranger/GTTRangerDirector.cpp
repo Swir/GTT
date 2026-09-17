@@ -5,6 +5,7 @@
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
+#include "Ranger/GTTRangerPatrolVehicle.h"
 #include "Ranger/GTTRangerPawn.h"
 #include "TimerManager.h"
 #include "Wanted/GTTWantedComponent.h"
@@ -14,11 +15,25 @@ AGTTRangerDirector::AGTTRangerDirector()
 {
     PrimaryActorTick.bCanEverTick = false;
     RangerClass = AGTTRangerPawn::StaticClass();
+    PatrolVehicleClass = AGTTRangerPatrolVehicle::StaticClass();
 }
 
 void AGTTRangerDirector::BeginPlay()
 {
     Super::BeginPlay();
+
+    // Keep one lightweight patrol/support unit resident and hidden. The road-stop
+    // subsystem drives its deployment, so spawning it here does not create a
+    // second incident authority or make it part of the player garage/save fleet.
+    if (GetWorld() && PatrolVehicleClass)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = this;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        PatrolVehicle = GetWorld()->SpawnActor<AGTTRangerPatrolVehicle>(
+            PatrolVehicleClass, GetActorLocation(), GetActorRotation(), SpawnParams);
+    }
+
     GetWorldTimerManager().SetTimer(ResponseTimer, this, &AGTTRangerDirector::UpdateResponse, ResponseInterval, true, 0.35f);
 }
 

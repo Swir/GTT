@@ -56,11 +56,19 @@ bool UGTTRangerRoadStopSubsystem::BeginStop(
     ObservedTargetSpeedKmh = 0.0f;
     ComplianceSpeedLimitKmh = 2.5f;
     FleeDisplayUntilSeconds = 0.0f;
+    bTargetInPullOverZone = false;
     RefreshRoadFrame(Target);
 
     const FVector RoadRight = FVector::CrossProduct(FVector::UpVector, RoadForward).GetSafeNormal2D();
     const float RangerSide = FVector::DotProduct(RangerLocation - StopLocation, RoadRight);
     ShoulderSide = RangerSide < 0.0f ? -1.0f : 1.0f;
+
+    // Freeze the roadside scene ahead of the player instead of continuously
+    // chasing the moving target. The lane anchor stays on-road for traffic AI,
+    // while the actual compliance marker sits safely on the selected shoulder.
+    StopLocation += RoadForward * PullOverAheadCm;
+    PullOverTargetLocation = StopLocation + RoadRight * ShoulderSide * PullOverLateralCm;
+    PullOverTargetLocation.Z = Target->GetActorLocation().Z;
     return true;
 }
 
@@ -72,19 +80,20 @@ void UGTTRangerRoadStopSubsystem::UpdateStop(
     float HoldRequired,
     float TargetSpeedKmh,
     bool bSearching,
-    float InComplianceSpeedLimitKmh)
+    float InComplianceSpeedLimitKmh,
+    bool bInPullOverZone)
 {
     if (!IsOwnedBy(Controller) || !Target || ActiveTarget.Get() != Target)
     {
         return;
     }
 
-    RefreshRoadFrame(Target);
     RemainingSeconds = FMath::Max(0.0f, SecondsRemaining);
     SearchHoldElapsed = FMath::Max(0.0f, HoldElapsed);
     SearchHoldRequired = FMath::Max(0.0f, HoldRequired);
     ObservedTargetSpeedKmh = FMath::Max(0.0f, TargetSpeedKmh);
     ComplianceSpeedLimitKmh = FMath::Max(0.1f, InComplianceSpeedLimitKmh);
+    bTargetInPullOverZone = bInPullOverZone;
     Phase = bSearching ? EGTTRangerRoadStopPhase::Search : EGTTRangerRoadStopPhase::Comply;
 }
 
@@ -98,6 +107,7 @@ void UGTTRangerRoadStopSubsystem::MarkFlee(AGTTRangerAIController* Controller, f
     Phase = EGTTRangerRoadStopPhase::Flee;
     RemainingSeconds = 0.0f;
     SearchHoldElapsed = 0.0f;
+    bTargetInPullOverZone = false;
     FleeDisplayUntilSeconds = GetWorld()
         ? GetWorld()->GetTimeSeconds() + FMath::Max(0.0f, DisplaySeconds)
         : 0.0f;
@@ -134,18 +144,57 @@ bool UGTTRangerRoadStopSubsystem::HasTrafficControl() const
         (Phase == EGTTRangerRoadStopPhase::Comply || Phase == EGTTRangerRoadStopPhase::Search);
 }
 
+bool UGTTRangerRoadStopSubsystem::HasPatrolScene() const
+{
+    if (!ActiveController.IsValid() || !ActiveTarget.IsValid())
+    {
+        return false;
+    }
+    return Phase == EGTTRangerRoadStopPhase::Comply ||
+        Phase == EGTTRangerRoadStopPhase::Search ||
+        (Phase == EGTTRangerRoadStopPhase::Flee && IsFleeDisplayVisible());
+}
+
 FVector UGTTRangerRoadStopSubsystem::GetRangerStagingPoint(float LateralOffsetCm, float RearOffsetCm) const
 {
     const FVector RoadRight = FVector::CrossProduct(FVector::UpVector, RoadForward).GetSafeNormal2D();
-    return StopLocation + RoadRight * ShoulderSide * FMath::Max(0.0f, LateralOffsetCm)
+    return PullOverTargetLocation + RoadRight * ShoulderSide * FMath::Max(0.0f, LateralOffsetCm)
         - RoadForward * FMath::Max(0.0f, RearOffsetCm);
 }
 
 FVector UGTTRangerRoadStopSubsystem::GetRangerSupportPoint(float LateralOffsetCm, float RearOffsetCm) const
 {
     const FVector RoadRight = FVector::CrossProduct(FVector::UpVector, RoadForward).GetSafeNormal2D();
-    return StopLocation + RoadRight * ShoulderSide * FMath::Max(0.0f, LateralOffsetCm)
+    return PullOverTargetLocation + RoadRight * ShoulderSide * FMath::Max(0.0f, LateralOffsetCm)
         - RoadForward * FMath::Max(0.0f, RearOffsetCm + 260.0f);
+}
+
+float UGTTRangerRoadStopSubsystem::GetPullOverDistanceCm(const APawn* Target) const
+{
+    if (!Target || !ActiveTarget.IsValid() || ActiveTarget.Get() != Target)
+    {
+        return BIG_NUMBER;
+    }
+    return FVector::Dist2D(Target->GetActorLocation(), PullOverTargetLocation);
+}
+
+bool UGTTRangerRoadStopSubsystem::IsTargetInPullOverZone(const APawn* Target, float AcceptanceRadiusCm) const
+{
+    return Target && ActiveTarget.Get() == Target &&
+        GetPullOverDistanceCm(Target) <= FMath::Max(50.0f, AcceptanceRadiusCm);
+}
+
+bool UGTTRangerRoadStopSubsystem::GetPatrolVehicleTransform(FTransform& OutTransform) const
+{
+    if (!HasPatrolScene())
+    {
+        return false;
+    }
+
+    const FVector PatrolLocation = PullOverTargetLocation - RoadForward * PatrolVehicleRearOffsetCm;
+    const FRotator PatrolRotation = RoadForward.Rotation();
+    OutTransform = FTransform(PatrolRotation, PatrolLocation, FVector::OneVector);
+    return true;
 }
 
 bool UGTTRangerRoadStopSubsystem::GetTrafficResponse(
@@ -257,6 +306,11 @@ FGTTRangerRoadStopPresentation UGTTRangerRoadStopSubsystem::GetPresentationSnaps
     Snapshot.Phase = Phase;
     Snapshot.SecondsRemaining = RemainingSeconds;
     Snapshot.ObservedSpeedKmh = ObservedTargetSpeedKmh;
+    Snapshot.bInPullOverZone = bTargetInPullOverZone;
+    Snapshot.PullOverWorldLocation = PullOverTargetLocation;
+    Snapshot.PullOverDistanceMeters = ActiveTarget.IsValid()
+        ? FVector::Dist2D(ActiveTarget->GetActorLocation(), PullOverTargetLocation) / 100.0f
+        : 0.0f;
 
     switch (Phase)
     {
@@ -270,9 +324,18 @@ FGTTRangerRoadStopPresentation UGTTRangerRoadStopSubsystem::GetPresentationSnaps
         Snapshot.Progress01 = InitialGraceSeconds > KINDA_SMALL_NUMBER
             ? FMath::Clamp(1.0f - RemainingSeconds / InitialGraceSeconds, 0.0f, 1.0f)
             : 1.0f;
-        Snapshot.Instruction = ObservedTargetSpeedKmh > ComplianceSpeedLimitKmh
-            ? FString::Printf(TEXT("PULL OVER | SLOW BELOW %.1f KM/H"), ComplianceSpeedLimitKmh)
-            : TEXT("HOLD POSITION | WAIT FOR WARDEN");
+        if (!bTargetInPullOverZone)
+        {
+            Snapshot.Instruction = FString::Printf(TEXT("PULL OVER | MOVE TO SHOULDER MARKER %.0f M"), Snapshot.PullOverDistanceMeters);
+        }
+        else if (ObservedTargetSpeedKmh > ComplianceSpeedLimitKmh)
+        {
+            Snapshot.Instruction = FString::Printf(TEXT("PULL OVER | SLOW BELOW %.1f KM/H"), ComplianceSpeedLimitKmh);
+        }
+        else
+        {
+            Snapshot.Instruction = TEXT("HOLD POSITION | WAIT FOR WARDEN");
+        }
         break;
 
     case EGTTRangerRoadStopPhase::Search:
@@ -309,8 +372,9 @@ FString UGTTRangerRoadStopSubsystem::GetStatusText() const
     case EGTTRangerRoadStopPhase::Comply:
         if (ActiveController.IsValid() && ActiveTarget.IsValid())
         {
-            return FString::Printf(TEXT("WARDEN STOP | COMPLY %.1fs | SPEED %.1f km/h"),
-                RemainingSeconds, ObservedTargetSpeedKmh);
+            return FString::Printf(TEXT("WARDEN STOP | COMPLY %.1fs | SPEED %.1f km/h | SHOULDER %.1fm"),
+                RemainingSeconds, ObservedTargetSpeedKmh,
+                FVector::Dist2D(ActiveTarget->GetActorLocation(), PullOverTargetLocation) / 100.0f);
         }
         break;
     case EGTTRangerRoadStopPhase::Search:
@@ -353,6 +417,7 @@ void UGTTRangerRoadStopSubsystem::ClearStop()
     ActiveTarget.Reset();
     Phase = EGTTRangerRoadStopPhase::None;
     StopLocation = FVector::ZeroVector;
+    PullOverTargetLocation = FVector::ZeroVector;
     RoadForward = FVector::ForwardVector;
     ShoulderSide = 1.0f;
     RemainingSeconds = 0.0f;
@@ -362,4 +427,5 @@ void UGTTRangerRoadStopSubsystem::ClearStop()
     ObservedTargetSpeedKmh = 0.0f;
     ComplianceSpeedLimitKmh = 2.5f;
     FleeDisplayUntilSeconds = 0.0f;
+    bTargetInPullOverZone = false;
 }
