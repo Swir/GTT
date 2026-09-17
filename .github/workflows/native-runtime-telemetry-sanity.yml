@@ -1,0 +1,58 @@
+name: GTT 0.1.15 native runtime telemetry sanity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTNativeRuntimeTelemetrySubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTNativeAxleTractionSubsystem.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTNativePhysicsAcceptanceSubsystem.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp'
+      - 'Scripts/evaluate_native_chaos_runtime.ps1'
+      - 'Scripts/evaluate_demo_candidate.ps1'
+      - 'Scripts/verify_native_runtime_telemetry.py'
+      - 'Scripts/verify_win64_evidence_pipeline.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/native-runtime-telemetry-sanity.yml'
+      - '.github/workflows/project-sanity.yml'
+      - 'Docs/PLAYTEST_0.1.15.md'
+      - 'CHANGELOG.d/0.1.15.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTNativeRuntimeTelemetrySubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTNativeAxleTractionSubsystem.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTNativePhysicsAcceptanceSubsystem.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp'
+      - 'Scripts/evaluate_native_chaos_runtime.ps1'
+      - 'Scripts/evaluate_demo_candidate.ps1'
+      - 'Scripts/verify_native_runtime_telemetry.py'
+      - 'Scripts/verify_win64_evidence_pipeline.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/native-runtime-telemetry-sanity.yml'
+      - '.github/workflows/project-sanity.yml'
+      - 'Docs/PLAYTEST_0.1.15.md'
+      - 'CHANGELOG.d/0.1.15.md'
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify 0.1.15 live Native Chaos telemetry contract
+        run: python Scripts/verify_native_runtime_telemetry.py
+      - name: Verify dedicated Fieldmaster Chaos movement regression
+        run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
+      - name: Verify Native axle traction regression
+        run: python Scripts/verify_native_axle_traction.py
+      - name: Verify Native Physics acceptance regression
+        run: python Scripts/verify_native_physics_acceptance.py
+      - name: Verify command-composition regression
+        run: python Scripts/verify_native_command_composition.py
+      - name: Verify Win64 evidence pipeline regression
+        run: python Scripts/verify_win64_evidence_pipeline.py
