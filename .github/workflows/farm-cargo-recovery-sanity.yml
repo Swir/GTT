@@ -1,0 +1,26 @@
+name: GTT 0.1.30 Farm Cargo recovery sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  farm-cargo-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.1.28 physical cargo authority regression
+        run: python Scripts/verify_farm_cargo_authority.py
+      - name: Verify 0.1.29 packaged runtime evidence regression
+        run: python Scripts/verify_farm_cargo_runtime.py
+      - name: Verify 0.1.30 persistent cargo recovery
+        run: python Scripts/verify_farm_cargo_recovery.py
+      - name: Verify deterministic SWIR progress SVG outputs
+        run: python Scripts/generate_progress_svg.py --check
