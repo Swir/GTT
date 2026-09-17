@@ -37,7 +37,7 @@ checks = {
     'evaluator schema v11': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator,
     'evaluator new hard steps': all(x in evaluator for x in ["step='STRUCTURAL_HANDLING'", "step='STRUCTURAL_RELOAD_HANDLING'", "step='STRUCTURAL_DRIVE_RECOVERY'"]),
     'evaluator new hard gates': all(x in evaluator for x in ['structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
-    'workflow 0.0.94': "default: '0.0.94'" in workflow and 'structural limp-home' in workflow.lower(),
+    'current Win64 candidate route': "default: '0.1.14'" in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
     '125 second packaged route': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
     'sanity wired': 'Verify persistent structural limp-home dynamics' in sanity and 'verify_structural_limp_home.py' in sanity,
     'docs': '0.0.94' in playtest and 'STRUCTURAL_HANDLING' in playtest and '0.0.94' in changelog and 'limp-home' in changelog.lower(),
