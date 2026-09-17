@@ -1,0 +1,21 @@
+name: GTT 0.1.16 automatic drivetrain sanity
+on:
+  push: { branches: [ main ] }
+  pull_request: { branches: [ main ] }
+  workflow_dispatch:
+jobs:
+  automatic-drivetrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify automatic drivetrain authority and runtime contract
+        run: python Scripts/verify_automatic_drivetrain_runtime.py
+      - name: Regression — shared drivetrain direction authority
+        run: python Scripts/verify_native_drivetrain_authority.py
+      - name: Regression — dedicated Fieldmaster movement
+        run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
+      - name: Regression — packaged Native Chaos telemetry
+        run: python Scripts/verify_native_runtime_telemetry.py
