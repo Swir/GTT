@@ -1,0 +1,20 @@
+name: GTT 0.1.22 ranger road-stop/search/evasion sanity
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ranger-road-stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify warden road stops, roadside search, surrender and flee escalation
+        run: python Scripts/verify_ranger_road_stop.py
