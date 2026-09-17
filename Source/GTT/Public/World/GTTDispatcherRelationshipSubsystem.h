@@ -49,9 +49,13 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk|Favors")
     int32 GetCargoReservationCapacity() const;
 
-    /** Hold duration in real in-game minutes, capped by the depot's 17:30 closing time. */
+    /** Legacy relationship hold allowance before an emergency-dispatch SLA is applied. */
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk|Favors")
     int32 GetCargoReservationHoldMinutes() const;
+
+    /** Actual hold used by the desk: relationship favor capped by the live priority pickup SLA. */
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk|Favors")
+    int32 GetEffectiveCargoReservationHoldMinutes() const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk|Favors")
     FString GetCargoReservationFavorLabel() const;
