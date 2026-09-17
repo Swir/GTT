@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="72" viewBox="0 0 900 72" role="img" aria-label="GTT · Grand Theft Tractor: 96.2%; 125 / 130 tasks; status IN PROGRESS. Release readiness is separate and NOT READY — Win64/runtime/visual gates open.">
+  <title>GTT · Grand Theft Tractor roadmap progress</title>
+  <desc>Roadmap checklist: 125 / 130 tasks, 96.2%, status IN PROGRESS. Release readiness: NOT READY — Win64/runtime/visual gates open.</desc>
+  <defs>
+    <linearGradient id="miniGradient" x1="0" x2="1"><stop offset="0" stop-color="#0088FF"/><stop offset="1" stop-color="#62E5FF"/></linearGradient>
+    <filter id="miniGlow" x="-10%" y="-80%" width="120%" height="260%"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+  <rect x="0.5" y="0.5" width="899" height="71" rx="14" fill="#02050A" stroke="#17364A"/>
+  <path d="M16 18H884M16 36H884M16 54H884" stroke="#07111C" stroke-width="1"/>
+  <text x="20" y="29" fill="#F4FAFF" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">GTT ROADMAP</text>
+  <text x="20" y="53" fill="#8DA8B8" font-family="Segoe UI,Arial,sans-serif" font-size="12">125 / 130 tasks</text>
+  <rect x="170" y="49" width="700" height="10" rx="5" fill="#07111C" stroke="#17364A"/>
+  <rect id="mini-progress-glow" x="170" y="49" width="673.077" height="10" rx="5" fill="url(#miniGradient)" opacity="0.28" filter="url(#miniGlow)" />
+  <rect id="mini-progress-fill" x="170" y="49" width="673.077" height="10" rx="5" fill="url(#miniGradient)" />
+  <text x="870" y="31" text-anchor="end" fill="#62E5FF" font-family="Segoe UI,Arial,sans-serif" font-size="21" font-weight="700">96.2%</text>
+  <text x="870" y="44" text-anchor="end" fill="#8DA8B8" font-family="Segoe UI,Arial,sans-serif" font-size="10">IN PROGRESS</text>
+</svg>
