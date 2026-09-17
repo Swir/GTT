@@ -5,7 +5,7 @@ on:
       version:
         description: 'GTT version label for the package'
         required: true
-        default: '0.1.14'
+        default: '0.1.15'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -42,6 +42,9 @@ jobs:
       - name: Runtime smoke test packaged EXE with deterministic scenario
         shell: pwsh
         run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145
+      - name: Evaluate Fieldmaster dedicated Native Chaos telemetry
+        shell: pwsh
+        run: ./Scripts/evaluate_fieldmaster_chaos_telemetry.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Evaluate structural limp-home, persistence and workshop recovery scenario
         shell: pwsh
         run: ./Scripts/evaluate_demo_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
@@ -52,7 +55,7 @@ jobs:
         shell: pwsh
         run: |
           ./Scripts/validate_windows_package.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Configuration "$env:GTT_CONFIGURATION" -Version "$env:GTT_VERSION"
-          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
+          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','FIELDMASTER_CHAOS_TELEMETRY.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
       - name: Evaluate demo technical candidate
         shell: pwsh
         run: ./Scripts/evaluate_demo_candidate.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
@@ -72,6 +75,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\BUILD_INFO.json
             ${{ env.GTT_PACKAGE_DIR }}\PACKAGE_VALIDATION.json
             ${{ env.GTT_PACKAGE_DIR }}\RUNTIME_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\FIELDMASTER_CHAOS_TELEMETRY.json
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\GAMEPLAY_SMOKE.json
             ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
@@ -86,6 +90,7 @@ jobs:
           path: |
             ${{ env.GTT_PREFLIGHT_FILE }}
             ${{ env.GTT_ATTEMPT_FILE }}
+            ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
             ${{ github.workspace }}\Saved\Logs\**
           if-no-files-found: warn
           retention-days: 14

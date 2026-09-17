@@ -27,7 +27,7 @@ checks = {
     'latest schema retains recovery': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator,
     'evaluator persistence hard gate': 'damage_persistence_passed' in evaluator and 'spike damage did not survive the SaveProgress/LoadProgress round-trip' in evaluator,
     'evaluator workshop hard gate': 'workshop_recovery_passed' in evaluator and 'paid workshop did not restore persisted spike damage and handling' in evaluator,
-    'current Win64 candidate evidence': "default: '0.1.14'" in workflow and 'WIN64_PREFLIGHT.json' in workflow and 'BUILD_ATTEMPT.json' in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+    'current Win64 candidate evidence': "default: '0.1.15'" in workflow and 'WIN64_PREFLIGHT.json' in workflow and 'BUILD_ATTEMPT.json' in workflow and 'RUNTIME_SMOKE.json' in workflow and 'FIELDMASTER_CHAOS_TELEMETRY.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
     '125 second packaged route': '-MinimumAliveSeconds 125 -LaunchTimeoutSeconds 145' in workflow and '-MinimumRuntimeSeconds 125' in workflow,
     'workflow evaluator ordering': workflow.index('Evaluate structural limp-home, persistence and workshop recovery scenario') < workflow.index('Evaluate packaged gameplay smoke'),
     'sanity wired': 'Verify spike damage persistence and workshop recovery' in san and 'verify_damage_persistence_recovery.py' in san,

@@ -17,9 +17,9 @@ checks={
  'post-spike evidence retained': 'POST_SPIKE_ESCAPE' in cpp,
  '26 core completion retained': 'steps=26' in cpp and 'DEMO_SCENARIO_COMPLETE result=PASS steps=26' in eval_ps,
  'schema v11 retains crossing': 'gtt.demo-scenario.v11' in eval_ps and 'physical_crossing_passed' in eval_ps and 'wheel_risk_after' in eval_ps and 'post_spike_escape_passed' in eval_ps,
- 'current Win64 candidate route': "default: '0.1.14'" in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+ 'current Win64 candidate route': "default: '0.1.15'" in workflow and 'RUNTIME_SMOKE.json' in workflow and 'FIELDMASTER_CHAOS_TELEMETRY.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
  'origin docs retained': '0.0.91' in playtest and '0.0.91' in changelog,
 }
 failed=[name for name,ok in checks.items() if not ok]
 if failed: raise SystemExit('Physical roadblock crossing verification failed: '+', '.join(failed))
-print(f'Physical Native roadblock crossing contract retained under current 0.1.14 candidate workflow ({len(checks)}/{len(checks)} checks).')
+print(f'Physical Native roadblock crossing contract retained under current 0.1.15 candidate workflow ({len(checks)}/{len(checks)} checks).')

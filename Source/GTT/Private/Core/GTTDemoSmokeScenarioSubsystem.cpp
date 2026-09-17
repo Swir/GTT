@@ -15,6 +15,7 @@
 #include "Police/GTTRoadblock.h"
 #include "Traffic/GTTTrafficDirector.h"
 #include "UI/GTTGameHUD.h"
+#include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Wanted/GTTWantedComponent.h"
@@ -39,6 +40,29 @@ bool ExerciseNativeControls(AWheeledVehiclePawn* Pawn,float Elapsed,const TCHAR*
     const float Phase=FMath::Fmod(Elapsed,6.f);const float Throttle=Phase<4.5f?0.72f:0.f;const float Steering=Phase<2.f?0.35f:(Phase<4.f?-0.35f:0.f);const float Brake=Phase>=4.5f?0.65f:0.f;
     Movement->SetThrottleInput(Throttle);Movement->SetSteeringInput(Steering);Movement->SetBrakeInput(Brake);
     if(HasLiveNativeMotion(Pawn)){UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_CONTROL vehicle=%s throttle=%.2f steering=%.2f brake=%.2f speed_cm_s=%.1f"),VehicleId,Throttle,Steering,Brake,Pawn->GetVelocity().Size2D());return true;}return false;
+}
+
+bool ExerciseFieldmasterControls(AGTTFieldmasterNativePawn* Pawn,float Elapsed)
+{
+    if(!Pawn) return false;
+    UGTTFieldmasterChaosMovementComponent* Movement=Cast<UGTTFieldmasterChaosMovementComponent>(Pawn->GetVehicleMovementComponent());
+    if(!Movement||!Movement->IsActive()||!Movement->IsFieldmasterConfigurationValid()) return false;
+    const float Phase=FMath::Fmod(Elapsed,6.f);
+    const float Throttle=Phase<4.5f?0.72f:0.f;
+    const float Steering=Phase<2.f?0.35f:(Phase<4.f?-0.35f:0.f);
+    const FGTTVehicleMigrationSnapshot Snapshot=Pawn->GetMigrationSnapshot();
+    Movement->ApplyFieldmasterDriveCommand(Throttle,Steering,Snapshot.FuelLiters>KINDA_SMALL_NUMBER,Snapshot.ConditionPercent,Snapshot.TireIntegrity,Pawn->GetNativeTerrainGripFactor());
+
+    const FGTTFieldmasterRuntimeTelemetry Telemetry=Movement->CaptureRuntimeTelemetry();
+    UE_LOG(LogTemp,Display,TEXT("FIELDMASTER_CHAOS_TELEMETRY result=OBSERVED config_valid=%d active=%d gear=%d target_gear=%d rpm=%.1f max_rpm=%.1f speed_kmh=%.2f requested_throttle=%.3f throttle=%.3f steering=%.3f drive_health=%.3f steering_grip=%.3f terrain_grip=%.3f valid_wheels=%d contacts=%d suspension_samples=%d slipping=%d skidding=%d suspension_min=%.3f suspension_max=%.3f spring_force=%.1f max_slip=%.3f drive_torque=%.1f brake_torque=%.1f"),
+        Telemetry.bConfigurationValid?1:0,Telemetry.bMovementActive?1:0,Telemetry.CurrentGear,Telemetry.TargetGear,Telemetry.EngineRpm,Telemetry.EngineMaxRpm,Telemetry.ForwardSpeedKmh,Telemetry.RequestedSignedThrottle,Telemetry.EffectiveThrottle,Telemetry.EffectiveSteering,Telemetry.DriveHealthFactor,Telemetry.SteeringGripFactor,Telemetry.TerrainGripFactor,Telemetry.ValidWheelCount,Telemetry.ContactCount,Telemetry.SuspensionSampleCount,Telemetry.SlippingWheelCount,Telemetry.SkiddingWheelCount,Telemetry.SuspensionMin,Telemetry.SuspensionMax,Telemetry.TotalSpringForce,Telemetry.MaxSlipMagnitude,Telemetry.TotalDriveTorque,Telemetry.TotalBrakeTorque);
+
+    if(HasLiveNativeMotion(Pawn))
+    {
+        UE_LOG(LogTemp,Display,TEXT("DEMO_SCENARIO_CONTROL vehicle=Fieldmaster throttle=%.2f steering=%.2f brake=%.2f speed_cm_s=%.1f"),Throttle,Steering,Phase>=4.5f?0.15f:0.f,Pawn->GetVelocity().Size2D());
+        return true;
+    }
+    return false;
 }
 }
 
@@ -95,7 +119,7 @@ void UGTTDemoSmokeScenarioSubsystem::Tick(float DeltaTime)
     Elapsed+=DeltaTime;UWorld* World=GetWorld();if(!World)return;AGTTGameMode* GM=World->GetAuthGameMode<AGTTGameMode>();APlayerController* PC=World->GetFirstPlayerController();APawn* PlayerPawn=PC?PC->GetPawn():nullptr;
     if(GM)Pass(TEXT("WORLD"));if(PC&&Cast<AGTTGameHUD>(PC->GetHUD()))Pass(TEXT("HUD"));if(GM)if(UGTTMissionComponent* Mission=GM->GetMissionComponent())if(!Mission->GetActiveMissionId().IsNone())Pass(TEXT("MISSION"));
     for(TActorIterator<AGTTTrafficDirector> It(World);It;++It){Pass(TEXT("TRAFFIC"));break;}for(TActorIterator<AGTTCitizenPawn> It(World);It;++It){Pass(TEXT("NPC"));break;}if(PlayerPawn&&PlayerPawn->FindComponentByClass<UGTTCombatComponent>())Pass(TEXT("COMBAT"));
-    for(TActorIterator<AGTTFieldmasterNativePawn> It(World);It;++It){if(It->IsNativeFieldmasterReady()&&It->IsLegacyTakeoverActive())Pass(TEXT("FIELDMASTER"));if(HasLiveNativeMotion(*It))Pass(TEXT("FIELDMASTER_MOTION"));if(Elapsed>=4.f&&ExerciseNativeControls(*It,Elapsed,TEXT("Fieldmaster")))Pass(TEXT("FIELDMASTER_CONTROL"));break;}
+    for(TActorIterator<AGTTFieldmasterNativePawn> It(World);It;++It){if(It->IsNativeFieldmasterReady()&&It->IsLegacyTakeoverActive())Pass(TEXT("FIELDMASTER"));if(HasLiveNativeMotion(*It))Pass(TEXT("FIELDMASTER_MOTION"));if(Elapsed>=4.f&&ExerciseFieldmasterControls(*It,Elapsed))Pass(TEXT("FIELDMASTER_CONTROL"));break;}
     for(TActorIterator<AGTTRattlebackNativePawn> It(World);It;++It){if(It->IsNativeReady()&&It->IsLegacyTakeoverActive())Pass(TEXT("RATTLEBACK"));if(HasLiveNativeMotion(*It))Pass(TEXT("RATTLEBACK_MOTION"));if(Elapsed>=5.f&&ExerciseNativeControls(*It,Elapsed+1.f,TEXT("Rattleback82")))Pass(TEXT("RATTLEBACK_CONTROL"));break;}
     for(TActorIterator<AGTTMuleboxNativePawn> It(World);It;++It){if(It->IsNativeReady()&&It->IsLegacyTakeoverActive())Pass(TEXT("MULEBOX"));if(HasLiveNativeMotion(*It))Pass(TEXT("MULEBOX_MOTION"));if(Elapsed>=6.f&&ExerciseNativeControls(*It,Elapsed+2.f,TEXT("Mulebox1200")))Pass(TEXT("MULEBOX_CONTROL"));break;}
     UGTTWantedComponent* Wanted=PlayerPawn?UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn):nullptr;
