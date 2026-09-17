@@ -80,6 +80,23 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch")
     FString GetPriorityVehicleLabel() const;
 
+    // 0.1.11 emergency-dispatch windows and cross-lane priority chain. The chain reuses the
+    // already-persistent clean logistics streak; no parallel save counter is introduced.
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|Chain")
+    int32 GetPriorityChainStreak() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|Chain")
+    float GetPriorityChainRewardMultiplier() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|SLA")
+    int32 GetRoadPriorityPickupSlaMinutes() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|SLA")
+    int32 GetCargoPriorityPickupSlaMinutes() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|PriorityDispatch|Chain")
+    FString GetPriorityChainSummary() const;
+
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     bool IsCargoDepotWindowOpen() const;
 
