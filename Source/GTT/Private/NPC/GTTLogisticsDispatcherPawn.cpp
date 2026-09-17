@@ -101,19 +101,19 @@ FString AGTTLogisticsDispatcherPawn::BuildOnShiftStatusLine() const
 
     if (RoleTag == FeedDepotDispatcherRole)
     {
-        return FString::Printf(TEXT("E NEGOTIATE | %s | T%d Q%d/%d | %s %d"),
-            *Logistics->GetPriorityDispatchLabel(), Logistics->GetActiveCargoOrderTier(), Logistics->GetCargoReservationCount(),
-            Relationships->GetCargoReservationCapacity(), *Relationships->GetFeedRelationshipLabel(), Relationships->GetFeedDispatcherRelationship());
+        return FString::Printf(TEXT("E NEGOTIATE | DESK T%d | Q%d/%d | %s %d | %s"),
+            Logistics->GetActiveCargoOrderTier(), Logistics->GetCargoReservationCount(), Relationships->GetCargoReservationCapacity(),
+            *Relationships->GetFeedRelationshipLabel(), Relationships->GetFeedDispatcherRelationship(), *Logistics->GetPriorityDispatchLabel());
     }
     if (RoleTag == HillFarmReceiverRole)
     {
-        return FString::Printf(TEXT("HILL NEED %d | CARGO U%d | E STATUS | %s"),
-            Logistics->GetHillFarmDemand(), Logistics->GetCargoPriorityUrgency(), *Relationships->GetHillRelationshipLabel());
+        return FString::Printf(TEXT("HILL NEED %d | E STATUS | %s | CARGO U%d"),
+            Logistics->GetHillFarmDemand(), *Relationships->GetHillRelationshipLabel(), Logistics->GetCargoPriorityUrgency());
     }
     if (RoleTag == WoodYardForemanRole)
     {
-        return FString::Printf(TEXT("WOOD NEED %d | ROAD U%d | E STATUS | %s"),
-            Logistics->GetWoodYardDemand(), Logistics->GetRoadPriorityUrgency(), *Relationships->GetWoodRelationshipLabel());
+        return FString::Printf(TEXT("WOOD NEED %d | E STATUS | %s | ROAD U%d"),
+            Logistics->GetWoodYardDemand(), *Relationships->GetWoodRelationshipLabel(), Logistics->GetRoadPriorityUrgency());
     }
     return TEXT("E TALK");
 }
