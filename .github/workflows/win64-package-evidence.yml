@@ -85,7 +85,7 @@ jobs:
           Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal
           $hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
           Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
-      - name: Upload exact-SHA Win64 candidate evidence
+      - name: Upload verified Win64 evidence
         uses: actions/upload-artifact@v4
         with:
           name: GTT-${{ inputs.version }}-Win64-technical-candidate
@@ -110,7 +110,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\*.png
           if-no-files-found: error
           retention-days: 14
-      - name: Upload Win64 failure diagnostics
+      - name: Upload Win64-failure-diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
