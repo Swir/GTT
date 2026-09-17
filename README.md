@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.28 — Farm Cargo physical vehicle authority and deterministic progress evidence**.
+Current development milestone: **0.1.29 — deterministic packaged Farm Cargo runtime exercise and evidence gating**.
 
 ## What is GTT?
 
@@ -114,9 +114,13 @@ Vehicle development currently uses a guarded migration model: proven gameplay st
 
 Farm Cargo uses the same pattern for physical delivery authority: the job director owns contract/economy state, while `UGTTFarmCargoAuthoritySubsystem` binds the exact loaded vehicle and verifies that same physical actor is present and stopped at buyer handoffs. Presentation markers do not own payout, reputation, Wanted or save state.
 
+Milestone 0.1.29 adds an opt-in packaged-runtime exercise that drives the existing Farm Cargo path through the real terminals and authorities: contract acceptance, exact-vehicle pickup binding, deliberate wrong-vehicle rejection, Hill Farm relay, North Wood Yard completion, payout/reputation observation and save verification. The harness is inert during normal play and only counts as runtime evidence when a qualifying packaged Win64 run produces the expected evidence manifest.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
+
+For Farm Cargo, a successful future packaged candidate must produce `FARM_CARGO_RUNTIME.json` with the `gtt.farm-cargo-runtime.v1` schema. The source-side harness and evaluator can be validated by CI, but **a manifest is not claimed until the packaged Unreal executable actually runs and emits the required PASS evidence**.
 
 The roadmap graphics are deterministic outputs of `Scripts/generate_progress_svg.py`; `--check` verifies checklist mathematics, XML, bounded fill geometry, README/Roadmap embeds and separation between roadmap completion and release readiness.
 

@@ -30,8 +30,6 @@ required = [
     (evaluator, 'safe_loaded_motion_samples'),
     (evaluator, 'deterministic_loaded_tow'),
     (evaluator, 'fewer than eight safe moving loaded trailer samples'),
-    (workflow, '-MinimumAliveSeconds 178 -LaunchTimeoutSeconds 205'),
-    (workflow, '-MinimumRuntimeSeconds 178'),
     (playtest, 'loaded authored-trailer motion'),
     (changelog, '0.1.19'),
     (authoring, 'motion-under-load'),
@@ -39,6 +37,28 @@ required = [
 missing = [token for text, token in required if token not in text]
 if missing:
     raise SystemExit('GTT 0.1.19 trailer runtime exercise missing tokens: ' + ', '.join(missing))
+
+# 0.1.19 established a minimum 178-second runtime window. Later milestones may extend that
+# window, so verify the lower bound and timeout relationship instead of freezing old literals.
+smoke_match = re.search(
+    r'smoke_test_windows\.ps1[^\n]*-MinimumAliveSeconds\s+(\d+)[^\n]*-LaunchTimeoutSeconds\s+(\d+)',
+    workflow,
+)
+gameplay_match = re.search(
+    r'evaluate_packaged_gameplay_smoke\.ps1[^\n]*-MinimumRuntimeSeconds\s+(\d+)',
+    workflow,
+)
+if not smoke_match or not gameplay_match:
+    raise SystemExit('Win64 evidence workflow no longer exposes deterministic runtime duration arguments.')
+minimum_alive = int(smoke_match.group(1))
+launch_timeout = int(smoke_match.group(2))
+minimum_gameplay = int(gameplay_match.group(1))
+if minimum_alive < 178:
+    raise SystemExit(f'Win64 runtime window regressed below 0.1.19 floor: {minimum_alive}s < 178s')
+if launch_timeout <= minimum_alive or launch_timeout < 205:
+    raise SystemExit(f'Win64 launch timeout no longer safely contains the evidence window: alive={minimum_alive}s timeout={launch_timeout}s')
+if minimum_gameplay < minimum_alive:
+    raise SystemExit(f'Packaged gameplay evidence window is shorter than smoke survival: gameplay={minimum_gameplay}s alive={minimum_alive}s')
 
 for token in [
     'AUTHORED_TRAILER_RUNTIME_EVIDENCE',
@@ -83,4 +103,5 @@ for open_item in [
     if open_item not in roadmap:
         raise SystemExit('Runtime/hardware blocker was closed without real UE 5.8 evidence: ' + open_item)
 
-print('[OK] GTT 0.1.19 deterministic loaded authored-trailer exercise, Win64 runtime window, evidence gate, and Roadmap lock verified.')
+print(f'[OK] GTT 0.1.19 deterministic loaded authored-trailer exercise preserved with runtime window {minimum_alive}s / timeout {launch_timeout}s / gameplay {minimum_gameplay}s.')
+print('[OK] Authored trailer evidence gate and Roadmap lock verified.')

@@ -18,7 +18,7 @@ if ($exeCandidates.Count -ne 1) { throw "Expected exactly one packaged GTT.exe, 
 $exe = $exeCandidates[0]
 $runtimeLog = Join-Path $PackageDirectory 'GTT_RUNTIME.log'
 if (Test-Path $runtimeLog) { Remove-Item -Force $runtimeLog }
-$arguments = @('-unattended', '-nosplash', '-nullrhi', '-NoSound', '-GTTDemoSmokeScenario', '-log', "-abslog=$runtimeLog")
+$arguments = @('-unattended', '-nosplash', '-nullrhi', '-NoSound', '-GTTDemoSmokeScenario', '-GTTFarmCargoRuntimeScenario', '-log', "-abslog=$runtimeLog")
 $startedUtc = (Get-Date).ToUniversalTime()
 $process = $null
 $survivedSeconds = 0
@@ -43,6 +43,7 @@ try {
         launch_arguments = $arguments; minimum_alive_seconds = $MinimumAliveSeconds; survived_seconds = $survivedSeconds
         started_utc = $startedUtc.ToString('o'); observed_utc = (Get-Date).ToUniversalTime().ToString('o')
         runner = $env:RUNNER_NAME; git_sha = $env:GITHUB_SHA; null_rhi = $true; deterministic_demo_scenario = $true
+        farm_cargo_runtime_scenario = $true
         runtime_log = 'GTT_RUNTIME.log'; visual_acceptance = 'NOT_PERFORMED'; terminated_by_smoke_test = $true
     }
     $evidencePath = Join-Path $PackageDirectory 'RUNTIME_SMOKE.json'
