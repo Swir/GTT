@@ -48,7 +48,7 @@ TStatId UGTTFarmCargoAuthoritySubsystem::GetStatId() const
 
 void UGTTFarmCargoAuthoritySubsystem::Tick(float DeltaTime)
 {
-    Super::Tick(DeltaTime);
+    (void)DeltaTime;
     if (!BoundCargoVehicle.IsValid() && BoundCargoVehicleId.IsNone()) return;
 
     UWorld* World = GetWorld();
