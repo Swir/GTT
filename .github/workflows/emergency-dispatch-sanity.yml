@@ -1,0 +1,20 @@
+name: GTT 0.1.11 emergency dispatch sanity
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  emergency-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify emergency dispatch windows and priority job chains
+        run: python Scripts/verify_emergency_dispatch_chain.py
