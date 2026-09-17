@@ -149,9 +149,9 @@ if (checked, open_items, checked + open_items) != (125, 5, 130):
     )
 require(roadmap, "███████████████████░ 96.2%", "roadmap progress bar")
 
-# README is intentionally not rewritten by this gameplay milestone; preserve the
-# currently enforced family marker/search section and truthful no-demo statement.
-require(readme, "<!-- SWIR-README-STANDARD:v1 -->", "current SWIR README contract")
+# README intentionally keeps the current canonical family marker/search section and
+# truthful no-demo statement; verifier follows the canonical v2 standard.
+require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "current SWIR README v2 contract")
 require(readme, "## 🔎 Search Keywords", "README discoverability section")
 require(readme, "No public demo release is available yet", "truthful demo status")
 keyword_section = readme.split("## 🔎 Search Keywords", 1)[1]
