@@ -21,31 +21,26 @@ const TCHAR* UrgencyLabel(int32 Urgency)
     }
 }
 
-int32 PickupSlaMinutesForUrgency(int32 Urgency, bool bCargo)
+int32 CargoPickupSlaMinutesForUrgency(int32 Urgency)
 {
-    if (bCargo)
-    {
-        switch (Urgency)
-        {
-            case 3: return 15;
-            case 2: return 25;
-            case 1: return 40;
-            default: return 0;
-        }
-    }
-
     switch (Urgency)
     {
-        case 3: return 20;
-        case 2: return 30;
-        case 1: return 45;
+        case 3: return 15;
+        case 2: return 25;
+        case 1: return 40;
         default: return 0;
     }
 }
 
-FString PickupSlaLabel(int32 Minutes)
+float RoadPickupSlaSecondsForUrgency(int32 Urgency)
 {
-    return Minutes > 0 ? FString::Printf(TEXT("%d MIN"), Minutes) : TEXT("NORMAL WINDOW");
+    switch (Urgency)
+    {
+        case 3: return 50.0f;
+        case 2: return 70.0f;
+        case 1: return 90.0f;
+        default: return 0.0f;
+    }
 }
 }
 
@@ -93,8 +88,11 @@ float UGTTLogisticsReputationSubsystem::GetPriorityChainRewardMultiplier() const
 
 float UGTTLogisticsReputationSubsystem::GetRoadPriorityRewardMultiplier() const
 {
+    const int32 RoadUrgency = GetRoadPriorityUrgency();
+    if (RoadUrgency <= 0) return 1.0f;
+
     float UrgencyMultiplier = 1.0f;
-    switch (GetRoadPriorityUrgency())
+    switch (RoadUrgency)
     {
         case 3: UrgencyMultiplier = 1.18f; break;
         case 2: UrgencyMultiplier = 1.12f; break;
@@ -102,9 +100,8 @@ float UGTTLogisticsReputationSubsystem::GetRoadPriorityRewardMultiplier() const
         default: break;
     }
 
-    // 0.1.11 adds a bounded cross-lane chain reward. The same clean streak already feeds the
-    // CARGO market, while ROAD receives this explicit emergency-chain multiplier. Hard cap keeps
-    // CRITICAL + three clean jobs below a runaway 1.30x urgency layer.
+    // 0.1.11 adds a bounded cross-lane clean chain to genuinely urgent ROAD work. CARGO can
+    // build that same persisted chain, but STANDARD ROAD work never receives an emergency bonus.
     return FMath::Min(1.28f, UrgencyMultiplier * GetPriorityChainRewardMultiplier());
 }
 
@@ -127,19 +124,19 @@ float UGTTLogisticsReputationSubsystem::GetCargoPriorityRewardMultiplier() const
     return 1.0f;
 }
 
-int32 UGTTLogisticsReputationSubsystem::GetRoadPriorityPickupSlaMinutes() const
+float UGTTLogisticsReputationSubsystem::GetRoadPriorityPickupSlaSeconds() const
 {
-    const int32 Urgency = GetRoadPriorityUrgency();
-    const int32 BaseMinutes = PickupSlaMinutesForUrgency(Urgency, false);
-    if (BaseMinutes <= 0) return 0;
-    return BaseMinutes + GetPriorityChainStreak() * 5;
+    const float BaseSeconds = RoadPickupSlaSecondsForUrgency(GetRoadPriorityUrgency());
+    if (BaseSeconds <= 0.0f) return 0.0f;
+    // Each clean priority-chain step grants ten seconds of earned dispatch grace, max +30 sec.
+    return BaseSeconds + static_cast<float>(GetPriorityChainStreak()) * 10.0f;
 }
 
 int32 UGTTLogisticsReputationSubsystem::GetCargoPriorityPickupSlaMinutes() const
 {
-    const int32 Urgency = GetCargoPriorityUrgency();
-    const int32 BaseMinutes = PickupSlaMinutesForUrgency(Urgency, true);
+    const int32 BaseMinutes = CargoPickupSlaMinutesForUrgency(GetCargoPriorityUrgency());
     if (BaseMinutes <= 0) return 0;
+    // Reservation timestamps live in the world clock, so CARGO keeps minute semantics.
     return BaseMinutes + GetPriorityChainStreak() * 5;
 }
 
@@ -175,16 +172,15 @@ FString UGTTLogisticsReputationSubsystem::GetPriorityDispatchLabel() const
 FString UGTTLogisticsReputationSubsystem::GetPriorityChainSummary() const
 {
     const int32 Chain = GetPriorityChainStreak();
-    const int32 RoadSla = GetRoadPriorityPickupSlaMinutes();
+    const float RoadSla = GetRoadPriorityPickupSlaSeconds();
     const int32 CargoSla = GetCargoPriorityPickupSlaMinutes();
     const int32 ChainBonusPercent = FMath::RoundToInt((GetPriorityChainRewardMultiplier() - 1.0f) * 100.0f);
 
+    const FString RoadWindow = RoadSla > 0.0f ? FString::Printf(TEXT("%.0f SEC"), RoadSla) : TEXT("NORMAL WINDOW");
+    const FString CargoWindow = CargoSla > 0 ? FString::Printf(TEXT("%d MIN"), CargoSla) : TEXT("NORMAL WINDOW");
     return FString::Printf(
-        TEXT("CHAIN %d/3 +%d%% ROAD | ROAD PICKUP %s | CARGO PICKUP %s"),
-        Chain,
-        ChainBonusPercent,
-        *PickupSlaLabel(RoadSla),
-        *PickupSlaLabel(CargoSla));
+        TEXT("CHAIN %d/3 +%d%% URGENT ROAD | ROAD PICKUP %s | CARGO PICKUP %s"),
+        Chain, ChainBonusPercent, *RoadWindow, *CargoWindow);
 }
 
 FString UGTTLogisticsReputationSubsystem::GetPriorityDispatchSummary() const
@@ -195,12 +191,16 @@ FString UGTTLogisticsReputationSubsystem::GetPriorityDispatchSummary() const
 
     const int32 RoadBonusPercent = FMath::RoundToInt((GetRoadPriorityRewardMultiplier() - 1.0f) * 100.0f);
     const int32 RoadWindowPercent = FMath::RoundToInt(GetRoadPriorityTimeScale() * 100.0f);
+    const float RoadSla = GetRoadPriorityPickupSlaSeconds();
+    const int32 CargoSla = GetCargoPriorityPickupSlaMinutes();
+    const FString RoadPickup = RoadSla > 0.0f ? FString::Printf(TEXT("%.0fs"), RoadSla) : TEXT("normal");
+    const FString CargoPickup = CargoSla > 0 ? FString::Printf(TEXT("%dm"), CargoSla) : TEXT("normal");
 
     return FString::Printf(
         TEXT("%s | VEHICLE %s | ROAD U%d %s +%d%% reward / %d%% delivery / pickup %s | CARGO U%d %s / pickup %s | %s | stock %d | hill %d | wood %d | backlog %d"),
         *GetPriorityDispatchLabel(), *GetPriorityVehicleLabel(),
-        RoadUrgency, UrgencyLabel(RoadUrgency), RoadBonusPercent, RoadWindowPercent, *PickupSlaLabel(GetRoadPriorityPickupSlaMinutes()),
-        CargoUrgency, UrgencyLabel(CargoUrgency), *PickupSlaLabel(GetCargoPriorityPickupSlaMinutes()),
+        RoadUrgency, UrgencyLabel(RoadUrgency), RoadBonusPercent, RoadWindowPercent, *RoadPickup,
+        CargoUrgency, UrgencyLabel(CargoUrgency), *CargoPickup,
         *GetPriorityChainSummary(),
         FeedDepotStock, HillFarmDemand, WoodYardDemand, CargoBacklogPressure);
 }
