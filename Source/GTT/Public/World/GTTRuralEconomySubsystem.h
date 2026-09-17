@@ -28,6 +28,19 @@ public:
     int32 GetPendingImpoundFee() const { return PendingImpoundFee; }
     int32 GetSpeedingCitationCount() const { return SpeedingCitations; }
 
+    int32 ConfiscateContraband(int32& OutEstimatedValue)
+    {
+        const int32 ConfiscatedUnits = ContrabandUnits;
+        OutEstimatedValue = ContrabandValue;
+        if (ConfiscatedUnits > 0 || ContrabandValue > 0)
+        {
+            ContrabandUnits = 0;
+            ContrabandValue = 0;
+            SaveState();
+        }
+        return ConfiscatedUnits;
+    }
+
 private:
     void LoadState();
     void SaveState() const;
