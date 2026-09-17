@@ -99,6 +99,30 @@ bool UGTTDispatcherRelationshipSubsystem::CanAccessCargoTier(int32 Tier) const
     return Tier >= 1 && Tier <= GetCargoDeskAccessTier();
 }
 
+int32 UGTTDispatcherRelationshipSubsystem::GetCargoReservationCapacity() const
+{
+    // TRUSTED/PREFERRED drivers can protect a second real load; everybody else gets one hold.
+    return GetFeedDispatcherRelationship() >= 45 ? 2 : 1;
+}
+
+int32 UGTTDispatcherRelationshipSubsystem::GetCargoReservationHoldMinutes() const
+{
+    const int32 Relationship = GetFeedDispatcherRelationship();
+    if (Relationship >= 70) return 110;
+    if (Relationship >= 45) return 80;
+    if (Relationship >= 25) return 50;
+    return 35;
+}
+
+FString UGTTDispatcherRelationshipSubsystem::GetCargoReservationFavorLabel() const
+{
+    const int32 Relationship = GetFeedDispatcherRelationship();
+    if (Relationship >= 70) return TEXT("PREFERRED FAVOR: DOUBLE DESK / 110 MIN HOLD");
+    if (Relationship >= 45) return TEXT("TRUST FAVOR: DOUBLE DESK / 80 MIN HOLD");
+    if (Relationship >= 25) return TEXT("KNOWN DRIVER: 50 MIN HOLD");
+    return TEXT("STANDARD DESK: 35 MIN HOLD");
+}
+
 FString UGTTDispatcherRelationshipSubsystem::GetContractDeskSummary() const
 {
     const UGTTLogisticsReputationSubsystem* Logistics = GetLogistics();
@@ -112,8 +136,9 @@ FString UGTTDispatcherRelationshipSubsystem::GetContractDeskSummary() const
     }
     const FString Cargo = CargoOptions.Num() > 0 ? FString::Join(CargoOptions, TEXT("/")) : TEXT("NONE");
     const FString Road = Logistics->IsRoadCourierWindowOpen() ? TEXT("ROAD OPEN") : TEXT("ROAD CLOSED");
-    return FString::Printf(TEXT("DESK CARGO %s | %s | FEED %s %d"),
-        *Cargo, *Road, *GetFeedRelationshipLabel(), GetFeedDispatcherRelationship());
+    return FString::Printf(TEXT("DESK CARGO %s | %s | FEED %s %d | %s | %s"),
+        *Cargo, *Road, *GetFeedRelationshipLabel(), GetFeedDispatcherRelationship(),
+        *GetCargoReservationFavorLabel(), *Logistics->GetCargoReservationSummary());
 }
 
 FString UGTTDispatcherRelationshipSubsystem::GetDispatcherReaction(FName RoleTag) const
@@ -121,10 +146,10 @@ FString UGTTDispatcherRelationshipSubsystem::GetDispatcherReaction(FName RoleTag
     const int32 Score = CalculateRelationship(RoleTag);
     if (RoleTag == FeedDepotDispatcherRole)
     {
-        if (Score >= 70) return TEXT("You've kept our routes moving. The heavy orders are on your desk.");
-        if (Score >= 45) return TEXT("You've earned trust here. I can put more serious loads in front of you.");
-        if (Score >= 25) return TEXT("I know your truck now. Keep bringing loads in clean and on time.");
-        return TEXT("Start with the direct work. Show me you can bring the load home.");
+        if (Score >= 70) return TEXT("You've kept our routes moving. I can hold two scarce loads longer for you.");
+        if (Score >= 45) return TEXT("You've earned trust here. Two live orders can sit on your desk while you plan the route.");
+        if (Score >= 25) return TEXT("I know your truck now. I can protect one load a little longer if you commit.");
+        return TEXT("Start with the direct work. I will hold one load briefly; don't leave the farm waiting.");
     }
     if (RoleTag == HillFarmReceiverRole)
     {

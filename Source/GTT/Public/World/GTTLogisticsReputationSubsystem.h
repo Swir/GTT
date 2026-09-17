@@ -65,8 +65,8 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     int32 GetCargoRouteTier() const;
 
-    // The active order is the player's negotiated dispatcher choice when that choice is
-    // still valid; otherwise it falls back to the living market recommendation.
+    // The active order is the oldest real stock-backed reservation when one exists, otherwise
+    // the player's same-day negotiated choice, then the living market recommendation.
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Orders")
     int32 GetActiveCargoOrderTier() const;
 
@@ -94,11 +94,29 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Negotiation")
     bool HasExplicitCargoNegotiation() const;
 
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Negotiation")
+    int32 GetNegotiatedCargoOrderTier() const { return CargoNegotiatedOrderTier; }
+
     UFUNCTION(BlueprintCallable, Category="GTT|Logistics|Cargo|Negotiation")
     bool CycleCargoNegotiatedOrder(FString& OutSummary);
 
     UFUNCTION(BlueprintCallable, Category="GTT|Logistics|Cargo|Negotiation")
     void ClearCargoNegotiatedOrder();
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Reservations")
+    int32 GetCargoReservationCount() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Reservations")
+    int32 GetReservedCargoOrderTier() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo|Reservations")
+    FString GetCargoReservationSummary() const;
+
+    // Convert the currently negotiated order into a stock-backed hold. The relationship layer
+    // supplies the bounded queue capacity and hold duration; stock is debited immediately so
+    // the same scarce pallets cannot be promised twice.
+    UFUNCTION(BlueprintCallable, Category="GTT|Logistics|Cargo|Reservations")
+    bool ReserveNegotiatedCargoOrder(int32 HoldMinutes, int32 MaxQueue, FString& OutSummary);
 
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|Cargo")
     float GetCargoMarketMultiplier() const;
@@ -146,6 +164,7 @@ private:
     int32 GetDayNumber() const;
     void AppendHistory(FName ContractTag, int32 Payout, int32 QualityPercent);
     void EnsureCargoMarketForCurrentDay() const;
+    void ExpireCargoReservations(int32 CurrentDay, float CurrentHour) const;
     int32 GetRecommendedCargoOrderTier() const;
     bool IsCargoOrderTierAvailableInternal(int32 Tier) const;
     static int32 GetCargoOrderUnitsForTier(int32 Tier);
@@ -174,6 +193,15 @@ private:
     // reputation capability on the same world day.
     mutable int32 CargoNegotiatedOrderTier = 0;
     mutable int32 CargoNegotiationDay = 0;
+
+    // 0.1.9 stock-backed dispatcher reservations. A trusted driver can hold up to two real
+    // orders. Units are removed from free depot stock immediately, consumed without a second
+    // debit when the job starts, and returned if the hold expires before pickup. Expiry also
+    // adds backlog pressure, so repeatedly blocking scarce stock has a gameplay consequence.
+    mutable int32 CargoReservationDay = 0;
+    mutable TArray<int32> CargoReservedOrderTiers;
+    mutable TArray<int32> CargoReservedUnits;
+    mutable TArray<float> CargoReservationExpiryHours;
 
     TArray<FName> RecentContractTags;
     TArray<int32> RecentPayouts;

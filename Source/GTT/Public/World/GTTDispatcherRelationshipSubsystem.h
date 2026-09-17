@@ -45,6 +45,17 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk")
     bool CanAccessCargoTier(int32 Tier) const;
 
+    /** Number of simultaneous stock-backed desk holds earned through Feed Dispatcher trust. */
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk|Favors")
+    int32 GetCargoReservationCapacity() const;
+
+    /** Hold duration in real in-game minutes, capped by the depot's 17:30 closing time. */
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk|Favors")
+    int32 GetCargoReservationHoldMinutes() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk|Favors")
+    FString GetCargoReservationFavorLabel() const;
+
     /** Compact shared ROAD/CARGO desk line used by the dispatcher and contract boards. */
     UFUNCTION(BlueprintPure, Category="GTT|Logistics|ContractDesk")
     FString GetContractDeskSummary() const;

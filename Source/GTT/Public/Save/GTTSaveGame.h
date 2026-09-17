@@ -45,8 +45,10 @@ public:
     // and v8 persists rural logistics reputation/history. 0.1.4 extends v8 additively with
     // CARGO history; 0.1.5 extends the same compatible v8 snapshot with persistent depot
     // stock/demand/rotation; 0.1.6 extends it with persistent supply-backlog pressure; 0.1.7
-    // adds same-day dispatcher negotiation state. These remain additive fields with safe
-    // defaults so existing v8 profiles do not need a destructive migration.
+    // adds same-day dispatcher negotiation state; 0.1.8 derives deterministic dispatcher
+    // relationships from those saved records; and 0.1.9 adds stock-backed same-day
+    // reservation queue fields. These remain additive fields with safe defaults so existing
+    // v8 profiles do not need a destructive migration.
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 Cash = 120;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 FishCount = 0;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float FishWeightKg = 0.0f;
@@ -77,6 +79,10 @@ public:
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 CargoBacklogPressure = 0;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 CargoNegotiatedOrderTier = 0;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Market") int32 CargoNegotiationDay = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Reservations") int32 CargoReservationDay = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Reservations") TArray<int32> CargoReservedOrderTiers;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Reservations") TArray<int32> CargoReservedUnits;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|Reservations") TArray<float> CargoReservationExpiryHours;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<FName> LogisticsRecentContractTags;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<int32> LogisticsRecentPayouts;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<int32> LogisticsRecentQualityPercent;
