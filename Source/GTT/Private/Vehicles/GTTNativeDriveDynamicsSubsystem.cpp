@@ -33,6 +33,11 @@ namespace
     {
         return Value < 0.0f ? -1 : 1;
     }
+
+    bool GearMatchesDirection(int32 Gear, int32 Direction)
+    {
+        return Direction < 0 ? Gear < 0 : Gear > 0;
+    }
 }
 
 void UGTTNativeDriveDynamicsSubsystem::Tick(float DeltaTime)
@@ -178,13 +183,24 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
     const int32 MotionDirection = SignToDirection(SignedSpeedKmh);
     const bool bDirectionRequested = FMath::Abs(RequestedThrottle) > DirectionInputDeadzone;
     const int32 RequestedDirection = bDirectionRequested ? SignToDirection(RequestedThrottle) : Authority.StableDirection;
+    const int32 CurrentGear = Movement->GetCurrentGear();
 
     if (!Authority.bInitialized)
     {
         Authority.StableDirection = AbsoluteSpeedKmh > DirectionShiftReleaseSpeedKmh
-            ? MotionDirection : (Movement->GetCurrentGear() < 0 ? -1 : 1);
+            ? MotionDirection : (CurrentGear < 0 ? -1 : 1);
+        Authority.LastObservedGear = CurrentGear;
         Authority.bInitialized = true;
     }
+    else if (CurrentGear > 0 && Authority.LastObservedGear > 0 && CurrentGear != Authority.LastObservedGear)
+    {
+        ++Authority.AutomaticForwardGearChangeCount;
+        UE_LOG(LogGTT, Log,
+            TEXT("NATIVE_AUTOMATIC_GEAR_SHIFT vehicle=%s from=%d to=%d speed_kmh=%.2f changes=%d"),
+            *VehicleId.ToString(), Authority.LastObservedGear, CurrentGear, SignedSpeedKmh,
+            Authority.AutomaticForwardGearChangeCount);
+    }
+    Authority.LastObservedGear = CurrentGear;
 
     Authority.bDirectionInterlock = false;
     Authority.bEngineBrakeActive = false;
@@ -194,6 +210,7 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
     float FinalBrake = Movement->GetBrakeInput();
     float FinalSteering = Movement->GetSteeringInput();
     float DrivetrainBrake = 0.0f;
+    bool bGearCommandIssued = false;
 
     if (bDirectionRequested)
     {
@@ -201,8 +218,10 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
         const bool bMovingAgainstRequest = AbsoluteSpeedKmh > DirectionShiftReleaseSpeedKmh && MotionDirection != RequestedDirection;
         if ((bDirectionChangeRequested || bMovingAgainstRequest) && AbsoluteSpeedKmh > DirectionShiftReleaseSpeedKmh)
         {
+            // Do not force first/reverse gear while the vehicle is still moving in the old direction.
+            // Braking the current gear down to the release threshold protects the drivetrain and, for
+            // forward travel, lets Chaos retain whichever automatic forward gear it selected.
             Authority.bDirectionInterlock = true;
-            Movement->SetTargetGear(Authority.StableDirection, true);
             FinalThrottle = 0.0f;
             FinalSteering = FMath::Clamp(FinalSteering, -0.45f, 0.45f);
             DrivetrainBrake = FMath::Clamp(DirectionInterlockBrakeMin + AbsoluteSpeedKmh / 120.0f,
@@ -210,13 +229,27 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
         }
         else
         {
+            bool bDirectionShiftCommitted = false;
             if (RequestedDirection != Authority.StableDirection)
             {
                 Authority.StableDirection = RequestedDirection;
-                UE_LOG(LogGTT, Log, TEXT("NATIVE_DIRECTION_SHIFT_COMMIT vehicle=%s direction=%s speed_kmh=%.2f"),
-                    *VehicleId.ToString(), Authority.StableDirection < 0 ? TEXT("REVERSE") : TEXT("FORWARD"), SignedSpeedKmh);
+                ++Authority.DirectionShiftCommitCount;
+                bDirectionShiftCommitted = true;
+                UE_LOG(LogGTT, Log, TEXT("NATIVE_DIRECTION_SHIFT_COMMIT vehicle=%s direction=%s speed_kmh=%.2f commits=%d"),
+                    *VehicleId.ToString(), Authority.StableDirection < 0 ? TEXT("REVERSE") : TEXT("FORWARD"),
+                    SignedSpeedKmh, Authority.DirectionShiftCommitCount);
             }
-            Movement->SetTargetGear(Authority.StableDirection, true);
+
+            // Only write a target gear when direction actually changes, or when Chaos is neutral / in
+            // the opposite direction. Re-sending +1 every frame pins an automatic transmission to first
+            // gear, so once a forward gear is engaged we leave subsequent 1->2->3... shifts to Chaos.
+            const int32 EngagedGear = Movement->GetCurrentGear();
+            if (bDirectionShiftCommitted || !GearMatchesDirection(EngagedGear, Authority.StableDirection))
+            {
+                Movement->SetTargetGear(Authority.StableDirection, true);
+                ++Authority.GearCommandCount;
+                bGearCommandIssued = true;
+            }
         }
     }
     else
@@ -274,17 +307,28 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDrivetrainAuthority(
     {
         Authority.EvidenceSeconds = 0.0f;
         UE_LOG(LogGTT, Log,
-            TEXT("NATIVE_COMMAND_COMPOSITION_EVIDENCE vehicle=%s speed_kmh=%.2f raw_throttle=%.2f final_throttle=%.2f final_brake=%.2f final_steer=%.2f current_gear=%d stable_direction=%d interlock=%s engine_brake=%s axle_cut=%s axle_authority=%.2f suspension_ready=%s"),
+            TEXT("NATIVE_COMMAND_COMPOSITION_EVIDENCE vehicle=%s speed_kmh=%.2f raw_throttle=%.2f final_throttle=%.2f final_brake=%.2f final_steer=%.2f current_gear=%d stable_direction=%d interlock=%s engine_brake=%s axle_cut=%s axle_authority=%.2f suspension_ready=%s gear_command=%s gear_commands=%d auto_forward_changes=%d direction_commits=%d"),
             *VehicleId.ToString(), SignedSpeedKmh, RequestedThrottle, FinalThrottle, FinalBrake, FinalSteering,
             Movement->GetCurrentGear(), Authority.StableDirection,
             Authority.bDirectionInterlock ? TEXT("YES") : TEXT("NO"),
             Authority.bEngineBrakeActive ? TEXT("YES") : TEXT("NO"),
             Authority.bAxleTorqueCut ? TEXT("YES") : TEXT("NO"),
             AxleSnapshot.TractionAuthority,
-            Authority.bSuspensionRuntimeReady ? TEXT("YES") : TEXT("NO"));
+            Authority.bSuspensionRuntimeReady ? TEXT("YES") : TEXT("NO"),
+            bGearCommandIssued ? TEXT("YES") : TEXT("NO"),
+            Authority.GearCommandCount,
+            Authority.AutomaticForwardGearChangeCount,
+            Authority.DirectionShiftCommitCount);
+
+        UE_LOG(LogGTT, Log,
+            TEXT("NATIVE_AUTOMATIC_GEARBOX_EVIDENCE vehicle=%s current_gear=%d stable_direction=%d gear_commands=%d auto_forward_changes=%d direction_commits=%d interlock=%s speed_kmh=%.2f"),
+            *VehicleId.ToString(), Movement->GetCurrentGear(), Authority.StableDirection,
+            Authority.GearCommandCount, Authority.AutomaticForwardGearChangeCount,
+            Authority.DirectionShiftCommitCount,
+            Authority.bDirectionInterlock ? TEXT("YES") : TEXT("NO"), SignedSpeedKmh);
 
         // Keep the 0.0.75 telemetry contract alive for existing playtests/log parsers while
-        // 0.0.77 adds the richer command-composition evidence above.
+        // 0.0.77+ adds richer command-composition and automatic-gearbox evidence above.
         UE_LOG(LogGTT, Log,
             TEXT("NATIVE_DRIVETRAIN_AUTHORITY_EVIDENCE vehicle=%s speed_kmh=%.2f raw_throttle=%.2f raw_steer=%.2f current_gear=%d stable_direction=%d interlock=%s engine_brake=%s authority_brake=%.2f"),
             *VehicleId.ToString(), SignedSpeedKmh, RequestedThrottle, RequestedSteering,

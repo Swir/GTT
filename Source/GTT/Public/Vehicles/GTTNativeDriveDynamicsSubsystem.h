@@ -13,6 +13,10 @@ class UChaosWheeledVehicleMovementComponent;
 struct FGTTNativeDrivetrainAuthorityState
 {
     int32 StableDirection = 1;
+    int32 LastObservedGear = 0;
+    int32 AutomaticForwardGearChangeCount = 0;
+    int32 DirectionShiftCommitCount = 0;
+    int32 GearCommandCount = 0;
     bool bInitialized = false;
     bool bDirectionInterlock = false;
     bool bEngineBrakeActive = false;
