@@ -1,12 +1,10 @@
-<!-- SWIR-README-STANDARD:v1 -->
+<!-- SWIR-README-STANDARD:v2 -->
 
 <div align="center">
 
-# ⚡🚜 GRAND THEFT TRACTOR
+<img width="100%" src="assets/readme/hero.svg" alt="Grand Theft Tractor — original rural open-world comedy sandbox" />
 
-### An original rural open-world comedy sandbox built in Unreal Engine 5.8
-
-**Tractors & old vehicles • living countryside • jobs & crime • police + game wardens • systemic vehicle damage**
+<br>
 
 ![Unreal Engine](https://img.shields.io/badge/Unreal_Engine-5.8-02050A?style=for-the-badge&logo=unrealengine&logoColor=62E5FF)
 ![C++](https://img.shields.io/badge/C%2B%2B-Gameplay_Core-02050A?style=for-the-badge&logo=cplusplus&logoColor=62E5FF)
@@ -16,6 +14,8 @@
 [![Project sanity](https://github.com/Swir/GTT/actions/workflows/project-sanity.yml/badge.svg)](https://github.com/Swir/GTT/actions/workflows/project-sanity.yml)
 ![Status](https://img.shields.io/badge/status-pre--alpha-0088FF?style=flat-square)
 ![Roadmap](https://img.shields.io/badge/roadmap-125%2F130%20%7C%2096.2%25-0088FF?style=flat-square)
+
+[**Status**](#project-status) · [**Highlights**](#highlights) · [**Quick Start**](#quick-start--from-source) · [**Roadmap**](#roadmap) · [**Releases**](#releases--downloads)
 
 </div>
 
