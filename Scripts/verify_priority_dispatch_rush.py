@@ -150,30 +150,36 @@ def verify_roadmap_style_lock() -> None:
     roadmap = read("Docs/ROADMAP.md")
     for token in (
         "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
-        "CI",
-        "ROADMAP",
-        "DONE",
-        "STATUS",
-        "📊 Overall progress",
-        "Completed",
-        "Remaining",
-        "Total",
-        "Progress",
+        "alt=\"CI\"",
+        "ROADMAP-",
+        "DONE-",
+        "STATUS-",
+        "## 📊 Overall progress",
+        "✅ Completed",
+        "⏳ Remaining",
+        "📦 Total",
+        "🎯 Progress",
     ):
         require(roadmap, token, "SWIR Roadmap Style Lock")
 
-    checkboxes = re.findall(r"\[(x|X| )\]", roadmap)
+    # Count only actual checklist rows, never explanatory text in the progress rule.
+    checkboxes = re.findall(r"^\s*-\s+\[(x|X| )\]\s+", roadmap, re.M)
     completed = sum(1 for x in checkboxes if x.lower() == "x")
     total = len(checkboxes)
     remaining = total - completed
     assert total > 0, "roadmap checklist not found"
     percent = round(completed * 100.0 / total, 1)
 
-    # Canonical dashboard values must be computed from the checklist, never guessed.
-    assert re.search(rf"\|\s*Completed\s*\|\s*{completed}\s*\|", roadmap), "ROADMAP Completed dashboard is stale"
-    assert re.search(rf"\|\s*Remaining\s*\|\s*{remaining}\s*\|", roadmap), "ROADMAP Remaining dashboard is stale"
-    assert re.search(rf"\|\s*Total\s*\|\s*{total}\s*\|", roadmap), "ROADMAP Total dashboard is stale"
-    assert re.search(rf"\|\s*Progress\s*\|\s*{re.escape(f'{percent:.1f}%')}\s*\|", roadmap), "ROADMAP Progress dashboard is stale"
+    dashboard = re.search(
+        r"\|\s*\*\*(\d+)\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|\s*\*\*([0-9.]+%)\*\*\s*\|",
+        roadmap,
+    )
+    assert dashboard, "canonical roadmap dashboard values row not found"
+    shown_completed, shown_remaining, shown_total, shown_percent = dashboard.groups()
+    assert int(shown_completed) == completed, "ROADMAP Completed dashboard is stale"
+    assert int(shown_remaining) == remaining, "ROADMAP Remaining dashboard is stale"
+    assert int(shown_total) == total, "ROADMAP Total dashboard is stale"
+    assert shown_percent == f"{percent:.1f}%", "ROADMAP Progress dashboard is stale"
 
     filled = round(completed * 20 / total)
     bar = "█" * filled + "░" * (20 - filled)
