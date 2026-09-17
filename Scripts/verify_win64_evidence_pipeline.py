@@ -33,6 +33,7 @@ required_preflight = [
 for token in required_preflight:
     assert token in preflight, f"missing Win64 preflight contract token: {token}"
 
+# Stage 1 remains the only authoritative build/cook/package/runtime producer.
 required_workflow = [
     "workflow_dispatch:",
     "runs-on: [self-hosted, windows, x64, unreal-5.8]",
@@ -53,16 +54,24 @@ required_workflow = [
 for token in required_workflow:
     assert token in workflow, f"missing Win64 evidence workflow token: {token}"
 
+# Since 0.1.20, Stage 2 publishes the exact already-built candidate. It must
+# prove provenance/review and must never rebuild a different binary afterward.
 required_release = [
-    "preflight_win64_unreal.ps1",
-    "BUILD_ATTEMPT.json",
-    "WIN64_PREFLIGHT.json",
-    "PACKAGE_VALIDATION.json",
-    "SHA256SUMS.txt",
-    "if: failure()",
+    "candidate_run_id",
+    "expected_sha",
+    "visual_review_passed",
+    "actions/download-artifact@v4",
+    "run-id:",
+    "DEMO_VISUAL_ACCEPTANCE.json",
+    "evaluate_demo_candidate.ps1",
+    "-RequireVisual",
+    "softprops/action-gh-release@v2",
 ]
 for token in required_release:
-    assert token in release_workflow, f"missing release workflow evidence token: {token}"
+    assert token in release_workflow, f"missing exact-candidate release token: {token}"
+assert "preflight_win64_unreal.ps1" not in release_workflow, "publication stage must not rerun build preflight"
+assert "package_windows.ps1" not in release_workflow, "publication stage must not rebuild the reviewed candidate"
+assert "BuildCookRun" not in release_workflow, "publication stage must not invoke UAT build/cook/package"
 
 required_package = [
     'string]$Version = "0.1.14"',
@@ -124,4 +133,6 @@ for required_doc_token in [
     assert required_doc_token.lower() in playtest.lower(), f"playtest missing: {required_doc_token}"
     assert required_doc_token.lower() in release_doc.lower(), f"release doc missing: {required_doc_token}"
 
-print("Win64 runtime acceptance/evidence gate: OK")
+assert "candidate_run_id" in release_doc
+assert "does not rebuild" in release_doc.lower() or "never" in release_doc.lower()
+print("Win64 runtime acceptance/evidence gate: OK (two-stage exact-candidate release architecture)")

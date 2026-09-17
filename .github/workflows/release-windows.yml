@@ -1,84 +1,186 @@
-name: Windows release package
+name: Publish reviewed Windows Demo Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version (for example 0.1.14)
+        description: Exact candidate version label
         required: true
-        default: '0.1.14'
-      configuration:
-        description: Unreal build configuration
+        default: '0.1.20'
+      candidate_run_id:
+        description: Successful Win64 package evidence workflow run ID whose screenshots were reviewed
+        required: true
+      expected_sha:
+        description: Exact 40-character main commit SHA of the reviewed candidate
+        required: true
+      visual_review_passed:
+        description: I reviewed the exact candidate screenshots and approve their public demo presentation
         required: true
         type: choice
-        options:
-          - Shipping
-          - Development
-        default: Shipping
+        options: ['false', 'true']
+        default: 'false'
+      visual_review_notes:
+        description: What was visually reviewed; minimum 20 characters
+        required: true
+      publish_release:
+        description: Create the GitHub prerelease after every gate passes
+        required: true
+        type: choice
+        options: ['false', 'true']
+        default: 'false'
 
+permissions:
+  actions: read
+  contents: write
 concurrency:
-  group: gtt-windows-release
+  group: gtt-reviewed-demo-release
   cancel-in-progress: false
-
 jobs:
-  package-win64:
-    # Requires a project-controlled Windows x64 machine with UE 5.8 installed.
-    runs-on: [self-hosted, Windows, X64, unreal-5.8]
-    timeout-minutes: 120
+  publish-reviewed-candidate:
+    runs-on: windows-latest
+    timeout-minutes: 25
     env:
-      UE_ROOT: C:\Program Files\Epic Games\UE_5.8
-      RELEASE_DIR: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}
-      PREFLIGHT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.preflight.json
-      ATTEMPT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.attempt.json
+      CANDIDATE_DOWNLOAD: ${{ github.workspace }}\CandidateArtifact
+      CANDIDATE_PACKAGE: ${{ github.workspace }}\CandidatePackage
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      GTT_VERSION: ${{ inputs.version }}
+      VISUAL_REVIEW_NOTES: ${{ inputs.visual_review_notes }}
     steps:
-      - name: Checkout source and LFS assets
+      - name: Reject incomplete review attestation
+        shell: pwsh
+        run: |
+          if ("${{ inputs.visual_review_passed }}" -ne "true") { throw "Demo publication requires explicit visual_review_passed=true after reviewing the exact candidate screenshots." }
+          if ($env:EXPECTED_SHA -notmatch '^[0-9a-fA-F]{40}$') { throw "expected_sha must be a full 40-character commit SHA." }
+          if ($env:VISUAL_REVIEW_NOTES.Trim().Length -lt 20) { throw "visual_review_notes must contain at least 20 characters." }
+      - name: Verify candidate workflow provenance
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $run = gh api "repos/${{ github.repository }}/actions/runs/${{ inputs.candidate_run_id }}" | ConvertFrom-Json
+          if ($run.name -ne 'Win64 package evidence') { throw "Run $($run.id) is not the Win64 package evidence workflow." }
+          if ($run.conclusion -ne 'success') { throw "Candidate run $($run.id) did not conclude success." }
+          if ($run.head_branch -ne 'main') { throw "Candidate run must originate from main; got '$($run.head_branch)'." }
+          if ($run.head_sha -ne $env:EXPECTED_SHA) { throw "Candidate run SHA $($run.head_sha) does not match expected $env:EXPECTED_SHA." }
+          "candidate_run_url=$($run.html_url)" | Set-Content -Encoding UTF8 "${{ github.workspace }}\candidate-provenance.txt"
+      - name: Checkout the exact candidate source contract
         uses: actions/checkout@v4
         with:
-          lfs: true
-          fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v5
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+      - name: Download exact candidate artifact
+        uses: actions/download-artifact@v4
         with:
-          python-version: '3.12'
-      - name: Run repository release and Win64 contract sanity
+          name: GTT-${{ inputs.version }}-Win64-technical-candidate
+          path: ${{ env.CANDIDATE_DOWNLOAD }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.candidate_run_id }}
+      - name: Verify candidate archive integrity and expand evidence
         shell: pwsh
         run: |
-          python Scripts/verify_project.py
-          python Scripts/verify_release_pipeline.py
-          python Scripts/verify_win64_evidence_pipeline.py
-      - name: Win64 runner and Unreal 5.8 preflight
-        shell: pwsh
-        run: ./Scripts/preflight_win64_unreal.ps1 -EngineRoot "$env:UE_ROOT" -ProjectFile "${{ github.workspace }}\GTT.uproject" -OutputPath "$env:PREFLIGHT_FILE"
-      - name: Build cook package validate and hash
+          $zips = @(Get-ChildItem -Path $env:CANDIDATE_DOWNLOAD -Recurse -File -Filter '*.zip')
+          if ($zips.Count -ne 1) { throw "Expected exactly one candidate ZIP, found $($zips.Count)." }
+          $zip = $zips[0]
+          $hashFiles = @(Get-ChildItem -Path $env:CANDIDATE_DOWNLOAD -Recurse -File -Filter '*.zip.sha256')
+          if ($hashFiles.Count -ne 1) { throw "Expected exactly one candidate ZIP SHA256 file, found $($hashFiles.Count)." }
+          $expectedHash = ((Get-Content -Raw $hashFiles[0].FullName).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actualHash = (Get-FileHash -Algorithm SHA256 -Path $zip.FullName).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) { throw "Candidate ZIP SHA256 mismatch." }
+          if (Test-Path $env:CANDIDATE_PACKAGE) { Remove-Item -Recurse -Force $env:CANDIDATE_PACKAGE }
+          Expand-Archive -Path $zip.FullName -DestinationPath $env:CANDIDATE_PACKAGE -Force
+          "candidate_zip=$($zip.FullName)" | Add-Content -Encoding UTF8 "${{ github.workspace }}\candidate-provenance.txt"
+          "candidate_zip_sha256=$actualHash" | Add-Content -Encoding UTF8 "${{ github.workspace }}\candidate-provenance.txt"
+      - name: Verify rendered evidence is from exact candidate
         shell: pwsh
         run: |
-          ./Scripts/package_windows.ps1 `
-            -EngineRoot "$env:UE_ROOT" `
-            -Configuration "${{ inputs.configuration }}" `
-            -Version "${{ inputs.version }}" `
-            -ArchiveDirectory "$env:RELEASE_DIR"
-      - name: Upload validated Win64 package
+          $visual = Join-Path $env:CANDIDATE_PACKAGE 'DEMO_VISUAL_EVIDENCE.json'
+          if (-not (Test-Path $visual)) { throw "DEMO_VISUAL_EVIDENCE.json missing from candidate ZIP." }
+          $manifest = Get-Content -Raw $visual | ConvertFrom-Json
+          if ($manifest.schema -ne 'gtt.demo-visual-evidence.v1' -or $manifest.result -ne 'PASS') { throw "Candidate rendered visual evidence did not PASS." }
+          if ($manifest.git_sha -ne $env:EXPECTED_SHA) { throw "Rendered evidence SHA mismatch." }
+          if ([int]$manifest.scene_count -lt 5 -or $manifest.screenshots.Count -lt 5) { throw "Candidate does not contain the five-scene visual review set." }
+      - name: Bind human visual acceptance to reviewed screenshots
+        shell: pwsh
+        run: |
+          ./Scripts/write_demo_visual_acceptance.ps1 `
+            -VisualEvidencePath (Join-Path $env:CANDIDATE_PACKAGE 'DEMO_VISUAL_EVIDENCE.json') `
+            -OutputPath (Join-Path $env:CANDIDATE_PACKAGE 'DEMO_VISUAL_ACCEPTANCE.json') `
+            -ExpectedGitSha $env:EXPECTED_SHA `
+            -Reviewer "${{ github.actor }}" `
+            -Notes $env:VISUAL_REVIEW_NOTES `
+            -Approved
+      - name: Re-evaluate full exact-candidate gate with visual acceptance
+        shell: pwsh
+        run: |
+          ./Scripts/evaluate_demo_candidate.ps1 `
+            -PackageDirectory $env:CANDIDATE_PACKAGE `
+            -RuntimeLog (Join-Path $env:CANDIDATE_PACKAGE 'GTT_RUNTIME.log') `
+            -ExpectedGitSha $env:EXPECTED_SHA `
+            -RequireVisual
+          $gate = Get-Content -Raw (Join-Path $env:CANDIDATE_PACKAGE 'DEMO_TECHNICAL_GATE.json') | ConvertFrom-Json
+          if ($gate.result -ne 'PASS' -or $gate.visual_acceptance -ne 'PASS') { throw "Final exact-candidate gate did not PASS visual acceptance." }
+      - name: Write release notes and immutable review provenance
+        shell: pwsh
+        run: |
+          $acceptance = Get-Content -Raw (Join-Path $env:CANDIDATE_PACKAGE 'DEMO_VISUAL_ACCEPTANCE.json') | ConvertFrom-Json
+          $provenance = Get-Content -Raw "${{ github.workspace }}\candidate-provenance.txt"
+          $notes = @"
+          # Grand Theft Tractor Demo $env:GTT_VERSION
+
+          **Source commit:** ``$env:EXPECTED_SHA``
+          **Candidate evidence run:** `${{ inputs.candidate_run_id }}`
+          **Visual reviewer:** ``${{ github.actor }}``
+          **Visual review UTC:** ``$($acceptance.reviewed_utc)``
+
+          This prerelease is published only after the exact packaged candidate passed Win64/UE 5.8 preflight and package evidence, packaged runtime smoke, the deterministic 33-step gameplay route, Native Chaos telemetry, forward/reverse drivetrain exercise, loaded authored-trailer runtime exercise, five-scene rendered evidence validation, and explicit review of those exact screenshots.
+
+          ## Visual review notes
+
+          $env:VISUAL_REVIEW_NOTES
+
+          ## Known status
+
+          This is a demo prerelease, not a final game build. Any remaining non-demo-critical limitations are tracked in the repository Roadmap and playtest documents.
+
+          ## Provenance
+
+          $provenance
+          "@
+          $notes | Set-Content -Encoding UTF8 "${{ github.workspace }}\DEMO_RELEASE_NOTES.md"
+      - name: Upload final review gate evidence
         uses: actions/upload-artifact@v4
         with:
-          name: GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}
+          name: GTT-${{ inputs.version }}-reviewed-demo-release-gate
           path: |
-            ${{ env.RELEASE_DIR }}.zip
-            ${{ env.RELEASE_DIR }}.zip.sha256
-            ${{ env.RELEASE_DIR }}\WIN64_PREFLIGHT.json
-            ${{ env.RELEASE_DIR }}\BUILD_ATTEMPT.json
-            ${{ env.RELEASE_DIR }}\BUILD_INFO.json
-            ${{ env.RELEASE_DIR }}\PACKAGE_VALIDATION.json
-            ${{ env.RELEASE_DIR }}\SHA256SUMS.txt
+            ${{ env.CANDIDATE_PACKAGE }}\DEMO_VISUAL_ACCEPTANCE.json
+            ${{ env.CANDIDATE_PACKAGE }}\DEMO_TECHNICAL_GATE.json
+            ${{ env.CANDIDATE_PACKAGE }}\DEMO_VISUAL_EVIDENCE.json
+            ${{ env.CANDIDATE_PACKAGE }}\DemoVisualEvidence\*.png
+            ${{ github.workspace }}\candidate-provenance.txt
+            ${{ github.workspace }}\DEMO_RELEASE_NOTES.md
           if-no-files-found: error
-          retention-days: 14
-      - name: Upload Win64 failure diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
+          retention-days: 30
+      - name: Locate immutable release assets
+        if: ${{ inputs.publish_release == 'true' }}
+        shell: pwsh
+        run: |
+          $zip = @(Get-ChildItem -Path $env:CANDIDATE_DOWNLOAD -Recurse -File -Filter '*.zip')
+          $sha = @(Get-ChildItem -Path $env:CANDIDATE_DOWNLOAD -Recurse -File -Filter '*.zip.sha256')
+          "RELEASE_ZIP=$($zip[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_SHA=$($sha[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Publish reviewed Demo prerelease
+        if: ${{ inputs.publish_release == 'true' }}
+        uses: softprops/action-gh-release@v2
         with:
-          name: GTT-${{ inputs.version }}-release-failure-diagnostics
-          path: |
-            ${{ env.PREFLIGHT_FILE }}
-            ${{ env.ATTEMPT_FILE }}
-            ${{ github.workspace }}\Saved\Logs\**
-          if-no-files-found: warn
-          retention-days: 14
+          tag_name: gtt-demo-v${{ inputs.version }}
+          name: Grand Theft Tractor Demo v${{ inputs.version }}
+          target_commitish: ${{ inputs.expected_sha }}
+          prerelease: true
+          body_path: ${{ github.workspace }}\DEMO_RELEASE_NOTES.md
+          files: |
+            ${{ env.RELEASE_ZIP }}
+            ${{ env.RELEASE_SHA }}
+            ${{ env.CANDIDATE_PACKAGE }}\DEMO_VISUAL_ACCEPTANCE.json
+            ${{ env.CANDIDATE_PACKAGE }}\DEMO_TECHNICAL_GATE.json
+            ${{ env.CANDIDATE_PACKAGE }}\DemoVisualEvidence\*.png
+          fail_on_unmatched_files: true
