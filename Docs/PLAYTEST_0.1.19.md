@@ -6,7 +6,7 @@ Use this checklist on the next qualifying UE 5.8 Win64 package. Source CI valida
 
 1. Run the normal Win64 evidence workflow on a `self-hosted`, `windows`, `x64`, `unreal-5.8` runner.
 2. Confirm preflight, UAT package, packaged EXE smoke, deterministic gameplay scenario, Native Chaos runtime and deterministic drivetrain evidence all PASS first.
-3. Keep the packaged process alive for at least 172 seconds; the loaded authored-trailer motion scenario starts at 126 seconds.
+3. Keep the packaged process alive for at least 178 seconds; the loaded authored-trailer motion scenario starts at 126 seconds.
 
 ## loaded authored-trailer motion
 

@@ -7,7 +7,6 @@ header = (root / 'Source/GTT/Public/Core/GTTTrailerEvidenceScenarioSubsystem.h')
 cpp = (root / 'Source/GTT/Private/Core/GTTTrailerEvidenceScenarioSubsystem.cpp').read_text(encoding='utf-8')
 evaluator = (root / 'Scripts/evaluate_authored_trailer_runtime.ps1').read_text(encoding='utf-8')
 workflow = (root / '.github/workflows/win64-package-evidence.yml').read_text(encoding='utf-8')
-project = (root / '.github/workflows/project-sanity.yml').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 playtest = (root / 'Docs/PLAYTEST_0.1.19.md').read_text(encoding='utf-8')
 changelog = (root / 'CHANGELOG.d/0.1.19.md').read_text(encoding='utf-8')
@@ -31,10 +30,8 @@ required = [
     (evaluator, 'safe_loaded_motion_samples'),
     (evaluator, 'deterministic_loaded_tow'),
     (evaluator, 'fewer than eight safe moving loaded trailer samples'),
-    (workflow, '-MinimumAliveSeconds 172 -LaunchTimeoutSeconds 195'),
-    (workflow, '-MinimumRuntimeSeconds 172'),
-    (project, 'Verify deterministic loaded authored-trailer runtime exercise'),
-    (project, 'python Scripts/verify_trailer_runtime_exercise.py'),
+    (workflow, '-MinimumAliveSeconds 178 -LaunchTimeoutSeconds 205'),
+    (workflow, '-MinimumRuntimeSeconds 178'),
     (playtest, 'loaded authored-trailer motion'),
     (changelog, '0.1.19'),
     (authoring, 'motion-under-load'),

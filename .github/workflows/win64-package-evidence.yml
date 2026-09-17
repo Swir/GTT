@@ -41,13 +41,13 @@ jobs:
         run: ./Scripts/package_windows.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -Configuration "$env:GTT_CONFIGURATION" -ArchiveDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -SkipZip
       - name: Runtime smoke test packaged EXE with deterministic scenario
         shell: pwsh
-        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 172 -LaunchTimeoutSeconds 195
+        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 178 -LaunchTimeoutSeconds 205
       - name: Evaluate structural limp-home, persistence and workshop recovery scenario
         shell: pwsh
         run: ./Scripts/evaluate_demo_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Evaluate packaged gameplay smoke
         shell: pwsh
-        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 172
+        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 178
       - name: Evaluate live Native Chaos drivetrain and wheel telemetry
         shell: pwsh
         run: ./Scripts/evaluate_native_chaos_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
