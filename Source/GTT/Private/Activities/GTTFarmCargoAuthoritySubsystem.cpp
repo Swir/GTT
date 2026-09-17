@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
+#include "Save/GTTSaveGame.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 
@@ -67,6 +68,7 @@ void UGTTFarmCargoAuthoritySubsystem::Tick(float DeltaTime)
         Director->GetStage() == EGTTFarmJobStage::DeliverFinalStop)
     {
         bObservedLoadedContract = true;
+        if (!BoundCargoVehicle.IsValid() && !BoundCargoVehicleId.IsNone()) TryRebindBoundVehicle();
     }
 }
 
@@ -83,6 +85,25 @@ APawn* UGTTFarmCargoAuthoritySubsystem::ResolveVehicleLoadedAtDepot(APawn* Playe
     }
 
     return FindNearbyLegacyWorkVehicle(this, PlayerPawn, DepotVehicleSearchRadiusCm);
+}
+
+APawn* UGTTFarmCargoAuthoritySubsystem::ResolveVehicleByPersistentId(FName VehicleId) const
+{
+    if (VehicleId.IsNone()) return nullptr;
+    UWorld* World = GetWorld();
+    if (!World) return nullptr;
+
+    for (TActorIterator<AGTTRoadVehicleNativePawn> It(World); It; ++It)
+    {
+        AGTTRoadVehicleNativePawn* Vehicle = *It;
+        if (Vehicle && Vehicle->GetPersistentVehicleId() == VehicleId) return Vehicle;
+    }
+    for (TActorIterator<AGTTVehicleBase> It(World); It; ++It)
+    {
+        AGTTVehicleBase* Vehicle = *It;
+        if (Vehicle && Vehicle->GetPersistentVehicleId() == VehicleId) return Vehicle;
+    }
+    return nullptr;
 }
 
 FName UGTTFarmCargoAuthoritySubsystem::ResolvePersistentVehicleId(const APawn* Vehicle)
@@ -119,16 +140,52 @@ bool UGTTFarmCargoAuthoritySubsystem::BindLoadedVehicle(APawn* PlayerPawn, FStri
     return true;
 }
 
+bool UGTTFarmCargoAuthoritySubsystem::TryRebindBoundVehicle()
+{
+    if (BoundCargoVehicleId.IsNone()) return false;
+    if (BoundCargoVehicle.IsValid() && ResolvePersistentVehicleId(BoundCargoVehicle.Get()) == BoundCargoVehicleId) return true;
+
+    BoundCargoVehicle.Reset();
+    APawn* Resolved = ResolveVehicleByPersistentId(BoundCargoVehicleId);
+    if (!Resolved)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("FARM_CARGO_RECOVERY event=REBIND result=WAIT vehicle=%s reason=actor_not_present"),
+            *BoundCargoVehicleId.ToString());
+        return false;
+    }
+
+    BoundCargoVehicle = Resolved;
+    if (AGTTFarmJobDirector* Director = Cast<AGTTFarmJobDirector>(
+        UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass())))
+    {
+        Director->AdoptRestoredCargoVehicle(Resolved);
+    }
+
+    UE_LOG(LogTemp, Display,
+        TEXT("FARM_CARGO_RECOVERY event=REBIND result=PASS vehicle=%s actor=%s"),
+        *BoundCargoVehicleId.ToString(), *Resolved->GetName());
+    return true;
+}
+
 bool UGTTFarmCargoAuthoritySubsystem::ValidateHandoff(
     const FVector& HandoffLocation,
     float MaxDistanceCm,
     float MaxSpeedKmh,
-    FString& OutReason) const
+    FString& OutReason)
 {
     APawn* Vehicle = BoundCargoVehicle.Get();
+    if (!Vehicle && !BoundCargoVehicleId.IsNone())
+    {
+        TryRebindBoundVehicle();
+        Vehicle = BoundCargoVehicle.Get();
+    }
     if (!Vehicle)
     {
-        OutReason = TEXT("DELIVERY YARD: the original cargo vehicle is missing. Return with the vehicle loaded at Feed Depot.");
+        OutReason = BoundCargoVehicleId.IsNone()
+            ? TEXT("DELIVERY YARD: no cargo vehicle identity is stored for this load. Return to Feed Depot and reload the contract.")
+            : FString::Printf(TEXT("DELIVERY YARD: cargo vehicle %s is not available. Recover or recall that exact vehicle before handoff."),
+                *BoundCargoVehicleId.ToString());
         return false;
     }
 
@@ -157,6 +214,32 @@ bool UGTTFarmCargoAuthoritySubsystem::ValidateHandoff(
         TEXT("FARM_CARGO_AUTHORITY event=HANDOFF_CHECK result=PASS vehicle=%s distance_cm=%.1f speed_kmh=%.2f"),
         *BoundCargoVehicleId.ToString(), DistanceCm, SpeedKmh);
     return true;
+}
+
+void UGTTFarmCargoAuthoritySubsystem::CaptureToSave(UGTTSaveGame* Save) const
+{
+    if (!Save) return;
+    const uint8 DeliverStage = static_cast<uint8>(EGTTFarmJobStage::DeliverCargo);
+    const uint8 FinalStage = static_cast<uint8>(EGTTFarmJobStage::DeliverFinalStop);
+    const bool bLoadedStage = Save->bFarmCargoContractActive &&
+        (Save->FarmCargoStage == DeliverStage || Save->FarmCargoStage == FinalStage);
+    Save->FarmCargoBoundVehicleId = bLoadedStage ? BoundCargoVehicleId : NAME_None;
+}
+
+void UGTTFarmCargoAuthoritySubsystem::RestoreFromSave(const UGTTSaveGame* Save)
+{
+    BoundCargoVehicle.Reset();
+    BoundCargoVehicleId = NAME_None;
+    bObservedLoadedContract = false;
+    if (!Save || !Save->bFarmCargoContractActive) return;
+
+    const uint8 DeliverStage = static_cast<uint8>(EGTTFarmJobStage::DeliverCargo);
+    const uint8 FinalStage = static_cast<uint8>(EGTTFarmJobStage::DeliverFinalStop);
+    if (Save->FarmCargoStage != DeliverStage && Save->FarmCargoStage != FinalStage) return;
+
+    BoundCargoVehicleId = Save->FarmCargoBoundVehicleId;
+    bObservedLoadedContract = !BoundCargoVehicleId.IsNone();
+    if (!BoundCargoVehicleId.IsNone()) TryRebindBoundVehicle();
 }
 
 void UGTTFarmCargoAuthoritySubsystem::ClearLoadedVehicle(const TCHAR* Reason)
