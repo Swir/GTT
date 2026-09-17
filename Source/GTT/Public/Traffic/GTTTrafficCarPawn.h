@@ -28,6 +28,8 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Incident") bool IsIncidentDisabled() const { return bIncidentDisabled; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Incident") float GetIncidentResponseRemaining() const { return IncidentStopRemaining; }
+    UFUNCTION(BlueprintPure, Category="GTT|Traffic|RoadStop") bool IsYieldingForRangerStop() const { return bYieldingForRangerStop; }
+    UFUNCTION(BlueprintPure, Category="GTT|Traffic|RoadStop") bool IsHoldingForRangerStop() const { return bHoldingForRangerStop; }
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Traffic")
@@ -55,4 +57,6 @@ private:
     float IncidentLimpRemaining = 0.0f;
     float IncidentSteerBias = 0.0f;
     bool bIncidentDisabled = false;
+    bool bYieldingForRangerStop = false;
+    bool bHoldingForRangerStop = false;
 };
