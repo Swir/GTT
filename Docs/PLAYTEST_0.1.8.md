@@ -8,7 +8,7 @@ This milestone makes the rural logistics staff remember the player's real delive
 3. Read the world label and interaction prompt.
 4. Interact several times.
 
-Expected: the label uses `E DESK`, shows `NEW DRIVER` plus a score and only permits manual CARGO choices at the relationship-backed access tier. The message also includes the shared desk state with CARGO options and ROAD open/closed status. The dispatcher does not randomly select a locked higher-tier order.
+Expected: the established `E NEGOTIATE` label remains present and now also shows `DESK T1`, `NEW DRIVER` plus a score. Only manual CARGO choices at the relationship-backed access tier are permitted. The message includes the shared desk state with CARGO options and ROAD open/closed status. The dispatcher does not randomly select a locked higher-tier order.
 
 ## 2. Relationship grows from real deliveries
 1. Complete several clean CARGO runs without police incidents or destroyed cargo.
@@ -57,14 +57,14 @@ Expected: the compact desk summary consistently reports the currently relationsh
 2. Talk to Hill Receiver on shift.
 3. Repeat after intentionally failed CARGO work.
 
-Expected: the receiver reports live Hill demand, current order/commodity and relationship-aware dialogue. Wanted drivers are still refused by the legal handoff path; the relationship layer cannot bypass police rules.
+Expected: the established `HILL NEED n | E STATUS` label remains present. The receiver reports live Hill demand, current order/commodity and relationship-aware dialogue. Wanted drivers are still refused by the legal handoff path; the relationship layer cannot bypass police rules.
 
 ## 9. Wood Foreman mixed-work relationship
 1. Complete a mixture of CARGO relay work and Rattleback ROAD courier runs.
 2. Talk to Wood Foreman.
 3. Compare the result with a profile containing repeated CARGO/ROAD failures.
 
-Expected: Wood relationship reflects both transport streams and the status message still includes Wood demand, backlog and the shared ROAD/CARGO supply signal.
+Expected: the established `WOOD NEED n | E STATUS` label remains present. Wood relationship reflects both transport streams and the status message still includes Wood demand, backlog and the shared ROAD/CARGO supply signal.
 
 ## 10. Save/reload determinism
 1. Note all three relationship scores plus the current same-day negotiated CARGO order.
@@ -85,7 +85,7 @@ Expected: the 0.1.7 living-market validity check still clears/falls back from th
 2. Test underprepared fleet state, wanted, game-warden alert and damaged vehicle state.
 3. Verify ROAD Rattleback work after the relationship changes.
 
-Expected: relationship gating does not bypass fleet preparation, wanted/warden locks, cargo integrity, Native load handling, stock reservation, backlog, ROAD payout/schedule, garage state or save behavior.
+Expected: relationship gating does not bypass fleet preparation, wanted/warden locks, cargo integrity, Native load handling, stock reservation, backlog, ROAD payout/schedule, garage state or save behavior. Existing 0.1.7 dispatcher prompts/interaction strings remain compatible while the relationship desk adds information around them.
 
 ## 13. Roadmap/style sanity
 Run Project sanity and confirm `Scripts/verify_dispatcher_relationship_desk.py` passes with all earlier logistics/fleet verifiers. Re-read `Docs/ROADMAP.md`.
