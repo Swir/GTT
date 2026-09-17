@@ -7,7 +7,7 @@
 
 class AGTTVehicleBase;
 class UCameraComponent;
-class UChaosWheeledVehicleMovementComponent;
+class UGTTFieldmasterChaosMovementComponent;
 class UInputComponent;
 class USpringArmComponent;
 class UPrimitiveComponent;
@@ -45,7 +45,7 @@ class GTT_API AGTTFieldmasterNativePawn : public AWheeledVehiclePawn, public IGT
     GENERATED_BODY()
 
 public:
-    AGTTFieldmasterNativePawn();
+    AGTTFieldmasterNativePawn(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
@@ -95,6 +95,9 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Input")
     float GetRequestedThrottleInput() const { return LastThrottleInput; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Input")
+    float GetRequestedSteeringInput() const { return LastSteeringInput; }
+
     UFUNCTION(BlueprintPure, Category="GTT|Chaos")
     bool IsNativeFieldmasterReady() const { return bNativeReady; }
 
@@ -130,6 +133,8 @@ protected:
 
 private:
     bool ValidateRigContract(FString& OutSummary) const;
+    UGTTFieldmasterChaosMovementComponent* GetFieldmasterMovement() const;
+    void RefreshNativeDriveCommand();
     void HandleNativeThrottle(float Value);
     void HandleNativeSteering(float Value);
     void QuickSave();
@@ -151,6 +156,7 @@ private:
     bool bTakeoverActive = false;
     bool bOccupied = false;
     float LastThrottleInput = 0.0f;
+    float LastSteeringInput = 0.0f;
     float MirrorSyncAccumulator = 0.0f;
     float TakeoverRetryAccumulator = 0.0f;
     float LastImpactDamageTimeSeconds = -100.0f;

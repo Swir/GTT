@@ -1,7 +1,6 @@
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 
 #include "Camera/CameraComponent.h"
-#include "ChaosWheeledVehicleMovementComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Core/GTTGameMode.h"
@@ -11,9 +10,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Radio/GTTRadioComponent.h"
-#include "Vehicles/GTTChaosNativeSetupLibrary.h"
-#include "Vehicles/GTTChaosPowertrainSetupLibrary.h"
 #include "Vehicles/GTTChaosRigContract.h"
+#include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "GTT.h"
 
@@ -26,7 +24,8 @@ namespace
     constexpr float NativeFullThrottleFuelBurnPerSecond = 0.11f;
 }
 
-AGTTFieldmasterNativePawn::AGTTFieldmasterNativePawn()
+AGTTFieldmasterNativePawn::AGTTFieldmasterNativePawn(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer.SetDefaultSubobjectClass<UGTTFieldmasterChaosMovementComponent>(AWheeledVehiclePawn::VehicleMovementComponentName))
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickInterval = 0.1f;
@@ -84,15 +83,11 @@ void AGTTFieldmasterNativePawn::Tick(float DeltaSeconds)
         const float EfficiencyBonus = 1.0f - FMath::Clamp(MigrationSnapshot.EngineUpgradeLevel, 0, 3) * 0.035f;
         const float BurnRate = FMath::Lerp(NativeIdleFuelBurnPerSecond, NativeFullThrottleFuelBurnPerSecond, ThrottleAlpha) * EfficiencyBonus;
         MigrationSnapshot.FuelLiters = FMath::Max(0.0f, MigrationSnapshot.FuelLiters - BurnRate * DeltaSeconds);
-        if (MigrationSnapshot.FuelLiters <= KINDA_SMALL_NUMBER)
-        {
-            LastThrottleInput = 0.0f;
-            if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
-            {
-                Movement->SetThrottleInput(0.0f);
-                Movement->SetBrakeInput(1.0f);
-            }
-        }
+    }
+
+    if (bOccupied)
+    {
+        RefreshNativeDriveCommand();
     }
 
     MirrorSyncAccumulator += DeltaSeconds;
@@ -154,6 +149,7 @@ void AGTTFieldmasterNativePawn::Interact_Implementation(AActor* Interactor)
     InteractingPawn->SetActorEnableCollision(false);
     InteractingController->Possess(this);
     bOccupied = true;
+    RefreshNativeDriveCommand();
 }
 
 FText AGTTFieldmasterNativePawn::GetInteractionText_Implementation() const
@@ -177,11 +173,10 @@ void AGTTFieldmasterNativePawn::ExitNativeVehicle()
     }
 
     LastThrottleInput = 0.0f;
-    if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
+    LastSteeringInput = 0.0f;
+    if (UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement())
     {
-        Movement->SetThrottleInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetBrakeInput(1.0f);
+        Movement->HoldFieldmasterStopped();
     }
 
     PawnToRestore->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
@@ -203,35 +198,45 @@ void AGTTFieldmasterNativePawn::ExitNativeVehicle()
     SyncLegacyMirror();
 }
 
-void AGTTFieldmasterNativePawn::HandleNativeThrottle(float Value)
+UGTTFieldmasterChaosMovementComponent* AGTTFieldmasterNativePawn::GetFieldmasterMovement() const
 {
-    LastThrottleInput = FMath::Clamp(Value, -1.0f, 1.0f);
-    if (!bNativeReady || !bTakeoverActive || !bOccupied || MigrationSnapshot.FuelLiters <= KINDA_SMALL_NUMBER)
+    return Cast<UGTTFieldmasterChaosMovementComponent>(GetVehicleMovementComponent());
+}
+
+void AGTTFieldmasterNativePawn::RefreshNativeDriveCommand()
+{
+    UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement();
+    if (!Movement)
     {
-        LastThrottleInput = 0.0f;
         return;
     }
 
-    if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
+    const bool bCanDrive = bNativeReady && bTakeoverActive && bOccupied && MigrationSnapshot.FuelLiters > KINDA_SMALL_NUMBER;
+    if (!bCanDrive)
     {
-        const float Requested = LastThrottleInput;
-        Movement->SetBrakeInput(FMath::IsNearlyZero(Requested) ? 0.15f : 0.0f);
-        Movement->SetThrottleInput(FMath::Abs(Requested));
-        Movement->SetTargetGear(Requested < -KINDA_SMALL_NUMBER ? -1 : 1, true);
+        Movement->HoldFieldmasterStopped();
+        return;
     }
+
+    Movement->ApplyFieldmasterDriveCommand(
+        LastThrottleInput,
+        LastSteeringInput,
+        true,
+        MigrationSnapshot.ConditionPercent,
+        MigrationSnapshot.TireIntegrity,
+        GetNativeTerrainGripFactor());
+}
+
+void AGTTFieldmasterNativePawn::HandleNativeThrottle(float Value)
+{
+    LastThrottleInput = FMath::Clamp(Value, -1.0f, 1.0f);
+    RefreshNativeDriveCommand();
 }
 
 void AGTTFieldmasterNativePawn::HandleNativeSteering(float Value)
 {
-    if (!bNativeReady || !bTakeoverActive || !bOccupied)
-    {
-        return;
-    }
-
-    if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
-    {
-        Movement->SetSteeringInput(FMath::Clamp(Value, -1.0f, 1.0f));
-    }
+    LastSteeringInput = FMath::Clamp(Value, -1.0f, 1.0f);
+    RefreshNativeDriveCommand();
 }
 
 void AGTTFieldmasterNativePawn::QuickSave()
@@ -300,6 +305,7 @@ void AGTTFieldmasterNativePawn::ApplyMigrationSnapshot(const FGTTVehicleMigratio
     MigrationSnapshot.EngineUpgradeLevel = FMath::Max(0, Snapshot.EngineUpgradeLevel);
     MigrationSnapshot.TireUpgradeLevel = FMath::Max(0, Snapshot.TireUpgradeLevel);
     MigrationSnapshot.TireIntegrity = FMath::Clamp(Snapshot.TireIntegrity, 0.0f, 1.0f);
+    RefreshNativeDriveCommand();
 }
 
 bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
@@ -341,6 +347,7 @@ bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
         SetActorEnableCollision(true);
         bTakeoverActive = true;
         MirrorSyncAccumulator = 0.0f;
+        RefreshNativeDriveCommand();
         UE_LOG(LogGTT, Log, TEXT("Fieldmaster native takeover ACTIVE: %s"), *ImportSummary);
         return true;
     }
@@ -370,6 +377,10 @@ void AGTTFieldmasterNativePawn::DeactivateLegacyTakeover()
 
     LegacyMirror.Reset();
     bTakeoverActive = false;
+    if (UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement())
+    {
+        Movement->HoldFieldmasterStopped();
+    }
     SetActorHiddenInGame(true);
     SetActorEnableCollision(false);
 }
@@ -382,11 +393,9 @@ bool AGTTFieldmasterNativePawn::RecallToTransform(const FTransform& Destination)
     }
 
     SetActorTransform(Destination, false, nullptr, ETeleportType::TeleportPhysics);
-    if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
+    if (UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement())
     {
-        Movement->SetThrottleInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetBrakeInput(1.0f);
+        Movement->HoldFieldmasterStopped();
     }
     SyncLegacyMirror();
     return true;
@@ -455,11 +464,11 @@ bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
 
 bool AGTTFieldmasterNativePawn::ConfigureAndValidateNativeFieldmaster(FString& OutSummary)
 {
-    UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent());
+    UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement();
     if (!Movement)
     {
         bNativeReady = false;
-        OutSummary = TEXT("No UChaosWheeledVehicleMovementComponent");
+        OutSummary = TEXT("Dedicated UGTTFieldmasterChaosMovementComponent missing");
         NativeAcceptanceSummary = OutSummary;
         return false;
     }
@@ -473,26 +482,20 @@ bool AGTTFieldmasterNativePawn::ConfigureAndValidateNativeFieldmaster(FString& O
         return false;
     }
 
-    FString WheelConfigureSummary;
-    const bool bWheelsConfigured = UGTTChaosNativeSetupLibrary::ConfigureCanonicalWheelSetups(Movement, FieldmasterVehicleId, WheelConfigureSummary);
-
-    FString PowertrainConfigureSummary;
-    const bool bPowertrainConfigured = UGTTChaosPowertrainSetupLibrary::ConfigureCanonicalPowertrain(Movement, FieldmasterVehicleId, PowertrainConfigureSummary);
-
-    FString WheelValidationSummary;
-    const bool bWheelsValid = bWheelsConfigured && UGTTChaosNativeSetupLibrary::ValidateCanonicalWheelSetups(Movement, FieldmasterVehicleId, WheelValidationSummary);
-
-    FString PowertrainValidationSummary;
-    const bool bPowertrainValid = bPowertrainConfigured && UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(Movement, FieldmasterVehicleId, PowertrainValidationSummary);
-
+    FString MovementSummary;
+    const bool bMovementValid = Movement->ConfigureAndValidateFieldmaster(MovementSummary);
     const bool bPhysicsAssetPresent = GetMesh() && GetMesh()->GetPhysicsAsset() != nullptr;
-    bNativeReady = bWheelsValid && bPowertrainValid && bPhysicsAssetPresent;
+    bNativeReady = bMovementValid && bPhysicsAssetPresent;
 
-    OutSummary = FString::Printf(TEXT("RIG: %s | WHEELS: %s | POWERTRAIN: %s | PHYSICS ASSET: %s"),
+    OutSummary = FString::Printf(TEXT("RIG: %s | %s | PHYSICS ASSET: %s"),
         *RigSummary,
-        bWheelsValid ? *WheelValidationSummary : *WheelConfigureSummary,
-        bPowertrainValid ? *PowertrainValidationSummary : *PowertrainConfigureSummary,
+        *MovementSummary,
         bPhysicsAssetPresent ? TEXT("YES") : TEXT("NO"));
     NativeAcceptanceSummary = OutSummary;
+
+    if (!bNativeReady)
+    {
+        Movement->HoldFieldmasterStopped();
+    }
     return bNativeReady;
 }
