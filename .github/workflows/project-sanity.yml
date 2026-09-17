@@ -81,6 +81,7 @@ jobs:
       - { name: Verify interactive dispatchers and rural order negotiation, run: 'python Scripts/verify_interactive_dispatch_negotiation.py' }
       - { name: Verify dispatcher relationships and multi-order contract desk, run: 'python Scripts/verify_dispatcher_relationship_desk.py' }
       - { name: Verify reserved contract queue and dispatcher favors, run: 'python Scripts/verify_reserved_contract_queue.py' }
+      - { name: Verify shared ROAD CARGO priority dispatch and rush contracts, run: 'python Scripts/verify_priority_dispatch_rush.py' }
       - { name: Verify Native trailer authored-rig acceptance and hitch safety, run: 'python Scripts/verify_native_trailer_acceptance.py' }
       - { name: Verify authored trailer runtime takeover and wheel-contact dynamics, run: 'python Scripts/verify_authored_trailer_runtime.py' }
       - { name: Verify Native fleet rollover safety and emergency righting, run: 'python Scripts/verify_native_rollover_safety.py' }
