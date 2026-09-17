@@ -15,6 +15,18 @@ public:
     AGTTRangerDirector();
     virtual void BeginPlay() override;
 
+    UFUNCTION(BlueprintPure, Category="GTT|Ranger")
+    int32 GetActiveRangerCount() const { return ActiveRangers.Num(); }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Ranger")
+    int32 GetEnforcementTier() const { return EnforcementTier; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Ranger")
+    bool IsPoliceHandoffActive() const { return bPoliceHandoffIssued; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Ranger")
+    bool IsNightReinforcementActive() const { return bNightReinforcementActive; }
+
 protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger")
     TSubclassOf<AGTTRangerPawn> RangerClass;
@@ -22,10 +34,23 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger", meta=(ClampMin="0.25"))
     float ResponseInterval = 1.0f;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger", meta=(ClampMin="1", ClampMax="3"))
+    int32 NightReinforcementAlertLevel = 2;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger", meta=(ClampMin="1", ClampMax="3"))
+    int32 PoliceHandoffAlertLevel = 3;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Ranger", meta=(ClampMin="0.0"))
+    float PoliceHandoffHeat = 35.0f;
+
 private:
     void UpdateResponse();
     void CleanupInvalidRangers();
+    void ApplyPoliceHandoff(APawn* PlayerPawn, int32 AlertLevel);
 
     FTimerHandle ResponseTimer;
     TArray<TWeakObjectPtr<AGTTRangerPawn>> ActiveRangers;
+    int32 EnforcementTier = 0;
+    bool bPoliceHandoffIssued = false;
+    bool bNightReinforcementActive = false;
 };
