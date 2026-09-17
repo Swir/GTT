@@ -50,9 +50,11 @@ bool UGTTRangerRoadStopSubsystem::BeginStop(
     ActiveTarget = Target;
     Phase = EGTTRangerRoadStopPhase::Comply;
     RemainingSeconds = FMath::Max(0.0f, GraceSeconds);
+    InitialGraceSeconds = RemainingSeconds;
     SearchHoldElapsed = 0.0f;
     SearchHoldRequired = 0.0f;
     ObservedTargetSpeedKmh = 0.0f;
+    ComplianceSpeedLimitKmh = 2.5f;
     FleeDisplayUntilSeconds = 0.0f;
     RefreshRoadFrame(Target);
 
@@ -69,7 +71,8 @@ void UGTTRangerRoadStopSubsystem::UpdateStop(
     float HoldElapsed,
     float HoldRequired,
     float TargetSpeedKmh,
-    bool bSearching)
+    bool bSearching,
+    float InComplianceSpeedLimitKmh)
 {
     if (!IsOwnedBy(Controller) || !Target || ActiveTarget.Get() != Target)
     {
@@ -81,6 +84,7 @@ void UGTTRangerRoadStopSubsystem::UpdateStop(
     SearchHoldElapsed = FMath::Max(0.0f, HoldElapsed);
     SearchHoldRequired = FMath::Max(0.0f, HoldRequired);
     ObservedTargetSpeedKmh = FMath::Max(0.0f, TargetSpeedKmh);
+    ComplianceSpeedLimitKmh = FMath::Max(0.1f, InComplianceSpeedLimitKmh);
     Phase = bSearching ? EGTTRangerRoadStopPhase::Search : EGTTRangerRoadStopPhase::Comply;
 }
 
@@ -172,6 +176,15 @@ bool UGTTRangerRoadStopSubsystem::GetTrafficResponse(
         return false;
     }
 
+    // Only the lane travelling in the same direction as the stopped player yields.
+    // This prevents an oncoming vehicle on the opposite lane from being frozen just
+    // because it is physically approaching the same roadside contact point.
+    const float SameDirectionDot = FVector::DotProduct(VehicleHeading, RoadForward);
+    if (SameDirectionDot <= TrafficSameDirectionDot)
+    {
+        return false;
+    }
+
     const FVector RoadRight = FVector::CrossProduct(FVector::UpVector, RoadForward).GetSafeNormal2D();
     const float LateralDistanceCm = FMath::Abs(FVector::DotProduct(VehicleLocation - StopLocation, RoadRight));
     if (LateralDistanceCm > TrafficCorridorHalfWidthCm)
@@ -195,6 +208,98 @@ bool UGTTRangerRoadStopSubsystem::GetTrafficResponse(
         1.0f);
     OutSpeedScale = FMath::Lerp(0.22f, 0.82f, Alpha);
     return true;
+}
+
+bool UGTTRangerRoadStopSubsystem::GetCivilianResponse(
+    const FVector& CitizenLocation,
+    FVector& OutSafeLocation,
+    FVector& OutFocusLocation,
+    bool& bOutNeedsMove) const
+{
+    OutSafeLocation = CitizenLocation;
+    OutFocusLocation = StopLocation;
+    bOutNeedsMove = false;
+    if (!HasTrafficControl())
+    {
+        return false;
+    }
+
+    FVector Relative = CitizenLocation - StopLocation;
+    Relative.Z = 0.0f;
+    if (Relative.SizeSquared2D() > FMath::Square(CivilianAwarenessRadiusCm))
+    {
+        return false;
+    }
+
+    const FVector RoadRight = FVector::CrossProduct(FVector::UpVector, RoadForward).GetSafeNormal2D();
+    const float LateralCm = FVector::DotProduct(Relative, RoadRight);
+    const float LongitudinalCm = FVector::DotProduct(Relative, RoadForward);
+    if (FMath::Abs(LongitudinalCm) > CivilianLongitudinalWindowCm)
+    {
+        return false;
+    }
+
+    const float PreferredSide = FMath::Abs(LateralCm) > 80.0f
+        ? (LateralCm < 0.0f ? -1.0f : 1.0f)
+        : -ShoulderSide;
+    const float SafeLongitudinal = FMath::Clamp(LongitudinalCm, -900.0f, 900.0f);
+    OutSafeLocation = StopLocation
+        + RoadRight * PreferredSide * CivilianSafeLateralCm
+        + RoadForward * SafeLongitudinal;
+    OutSafeLocation.Z = CitizenLocation.Z;
+    bOutNeedsMove = FMath::Abs(LateralCm) < CivilianMoveThresholdCm;
+    return true;
+}
+
+FGTTRangerRoadStopPresentation UGTTRangerRoadStopSubsystem::GetPresentationSnapshot() const
+{
+    FGTTRangerRoadStopPresentation Snapshot;
+    Snapshot.Phase = Phase;
+    Snapshot.SecondsRemaining = RemainingSeconds;
+    Snapshot.ObservedSpeedKmh = ObservedTargetSpeedKmh;
+
+    switch (Phase)
+    {
+    case EGTTRangerRoadStopPhase::Comply:
+        if (!ActiveController.IsValid() || !ActiveTarget.IsValid())
+        {
+            return Snapshot;
+        }
+        Snapshot.bVisible = true;
+        Snapshot.PhaseLabel = TEXT("COMPLY");
+        Snapshot.Progress01 = InitialGraceSeconds > KINDA_SMALL_NUMBER
+            ? FMath::Clamp(1.0f - RemainingSeconds / InitialGraceSeconds, 0.0f, 1.0f)
+            : 1.0f;
+        Snapshot.Instruction = ObservedTargetSpeedKmh > ComplianceSpeedLimitKmh
+            ? FString::Printf(TEXT("PULL OVER | SLOW BELOW %.1f KM/H"), ComplianceSpeedLimitKmh)
+            : TEXT("HOLD POSITION | WAIT FOR WARDEN");
+        break;
+
+    case EGTTRangerRoadStopPhase::Search:
+        if (!ActiveController.IsValid() || !ActiveTarget.IsValid())
+        {
+            return Snapshot;
+        }
+        Snapshot.bVisible = true;
+        Snapshot.PhaseLabel = TEXT("SEARCH");
+        Snapshot.Progress01 = SearchHoldRequired > KINDA_SMALL_NUMBER
+            ? FMath::Clamp(SearchHoldElapsed / SearchHoldRequired, 0.0f, 1.0f)
+            : 0.0f;
+        Snapshot.Instruction = TEXT("REMAIN STOPPED | VEHICLE SEARCH IN PROGRESS");
+        break;
+
+    case EGTTRangerRoadStopPhase::Flee:
+        Snapshot.bVisible = IsFleeDisplayVisible();
+        Snapshot.PhaseLabel = TEXT("FLEE");
+        Snapshot.Progress01 = 1.0f;
+        Snapshot.Instruction = TEXT("STOP FAILED | POLICE ESCALATION ACTIVE");
+        break;
+
+    default:
+        break;
+    }
+
+    return Snapshot;
 }
 
 FString UGTTRangerRoadStopSubsystem::GetStatusText() const
@@ -251,8 +356,10 @@ void UGTTRangerRoadStopSubsystem::ClearStop()
     RoadForward = FVector::ForwardVector;
     ShoulderSide = 1.0f;
     RemainingSeconds = 0.0f;
+    InitialGraceSeconds = 0.0f;
     SearchHoldElapsed = 0.0f;
     SearchHoldRequired = 0.0f;
     ObservedTargetSpeedKmh = 0.0f;
+    ComplianceSpeedLimitKmh = 2.5f;
     FleeDisplayUntilSeconds = 0.0f;
 }
