@@ -141,12 +141,17 @@ def main() -> None:
     if (checked, unchecked) != (125, 5):
         raise AssertionError(f"runtime blockers were changed without evidence: checked={checked}, open={unchecked}")
     for token in (
-        "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "<!-- ROADMAP-PROGRESS:START -->",
-        "<!-- ROADMAP-PROGRESS:END -->", "███████████████████░ 96.2%",
-        "| **125** | **5** | **130** | **96.2%** |", "../assets/readme/progress-mini.svg",
+        "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+        "<!-- ROADMAP-PROGRESS:START -->",
+        "<!-- ROADMAP-PROGRESS:END -->",
+        "## 📊 Overall progress",
+        "| **125** | **5** | **130** | **96.2%** |",
+        "../assets/readme/progress-mini.svg",
     ):
         if token not in roadmap:
             raise AssertionError(f"roadmap standard/progress presentation regressed: {token}")
+    if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+        raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
     progress_check = subprocess.run(
         [sys.executable, str(ROOT / "Scripts" / "generate_progress_svg.py"), "--check"],
