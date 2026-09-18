@@ -1,0 +1,46 @@
+name: GTT 0.1.33 Farm Cargo breakdown runtime sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/**' ]
+    paths:
+      - 'Source/GTT/Public/Core/GTTFarmCargoBreakdownEvidenceSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTFarmCargoBreakdownEvidenceSubsystem.cpp'
+      - 'Source/GTT/Public/Activities/GTTFarmCargoBreakdownRecoverySubsystem.h'
+      - 'Source/GTT/Private/Activities/GTTFarmCargoBreakdownRecoverySubsystem.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTRoadVehicleNativePawn.h'
+      - 'Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'
+      - 'Scripts/evaluate_farm_cargo_breakdown_runtime.ps1'
+      - 'Scripts/smoke_test_windows.ps1'
+      - 'Scripts/evaluate_demo_candidate.ps1'
+      - 'Scripts/verify_farm_cargo_breakdown_runtime.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - 'Docs/PLAYTEST_0.1.33.md'
+      - 'Docs/ROADMAP.md'
+      - 'CHANGELOG.d/0.1.33.md'
+      - 'assets/readme/progress-*.svg'
+      - 'Scripts/generate_progress_svg.py'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  farm-cargo-breakdown-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preserve 0.1.31 packaged save/load cargo recovery contract
+        run: python Scripts/verify_farm_cargo_recovery_runtime.py
+      - name: Preserve 0.1.32 production breakdown/tow recovery contract
+        run: python Scripts/verify_farm_cargo_breakdown_recovery.py
+      - name: Verify 0.1.33 packaged breakdown/tow evidence contract
+        run: python Scripts/verify_farm_cargo_breakdown_runtime.py
+      - name: Verify deterministic SWIR progress SVG outputs
+        run: python Scripts/generate_progress_svg.py --check
