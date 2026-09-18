@@ -1,0 +1,49 @@
+name: GTT 0.1.35 Farm Cargo emergency patch runtime sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/**' ]
+    paths:
+      - 'Source/GTT/Public/Core/GTTFarmCargoPatchEvidenceSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTFarmCargoPatchEvidenceSubsystem.cpp'
+      - 'Source/GTT/Public/Activities/GTTFarmCargoBreakdownRecoverySubsystem.h'
+      - 'Source/GTT/Private/Activities/GTTFarmCargoBreakdownRecoverySubsystem.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTBreakdownDecisionSubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'
+      - 'Scripts/evaluate_farm_cargo_patch_runtime.ps1'
+      - 'Scripts/smoke_test_windows.ps1'
+      - 'Scripts/evaluate_demo_candidate.ps1'
+      - 'Scripts/verify_farm_cargo_patch_runtime.py'
+      - 'Scripts/verify_farm_cargo_breakdown_runtime.py'
+      - 'Scripts/verify_roadside_patch_cargo_recovery.py'
+      - 'Scripts/generate_progress_svg.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - 'Docs/PLAYTEST_0.1.35.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'CHANGELOG.d/0.1.35.md'
+      - 'assets/readme/progress-*.svg'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  farm-cargo-patch-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preserve 0.1.33 packaged breakdown/tow evidence contract
+        run: python Scripts/verify_farm_cargo_breakdown_runtime.py
+      - name: Preserve 0.1.34 roadside patch and cargo recovery-choice contract
+        run: python Scripts/verify_roadside_patch_cargo_recovery.py
+      - name: Verify 0.1.35 packaged emergency-patch evidence contract
+        run: python Scripts/verify_farm_cargo_patch_runtime.py
+      - name: Verify deterministic SWIR progress SVG outputs and SVG-only dashboard
+        run: python Scripts/generate_progress_svg.py --check
