@@ -122,6 +122,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.43 workshop hours and after-hours recovery:** the existing day/night clock now controls regular workshop availability from 06:30 through 20:00. Ordinary repair/refuel waits while closed, but a genuine `TOW`/`IMMOBILE` WORKSHOP HOLD retains an emergency recovery lane at a deterministic +35% surcharge using the same authoritative repair, economy and save path. Garage office status surfaces the schedule and emergency rule. This connected economy milestone leaves the five Native Chaos, trailer and Win64 acceptance blockers unchanged.
 
+> **0.1.44 packaged workshop-hours evidence:** the future Win64 candidate now has a later deterministic window that must prove the real 06:30–20:00 boundaries, no-charge/no-mutation ordinary service rejection after closing, production tow-created WORKSHOP HOLD, exact +35% emergency checkout math, one exact emergency debit, hold release and stable `PersistentVehicleId`. `WORKSHOP_HOURS_RUNTIME.json` can promote the existing schema-13 Farm Cargo workshop-recovery technical gate to schema 14 only after same-SHA packaged PASS evidence. Source CI still closes no Native Chaos, trailer or Win64/runtime/visual checkbox.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
