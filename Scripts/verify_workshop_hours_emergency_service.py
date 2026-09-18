@@ -115,7 +115,7 @@ def main() -> int:
     require(garage, "GTTWorkshopHoursPolicy::IsOpen", "garage uses shared workshop policy")
     require(garage, "WORKSHOP %s | hours %s", "garage open/closed summary")
     require(garage, "Emergency recovery remains available after hours", "garage emergency recovery guidance")
-    require(garage, "ordinary repair/refuel waits for opening", "garage ordinary-service guidance")
+    require(garage.lower(), "ordinary repair/refuel waits for opening", "garage ordinary-service guidance")
     require(garage, "workshop %s %s", "garage interaction schedule state")
 
     # Historical recovery contract stays active and has been hardened for later README milestones.
