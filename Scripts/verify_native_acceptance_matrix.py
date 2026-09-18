@@ -46,10 +46,13 @@ if missing:
 
 for token in (
     "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
     "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
     "ROADMAP-96.2%25",
     "DONE-125%2F130",
-    "███████████████████░ 96.2%",
+    "| **125** | **5** | **130** | **96.2%** |",
 ):
     if token not in roadmap:
         raise SystemExit("roadmap Style Lock/progress mismatch: " + token)
@@ -58,6 +61,11 @@ checks = re.findall(r"^- \[[x ]\] ", roadmap, flags=re.MULTILINE)
 done = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
 if len(checks) != 130 or done != 125:
     raise SystemExit(f"roadmap checklist changed unexpectedly: {done}/{len(checks)}")
+progress_block = roadmap.split("<!-- ROADMAP-PROGRESS:START -->", 1)[1].split("<!-- ROADMAP-PROGRESS:END -->", 1)[0]
+if progress_block.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("roadmap progress block must embed exactly one canonical progress-mini.svg")
+if re.search(r"[█▓▒░]{3,}", progress_block):
+    raise SystemExit("legacy text/Unicode progress meter must not return to active Roadmap dashboard")
 
 if "packaged Win64" not in playtest or "does not" not in changelog:
     raise SystemExit("release-honesty language missing from 0.0.79 docs")
@@ -66,4 +74,4 @@ print("[OK] Native Chaos acceptance matrix verified")
 print(" - wheel + powertrain config and live wheel/suspension state share one matrix")
 print(" - smoke readiness requires sustained healthy runtime and measurable suspension travel")
 print(" - Fieldmaster, Rattleback and Mulebox are independently tracked")
-print(" - roadmap remains honest at 125/130 (96.2%)")
+print(" - roadmap remains honest at 125/130 (96.2%) with SVG-only progress")
