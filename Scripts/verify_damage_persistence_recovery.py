@@ -21,6 +21,10 @@ if runtime_window_ok:
     gameplay_minimum = int(gameplay_runtime.group(1))
     runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
 
+version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
+candidate_version = tuple(int(part) for part in version_match.groups()) if version_match else None
+candidate_version_ok = candidate_version is not None and candidate_version >= (0, 1, 14)
+
 checks = {
     'tickable opt-in subsystem': 'UTickableWorldSubsystem' in header and 'GTTDemoSmokeScenario' in cpp,
     'waits for core scenario': 'UGTTDemoSmokeScenarioSubsystem' in cpp and 'CoreScenario->IsTickable()' in cpp,
@@ -36,7 +40,7 @@ checks = {
     'latest schema retains recovery': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator,
     'evaluator persistence hard gate': 'damage_persistence_passed' in evaluator and 'spike damage did not survive the SaveProgress/LoadProgress round-trip' in evaluator,
     'evaluator workshop hard gate': 'workshop_recovery_passed' in evaluator and 'paid workshop did not restore persisted spike damage and handling' in evaluator,
-    'current Win64 candidate evidence': "default: '0.1.14'" in workflow and 'WIN64_PREFLIGHT.json' in workflow and 'BUILD_ATTEMPT.json' in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+    'candidate version not regressed below 0.1.14': candidate_version_ok and all(x in workflow for x in ['WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_TECHNICAL_GATE.json']),
     'extended packaged runtime': runtime_window_ok,
     'workflow evaluator ordering': workflow.index('Evaluate structural limp-home, persistence and workshop recovery scenario') < workflow.index('Evaluate packaged gameplay smoke'),
     'sanity wired': 'Verify spike damage persistence and workshop recovery' in san and 'verify_damage_persistence_recovery.py' in san,
@@ -63,4 +67,5 @@ if progress_block.count('../assets/readme/progress-mini.svg') != 1:
 if re.search(r'[█▓▒░]{3,}',progress_block):
     raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
-print(f'[OK] Spike damage save/load persistence + paid workshop recovery retained ({len(checks)} checks; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')
+label = '.'.join(str(part) for part in candidate_version)
+print(f'[OK] Spike damage save/load persistence + paid workshop recovery retained ({len(checks)} checks; candidate {label}; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')
