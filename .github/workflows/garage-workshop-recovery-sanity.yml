@@ -1,0 +1,27 @@
+name: GTT 0.1.41 garage workshop recovery sanity
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify garage/workshop recovery integration
+        run: python Scripts/verify_garage_workshop_recovery.py
+      - name: Verify deterministic SWIR progress SVG
+        run: python Scripts/generate_progress_svg.py --check
