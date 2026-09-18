@@ -23,6 +23,7 @@
 #include "Ranger/GTTRangerRoadStopSubsystem.h"
 #include "Vehicles/GTTBreakdownDecisionSubsystem.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
+#include "Vehicles/GTTRoadsideRecoverySubsystem.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTDayNightCycle.h"
@@ -147,6 +148,7 @@ void AGTTGameHUD::DrawFarmCargoRecoveryPanel(const AGTTRoadVehicleNativePawn* Na
     if (State == EGTTFarmCargoRecoveryState::None || State == EGTTFarmCargoRecoveryState::Healthy) return;
     if (Recovery->GetRecoveryVehicleId() != NativeRoad->GetPersistentVehicleId()) return;
     const UGTTBreakdownDecisionSubsystem* Decision = GetWorld()->GetSubsystem<UGTTBreakdownDecisionSubsystem>();
+    const UGTTRoadsideRecoverySubsystem* Roadside = GetWorld()->GetSubsystem<UGTTRoadsideRecoverySubsystem>();
     const FGTTBreakdownAssessment Assessment = Decision ? Decision->AssessVehicle(NativeRoad) : FGTTBreakdownAssessment();
     FString Instruction;
     FLinearColor Accent(1.0f, 0.58f, 0.14f, 1.0f);
@@ -156,15 +158,32 @@ void AGTTGameHUD::DrawFarmCargoRecoveryPanel(const AGTTRoadVehicleNativePawn* Na
         case EGTTFarmCargoRecoveryState::TowRecommended:
             Instruction = Assessment.bEmergencyPatchPossible ? FString::Printf(TEXT("Y / D-Pad Left PATCH $%d  |  T / D-Pad Up TOW $%d  |  contract clock running"), Assessment.EmergencyPatchEstimate, Assessment.TowEstimate) : FString::Printf(TEXT("T / D-Pad Up TOW $%d  |  structural/body damage blocks patch  |  clock running"), Assessment.TowEstimate);
             break;
-        case EGTTFarmCargoRecoveryState::PatchPending: Instruction = TEXT("Emergency patch inbound. Same cargo vehicle only; contract clock keeps running."); Accent = FLinearColor(0.22f, 0.84f, 1.0f, 1.0f); break;
+        case EGTTFarmCargoRecoveryState::PatchPending:
+        case EGTTFarmCargoRecoveryState::TowPending:
+        {
+            const EGTTRoadsideRecoveryMode Mode = Roadside ? Roadside->GetPendingRecoveryMode(NativeRoad) : EGTTRoadsideRecoveryMode::None;
+            const int32 LockedQuote = Roadside ? Roadside->GetPendingRecoveryQuote(NativeRoad) : 0;
+            const float EtaSeconds = Roadside ? Roadside->GetPendingRecoverySecondsRemaining(NativeRoad) : 0.0f;
+            const FName TargetId = Roadside ? Roadside->GetPendingRecoveryVehicleId(NativeRoad) : NAME_None;
+            const bool bPinnedToCargoVehicle = !TargetId.IsNone() && TargetId == Recovery->GetRecoveryVehicleId();
+            const TCHAR* ServiceLabel = Mode == EGTTRoadsideRecoveryMode::EmergencyPatch ? TEXT("PATCH") : TEXT("TOW");
+            Instruction = FString::Printf(
+                TEXT("%s DISPATCH  |  LOCKED $%d  |  ETA %.1fs  |  VEHICLE %s%s  |  same key cancels before arrival"),
+                ServiceLabel,
+                LockedQuote,
+                EtaSeconds,
+                *TargetId.ToString(),
+                bPinnedToCargoVehicle ? TEXT("  |  CARGO PIN OK") : TEXT("  |  CARGO PIN CHECK"));
+            Accent = FLinearColor(0.22f, 0.84f, 1.0f, 1.0f);
+            break;
+        }
         case EGTTFarmCargoRecoveryState::Patched: Instruction = TEXT("Temporary limp-home patch active. Body damage remains; finish carefully or visit workshop."); Accent = FLinearColor(0.28f, 0.92f, 0.60f, 1.0f); break;
-        case EGTTFarmCargoRecoveryState::TowPending: Instruction = TEXT("Tow inbound. Damage and exact cargo identity stay bound; contract clock keeps running."); Accent = FLinearColor(0.22f, 0.84f, 1.0f, 1.0f); break;
         case EGTTFarmCargoRecoveryState::PoliceImpoundPending: Instruction = TEXT("Police recovery controls this vehicle. Cargo cannot transfer to another vehicle."); Accent = FLinearColor(1.0f, 0.22f, 0.12f, 1.0f); break;
         case EGTTFarmCargoRecoveryState::AwaitingExactVehicle: Instruction = FString::Printf(TEXT("Recover exact vehicle %s. Another vehicle cannot deliver this load."), *Recovery->GetRecoveryVehicleId().ToString()); Accent = FLinearColor(1.0f, 0.22f, 0.12f, 1.0f); break;
         case EGTTFarmCargoRecoveryState::Recovered: Instruction = TEXT("Exact cargo vehicle recovered. Continue the route; no duplicate stock or payout."); Accent = FLinearColor(0.28f, 0.92f, 0.60f, 1.0f); break;
         default: return;
     }
-    const float PanelWidth = FMath::Min(590.0f, Canvas->ClipX - 48.0f);
+    const float PanelWidth = FMath::Min(690.0f, Canvas->ClipX - 48.0f);
     const float PanelHeight = 72.0f;
     const float X = (Canvas->ClipX - PanelWidth) * 0.5f;
     const float Y = 116.0f;
@@ -237,6 +256,18 @@ FString AGTTGameHUD::BuildNativeRoadStatus(const AGTTRoadVehicleNativePawn* Vehi
 FString AGTTGameHUD::BuildNativeRoadRecovery(const AGTTRoadVehicleNativePawn* Vehicle) const
 {
     if (!Vehicle || !GetWorld()) return FString();
+    const UGTTRoadsideRecoverySubsystem* Roadside = GetWorld()->GetSubsystem<UGTTRoadsideRecoverySubsystem>();
+    if (Roadside && Roadside->HasPendingRoadsideService(Vehicle))
+    {
+        const EGTTRoadsideRecoveryMode Mode = Roadside->GetPendingRecoveryMode(Vehicle);
+        const TCHAR* Label = Mode == EGTTRoadsideRecoveryMode::EmergencyPatch ? TEXT("PATCH DISPATCH") : TEXT("TOW DISPATCH");
+        return FString::Printf(
+            TEXT("RECOVERY  |  %s  |  LOCKED $%d  |  ETA %.1fs  |  VEHICLE %s  |  SAME KEY CANCELS"),
+            Label,
+            Roadside->GetPendingRecoveryQuote(Vehicle),
+            Roadside->GetPendingRecoverySecondsRemaining(Vehicle),
+            *Roadside->GetPendingRecoveryVehicleId(Vehicle).ToString());
+    }
     const UGTTBreakdownDecisionSubsystem* Decision = GetWorld()->GetSubsystem<UGTTBreakdownDecisionSubsystem>();
     if (!Decision) return FString();
     const FGTTBreakdownAssessment Assessment = Decision->AssessVehicle(Vehicle);
