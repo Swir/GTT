@@ -127,8 +127,8 @@ playtest = read("Docs/PLAYTEST_0.1.35.md")
 scenarios = len(re.findall(r"^\d+\. ", playtest, flags=re.MULTILINE))
 assert scenarios >= 60, f"PLAYTEST_0.1.35.md must contain at least 60 numbered scenarios, found {scenarios}"
 changelog = read("CHANGELOG.d/0.1.35.md")
-for token in ("GTT 0.1.35", "emergency patch", "FARM_CARGO_BREAKDOWN_RUNTIME.json", "schema v2", "125/130", "does not prove"):
-    require(changelog, token, "0.1.35 changelog")
+for token in ("gtt 0.1.35", "emergency patch", "farm_cargo_breakdown_runtime.json", "schema v2", "125/130", "does not prove"):
+    require(changelog.lower(), token, "0.1.35 changelog")
 
 print("GTT 0.1.35 Farm Cargo emergency-patch + re-breakdown/tow source contract: PASS")
 print(f"Roadmap remains {done}/{len(checks)} = {done / len(checks) * 100:.1f}% until real Win64/Chaos/trailer evidence exists")
