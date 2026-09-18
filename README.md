@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.30 — persistent Farm Cargo recovery, exact-vehicle rebinding and primary-save hardening**.
+Current development milestone: **0.1.31 — same-model fleet identity hardening and packaged Farm Cargo mid-route save/load recovery evidence**.
 
 ## What is GTT?
 
@@ -43,7 +43,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 
 | Feature | What it does |
 |---|---|
-| 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning. |
+| 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances now receive collision-safe persistent IDs before ownership. |
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
 | 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
@@ -52,7 +52,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
-| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery. |
+| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding. |
 | 📻 Original radio framework | Four fictional stations with track rotation and project-owned/cleared audio workflow. |
 | 🎮 Input support | Keyboard/mouse plus controller mappings for movement, vehicles, interaction, combat, radio and save/load. |
 
@@ -114,13 +114,15 @@ Vehicle development currently uses a guarded migration model: proven gameplay st
 
 Farm Cargo uses the same pattern for physical delivery authority: the job director owns contract/economy state, while `UGTTFarmCargoAuthoritySubsystem` binds the exact loaded vehicle and verifies that same physical vehicle is present and stopped at buyer handoffs. Since 0.1.30, the active route and stable persistent vehicle ID are saved in the existing primary snapshot; after load or actor recreation, authority may rebind only an actor carrying that exact ID. Presentation markers do not own payout, reputation, Wanted or save state.
 
-Milestone 0.1.29 added an opt-in packaged-runtime exercise that drives the existing Farm Cargo path through real terminals and authorities: contract acceptance, exact-vehicle pickup binding, deliberate wrong-vehicle rejection, Hill Farm relay, North Wood Yard completion, payout/reputation observation and save verification. Milestone 0.1.30 hardens the ordinary player save path around that same loop: ReachPickup, loaded delivery and Hill Farm relay checkpoints persist without re-reserving stock, the exact cargo vehicle can recover after save/load or garage actor recreation, and a legacy writer can no longer downgrade the primary snapshot to schema v3. The evidence harness remains inert during normal play.
+Milestone 0.1.29 added an opt-in packaged-runtime exercise that drives the existing Farm Cargo path through real terminals and authorities: contract acceptance, exact-vehicle pickup binding, deliberate wrong-vehicle rejection, Hill Farm relay, North Wood Yard completion, payout/reputation observation and save verification. Milestone 0.1.30 hardened the ordinary player save path around that same loop: ReachPickup, loaded delivery and Hill Farm relay checkpoints persist without re-reserving stock, the exact cargo vehicle can recover after save/load or garage actor recreation, and a legacy writer can no longer downgrade the primary snapshot to schema v3.
+
+Milestone 0.1.31 hardens the identity foundation used by that recovery path. `UGTTVehicleIdentitySubsystem` prevents later unowned same-model legacy vehicles from silently reusing an already-observed persistent ID, while refusing to rename IDs that are already owned/persisted. A second opt-in packaged evidence route now saves a loaded contract, destroys/recreates the exact cargo Mulebox actor, reloads the real primary save, rejects a different same-model van after reload, repeats save/load at the Hill Farm relay, completes North Wood Yard and reloads the completed snapshot to prove the contract does not resurrect or pay twice. The evidence harness remains inert during normal play.
 
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
 
-For Farm Cargo, a successful future packaged candidate must produce `FARM_CARGO_RUNTIME.json` with the `gtt.farm-cargo-runtime.v1` schema. The source-side harness, exact-vehicle authority and persistent recovery contracts can be validated by CI, but **a manifest is not claimed until the packaged Unreal executable actually runs and emits the required PASS evidence**.
+For Farm Cargo, a successful future packaged candidate must produce both `FARM_CARGO_RUNTIME.json` (`gtt.farm-cargo-runtime.v1`) and `FARM_CARGO_RECOVERY_RUNTIME.json` (`gtt.farm-cargo-recovery-runtime.v1`). The first proves exact-vehicle contract continuity and authoritative payout/reputation/save. The second additionally requires two mid-route primary-save reloads, recreated-actor exact-ID rebinding, post-reload wrong-vehicle rejection, timer/integrity/stock restoration and completion-reload idempotence. **Neither manifest is claimed until the packaged Unreal executable actually runs and emits the required PASS evidence.**
 
 The roadmap graphics are deterministic outputs of `Scripts/generate_progress_svg.py`; `--check` verifies checklist mathematics, XML, bounded fill geometry, README/Roadmap embeds and separation between roadmap completion and release readiness.
 
@@ -166,7 +168,7 @@ The current repository also contains prototype/source-built presentation and sys
 
 ## 🔎 Search Keywords
 
-`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `C++ Unreal game`
+`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `C++ Unreal game`
 
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="SWIR electric divider" />
 
