@@ -68,11 +68,7 @@ for needle, label in [
 ]:
     require(citizen_cpp, needle, label)
 
-for needle, label in [
-    ("DrawRangerStopPanel", "compact enforcement panel declaration"),
-]:
-    require(hud_h, needle, label)
-
+require(hud_h, "DrawRangerStopPanel", "compact enforcement panel declaration")
 for needle, label in [
     ("GetPresentationSnapshot", "HUD consumes presentation snapshot"),
     ("WARDEN STOP  |  %s", "phase heading"),
@@ -83,12 +79,9 @@ for needle, label in [
 ]:
     require(hud_cpp, needle, label)
 
-# Existing traffic car remains the physical brake/queue consumer; 0.1.24 refines
-# which lane receives that response instead of creating a second traffic controller.
 require(traffic_cpp, "RoadStop->GetTrafficResponse", "existing traffic consumer preserved")
 require(traffic_cpp, "bHoldingForRangerStop", "physical traffic hold preserved")
 
-# The presentation/scene layer must not introduce duplicate law/economy authority.
 for forbidden, label in [
     ("UGTTWantedComponent", "duplicate wanted ownership in road-stop subsystem"),
     ("ConfiscateContraband", "duplicate seizure ownership in road-stop subsystem"),
@@ -97,15 +90,20 @@ for forbidden, label in [
     if forbidden in subsystem_h + subsystem_cpp:
         raise AssertionError(f"unexpected {label}: {forbidden}")
 
-require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock")
-require(roadmap, "📊 Overall progress", "roadmap dashboard heading")
+for token, label in [
+    ("<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock"),
+    ("<!-- ROADMAP-PROGRESS:START -->", "roadmap progress block"),
+    ("📊 Overall progress", "roadmap dashboard heading"),
+    ("../assets/readme/progress-mini.svg", "SVG-only roadmap meter"),
+    ("| **125** | **5** | **130** | **96.2%** |", "roadmap numeric truth"),
+]:
+    require(roadmap, token, label)
 checked = len(re.findall(r"^\s*- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \]", roadmap, flags=re.MULTILINE))
 if (checked, open_items, checked + open_items) != (125, 5, 130):
-    raise AssertionError(
-        f"roadmap truth changed unexpectedly: checked={checked}, open={open_items}, total={checked + open_items}"
-    )
-require(roadmap, "███████████████████░ 96.2%", "roadmap progress bar")
+    raise AssertionError(f"roadmap truth changed unexpectedly: checked={checked}, open={open_items}, total={checked + open_items}")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
 require(readme, "## 🔎 Search Keywords", "README SEO/search-keywords section")
 keywords_line = next((line for line in readme.splitlines() if "`original sandbox game`" in line), "")
@@ -124,4 +122,4 @@ print("- COMPLY / SEARCH / FLEE now has one compact progress-driven HUD presenta
 print("- nearby civilians clear the live lane, observe from a safe offset and return to schedules afterward")
 print("- opposite-direction traffic is excluded while the existing same-direction brake/queue logic stays authoritative")
 print("- combat, Wanted, seizure and persistence ownership remain in their existing systems")
-print("- roadmap remains truthfully locked at 125/130 (96.2%)")
+print("- roadmap remains truthfully locked at 125/130 (96.2%) with SVG-only presentation")
