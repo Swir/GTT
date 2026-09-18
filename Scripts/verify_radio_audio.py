@@ -57,19 +57,28 @@ assert not external_audio, f"unexpected external audio files: {external_audio}"
 
 # The radio-audio roadmap task must be complete and the SWIR dashboard must be exact.
 assert "- [x] Original/royalty-cleared music and radio audio assets" in roadmap
-assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
-assert "<!-- ROADMAP-PROGRESS:START -->" in roadmap and "<!-- ROADMAP-PROGRESS:END -->" in roadmap
-checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+):
+    assert token in roadmap, f"roadmap SVG-only presentation missing {token}"
+checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 unchecked = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
 total = checked + unchecked
 assert total == 130, f"unexpected roadmap total: {total}"
 percent = round(checked / total * 100, 1)
-segments = round(checked / total * 20)
-bar = "█" * segments + "░" * (20 - segments)
 assert f"ROADMAP-{percent:.1f}%25" in roadmap
 assert f"DONE-{checked}%2F{total}" in roadmap
 assert f"| **{checked}** | **{unchecked}** | **{total}** | **{percent:.1f}%** |" in roadmap
-assert f"{bar} {percent:.1f}%" in roadmap
+assert roadmap.count("../assets/readme/progress-mini.svg") == 1
+assert not re.search(
+    r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}",
+    roadmap,
+    flags=re.MULTILINE,
+), "legacy text/Unicode roadmap progress meter must not return"
 assert checked >= 124, f"radio milestone did not advance roadmap: {checked}/{total}"
 
-print(f"Original radio audio sanity OK: 4 synthesized stations, 16 deterministic programs; roadmap {checked}/{total} ({percent:.1f}%)")
+print(f"Original radio audio sanity OK: 4 synthesized stations, 16 deterministic programs; roadmap {checked}/{total} ({percent:.1f}%), SVG-only progress verified")
