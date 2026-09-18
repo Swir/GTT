@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 trailer_h = (ROOT / "Source/GTT/Public/Vehicles/GTTFarmTrailer.h").read_text(encoding="utf-8")
@@ -54,15 +55,23 @@ assert "AttachToNativeFieldmaster" in trailer_cpp
 assert "CargoIntegrity" in trailer_cpp and "TrailerIntegrity" in trailer_cpp
 
 # Do not falsely claim the authored skeletal trailer roadmap task: this milestone deliberately remains source-built.
-assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
-assert "ROADMAP-96.2%25" in roadmap
-assert "DONE-125%2F130" in roadmap
-assert "| **125** | **5** | **130** | **96.2%** |" in roadmap
-assert "███████████████████░ 96.2%" in roadmap
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+    "ROADMAP-96.2%25",
+    "DONE-125%2F130",
+    "| **125** | **5** | **130** | **96.2%** |",
+):
+    assert token in roadmap, f"roadmap SVG-only presentation missing {token}"
+assert roadmap.count("../assets/readme/progress-mini.svg") == 1
+assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE), "legacy text/Unicode roadmap progress meter must not return"
 assert "- [ ] Authored skeletal trailer wheel assets and final hitch sockets" in roadmap
 assert "Trailer Presentation & Damage Readability" in playtest
 assert "Trailer Presentation & Damage Readability" in changelog
 assert "125/130 (96.2%)" in changelog
 assert "Verify trailer presentation milestone" in workflow
 
-print("Trailer presentation sanity passed; roadmap remains 125/130 (96.2%)")
+print("Trailer presentation sanity passed; roadmap remains 125/130 (96.2%) with SVG-only progress")
