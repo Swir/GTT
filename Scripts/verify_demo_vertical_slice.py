@@ -66,8 +66,6 @@ def main() -> None:
         if case not in terminal_cpp:
             raise AssertionError(f"handoff guard does not cover {case}")
 
-    # 0.1.28 strengthened the 0.1.27 no-drive-by guard by binding the exact loaded vehicle.
-    # Keep this older vertical-slice gate semantic rather than requiring the removed helper name.
     require_tokens(
         "Source/GTT/Private/Activities/GTTFarmCargoAuthoritySubsystem.cpp",
         "GetVelocity().Size2D() * 0.036f",
@@ -101,15 +99,27 @@ def main() -> None:
             raise AssertionError(f"route beacon gained gameplay authority: {token}")
 
     roadmap = read("Docs/ROADMAP.md")
-    if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-        raise AssertionError("SWIR roadmap standard marker missing")
+    for token in (
+        "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+        "<!-- ROADMAP-PROGRESS:START -->",
+        "<!-- ROADMAP-PROGRESS:END -->",
+        "## 📊 Overall progress",
+        "../assets/readme/progress-mini.svg",
+    ):
+        if token not in roadmap:
+            raise AssertionError(f"SWIR roadmap SVG-only structure missing: {token}")
     checked = len(re.findall(r"^\s*-\s*\[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
     unchecked = len(re.findall(r"^\s*-\s*\[ \]", roadmap, flags=re.MULTILINE))
     total = checked + unchecked
     if (checked, unchecked, total) != (125, 5, 130):
         raise AssertionError(f"roadmap checkbox truth changed unexpectedly: checked={checked}, open={unchecked}, total={total}")
-    if "96.2%" not in roadmap or "███████████████████░ 96.2%" not in roadmap:
-        raise AssertionError("roadmap dashboard is stale or malformed")
+    for token in ("ROADMAP-96.2%25", "DONE-125%2F130", "| **125** | **5** | **130** | **96.2%** |"):
+        if token not in roadmap:
+            raise AssertionError(f"roadmap numeric dashboard is stale or malformed: missing {token}")
+    if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+        raise AssertionError("roadmap must embed exactly one progress-mini.svg")
+    if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+        raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
     readme = read("README.md")
     if "<!-- SWIR-README-STANDARD:v2 -->" not in readme:
@@ -137,7 +147,7 @@ def main() -> None:
 
     print("GTT 0.1.27 demo vertical-slice source contract: PASS")
     print("Verified: contract -> cargo -> world guidance -> safe same-vehicle handoff -> economy/reputation/save authority chain.")
-    print("Roadmap remains truthful at 125/130 (96.2%); no runtime blocker was closed by source-only checks.")
+    print("Roadmap remains truthful at 125/130 (96.2%) with SVG-only presentation; no runtime blocker was closed by source-only checks.")
 
 
 if __name__ == "__main__":
