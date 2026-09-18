@@ -25,5 +25,6 @@ private:
     FString BuildNativeRoadStatus(const AGTTRoadVehicleNativePawn* Vehicle) const;
     FString BuildNativeRoadRecovery(const AGTTRoadVehicleNativePawn* Vehicle) const;
     void DrawRangerStopPanel();
+    void DrawFarmCargoRecoveryPanel(const AGTTRoadVehicleNativePawn* NativeRoad);
     void DrawHudText(const FString& Text, const FLinearColor& Color, float X, float Y, float Scale = 1.0f);
 };

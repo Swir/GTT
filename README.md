@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.33 — packaged Farm Cargo native-breakdown / paid-tow / exact-vehicle recovery evidence hardening**.
+Current development milestone: **0.1.34 — roadside emergency patch + Farm Cargo recovery-choice UX**.
 
 ## What is GTT?
 
@@ -45,16 +45,16 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 |---|---|
 | 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances use collision-safe persistent IDs before ownership. |
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
-| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops; active Farm Cargo keeps exact-vehicle authority through breakdown and tow recovery. |
+| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops; damaged native road vehicles can choose a paid temporary roadside patch or tow when eligible, while active Farm Cargo keeps exact-vehicle authority. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
-| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding. |
+| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding and recovery checkpoints. |
 | 📻 Original radio framework | Four fictional stations with track rotation and project-owned/cleared audio workflow. |
-| 🎮 Input support | Keyboard/mouse plus controller mappings for movement, vehicles, interaction, combat, radio and save/load. |
+| 🎮 Input support | Keyboard/mouse plus controller mappings for movement, vehicles, interaction, combat, radio, roadside recovery and save/load. |
 
 ## Quick start — from source
 
@@ -88,7 +88,7 @@ A full Win64 Unreal compile/package/runtime pass still requires a qualifying Win
 
 ## Controls
 
-Current default mappings from `Config/DefaultInput.ini`:
+Current default mappings plus world-level recovery controls:
 
 | Action | Keyboard / mouse | Controller |
 |---|---|---|
@@ -103,6 +103,8 @@ Current default mappings from `Config/DefaultInput.ini`:
 | Next weapon | `Q` | Right shoulder |
 | Drop weapon | `G` | D-pad down |
 | Radio next | `R` | D-pad right |
+| Emergency roadside patch | `Y` | D-pad left |
+| Roadside tow | `T` | D-pad up |
 | Quick save | `F5` | Special left |
 | Quick load | `F9` | Special right |
 
@@ -121,6 +123,8 @@ Milestone 0.1.31 hardened the identity foundation used by that recovery path. `U
 Milestone 0.1.32 connected active Farm Cargo to native breakdown, roadside tow and police impound consequences without creating a second contract authority. The exact loaded `PersistentVehicleId` remains authoritative through recovery, the delivery clock keeps running, pre/post recovery checkpoints use the primary save, and another vehicle cannot inherit the load.
 
 Milestone 0.1.33 adds a later packaged evidence window that must exercise that production path with the native Mulebox: real pickup, disabled tires, player-authorized paid tow, primary-save checkpointing, exact-ID continuity, non-paused cargo timer, no repair of ordinary tow damage, post-tow wrong-vehicle rejection, Hill Farm/North Wood Yard completion, payout/reputation and save. The harness is inert during normal play and restores its temporary evidence baseline after the proof.
+
+Milestone 0.1.34 turns roadside recovery into a clearer gameplay choice. Eligible native road vehicles can pay for a temporary limp-home patch or choose a tow; severe body/structural failures remain tow-only, wanted heat blocks ordinary player service, and automatic police impound remains limited to genuinely stranded vehicles. Farm Cargo checkpoints before/after a patch, verifies the same persistent cargo vehicle ID and never pauses the delivery clock or transfers the load to a substitute vehicle.
 
 ## Verification
 
@@ -172,7 +176,7 @@ The current repository also contains prototype/source-built presentation and sys
 
 ## 🔎 Search Keywords
 
-`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `C++ Unreal game`
+`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside emergency repair` • `C++ Unreal game`
 
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="SWIR electric divider" />
 

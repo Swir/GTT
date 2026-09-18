@@ -14,6 +14,8 @@ enum class EGTTFarmCargoRecoveryState : uint8
     Healthy,
     Degraded,
     TowRecommended,
+    PatchPending,
+    Patched,
     TowPending,
     PoliceImpoundPending,
     AwaitingExactVehicle,
@@ -21,12 +23,12 @@ enum class EGTTFarmCargoRecoveryState : uint8
 };
 
 /**
- * Connects the Farm Cargo exact-vehicle authority to native breakdown/tow recovery.
+ * Connects the Farm Cargo exact-vehicle authority to native breakdown/recovery choices.
  *
  * This subsystem never owns the contract, payout, inventory or vehicle identity. Instead it
- * checkpoints the existing primary save immediately before a recovery move, verifies that the
- * same PersistentVehicleId remains authoritative afterwards, and keeps delivery blocked while
- * that exact vehicle is absent. The farm-job timer intentionally keeps running during recovery.
+ * checkpoints the existing primary save around emergency patch/tow/impound actions, verifies
+ * that the same PersistentVehicleId remains authoritative afterwards, and keeps delivery blocked
+ * while that exact vehicle is absent. The farm-job timer intentionally keeps running throughout.
  */
 UCLASS()
 class GTT_API UGTTFarmCargoBreakdownRecoverySubsystem : public UTickableWorldSubsystem
@@ -50,6 +52,7 @@ private:
     void EvaluateCargoRecovery();
     void SetRecoveryState(EGTTFarmCargoRecoveryState NewState, APawn* Driver, const FString& PlayerMessage);
     bool CheckpointPrimarySave(const TCHAR* Reason) const;
+    bool VerifyExactCargoVehicle(class UGTTFarmCargoAuthoritySubsystem* CargoAuthority, AGTTRoadVehicleNativePawn* ExpectedVehicle, FName ExpectedId) const;
     void ResetRecoveryState();
 
     EGTTFarmCargoRecoveryState RecoveryState = EGTTFarmCargoRecoveryState::None;

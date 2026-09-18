@@ -8,14 +8,30 @@ hud_h=read('Source/GTT/Public/UI/GTTGameHUD.h');hud_cpp=read('Source/GTT/Private
 evid_h=read('Source/GTT/Public/Vehicles/GTTRecoveryChoiceEvidenceSubsystem.h');evid_cpp=read('Source/GTT/Private/Vehicles/GTTRecoveryChoiceEvidenceSubsystem.cpp')
 struct_h=read('Source/GTT/Public/Vehicles/GTTStructuralDriveConsequenceSubsystem.h');eval_ps=read('Scripts/evaluate_recovery_choice.ps1');candidate=read('Scripts/evaluate_demo_candidate.ps1')
 workflow=read('.github/workflows/win64-recovery-choice-evidence.yml');sanity=read('.github/workflows/project-sanity.yml');playtest=read('Docs/PLAYTEST_0.0.96.md');changelog=read('CHANGELOG.d/0.0.96.md');roadmap=read('Docs/ROADMAP.md')
+legacy_choice_guard='if (!Runtime.bTowRequested)' in rec_cpp
+modern_choice_guard=all(x in rec_cpp for x in [
+    'Runtime.bTowRequested && Runtime.Mode == EGTTRoadsideRecoveryMode::RoadsideAssistance',
+    'Runtime.bPatchRequested && Runtime.Mode == EGTTRoadsideRecoveryMode::EmergencyPatch',
+    'player_choice=REQUIRED',
+    'player_authorized=YES',
+])
+legacy_hud_quotes=all(x in hud_cpp for x in ['UGTTBreakdownDecisionSubsystem','Assessment.TowEstimate','Assessment.RepairEstimate','TOW RECOMMENDED','IMMOBILIZED','T CALL TOW'])
+modern_hud_quotes=all(x in hud_cpp for x in [
+    'UGTTBreakdownDecisionSubsystem',
+    'Assessment.TowEstimate',
+    'Assessment.RepairEstimate',
+    'RECOVERY RECOMMENDED',
+    'IMMOBILIZED',
+    'TOW $%d [T]',
+])
 checks={
 'player request API':'RequestRoadsideTow' in rec_h and 'IsRoadsideTowPending' in rec_h,
 'keyboard and controller input':'WasInputKeyJustPressed(EKeys::T)' in rec_cpp and 'EKeys::Gamepad_DPad_Up' in rec_cpp,
-'normal roadside requires choice':'if (!Runtime.bTowRequested)' in rec_cpp and 'player_choice=REQUIRED' in rec_cpp and 'player_authorized=YES' in rec_cpp,
+'normal roadside requires choice':(legacy_choice_guard or modern_choice_guard) and 'player_choice=REQUIRED' in rec_cpp and 'player_authorized=YES' in rec_cpp,
 'police custody remains automatic':'WantedLevel >= 2' in rec_cpp and 'PoliceImpoundArmSeconds' in rec_cpp and 'NATIVE_POLICE_IMPOUND_ARMED' in rec_cpp,
 'tow remains transport only':'NATIVE_ROADSIDE_TOW_COMPLETE' in rec_cpp and 'damage_preserved=' in rec_cpp and 'serviced=NO' in rec_cpp,
 'damage HUD native support':'AGTTRoadVehicleNativePawn* NativeRoad' in hud_cpp and 'BuildNativeRoadStatus' in hud_h and 'BuildNativeRoadRecovery' in hud_h,
-'HUD real quotes':all(x in hud_cpp for x in ['UGTTBreakdownDecisionSubsystem','Assessment.TowEstimate','Assessment.RepairEstimate','TOW RECOMMENDED','IMMOBILIZED','T CALL TOW']),
+'HUD real quotes':legacy_hud_quotes or modern_hud_quotes,
 'HUD remains compact':'RECOVERY  |' in hud_cpp and 'DAMAGE %.0f%%' in hud_cpp and 'BODY %.0f%%' in hud_cpp,
 'evidence sequencing':'IsDemoEvidenceComplete' in struct_h and 'WaitForStructuralDrive' in evid_h and 'Structural->IsDemoEvidenceComplete()' in evid_cpp,
 'evidence stages real immobilization':'ApplyPoliceSpikeDamage(0.94f, 0.34f)' in evid_cpp and 'EGTTBreakdownRecommendation::Immobilized' in evid_cpp,

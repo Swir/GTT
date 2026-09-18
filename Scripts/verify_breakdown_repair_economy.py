@@ -7,6 +7,13 @@ sub_h=read('Source/GTT/Public/Vehicles/GTTBreakdownDecisionSubsystem.h'); sub_cp
 service_h=read('Source/GTT/Public/World/GTTServiceTerminal.h'); service_cpp=read('Source/GTT/Private/World/GTTServiceTerminal.cpp')
 recovery_cpp=read('Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'); statics=read('Source/GTT/Private/Core/GTTGameplayStatics.cpp')
 sanity=read('.github/workflows/project-sanity.yml'); playtest=read('Docs/PLAYTEST_0.0.95.md'); changelog=read('CHANGELOG.d/0.0.95.md'); roadmap=read('Docs/ROADMAP.md')
+legacy_separate_price_copy='Tow $%d; workshop estimate $%d is separate.' in recovery_cpp
+choice_separate_price_copy=all(x in recovery_cpp for x in [
+    'patch $%d for limp-home, or T / D-Pad Up tow $%d',
+    'Full workshop repair ~$%d.',
+    'Temporary limp-home service only; body damage and workshop repairs remain.',
+    'workshop_repair_still_required=YES',
+])
 checks={
 'authoritative assessment subsystem':'UGTTBreakdownDecisionSubsystem : public UWorldSubsystem' in sub_h,
 'decision contract':all(x in sub_h for x in ['EGTTBreakdownRecommendation','FGTTBreakdownAssessment','RepairEstimate','TowEstimate','bCanLimpHome','bTowRecommended']),
@@ -20,7 +27,7 @@ checks={
 'tow not free repair':'NATIVE_ROADSIDE_TOW_COMPLETE' in recovery_cpp and 'serviced=NO' in recovery_cpp and 'Damage preserved' in recovery_cpp,
 'tow preserves state':all(x in recovery_cpp for x in ['BeforeTow.ConditionPercent','AfterTow.ConditionPercent','BodyBeforeTow.FrontHealth','BodyAfterTow.FrontHealth','bDamagePreserved']),
 'impound mandatory service':'Police impound + mandatory safety service' in recovery_cpp and 'ApplyNativeWorkshopService()' in recovery_cpp,
-'separate price messaging':'Tow $%d; workshop estimate $%d is separate.' in recovery_cpp,
+'separate price messaging':legacy_separate_price_copy or choice_separate_price_copy,
 'native driver services':'AGTTRoadVehicleNativePawn' in statics and 'NativeRoad->GetDriverPawn()' in statics,
 'sanity wired':'Verify breakdown decision towing and repair economy' in sanity and 'verify_breakdown_repair_economy.py' in sanity,
 'docs':'0.0.95' in playtest and 'tow' in playtest.lower() and '0.0.95' in changelog and 'damage-based' in changelog.lower(),
