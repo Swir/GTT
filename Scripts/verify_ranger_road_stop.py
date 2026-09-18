@@ -51,7 +51,6 @@ for needle, label in [
 ]:
     require(cpp, needle, label)
 
-# The new system must not introduce a second police meter or a parallel contraband store.
 for forbidden, label in [
     ("RoadStopWantedLevel", "duplicate wanted level"),
     ("RoadStopContraband", "duplicate contraband inventory"),
@@ -60,8 +59,6 @@ for forbidden, label in [
     if forbidden in header or forbidden in cpp:
         raise AssertionError(f"unexpected {label}: {forbidden}")
 
-# README follows the current canonical SWIR README PRO v2 marker and keeps useful
-# project SEO without using unrelated commercial-game branding for discoverability.
 require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "SWIR README v2 standard marker")
 require(readme, "## 🔎 Search Keywords", "mandatory search-keyword section")
 require(readme, "Unreal Engine 5.8", "truthful engine requirement")
@@ -73,15 +70,22 @@ if not 8 <= len(keywords) <= 20:
 if any("gta" in keyword.lower() for keyword in keywords):
     raise AssertionError("README search keywords must not use GTA branding for SEO")
 
-# Preserve the locked roadmap dashboard and the five real Win64/runtime blockers.
-require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock")
-require(roadmap, "📊 Overall progress", "roadmap dashboard heading")
+for token, label in [
+    ("<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock"),
+    ("<!-- ROADMAP-PROGRESS:START -->", "roadmap progress start"),
+    ("<!-- ROADMAP-PROGRESS:END -->", "roadmap progress end"),
+    ("📊 Overall progress", "roadmap dashboard heading"),
+    ("../assets/readme/progress-mini.svg", "SVG-only roadmap meter"),
+    ("| **125** | **5** | **130** | **96.2%** |", "roadmap numeric truth"),
+]:
+    require(roadmap, token, label)
 checked = len(re.findall(r"^\s*- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \]", roadmap, flags=re.MULTILINE))
 total = checked + open_items
 if (checked, open_items, total) != (125, 5, 130):
     raise AssertionError(f"roadmap checkbox truth changed unexpectedly: checked={checked}, open={open_items}, total={total}")
-require(roadmap, "███████████████████░ 96.2%", "20-segment roadmap progress bar")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
 for text, label in [
     (playtest, "playtest"),
@@ -95,4 +99,4 @@ print("- alert-2+ vehicle enforcement now requires a real stop before citation/s
 print("- fleeing a warden stop escalates through the existing Wanted/Police system exactly once per incident")
 print("- roadside search reuses authoritative fish and rural-contraband seizure paths")
 print("- README follows the current SWIR README PRO v2 marker and compliant discoverability keywords")
-print("- roadmap remains truthfully locked at 125/130 (96.2%)")
+print("- roadmap remains truthfully locked at 125/130 (96.2%) with SVG-only presentation")
