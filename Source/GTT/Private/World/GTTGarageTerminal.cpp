@@ -105,7 +105,7 @@ FText AGTTGarageTerminal::GetInteractionText_Implementation() const
     }
 
     return FText::FromString(FString::Printf(
-        TEXT("Garage office: fleet %d/%d | workshop holds %d | register nearby vehicle ($%d)"),
+        TEXT("Garage office: inspect fleet %d/%d | workshop holds %d | register nearby vehicle ($%d)"),
         OwnedCount,
         FleetSlotCount,
         WorkshopHoldCount,
