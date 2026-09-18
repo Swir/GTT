@@ -55,18 +55,20 @@ missing = [token for text, token in required if token not in text]
 if missing:
     raise SystemExit("missing Native axle traction contract tokens: " + ", ".join(missing))
 
-# 0.0.77 deliberately moves movement-input ownership into the final command composer.
 for forbidden in ("Movement->SetThrottleInput(0.0f)", "Movement->SetBrakeInput(Snapshot.BrakeAssist)"):
     if forbidden in cpp:
         raise SystemExit("axle evidence subsystem regained competing movement-input ownership: " + forbidden)
 
 for token in (
     "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
     '<img alt="CI"',
     '<img alt="Roadmap progress"',
     '<img alt="Completed"',
     '<img alt="Status"',
     "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
 ):
     if token not in roadmap:
         raise SystemExit("roadmap style lock missing: " + token)
@@ -76,18 +78,20 @@ done = sum(1 for state in checks if state.lower() == "x")
 total = len(checks)
 remaining = total - done
 progress = round(done / total * 100.0, 1)
-segments = round(progress / 5.0)
-bar = "█" * segments + "░" * (20 - segments)
 if (done, total, remaining) != (125, 130, 5):
     raise SystemExit(f"roadmap checklist drift: {done}/{total}, remaining={remaining}")
 for token in (
     f"ROADMAP-{progress:.1f}%25",
     f"DONE-{done}%2F{total}",
-    f"{bar} {progress:.1f}%",
     f"| **{done}** | **{remaining}** | **{total}** | **{progress:.1f}%** |",
 ):
     if token not in roadmap:
         raise SystemExit("roadmap dashboard drift: missing " + token)
+progress_block = roadmap.split("<!-- ROADMAP-PROGRESS:START -->", 1)[1].split("<!-- ROADMAP-PROGRESS:END -->", 1)[0]
+if progress_block.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("roadmap progress block must embed exactly one canonical progress-mini.svg")
+if re.search(r"[█▓▒░]{3,}", progress_block):
+    raise SystemExit("legacy text/Unicode progress meter must not return to active Roadmap dashboard")
 
 for open_item in (
     "- [ ] Dedicated native Chaos wheeled tractor movement",
@@ -103,4 +107,4 @@ print("[OK] Native wheel/axle traction authority verified")
 print(" - actual Chaos wheel-state contact/slip/suspension evidence is sampled")
 print(" - Fieldmaster, Rattleback and Mulebox share the authority")
 print(" - torque cut and brake assist are consumed by the final command composer")
-print(f" - roadmap remains honest at {done}/{total} ({progress:.1f}%)")
+print(f" - roadmap remains honest at {done}/{total} ({progress:.1f}%) with SVG-only progress")
