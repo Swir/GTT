@@ -124,6 +124,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.44 packaged workshop-hours evidence:** the future Win64 candidate now has a later deterministic window that must prove the real 06:30–20:00 boundaries, no-charge/no-mutation ordinary service rejection after closing, production tow-created WORKSHOP HOLD, exact +35% emergency checkout math, one exact emergency debit, hold release and stable `PersistentVehicleId`. `WORKSHOP_HOURS_RUNTIME.json` can promote the existing schema-13 Farm Cargo workshop-recovery technical gate to schema 14 only after same-SHA packaged PASS evidence. Source CI still closes no Native Chaos, trailer or Win64/runtime/visual checkbox.
 
+> **0.1.45 persistent workshop repair queue:** after-hours garage interaction can reserve one nearby owned damaged/mobile native road vehicle for the next 06:30 opening. The reservation pins the exact `PersistentVehicleId`, request-time locked quote and ready time in `GTT_WorkshopQueue_01` without pre-charging; execution at/after opening requires that same owned vehicle at a real workshop, uses the existing repair/economy/save path, keeps Farm Cargo exact-ID authority and leaves hard TOW/IMMOBILE WORKSHOP HOLD on the separate +35% emergency lane. This connected gameplay/save milestone does not close any Native Chaos, trailer or Win64/runtime/visual checkbox.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
