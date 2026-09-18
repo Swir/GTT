@@ -1,0 +1,45 @@
+name: GTT 0.1.43 workshop hours and emergency recovery sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/**' ]
+    paths:
+      - 'Source/GTT/Public/World/GTTWorkshopHoursPolicy.h'
+      - 'Source/GTT/Public/World/GTTServiceTerminal.h'
+      - 'Source/GTT/Private/World/GTTServiceTerminal.cpp'
+      - 'Source/GTT/Private/World/GTTGarageTerminal.cpp'
+      - 'Source/GTT/Public/World/GTTDayNightCycle.h'
+      - 'Scripts/verify_garage_workshop_recovery.py'
+      - 'Scripts/verify_farm_cargo_workshop_recovery_runtime.py'
+      - 'Scripts/verify_workshop_hours_emergency_service.py'
+      - 'Docs/PLAYTEST_0.1.43.md'
+      - 'CHANGELOG.d/0.1.43.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'assets/readme/progress-*.svg'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.1.41 garage/workshop recovery foundation
+        run: python Scripts/verify_garage_workshop_recovery.py
+      - name: Verify 0.1.42 packaged workshop recovery evidence contract
+        run: python Scripts/verify_farm_cargo_workshop_recovery_runtime.py
+      - name: Verify 0.1.43 workshop hours and emergency recovery
+        run: python Scripts/verify_workshop_hours_emergency_service.py
+      - name: Verify deterministic SWIR progress presentation
+        run: python Scripts/generate_progress_svg.py --check
