@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.46 — packaged workshop repair queue evidence and release-gate integration**.
+Current development milestone: **0.1.47 — multi-vehicle workshop appointments and service capacity**.
 
 ## What is GTT?
 
@@ -45,14 +45,14 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 |---|---|
 | 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances use collision-safe persistent IDs before ownership. |
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
-| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. Ordinary damaged/mobile native road vehicles can now reserve next-opening workshop service from the garage after hours with an exact vehicle ID, locked quote, no pre-charge and persistent queue state. |
+| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. Ordinary damaged/mobile native road vehicles can reserve one of four deterministic after-hours workshop appointments, each with an exact vehicle ID, request-time locked quote, persistent state and no pre-charge. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
-| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding, in-flight roadside dispatch checkpoints and deferred workshop reservations. |
+| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding, in-flight roadside dispatch checkpoints and additive multi-vehicle workshop reservations. |
 | 📻 Original radio framework | Four fictional stations with track rotation and project-owned/cleared audio workflow. |
 | 🎮 Input support | Keyboard/mouse plus controller mappings for movement, vehicles, interaction, combat, radio, roadside recovery and save/load. |
 
@@ -150,6 +150,8 @@ Milestone 0.1.45 turns closed-hours ordinary repair into a persistent deferred s
 
 Milestone 0.1.46 extends the persistent workshop queue into the future packaged candidate. A later deterministic runtime window books after hours with no pre-charge, reloads the real queue sidecar from disk, proves a different owned vehicle cannot consume the reservation at opening, then services only the exact queued vehicle with one locked-quote debit, sidecar cleanup, stable identity and preserved Farm Cargo authority. `WORKSHOP_QUEUE_RUNTIME.json` is required before the schema-14 technical gate can promote to schema 15; source CI does not claim this packaged proof has run.
 
+Milestone 0.1.47 expands deferred workshop service into a bounded multi-vehicle appointment system. Up to four owned damaged/mobile native road vehicles can hold independent exact-ID, request-time locked-quote reservations with deterministic 45-minute slots and additive SaveGame persistence. Booking and exact-ID cancellation take no cash; an underfunded due appointment stays queued without blocking later affordable vehicles, while successful service charges only that appointment's locked quote exactly once. Hard TOW/IMMOBILE WORKSHOP HOLD remains on the separate emergency lane, and the existing 0.1.46 packaged single-appointment evidence contract remains backward compatible.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
@@ -200,7 +202,7 @@ The current repository also contains prototype/source-built presentation and sys
 
 ## 🔎 Search Keywords
 
-`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside emergency repair` • `vehicle workshop economy` • `C++ Unreal game`
+`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside emergency repair` • `multi-vehicle workshop appointments` • `C++ Unreal game`
 
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="SWIR electric divider" />
 
