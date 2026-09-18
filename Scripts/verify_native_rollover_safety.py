@@ -29,7 +29,10 @@ required = [
     (playtest, 'Scenario D — Genuine rollover recovery'),
     (changelog, '0.0.74'),
     (roadmap, '<!-- SWIR-ROADMAP-STANDARD:v1 -->'),
+    (roadmap, '<!-- ROADMAP-PROGRESS:START -->'),
+    (roadmap, '<!-- ROADMAP-PROGRESS:END -->'),
     (roadmap, '📊 Overall progress'),
+    (roadmap, '../assets/readme/progress-mini.svg'),
 ]
 missing = [token for text, token in required if token not in text]
 if missing:
@@ -54,11 +57,15 @@ if (done, total, remaining) != (125, 130, 5):
 for token in [
     'ROADMAP-96.2%25',
     'DONE-125%2F130',
-    '███████████████████░ 96.2%',
     '| **125** | **5** | **130** | **96.2%** |',
 ]:
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
+progress_block = roadmap.split('<!-- ROADMAP-PROGRESS:START -->', 1)[1].split('<!-- ROADMAP-PROGRESS:END -->', 1)[0]
+if progress_block.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap progress block must embed exactly one canonical progress-mini.svg.')
+if re.search(r'[█▓▒░]{3,}', progress_block):
+    raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
 for open_item in [
     '- [ ] Dedicated native Chaos wheeled tractor movement',
@@ -70,4 +77,4 @@ for open_item in [
     if open_item not in roadmap:
         raise SystemExit('Runtime/build roadmap item was closed without required evidence: ' + open_item)
 
-print('[OK] Native fleet rollover safety, grounded anti-roll, emergency righting and roadmap lock verified.')
+print('[OK] Native fleet rollover safety, grounded anti-roll, emergency righting and SVG-only roadmap lock verified.')
