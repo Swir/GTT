@@ -53,21 +53,24 @@ failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit("0.0.98 native road fleet tuning/service verification failed: " + ", ".join(failed))
 
-# Style-lock and exact roadmap math remain a hard regression gate even though this milestone
-# intentionally does not mark any hardware/packaged-build checkbox complete.
 if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap or "## 📊 Overall progress" not in roadmap:
     raise SystemExit("SWIR roadmap style lock missing")
+if "<!-- ROADMAP-PROGRESS:START -->" not in roadmap or "<!-- ROADMAP-PROGRESS:END -->" not in roadmap:
+    raise SystemExit("Roadmap progress markers missing")
 items = re.findall(r"^- \[(x| )\] ", roadmap, flags=re.MULTILINE)
 done = sum(value == "x" for value in items)
 total = len(items)
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = "█" * filled + "░" * (20 - filled)
-for token in (f"ROADMAP-{percent:.1f}%25", f"DONE-{done}%2F{total}", f"{bar} {percent:.1f}%", f"| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |"):
+for token in (f"ROADMAP-{percent:.1f}%25", f"DONE-{done}%2F{total}", f"| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |"):
     if token not in roadmap:
         raise SystemExit("Roadmap dashboard drift: missing " + token)
 if (done, total) != (125, 130):
     raise SystemExit(f"Roadmap checkbox drift: {done}/{total}")
+progress_block = roadmap.split("<!-- ROADMAP-PROGRESS:START -->", 1)[1].split("<!-- ROADMAP-PROGRESS:END -->", 1)[0]
+if progress_block.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("Roadmap progress block must embed exactly one canonical progress-mini.svg.")
+if re.search(r"[█▓▒░]{3,}", progress_block):
+    raise SystemExit("Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.")
 
-print(f"[OK] 0.0.98 Native road tuning authority, fuel-only service, garage planning and persistence verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.")
+print(f"[OK] 0.0.98 Native road tuning authority, fuel-only service, garage planning and persistence verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.")
