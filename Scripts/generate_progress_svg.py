@@ -28,6 +28,7 @@ MINI_TRACK_X = 170.0
 MINI_TRACK_WIDTH = 700.0
 SVG_NS = "http://www.w3.org/2000/svg"
 ET.register_namespace("", SVG_NS)
+LEGACY_PROGRESS_METER = re.compile(r"[█░▓▒]{4,}|\[[#=\-]{8,}\]")
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,9 @@ def self_test_math() -> None:
     assert compute_progress(1, 13).percentage_text == "7.7%"
     assert compute_progress(0, 0).percentage_text == "N/A"
     assert len("Long milestone / hardware gate / runtime acceptance scope") > 40
+    assert LEGACY_PROGRESS_METER.search("████░░░░")
+    assert LEGACY_PROGRESS_METER.search("[####----]")
+    assert not LEGACY_PROGRESS_METER.search("125 / 130 tasks complete (96.2%)")
     try:
         compute_progress(11, 10)
     except ValueError:
@@ -73,18 +77,18 @@ def read_progress() -> Progress:
     if progress.fraction is None:
         raise AssertionError("GTT roadmap scope is unexpectedly empty; progress must be N/A until scope is restored")
 
-    expected_bar_filled = min(20, max(0, int(round(progress.fraction * 20))))
-    expected_bar = "█" * expected_bar_filled + "░" * (20 - expected_bar_filled)
     expected_dashboard = [
         "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
         "<!-- ROADMAP-PROGRESS:START -->",
         "<!-- ROADMAP-PROGRESS:END -->",
-        f"{expected_bar} {progress.percentage_text}",
         f"| **{progress.completed}** | **{progress.total - progress.completed}** | **{progress.total}** | **{progress.percentage_text}** |",
+        "../assets/readme/progress-mini.svg",
     ]
     for token in expected_dashboard:
         if token not in text:
             raise AssertionError(f"Docs/ROADMAP.md dashboard does not match checklist truth: missing {token!r}")
+    if LEGACY_PROGRESS_METER.search(text):
+        raise AssertionError("Docs/ROADMAP.md contains a legacy character progress meter; SWIR Progress SVG PRO requires SVG-only progress visualization")
     return progress
 
 
@@ -211,6 +215,8 @@ def verify_embeddings(progress: Progress) -> None:
         raise AssertionError("README textual progress fallback is missing or stale")
     if "Release readiness: **NOT READY**" not in readme:
         raise AssertionError("README must keep release readiness separate from roadmap completion")
+    if LEGACY_PROGRESS_METER.search(readme) or LEGACY_PROGRESS_METER.search(roadmap):
+        raise AssertionError("legacy character progress meter returned; SVG-only progress presentation is required")
 
 
 def main() -> int:
@@ -234,7 +240,7 @@ def main() -> int:
         validate_svg(MINI, MINI_TRACK_WIDTH, progress.fraction)
         ET.parse(TEMPLATE)
         verify_embeddings(progress)
-        print(f"SWIR Progress SVG PRO: PASS — {progress.counter_text}, {progress.percentage_text}; release readiness kept separate.")
+        print(f"SWIR Progress SVG PRO: PASS — {progress.counter_text}, {progress.percentage_text}; release readiness kept separate; SVG-only dashboard verified.")
         return 0
 
     CARD.write_text(expected_card, encoding="utf-8")
