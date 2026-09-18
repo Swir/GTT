@@ -92,11 +92,14 @@ for token in (
     require(evaluator, token, "0.1.35 evaluator")
 
 for token in (
-    "gtt.farm-cargo-breakdown-runtime.v2", "schema=10", "farm_cargo_emergency_patch='PASS'",
+    "gtt.farm-cargo-breakdown-runtime.v2", "farm_cargo_emergency_patch='PASS'",
     "farm_cargo_patch_identity_preserved", "farm_cargo_patch_body_preserved",
     "farm_cargo_patch_timer_continued", "farm_cargo_patch_workshop_still_required",
 ):
     require(demo_gate, token, "demo technical gate")
+gate_schema_match = re.search(r"(?m)^\s*schema=(\d+)\s*$", demo_gate)
+assert gate_schema_match, "demo technical gate schema assignment missing"
+assert int(gate_schema_match.group(1)) >= 10, "demo technical gate regressed below schema 10 emergency-patch guarantees"
 
 for token in (
     "evaluate_farm_cargo_breakdown_runtime.ps1",
