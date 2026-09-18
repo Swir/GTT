@@ -1,0 +1,31 @@
+name: GTT 0.1.41 workshop recovery sanity
+
+on:
+  push:
+    branches: [main, "milestone/0.1.41-workshop-recovery"]
+  pull_request:
+    paths:
+      - "Source/GTT/**"
+      - "Scripts/verify_workshop_recovery_integration.py"
+      - "Docs/PLAYTEST_0.1.41.md"
+      - "Docs/ROADMAP.md"
+      - "README.md"
+      - ".github/workflows/gtt-0.1.41-workshop-recovery.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workshop-recovery-source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify workshop recovery integration
+        run: python Scripts/verify_workshop_recovery_integration.py
+      - name: Verify deterministic SWIR progress SVG
+        run: python Scripts/generate_progress_svg.py --check
