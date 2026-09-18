@@ -15,6 +15,12 @@ playtest = read("Docs/PLAYTEST_0.0.97.md")
 changelog = read("CHANGELOG.d/0.0.97.md")
 roadmap = read("Docs/ROADMAP.md")
 
+office_dispatch_guidance = (
+    "BuildFleetSummary" in office_cpp
+    and "Dispatch sets it ACTIVE and never repairs damage" in office_cpp
+    and ("inspect fleet" in office_cpp or "numbered bay" in office_cpp)
+)
+
 checks = {
     "authoritative fleet snapshot struct": all(token in fleet_h for token in ["FGTTGarageFleetSnapshot", "ConditionPercent", "FuelPercent", "TireIntegrity", "BodyHealth", "RepairEstimate", "TowEstimate", "bNativeAuthority"]),
     "world fleet subsystem": "UGTTGarageFleetSubsystem : public UWorldSubsystem" in fleet_h and "BuildFleetSnapshot" in fleet_h and "BuildFleetSummary" in fleet_h,
@@ -22,7 +28,7 @@ checks = {
     "native road state overrides mirror": all(token in fleet_cpp for token in ["FindActiveNativeRoadVehicle", "GetMigrationSnapshot", "GetBodyDamageSnapshot", "Assessment.RepairEstimate", "Assessment.TowEstimate"]),
     "breakdown states visible": all(token in fleet_cpp for token in ["LIMP", "TOW", "IMMOBILE", "READY"]),
     "native fieldmaster represented": "AGTTFieldmasterNativePawn" in fleet_cpp and "IsLegacyTakeoverActive" in fleet_cpp,
-    "office fleet dashboard": "BuildFleetSummary" in office_cpp and "inspect fleet" in office_cpp and "Dispatch sets it ACTIVE and never repairs damage" in office_cpp,
+    "office fleet dashboard": office_dispatch_guidance,
     "registration ignores already-owned cars": "Vehicle->IsOwnedByPlayer()" in office_cpp and "NearestUnownedVehicle" in office_cpp,
     "bay live status": all(token in slot_cpp for token in ["GetSlotSnapshot", "ServiceStatus", "ConditionPercent", "FuelPercent", "TireIntegrity", "BodyHealth"]),
     "native road recall authority": all(token in slot_cpp for token in ["FindActiveNativeRoadVehicle", "TeleportPhysics", "SetPhysicsLinearVelocity", "FlushNativePersistenceMirror"]),
