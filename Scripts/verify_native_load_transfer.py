@@ -28,10 +28,17 @@ missing += [token for token in required_hdr if token not in hdr]
 if missing:
     raise SystemExit("Native load-transfer contract missing: " + ", ".join(missing))
 
-if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-    raise SystemExit("SWIR roadmap style lock marker missing")
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+):
+    if token not in roadmap:
+        raise SystemExit("SWIR roadmap SVG-only presentation missing: " + token)
 
-completed = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
+completed = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 remaining = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
 total = completed + remaining
 if (completed, remaining, total) != (125, 5, 130):
@@ -39,7 +46,11 @@ if (completed, remaining, total) != (125, 5, 130):
         f"Roadmap progress unexpectedly changed: {completed}/{total} with {remaining} remaining; "
         "runtime-only acceptance must remain honest"
     )
-if "DONE-125%2F130" not in roadmap or "96.2%" not in roadmap or "███████████████████░ 96.2%" not in roadmap:
-    raise SystemExit("ROADMAP-PROGRESS dashboard is not synchronized with the 125/130 checklist")
+if "DONE-125%2F130" not in roadmap or "ROADMAP-96.2%25" not in roadmap or "| **125** | **5** | **130** | **96.2%** |" not in roadmap:
+    raise SystemExit("ROADMAP-PROGRESS numeric dashboard is not synchronized with the 125/130 checklist")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("Roadmap must embed exactly one canonical progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise SystemExit("Legacy text/Unicode roadmap progress meter must not return")
 
-print("Native load-transfer / grade / heavy-haul chassis-response milestone verified.")
+print("Native load-transfer / grade / heavy-haul chassis-response milestone verified with SVG-only progress presentation.")
