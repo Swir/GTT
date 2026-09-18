@@ -64,7 +64,7 @@ def main() -> int:
     require(office, "repair/service clears TOW/IMMOBILE status", "garage office recovery guidance")
 
     # Workshop is the only path that clears a hard hold by repairing authoritative native state.
-    require(workshop, "GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(FleetSnapshot)", "workshop hold detection")
+    require(workshop, "GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch", "workshop hold detection")
     require(workshop, "ApplyNativeWorkshopService()", "authoritative native workshop service")
     require(workshop, "WORKSHOP HOLD cleared; garage dispatch is available again.", "hold-clear UX")
     require(workshop, "GameMode->SaveProgress()", "service persistence checkpoint")
@@ -84,7 +84,10 @@ def main() -> int:
     require(roadmap, "0.1.41 garage/workshop recovery integration", "roadmap milestone note")
     require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "README v2 marker")
     require(readme, "assets/readme/progress-card.svg", "README progress card")
-    require(readme, "Current development milestone: **0.1.41", "README milestone sync")
+    require(readme, "Milestone 0.1.41 closes the garage-recall loophole", "README 0.1.41 historical contract")
+    current = re.search(r"Current development milestone: \*\*0\.1\.(\d+)", readme)
+    if not current or int(current.group(1)) < 41:
+        raise AssertionError("README current development milestone must not regress below 0.1.41")
     require(readme, "## 🔎 Search Keywords", "README search keywords")
 
     # Reject the retired character-art meter in maintained progress dashboards.
