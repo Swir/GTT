@@ -13,7 +13,8 @@ class AGTTRoadVehicleNativePawn;
  * The checkpoint follows the exact PersistentVehicleId, locked quote and remaining ETA.
  * It never stores/charges cash and never persists PoliceImpound. A restored dispatch waits
  * for the exact actor + driver to exist, so actor recreation cannot transfer service to a
- * substitute vehicle.
+ * substitute vehicle. Authorization-time primary cash/revision are retained only as a
+ * conservative replay guard if a crash leaves a stale sidecar after a committed charge.
  */
 UCLASS()
 class GTT_API UGTTRoadsideDispatchPersistenceSubsystem : public UTickableWorldSubsystem
@@ -30,7 +31,9 @@ private:
     void CaptureLiveCheckpoint();
     void ClearCheckpoint(const TCHAR* Reason);
     int32 ReadPrimaryWorldRevision() const;
+    int32 ReadPrimaryCash() const;
     bool IsCargoVehicleCompatible(FName VehicleId) const;
+    bool LooksLikeAlreadyCommittedCharge() const;
 
     bool bCheckpointLoaded = false;
     bool bRestorePending = false;
@@ -41,10 +44,14 @@ private:
     FName RestoreVehicleId = NAME_None;
     int32 RestoreLockedQuote = 0;
     float RestoreSecondsRemaining = 0.0f;
+    int32 RestoreAuthorizedCash = INDEX_NONE;
+    int32 RestoreAuthorizedPrimaryRevision = 0;
 
     EGTTRoadsideRecoveryMode LastSavedMode = EGTTRoadsideRecoveryMode::None;
     FName LastSavedVehicleId = NAME_None;
     int32 LastSavedLockedQuote = 0;
     float LastSavedSecondsRemaining = -1.0f;
     int32 LastSavedPrimaryRevision = INDEX_NONE;
+    int32 AuthorizedCash = INDEX_NONE;
+    int32 AuthorizedPrimaryRevision = 0;
 };
