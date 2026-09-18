@@ -10,7 +10,6 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "World/GTTGarageFleetSubsystem.h"
-#include "World/GTTGarageServicePolicy.h"
 #include "World/GTTGarageSlotTerminal.h"
 
 AGTTGarageTerminal::AGTTGarageTerminal()
@@ -75,11 +74,7 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
 
     if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
     {
-        const TArray<FGTTGarageFleetSnapshot> Snapshot = Fleet->BuildFleetSnapshot(FleetSlotCount);
-        const int32 WorkshopHoldCount = Snapshot.CountByPredicate([](const FGTTGarageFleetSnapshot& Vehicle)
-        {
-            return GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Vehicle);
-        });
+        const int32 WorkshopHoldCount = Fleet->GetWorkshopHoldCount(FleetSlotCount);
         FString Summary = Fleet->BuildFleetSummary(FleetSlotCount);
         Summary += TEXT("\nUse a numbered bay to dispatch a vehicle. Dispatch sets it ACTIVE and never repairs damage.");
         if (WorkshopHoldCount > 0)
@@ -104,12 +99,8 @@ FText AGTTGarageTerminal::GetInteractionText_Implementation() const
     {
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
         {
-            const TArray<FGTTGarageFleetSnapshot> Snapshot = Fleet->BuildFleetSnapshot(FleetSlotCount);
-            OwnedCount = Snapshot.Num();
-            WorkshopHoldCount = Snapshot.CountByPredicate([](const FGTTGarageFleetSnapshot& Vehicle)
-            {
-                return GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Vehicle);
-            });
+            OwnedCount = Fleet->BuildFleetSnapshot(FleetSlotCount).Num();
+            WorkshopHoldCount = Fleet->GetWorkshopHoldCount(FleetSlotCount);
         }
     }
 
