@@ -66,18 +66,27 @@ for token in ("direction interlock", "engine braking", "hill hold", "Rattleback"
 if "0.0.75" not in changelog or "drivetrain" not in changelog.lower():
     errors.append("0.0.75 changelog does not describe drivetrain milestone")
 
-if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-    errors.append("SWIR roadmap standard marker missing")
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+):
+    if token not in roadmap:
+        errors.append(f"roadmap SVG-only structure missing token: {token}")
 
-# Count only actual checklist rows, not explanatory inline examples.
 checked = len(re.findall(r"^\s*- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \] ", roadmap, flags=re.MULTILINE))
 total = checked + open_items
 if (checked, total) != (125, 130):
     errors.append(f"roadmap checklist changed unexpectedly: {checked}/{total}; expected 125/130")
-
-if "███████████████████░ 96.2%" not in roadmap:
-    errors.append("roadmap 20-segment progress bar is stale or missing")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    errors.append("roadmap must embed exactly one progress-mini.svg")
+if "ROADMAP-96.2%25" not in roadmap or "DONE-125%2F130" not in roadmap or "| **125** | **5** | **130** | **96.2%** |" not in roadmap:
+    errors.append("roadmap numeric dashboard is stale or missing")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    errors.append("legacy text/Unicode roadmap progress meter must not return")
 
 if errors:
     print("Native drivetrain authority verification FAILED")
@@ -90,4 +99,4 @@ print(" - shared Fieldmaster/Rattleback/Mulebox final drivetrain safety authorit
 print(" - unsafe forward/reverse swaps are speed-gated with braking interlock")
 print(" - neutral engine braking and low-speed hold are present")
 print(" - runtime evidence and Project sanity coverage are wired")
-print(f" - roadmap remains honest at {checked}/{total} ({checked / total * 100:.1f}%)")
+print(f" - roadmap remains honest at {checked}/{total} ({checked / total * 100:.1f}%) with SVG-only presentation")
