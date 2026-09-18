@@ -3,6 +3,7 @@
 #include "Activities/GTTFarmCargoAuthoritySubsystem.h"
 #include "Activities/GTTFarmJobDirector.h"
 #include "Components/StaticMeshComponent.h"
+#include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
@@ -19,6 +20,14 @@ void PushCargoAuthorityMessage(APawn* PlayerPawn, const FString& Message, float 
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
     {
         Economy->PushMessage(Message, Duration);
+    }
+}
+
+void SaveCargoCheckpoint(const UObject* WorldContextObject)
+{
+    if (AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(WorldContextObject)))
+    {
+        GameMode->SaveProgress();
     }
 }
 
@@ -69,9 +78,11 @@ void AGTTFarmJobTerminal::Interact_Implementation(AActor* Interactor)
     switch (TerminalType)
     {
         case EGTTFarmJobTerminalType::Start:
-            if (Director->TryStartJob(Pawn) && Authority)
+            if (Director->TryStartJob(Pawn))
             {
-                Authority->ClearLoadedVehicle(TEXT("new-contract"));
+                if (Authority) Authority->ClearLoadedVehicle(TEXT("new-contract"));
+                // Persist ReachPickup only after the real reservation and stage transition.
+                SaveCargoCheckpoint(this);
             }
             break;
         case EGTTFarmJobTerminalType::Pickup:
@@ -80,7 +91,12 @@ void AGTTFarmJobTerminal::Interact_Implementation(AActor* Interactor)
                 if (Authority)
                 {
                     FString Summary;
-                    if (Authority->BindLoadedVehicle(Pawn, Summary)) PushCargoAuthorityMessage(Pawn, Summary, 5.5f);
+                    if (Authority->BindLoadedVehicle(Pawn, Summary))
+                    {
+                        PushCargoAuthorityMessage(Pawn, Summary, 5.5f);
+                        // This checkpoint stores both DeliverCargo and the exact physical vehicle ID.
+                        SaveCargoCheckpoint(this);
+                    }
                     else PushCargoAuthorityMessage(Pawn, Summary, 7.0f);
                 }
                 else
@@ -95,6 +111,11 @@ void AGTTFarmJobTerminal::Interact_Implementation(AActor* Interactor)
                 if (Authority && Director->GetStage() == EGTTFarmJobStage::Idle)
                 {
                     Authority->ClearLoadedVehicle(TEXT("direct-route-complete"));
+                }
+                else if (Director->GetStage() == EGTTFarmJobStage::DeliverFinalStop)
+                {
+                    // Extended chains now survive a save/reload after the Hill Farm relay.
+                    SaveCargoCheckpoint(this);
                 }
             }
             break;

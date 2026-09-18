@@ -46,9 +46,10 @@ public:
     // CARGO history; 0.1.5 extends the same compatible v8 snapshot with persistent depot
     // stock/demand/rotation; 0.1.6 extends it with persistent supply-backlog pressure; 0.1.7
     // adds same-day dispatcher negotiation state; 0.1.8 derives deterministic dispatcher
-    // relationships from those saved records; and 0.1.9 adds stock-backed same-day
-    // reservation queue fields. These remain additive fields with safe defaults so existing
-    // v8 profiles do not need a destructive migration.
+    // relationships from those saved records; 0.1.9 adds stock-backed same-day reservation
+    // queue fields; and 0.1.30 adds an active Farm Cargo checkpoint plus the stable identity
+    // of the physical loaded vehicle. These remain additive fields with safe defaults so
+    // existing v8 profiles do not need a destructive migration.
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 Cash = 120;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") int32 FishCount = 0;
     UPROPERTY(VisibleAnywhere, Category="GTT|Save") float FishWeightKg = 0.0f;
@@ -86,6 +87,23 @@ public:
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<FName> LogisticsRecentContractTags;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<int32> LogisticsRecentPayouts;
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|History") TArray<int32> LogisticsRecentQualityPercent;
+
+    // 0.1.30 mid-route recovery. FarmJobDirector owns contract state; the cargo-authority
+    // subsystem owns only the stable physical-vehicle identity. These fields are one snapshot,
+    // stored in the existing primary slot so save/load cannot mint a second load or silently
+    // transfer cargo to whichever vehicle happens to be nearest after reload.
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") bool bFarmCargoContractActive = false;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") uint8 FarmCargoStage = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") float FarmCargoTimeRemaining = 0.0f;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") float FarmCargoIntegrity = 1.0f;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") float FarmCargoFleetPayoutMultiplier = 1.0f;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") float FarmCargoMarketMultiplier = 1.0f;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") int32 FarmCargoRouteTier = 1;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") int32 FarmCargoUnitsReserved = 0;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") FString FarmCargoCommodity = TEXT("ANIMAL FEED");
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") FString FarmCargoPriority = TEXT("HILL FARM DIRECT");
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") bool bFarmCargoPoliceIncident = false;
+    UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Logistics|ActiveCargo") FName FarmCargoBoundVehicleId = NAME_None;
 
     // Save v4+: primary sandbox snapshot. Dedicated pre-v4 slots remain compatibility mirrors.
     UPROPERTY(VisibleAnywhere, SaveGame, Category="GTT|Save|Unified") bool bUnifiedWorldStateInitialized = false;

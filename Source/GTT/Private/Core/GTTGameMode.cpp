@@ -1,5 +1,7 @@
 #include "Core/GTTGameMode.h"
 
+#include "Activities/GTTFarmCargoAuthoritySubsystem.h"
+#include "Activities/GTTFarmJobDirector.h"
 #include "Characters/GTTCharacter.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -17,6 +19,7 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTDayNightCycle.h"
+#include "World/GTTLogisticsReputationSubsystem.h"
 #include "World/GTTPrototypeWorld.h"
 
 AGTTGameMode::AGTTGameMode()
@@ -155,10 +158,16 @@ bool AGTTGameMode::SaveProgress()
         if (Vehicle->GetDriverPawn()) PlayerPawn = Vehicle->GetDriverPawn();
     }
 
-    UGTTSaveGame* Save = Cast<UGTTSaveGame>(UGameplayStatics::CreateSaveGameObject(UGTTSaveGame::StaticClass()));
+    // Update the existing primary snapshot instead of manufacturing a fresh v3 object. The
+    // old path silently erased v8 logistics/unified fields whenever any legacy SaveProgress
+    // call fired (citation, garage service, cargo completion, etc.).
+    UGTTSaveGame* Save = Cast<UGTTSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
+    if (!Save) Save = Cast<UGTTSaveGame>(UGameplayStatics::CreateSaveGameObject(UGTTSaveGame::StaticClass()));
     if (!Save) return false;
 
-    Save->SaveVersion = 3;
+    Save->SaveVersion = FMath::Max(Save->SaveVersion, 8);
+    Save->bUnifiedWorldStateInitialized = true;
+    ++Save->UnifiedWorldStateRevision;
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn))
     {
         Save->Cash = Economy->GetCash();
@@ -202,10 +211,25 @@ bool AGTTGameMode::SaveProgress()
                 Save->TractorFuelLiters = Stored.FuelLiters;
             }
         }
+
+        if (UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>())
+        {
+            Logistics->CaptureToSave(Save);
+        }
+        if (AGTTFarmJobDirector* FarmDirector = Cast<AGTTFarmJobDirector>(
+            UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass())))
+        {
+            FarmDirector->CaptureActiveCargoToSave(Save);
+        }
+        if (UGTTFarmCargoAuthoritySubsystem* CargoAuthority = GetWorld()->GetSubsystem<UGTTFarmCargoAuthoritySubsystem>())
+        {
+            // FarmDirector runs first so authority can only store an ID for a real loaded stage.
+            CargoAuthority->CaptureToSave(Save);
+        }
     }
 
     const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
-    if (bSaved) PushPlayerMessage(ControlledPawn, FString::Printf(TEXT("Progress saved. Garage: %d/%d vehicles. Tuning saved."), Save->OwnedVehicles.Num(), GarageCapacity), 2.5f);
+    if (bSaved) PushPlayerMessage(ControlledPawn, FString::Printf(TEXT("Progress saved. Garage: %d/%d vehicles. Tuning + logistics checkpoint saved."), Save->OwnedVehicles.Num(), GarageCapacity), 2.5f);
     return bSaved;
 }
 
@@ -260,10 +284,28 @@ bool AGTTGameMode::LoadProgress()
             if (AGTTTractorPawn* Tractor = Cast<AGTTTractorPawn>(UGameplayStatics::GetActorOfClass(this, AGTTTractorPawn::StaticClass())))
                 Tractor->RestorePersistentState(Save->TractorTransform, Save->TractorConditionPercent, Save->TractorFuelLiters, true);
         }
+
+        // Restore the market first, then the route, then the physical vehicle identity. This
+        // prevents a reload from reserving stock again or assigning the load to a nearby car.
+        if (UGTTLogisticsReputationSubsystem* Logistics = GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>())
+        {
+            Logistics->RestoreFromSave(Save);
+        }
+        if (AGTTFarmJobDirector* FarmDirector = Cast<AGTTFarmJobDirector>(
+            UGameplayStatics::GetActorOfClass(this, AGTTFarmJobDirector::StaticClass())))
+        {
+            FarmDirector->RestoreActiveCargoFromSave(Save);
+        }
+        if (UGTTFarmCargoAuthoritySubsystem* CargoAuthority = GetWorld()->GetSubsystem<UGTTFarmCargoAuthoritySubsystem>())
+        {
+            CargoAuthority->RestoreFromSave(Save);
+        }
     }
 
     if (AGTTDayNightCycle* Cycle = DayNightCycle.Get()) Cycle->RestoreTime(Save->DayNumber, Save->TimeOfDayHours);
-    PushPlayerMessage(ControlledPawn, FString::Printf(TEXT("Progress loaded. Garage: %d/%d vehicles. Save v%d."), GetOwnedVehicleCount(), GarageCapacity, Save->SaveVersion), 3.0f);
+    PushPlayerMessage(ControlledPawn, FString::Printf(TEXT("Progress loaded. Garage: %d/%d vehicles. Save v%d%s."),
+        GetOwnedVehicleCount(), GarageCapacity, Save->SaveVersion,
+        Save->bFarmCargoContractActive ? TEXT(" | Farm Cargo route recovered") : TEXT("")), 3.0f);
     return true;
 }
 
