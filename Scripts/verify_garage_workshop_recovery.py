@@ -23,6 +23,8 @@ def require(source: str, needle: str, label: str) -> None:
 
 def main() -> int:
     policy = text("Source/GTT/Public/World/GTTGarageServicePolicy.h")
+    fleet_h = text("Source/GTT/Public/World/GTTGarageFleetSubsystem.h")
+    fleet_recovery = text("Source/GTT/Private/World/GTTGarageFleetRecovery.cpp")
     slot = text("Source/GTT/Private/World/GTTGarageSlotTerminal.cpp")
     office = text("Source/GTT/Private/World/GTTGarageTerminal.cpp")
     workshop = text("Source/GTT/Private/World/GTTServiceTerminal.cpp")
@@ -37,11 +39,20 @@ def main() -> int:
     if 'Snapshot.ServiceStatus == TEXT("LIMP")' in policy or 'Snapshot.ServiceStatus == TEXT("SERVICE")' in policy:
         raise AssertionError("LIMP/SERVICE must remain advisory, not hard garage holds")
 
+    # Expose the same state to future Blueprint/HUD presentation rather than creating another ledger.
+    require(fleet_h, "IsVehicleOnWorkshopHold(FName VehicleId) const", "fleet workshop-hold API")
+    require(fleet_h, "GetWorkshopHoldCount(int32 MaxSlots = 4) const", "fleet hold-count API")
+    require(fleet_recovery, "BuildFleetSnapshot(8)", "fleet API uses authoritative snapshot")
+    require(fleet_recovery, "GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch", "fleet API uses shared policy")
+
     # Garage dispatch must fail closed before any recall/teleport or economy debit.
     require(slot, "GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot)", "garage dispatch hold check")
     require(slot, "WORKSHOP HOLD", "garage hold UX")
     hold_pos = slot.find("GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot)", slot.find("Interact_Implementation"))
-    recall_pos = min(p for p in (slot.find("RecallToTransform", hold_pos), slot.find("SetActorTransform", hold_pos)) if p >= 0)
+    recall_candidates = [p for p in (slot.find("RecallToTransform", hold_pos), slot.find("SetActorTransform", hold_pos)) if p >= 0]
+    if not recall_candidates:
+        raise AssertionError("garage dispatch no longer contains a recall/move path")
+    recall_pos = min(recall_candidates)
     spend_pos = slot.find("SpendCash(RecallServiceCost", hold_pos)
     if not (0 <= hold_pos < recall_pos and 0 <= hold_pos < spend_pos):
         raise AssertionError("workshop hold must be checked before vehicle movement and dispatch charge")
@@ -69,8 +80,10 @@ def main() -> int:
     require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "roadmap structure marker")
     require(roadmap, "../assets/readme/progress-mini.svg", "roadmap progress mini")
     require(roadmap, "| **125** | **5** | **130** | **96.2%** |", "authoritative roadmap count")
+    require(roadmap, "0.1.41 garage/workshop recovery integration", "roadmap milestone note")
     require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "README v2 marker")
     require(readme, "assets/readme/progress-card.svg", "README progress card")
+    require(readme, "Current development milestone: **0.1.41", "README milestone sync")
     require(readme, "## 🔎 Search Keywords", "README search keywords")
 
     # Reject the retired character-art meter in maintained progress dashboards.
