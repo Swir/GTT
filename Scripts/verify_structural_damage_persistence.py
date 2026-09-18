@@ -29,6 +29,10 @@ if runtime_window_ok:
     gameplay_minimum = int(gameplay_runtime.group(1))
     runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
 
+version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
+candidate_version = tuple(int(part) for part in version_match.groups()) if version_match else None
+candidate_version_ok = candidate_version is not None and candidate_version >= (0, 1, 14)
+
 checks = {
     'save schema retains structural v5 data under v8+': 'SaveVersion = 8' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
     'exact structural fields': all(x in save_h for x in ['FrontHealth', 'RearHealth', 'LeftHealth', 'RightHealth', 'CoolingStress', 'DetachedPanelMask']),
@@ -52,7 +56,7 @@ checks = {
     'runtime PASS evidence': all(x in evidence_cpp for x in ['DEMO_SCENARIO_STRUCTURAL_PERSISTENCE', 'DEMO_SCENARIO_STRUCTURAL_REPAIR', 'DEMO_SCENARIO_STRUCTURAL_RECOVERY result=PASS']),
     'evaluator retains structural gates': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator and "step='STRUCTURAL_PERSISTENCE'" in evaluator and "step='STRUCTURAL_REPAIR'" in evaluator,
     'evaluator structural hard gates': 'structural_persistence_passed' in evaluator and 'structural_repair_passed' in evaluator and 'structural_recovery_complete' in evaluator,
-    'current Win64 candidate evidence': "default: '0.1.14'" in workflow and 'WIN64_PREFLIGHT.json' in workflow and 'BUILD_ATTEMPT.json' in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+    'candidate version not regressed below 0.1.14': candidate_version_ok and all(x in workflow for x in ['WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_TECHNICAL_GATE.json']),
     'extended packaged runtime': runtime_window_ok,
     'sanity wired': 'Verify persistent Native structural damage' in sanity and 'verify_structural_damage_persistence.py' in sanity,
     'origin docs retained': '0.0.93' in playtest and 'STRUCTURAL_PERSISTENCE' in playtest and 'STRUCTURAL_REPAIR' in playtest and '0.0.93' in changelog,
@@ -78,4 +82,5 @@ if progress_block.count('../assets/readme/progress-mini.svg') != 1:
 if re.search(r'[█▓▒░]{3,}',progress_block):
     raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
-print(f'[OK] Persistent Native structural damage + workshop recovery retained under save v8 ({len(checks)} checks; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')
+label = '.'.join(str(part) for part in candidate_version)
+print(f'[OK] Persistent Native structural damage + workshop recovery retained under save v8 ({len(checks)} checks; candidate {label}; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')
