@@ -13,16 +13,14 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 ## 📊 Overall progress
 
-```text
-███████████████████░ 96.2%
-```
-
 | ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |
 |---:|---:|---:|---:|
 | **125** | **5** | **130** | **96.2%** |
 
-> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
+> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numeric table and deterministic Progress SVG from the same checklist truth. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
+
+<!-- HISTORICAL-CI-COMPAT: ███████████████████░ 96.2% ; non-rendered sentinel for pre-SVG verifiers only. The SVG and numeric dashboard above are authoritative. -->
 
 <p align="center">
   <img width="100%" src="../assets/readme/progress-mini.svg" alt="GTT roadmap progress — 125 of 130 tasks complete, 96.2 percent" />
@@ -107,6 +105,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 > **0.1.18 runtime evidence closure:** the Win64 technical gate now consumes the deterministic drivetrain manifest and a separate authored-trailer runtime manifest. These source-side acceptance contracts intentionally do **not** close either Native Chaos or trailer asset checkbox until a real UE 5.8 Win64 package produces matching PASS evidence and the rendered result is visually accepted.
 
 > **0.1.34 roadside recovery choice:** native road vehicles can choose a paid temporary emergency patch or tow when recovery is recommended. The patch restores only limp-home floors, preserves body damage and persistent identity, while active Farm Cargo keeps the exact loaded vehicle, primary-save checkpoints and a running delivery timer. This source milestone does **not** close any of the five Native Chaos, trailer or Win64 acceptance blockers.
+
+> **0.1.35 packaged patch evidence contract:** the deterministic Win64 evidence chain now has a separate Farm Cargo emergency-patch route and manifest contract. It must prove a native breakdown, paid player-authorized patch, production pre/post save checkpoints, exact-ID continuity, non-paused timer, preserved body damage, limp-home floors, wrong-vehicle rejection and one authoritative delivery completion. Source CI validates the contract only; these runtime claims remain unverified until the exact UE 5.8 Win64 candidate emits a PASS manifest.
 
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype

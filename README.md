@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.34 — roadside emergency patch + Farm Cargo recovery-choice UX**.
+Current development milestone: **0.1.35 — packaged Farm Cargo emergency-patch / exact-vehicle continuation evidence**.
 
 ## What is GTT?
 
@@ -126,13 +126,15 @@ Milestone 0.1.33 adds a later packaged evidence window that must exercise that p
 
 Milestone 0.1.34 turns roadside recovery into a clearer gameplay choice. Eligible native road vehicles can pay for a temporary limp-home patch or choose a tow; severe body/structural failures remain tow-only, wanted heat blocks ordinary player service, and automatic police impound remains limited to genuinely stranded vehicles. Farm Cargo checkpoints before/after a patch, verifies the same persistent cargo vehicle ID and never pauses the delivery clock or transfers the load to a substitute vehicle.
 
+Milestone 0.1.35 adds a dedicated packaged evidence route for the emergency-patch branch of that choice. After a real Farm Cargo pickup, the native Mulebox is damaged into a patch-eligible breakdown, uses the production paid patch service, must retain body damage and its exact persistent cargo identity, must keep the contract clock running, must reject a decoy vehicle at Hill Farm and then complete North Wood Yard exactly once. The route emits its own evidence manifest and remains source-only until a qualifying UE 5.8 Win64 package actually executes it.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
 
-A successful future packaged Farm Cargo candidate must produce `FARM_CARGO_RUNTIME.json` (`gtt.farm-cargo-runtime.v1`), `FARM_CARGO_RECOVERY_RUNTIME.json` (`gtt.farm-cargo-recovery-runtime.v1`) and `FARM_CARGO_BREAKDOWN_RUNTIME.json` (`gtt.farm-cargo-breakdown-runtime.v1`). These progressively prove exact-vehicle contract continuity, mid-route save/load + recreated-actor rebinding, and native breakdown / paid roadside tow / exact-vehicle continuation. **None of these manifests is claimed until the packaged Unreal executable actually runs and emits the required PASS evidence.**
+A successful future packaged Farm Cargo candidate must produce `FARM_CARGO_RUNTIME.json` (`gtt.farm-cargo-runtime.v1`), `FARM_CARGO_RECOVERY_RUNTIME.json` (`gtt.farm-cargo-recovery-runtime.v1`), `FARM_CARGO_BREAKDOWN_RUNTIME.json` (`gtt.farm-cargo-breakdown-runtime.v1`) and `FARM_CARGO_PATCH_RUNTIME.json` (`gtt.farm-cargo-patch-runtime.v1`). These progressively prove exact-vehicle contract continuity, mid-route save/load + recreated-actor rebinding, native breakdown / paid roadside tow continuity, and native breakdown / paid emergency-patch continuity. **None of these manifests is claimed until the packaged Unreal executable actually runs and emits the required PASS evidence.**
 
-The roadmap graphics are deterministic outputs of `Scripts/generate_progress_svg.py`; `--check` verifies checklist mathematics, XML, bounded fill geometry, README/Roadmap embeds and separation between roadmap completion and release readiness.
+The roadmap graphics are deterministic outputs of `Scripts/generate_progress_svg.py`; `--check` verifies checklist mathematics, XML, bounded fill geometry, README/Roadmap embeds, SVG-only progress presentation and separation between roadmap completion and release readiness.
 
 Important distinction:
 
