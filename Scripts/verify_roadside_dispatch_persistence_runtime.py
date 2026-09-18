@@ -46,16 +46,17 @@ for token in (
 
 # The guarded re-arm may only reload the existing sidecar. It must not manufacture service,
 # change economy, or bypass the real RestorePendingRecoveryCheckpoint production path.
-reload_block = re.search(
-    r"bool UGTTRoadsideDispatchPersistenceSubsystem::ReloadCheckpointForRuntimeEvidence\(\).*?\n\}",
-    persist_cpp,
-    flags=re.S,
+reload_start = persist_cpp.index(
+    "bool UGTTRoadsideDispatchPersistenceSubsystem::ReloadCheckpointForRuntimeEvidence()"
 )
-assert reload_block, "guarded evidence reload implementation missing"
+reload_end = persist_cpp.index(
+    "\nvoid UGTTRoadsideDispatchPersistenceSubsystem::LoadCheckpointOnce()", reload_start
+)
+reload_block = persist_cpp[reload_start:reload_end]
 for forbidden in ("SpendCash(", "AddCash(", "ChargeFine(", "SaveGameToSlot("):
-    assert forbidden not in reload_block.group(0), f"evidence re-arm contains forbidden authority: {forbidden}"
+    assert forbidden not in reload_block, f"evidence re-arm contains forbidden authority: {forbidden}"
 for token in ("FParse::Param", "ResetInMemoryCheckpointState", "LoadCheckpointOnce"):
-    require(reload_block.group(0), token, "guarded evidence reload")
+    require(reload_block, token, "guarded evidence reload")
 
 for token in (
     "UGTTFarmCargoDispatchPersistenceEvidenceSubsystem", "StartDelaySeconds = 326.0f",
