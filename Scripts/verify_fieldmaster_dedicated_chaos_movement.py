@@ -12,92 +12,63 @@ playtest = (ROOT / "Docs/PLAYTEST_0.1.13.md").read_text(encoding="utf-8")
 changelog = (ROOT / "CHANGELOG.d/0.1.13.md").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/project-sanity.yml").read_text(encoding="utf-8")
 
-# A dedicated native movement type must exist, not just a generic cast inside the pawn.
 for token in [
     "class GTT_API UGTTFieldmasterChaosMovementComponent : public UChaosWheeledVehicleMovementComponent",
-    "ConfigureAndValidateFieldmaster",
-    "ApplyFieldmasterDriveCommand",
-    "HoldFieldmasterStopped",
-    "GetEffectiveThrottle",
-    "GetEffectiveSteering",
+    "ConfigureAndValidateFieldmaster", "ApplyFieldmasterDriveCommand", "HoldFieldmasterStopped",
+    "GetEffectiveThrottle", "GetEffectiveSteering",
 ]:
     assert token in movement_h, f"dedicated Fieldmaster movement header missing {token}"
 
-# The component owns canonical Chaos wheels/powertrain and condition/terrain-scaled inputs.
-# Since 0.1.16 gear direction is intentionally owned by the shared drivetrain authority so
-# this 0.1.13 component cannot pin an automatic gearbox to first gear or bypass the interlock.
 for token in [
-    "ConfigureCanonicalWheelSetups",
-    "ValidateCanonicalWheelSetups",
-    "ConfigureCanonicalPowertrain",
-    "ValidateCanonicalPowertrain",
-    "bMechanicalSimEnabled = true",
-    "SetThrottleInput(EffectiveThrottle)",
-    "SetSteeringInput(EffectiveSteering)",
-    "SetBrakeInput",
-    "TireIntegrity",
-    "TerrainGripFactor",
-    "ConditionPercent",
-    "UGTTNativeDriveDynamicsSubsystem",
+    "ConfigureCanonicalWheelSetups", "ValidateCanonicalWheelSetups", "ConfigureCanonicalPowertrain",
+    "ValidateCanonicalPowertrain", "bMechanicalSimEnabled = true", "SetThrottleInput(EffectiveThrottle)",
+    "SetSteeringInput(EffectiveSteering)", "SetBrakeInput", "TireIntegrity", "TerrainGripFactor",
+    "ConditionPercent", "UGTTNativeDriveDynamicsSubsystem",
 ]:
     assert token in movement_cpp, f"dedicated Fieldmaster movement implementation missing {token}"
 assert "SetTargetGear(" not in movement_cpp, "Fieldmaster component must not bypass shared drivetrain gear authority"
 assert "Movement->SetTargetGear(Authority.StableDirection, true)" in authority_cpp
 assert "GearMatchesDirection" in authority_cpp
 
-# The actual tractor pawn must replace AWheeledVehiclePawn's default movement subobject.
 for token in [
-    "AGTTFieldmasterNativePawn(const FObjectInitializer& ObjectInitializer",
-    "GetFieldmasterMovement",
-    "RefreshNativeDriveCommand",
-    "GetRequestedSteeringInput",
+    "AGTTFieldmasterNativePawn(const FObjectInitializer& ObjectInitializer", "GetFieldmasterMovement",
+    "RefreshNativeDriveCommand", "GetRequestedSteeringInput",
 ]:
     assert token in pawn_h, f"Fieldmaster pawn contract missing {token}"
 
 for token in [
-    "SetDefaultSubobjectClass<UGTTFieldmasterChaosMovementComponent>",
-    "AWheeledVehiclePawn::VehicleMovementComponentName",
-    "Movement->ConfigureAndValidateFieldmaster",
-    "Movement->ApplyFieldmasterDriveCommand",
-    "Movement->HoldFieldmasterStopped",
-    "GetNativeTerrainGripFactor()",
-    "MigrationSnapshot.TireIntegrity",
-    "MigrationSnapshot.ConditionPercent",
+    "SetDefaultSubobjectClass<UGTTFieldmasterChaosMovementComponent>", "AWheeledVehiclePawn::VehicleMovementComponentName",
+    "Movement->ConfigureAndValidateFieldmaster", "Movement->ApplyFieldmasterDriveCommand", "Movement->HoldFieldmasterStopped",
+    "GetNativeTerrainGripFactor()", "MigrationSnapshot.TireIntegrity", "MigrationSnapshot.ConditionPercent",
 ]:
     assert token in pawn_cpp, f"Fieldmaster pawn is not wired to dedicated movement: {token}"
 
-# Safety: no fuel / invalid ownership takeover must still leave the legacy mirror available.
-for token in [
-    "TryActivateLegacyTakeover",
-    "DeactivateLegacyTakeover",
-    "LegacyMirror",
-    "bTakeoverActive",
-    "MigrationSnapshot.FuelLiters > KINDA_SMALL_NUMBER",
-]:
+for token in ["TryActivateLegacyTakeover", "DeactivateLegacyTakeover", "LegacyMirror", "bTakeoverActive", "MigrationSnapshot.FuelLiters > KINDA_SMALL_NUMBER"]:
     assert token in pawn_cpp or token in pawn_h, f"native fallback/takeover contract missing {token}"
 
-# Source verification is deliberately not sufficient to claim packaged runtime acceptance.
-assert "- [ ] Dedicated native Chaos wheeled tractor movement" in roadmap
-assert "- [ ] Full Unreal compile + packaged Win64 smoke test" in roadmap
-assert "- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup" in roadmap
-assert "- [ ] Full Win64 CI/build runner" in roadmap
+for checkbox in [
+    "- [ ] Dedicated native Chaos wheeled tractor movement", "- [ ] Full Unreal compile + packaged Win64 smoke test",
+    "- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup", "- [ ] Full Win64 CI/build runner",
+]:
+    assert checkbox in roadmap
 
-# Enforce SWIR Roadmap Style Lock v1 and exact mathematical dashboard consistency.
-assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
-checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
+for token in [
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "<!-- ROADMAP-PROGRESS:START -->", "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress", "../assets/readme/progress-mini.svg", "ROADMAP-96.2%25", "DONE-125%2F130",
+    "| **125** | **5** | **130** | **96.2%** |",
+]:
+    assert token in roadmap, f"roadmap SVG-only presentation missing {token}"
+checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
 total = checked + open_items
 assert (checked, open_items, total) == (125, 5, 130), (checked, open_items, total)
-progress = round(checked * 100.0 / total, 1)
-assert progress == 96.2
-assert "ROADMAP-96.2%25" in roadmap
-assert "DONE-125%2F130" in roadmap
-assert "| **125** | **5** | **130** | **96.2%** |" in roadmap
-assert "███████████████████░ 96.2%" in roadmap
+assert round(checked * 100.0 / total, 1) == 96.2
+assert roadmap.count("../assets/readme/progress-mini.svg") == 1
+assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, re.MULTILINE), "legacy text/Unicode roadmap progress meter must not return"
 
 assert "Dedicated Native Chaos Tractor Movement" in playtest
 assert "Win64" in playtest and "packaged" in playtest.lower()
 assert "GTT 0.1.13" in changelog
 assert "Verify dedicated Fieldmaster Chaos movement" in workflow
 
-print("GTT 0.1.13 dedicated Fieldmaster Chaos movement source gate passed; shared 0.1.16 drivetrain authority owns gear direction and packaged runtime acceptance remains open")
+print("GTT 0.1.13 dedicated Fieldmaster Chaos movement source gate passed; shared 0.1.16 drivetrain authority owns gear direction and packaged runtime acceptance remains open; roadmap presentation is SVG-only")
