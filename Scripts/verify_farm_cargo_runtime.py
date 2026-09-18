@@ -116,18 +116,38 @@ def main() -> None:
     )
     package_flow = require(
         ".github/workflows/win64-package-evidence.yml",
-        "MinimumAliveSeconds 200",
-        "LaunchTimeoutSeconds 220",
         "evaluate_farm_cargo_runtime.ps1",
         "FARM_CARGO_RUNTIME.json",
     )
+    smoke_match = re.search(
+        r"smoke_test_windows\.ps1[^\n]*-MinimumAliveSeconds\s+(\d+)[^\n]*-LaunchTimeoutSeconds\s+(\d+)",
+        package_flow,
+    )
+    gameplay_match = re.search(
+        r"evaluate_packaged_gameplay_smoke\.ps1[^\n]*-MinimumRuntimeSeconds\s+(\d+)",
+        package_flow,
+    )
+    if not smoke_match or not gameplay_match:
+        raise AssertionError("Win64 workflow no longer exposes deterministic Farm Cargo runtime duration arguments")
+    minimum_alive = int(smoke_match.group(1))
+    launch_timeout = int(smoke_match.group(2))
+    minimum_gameplay = int(gameplay_match.group(1))
+    if minimum_alive < 200 or launch_timeout <= minimum_alive or launch_timeout < 220:
+        raise AssertionError(
+            f"0.1.29 Farm Cargo runtime window regressed: alive={minimum_alive}, timeout={launch_timeout}"
+        )
+    if minimum_gameplay < minimum_alive:
+        raise AssertionError(
+            f"packaged gameplay window is shorter than Farm Cargo smoke survival: gameplay={minimum_gameplay}, alive={minimum_alive}"
+        )
+
     candidate = require(
         "Scripts/evaluate_demo_candidate.ps1",
         "FARM_CARGO_RUNTIME.json",
         "gtt.farm-cargo-runtime.v1",
         "farm_cargo_runtime='PASS'",
     )
-    _ = smoke, package_flow, candidate
+    _ = smoke, candidate
 
     playtest = require(
         "Docs/PLAYTEST_0.1.29.md",
@@ -181,8 +201,12 @@ def main() -> None:
         raise AssertionError("README must keep roadmap completion separate from release readiness")
 
     subprocess.run([sys.executable, str(ROOT / "Scripts/generate_progress_svg.py"), "--check"], check=True)
-    print("[OK] GTT 0.1.29 Farm Cargo packaged-runtime harness is wired through exact-vehicle authority, payout/reputation/save observation, strict Win64 evidence fields and the demo technical gate.")
-    print("[OK] Roadmap remains 125/130 (96.2%); Progress SVG values remain derived from the protected checklist; release readiness remains separate.")
+    print(
+        f"[OK] GTT 0.1.29 Farm Cargo packaged-runtime harness preserved under extended runtime "
+        f"{minimum_alive}s / timeout {launch_timeout}s / gameplay {minimum_gameplay}s."
+    )
+    print("[OK] Exact-vehicle authority, payout/reputation/save observation and demo technical gate remain mandatory.")
+    print("[OK] Roadmap remains 125/130 (96.2%); Progress SVG remains checklist-derived and release readiness stays separate.")
 
 
 if __name__ == "__main__":

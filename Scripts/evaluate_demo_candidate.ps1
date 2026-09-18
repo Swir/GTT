@@ -17,8 +17,9 @@ $nativePath=Join-Path $PackageDirectory 'NATIVE_CHAOS_RUNTIME.json'
 $drivePath=Join-Path $PackageDirectory 'NATIVE_DRIVETRAIN_SCENARIO.json'
 $trailerPath=Join-Path $PackageDirectory 'NATIVE_TRAILER_RUNTIME.json'
 $farmCargoPath=Join-Path $PackageDirectory 'FARM_CARGO_RUNTIME.json'
+$farmCargoRecoveryPath=Join-Path $PackageDirectory 'FARM_CARGO_RECOVERY_RUNTIME.json'
 
-foreach($p in @($buildPath,$smokePath,$scenarioPath,$gameplayPath,$nativePath,$drivePath,$trailerPath,$farmCargoPath,$RuntimeLog)){
+foreach($p in @($buildPath,$smokePath,$scenarioPath,$gameplayPath,$nativePath,$drivePath,$trailerPath,$farmCargoPath,$farmCargoRecoveryPath,$RuntimeLog)){
     if(-not(Test-Path $p)){throw "Required demo evidence missing: $p"}
 }
 
@@ -30,6 +31,7 @@ $native=Get-Content -Raw $nativePath|ConvertFrom-Json
 $drive=Get-Content -Raw $drivePath|ConvertFrom-Json
 $trailer=Get-Content -Raw $trailerPath|ConvertFrom-Json
 $farmCargo=Get-Content -Raw $farmCargoPath|ConvertFrom-Json
+$farmCargoRecovery=Get-Content -Raw $farmCargoRecoveryPath|ConvertFrom-Json
 $log=Get-Content -Raw $RuntimeLog
 
 if($smoke.result -ne 'PASS'){throw 'Packaged runtime smoke did not PASS.'}
@@ -39,6 +41,7 @@ if($native.result -ne 'PASS'){throw 'Native Chaos runtime telemetry did not PASS
 if($drive.result -ne 'PASS'){throw 'Deterministic Native drivetrain scenario did not PASS.'}
 if($trailer.result -ne 'PASS'){throw 'Authored trailer runtime acceptance did not PASS.'}
 if($farmCargo.result -ne 'PASS'){throw 'Farm Cargo packaged runtime exercise did not PASS.'}
+if($farmCargoRecovery.result -ne 'PASS'){throw 'Farm Cargo save/load recovery runtime did not PASS.'}
 if($build.platform -ne 'Win64'){throw 'Build evidence is not Win64.'}
 
 if($native.schema -ne 'gtt.native-chaos-runtime.v1'){throw "Native Chaos runtime schema mismatch: $($native.schema)"}
@@ -63,6 +66,20 @@ if([int]$farmCargo.payout_delta -le 0 -or [int]$farmCargo.cargo_completed_runs_d
 if(-not $farmCargo.post_delivery_save -or -not $farmCargo.authority_cleared){throw 'Farm Cargo runtime did not prove post-delivery persistence and authority cleanup.'}
 if([int]$farmCargo.diagnostic_failure_count -ne 0){throw 'Farm Cargo runtime scenario reported diagnostic failures.'}
 
+if($farmCargoRecovery.schema -ne 'gtt.farm-cargo-recovery-runtime.v1'){throw "Farm Cargo recovery runtime schema mismatch: $($farmCargoRecovery.schema)"}
+foreach($field in @(
+    'same_model_vehicle_identity_unique','loaded_checkpoint_saved','loaded_stage_restored','loaded_vehicle_id_restored',
+    'recreated_actor_rebound','loaded_timer_restored','loaded_integrity_restored','loaded_stock_stable',
+    'wrong_vehicle_rejected_after_reload','relay_checkpoint_saved','relay_stage_restored','relay_vehicle_id_restored',
+    'relay_same_vehicle','relay_timer_restored','relay_integrity_restored','relay_stock_stable',
+    'completion_reload_stable','authority_cleared','final_save'
+)){
+    if(-not $farmCargoRecovery.$field){throw "Farm Cargo recovery runtime missing PASS gate: $field"}
+}
+if([int]$farmCargoRecovery.payout_delta -le 0 -or [int]$farmCargoRecovery.cargo_completed_runs_delta -ne 1 -or [int]$farmCargoRecovery.logistics_reputation_delta -le 0){throw 'Farm Cargo recovery runtime did not prove one authoritative completion after mid-route reloads.'}
+if(-not $farmCargoRecovery.stable_vehicle_id){throw 'Farm Cargo recovery runtime did not report the stable physical vehicle identity.'}
+if([int]$farmCargoRecovery.diagnostic_failure_count -ne 0){throw 'Farm Cargo recovery runtime scenario reported diagnostic failures.'}
+
 if($scenario.schema -ne 'gtt.demo-scenario.v11'){throw "Demo scenario schema mismatch: $($scenario.schema)"}
 if([int]$scenario.required_step_count -ne 33 -or $scenario.steps.Count -ne 33){throw 'Demo scenario does not contain the complete 33-step 0.0.94 evidence route.'}
 foreach($field in @('structural_handling_passed','structural_reload_handling_passed','structural_drive_recovery_passed','structural_drive_complete')){
@@ -70,7 +87,7 @@ foreach($field in @('structural_handling_passed','structural_reload_handling_pas
 }
 
 if($ExpectedGitSha -and $ExpectedGitSha -ne 'unknown' -and $build.git_sha -ne $ExpectedGitSha){throw "Build SHA mismatch: package=$($build.git_sha), expected=$ExpectedGitSha"}
-foreach($e in @($scenario,$gameplay,$native,$drive,$trailer,$farmCargo)){
+foreach($e in @($scenario,$gameplay,$native,$drive,$trailer,$farmCargo,$farmCargoRecovery)){
     if($e.git_sha -and $ExpectedGitSha -and $e.git_sha -ne $ExpectedGitSha){throw 'Runtime evidence SHA mismatch.'}
 }
 
@@ -103,9 +120,9 @@ if($RequireVisual){
     $visualStatus='PASS'
 }
 
-# Compatibility note for the 0.1.15 source-contract verifier: schema=5 was the previous gate revision.
+# Schema 8 adds mandatory mid-route Farm Cargo save/load + actor-recreation evidence.
 $evidence=[ordered]@{
-    schema=7
+    schema=8
     game='Grand Theft Tractor'
     result='PASS'
     git_sha=$build.git_sha
@@ -142,8 +159,14 @@ $evidence=[ordered]@{
     farm_cargo_payout_delta=$farmCargo.payout_delta
     farm_cargo_reputation_delta=$farmCargo.logistics_reputation_delta
     farm_cargo_wrong_vehicle_rejected=$farmCargo.wrong_vehicle_rejected
+    farm_cargo_recovery_runtime='PASS'
+    farm_cargo_recovery_schema=$farmCargoRecovery.schema
+    farm_cargo_recovery_vehicle_id=$farmCargoRecovery.stable_vehicle_id
+    farm_cargo_recovery_loaded_rebind=$farmCargoRecovery.recreated_actor_rebound
+    farm_cargo_recovery_relay_rebind=$farmCargoRecovery.relay_same_vehicle
+    farm_cargo_recovery_completion_reload=$farmCargoRecovery.completion_reload_stable
     visual_acceptance=$visualStatus
     evaluated_utc=(Get-Date).ToUniversalTime().ToString('o')
 }
 $evidence|ConvertTo-Json -Depth 8|Set-Content -Encoding UTF8 (Join-Path $PackageDirectory 'DEMO_TECHNICAL_GATE.json')
-Write-Host "[GTT] Demo technical evidence gate: PASS (schema 7 / scenario v11 / drivetrain PASS / authored trailer PASS / Farm Cargo runtime PASS / native Chaos telemetry PASS / recovery=$recoveryStatus)"
+Write-Host "[GTT] Demo technical evidence gate: PASS (schema 8 / scenario v11 / drivetrain PASS / authored trailer PASS / Farm Cargo runtime + recovery PASS / native Chaos telemetry PASS / recovery=$recoveryStatus)"

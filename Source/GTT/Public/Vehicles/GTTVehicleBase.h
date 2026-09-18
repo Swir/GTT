@@ -65,6 +65,18 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Dynamics") int32 GetGroundContactCount() const;
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Ownership") bool IsOwnedByPlayer() const { return bOwnedByPlayer; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Save") FName GetPersistentVehicleId() const { return PersistentVehicleId; }
+
+    // 0.1.31 fleet-identity hook. IDs may be disambiguated only while a vehicle is still an
+    // unowned/unoccupied world instance. Once ownership can place the ID in SaveGame, it is
+    // immutable so background identity scans cannot invalidate an existing garage/cargo record.
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Save")
+    bool AssignPersistentVehicleIdForInstance(FName NewPersistentVehicleId)
+    {
+        if (NewPersistentVehicleId.IsNone() || bOwnedByPlayer || bOccupied) return false;
+        PersistentVehicleId = NewPersistentVehicleId;
+        return true;
+    }
+
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle") bool IsOccupied() const { return bOccupied; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle") bool IsEngineRunning() const { return bEngineRunning; }
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle") bool WasReportedStolen() const { return bTheftReported; }
