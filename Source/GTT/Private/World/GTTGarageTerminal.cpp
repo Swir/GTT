@@ -98,13 +98,16 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
         const int32 WorkshopHoldCount = Fleet->GetWorkshopHoldCount(FleetSlotCount);
         const bool bWorkshopOpen = IsGarageWorkshopOpen(GetWorld());
         const AGTTDayNightCycle* Clock = FindGarageWorldClock(GetWorld());
+        const FString ClockSuffix = Clock
+            ? FString::Printf(TEXT(" | %s"), *Clock->GetClockText())
+            : FString(TEXT(" | world clock unavailable: fail-open"));
         FString Summary = Fleet->BuildFleetSummary(FleetSlotCount);
         Summary += TEXT("\nUse a numbered bay to dispatch a vehicle. Dispatch sets it ACTIVE and never repairs damage.");
         Summary += FString::Printf(
             TEXT("\nWORKSHOP %s | hours %s%s."),
             bWorkshopOpen ? TEXT("OPEN") : TEXT("CLOSED"),
             *GTTWorkshopHoursPolicy::GetScheduleText(),
-            Clock ? *FString::Printf(TEXT(" | %s"), *Clock->GetClockText()) : TEXT(" | world clock unavailable: fail-open"));
+            *ClockSuffix);
         if (WorkshopHoldCount > 0)
         {
             Summary += FString::Printf(
