@@ -4,12 +4,26 @@
 #include "GameFramework/SaveGame.h"
 #include "GTTWorkshopQueueSaveGame.generated.h"
 
+USTRUCT(BlueprintType)
+struct GTT_API FGTTWorkshopQueueSaveEntry
+{
+    GENERATED_BODY()
+
+    UPROPERTY(SaveGame) FName PersistentVehicleId = NAME_None;
+    UPROPERTY(SaveGame) int32 LockedQuote = 0;
+    UPROPERTY(SaveGame) int32 RequestedDay = 1;
+    UPROPERTY(SaveGame) float RequestedHour = 0.0f;
+    UPROPERTY(SaveGame) int32 ReadyDay = 1;
+    UPROPERTY(SaveGame) float ReadyHour = 6.5f;
+};
+
 /**
- * Small transactional sidecar for one deferred workshop repair reservation.
+ * Transactional sidecar for deferred workshop appointments.
  *
- * Cash and vehicle mutation remain authoritative in gameplay systems. This sidecar stores
- * only the exact target identity, locked quote and schedule so save/load cannot create a
- * second vehicle, re-price a reservation, or charge before the service actually executes.
+ * SchemaVersion intentionally remains 1 because the original single-reservation fields are
+ * retained as a first-entry mirror. Existing 0.1.45/0.1.46 saves therefore load without a
+ * destructive migration, while Appointments extends the format additively for multiple
+ * exact-vehicle reservations. Cash and vehicle mutation remain authoritative in gameplay.
  */
 UCLASS()
 class GTT_API UGTTWorkshopQueueSaveGame : public USaveGame
@@ -18,6 +32,8 @@ class GTT_API UGTTWorkshopQueueSaveGame : public USaveGame
 
 public:
     UPROPERTY(SaveGame) int32 SchemaVersion = 1;
+
+    // Legacy first-entry mirror kept for backward compatibility and packaged 0.1.46 evidence.
     UPROPERTY(SaveGame) bool bQueued = false;
     UPROPERTY(SaveGame) FName PersistentVehicleId = NAME_None;
     UPROPERTY(SaveGame) int32 LockedQuote = 0;
@@ -25,4 +41,7 @@ public:
     UPROPERTY(SaveGame) float RequestedHour = 0.0f;
     UPROPERTY(SaveGame) int32 ReadyDay = 1;
     UPROPERTY(SaveGame) float ReadyHour = 6.5f;
+
+    // 0.1.47 additive multi-vehicle queue. Empty means "read the legacy mirror".
+    UPROPERTY(SaveGame) TArray<FGTTWorkshopQueueSaveEntry> Appointments;
 };

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Source-contract verifier for GTT 0.1.45 workshop repair queue.
 
-This proves repository wiring and invariants only. It does not claim an Unreal compile,
-packaged Win64 execution, runtime smoke evidence, or demo readiness.
+This proves repository wiring and the original deferred-service invariants only. Later
+milestones may extend the appointment book, but must preserve exact ID, locked quote,
+no-precharge and authoritative workshop execution. It does not claim Unreal runtime proof.
 """
 from __future__ import annotations
 
@@ -89,7 +90,7 @@ def main() -> int:
         raise AssertionError("queued service must debit immediately before authoritative mutation")
     if "IsVehicleAtWorkshop(Vehicle)" not in execute:
         raise AssertionError("execution must require physical workshop presence")
-    if "RequiresHardWorkshopHold(QueuedVehicleId)" not in execute:
+    if "RequiresHardWorkshopHold(Entry.PersistentVehicleId)" not in execute:
         raise AssertionError("hard WORKSHOP HOLD must pre-empt deferred queue")
 
     require(garage, [
@@ -97,7 +98,7 @@ def main() -> int:
         "TryQueueNearestEligibleNativeRoadVehicle",
         "HasQueuedRepair",
         "GetQueueStatusText",
-        'TEXT("1 QUEUED")',
+        "GetQueuedRepairCount",
         "no pre-charge",
     ], "garage integration")
 
