@@ -29,7 +29,7 @@ checks = {
     "recall preserves vehicle state": "Damage, fuel and tuning were preserved" in slot_cpp and "ApplyNativeWorkshopService" not in slot_cpp and "RepairVehicle" not in slot_cpp,
     "recall persists operation": "GameMode->SaveProgress()" in slot_cpp,
     "crime locks retained": "GetWantedLevel() > 0" in slot_cpp and "GetWildlifeAlertLevel() > 0" in slot_cpp,
-    "workshop exact native quote prompt": "GetNativeRoadRepairQuote" in service_cpp and "repair + refuel %s ($%d estimate)" in service_cpp,
+    "workshop exact native quote prompt": all(token in service_cpp for token in ["GetNativeRoadRepairQuote", "GetNativeRoadFuelQuote", "repair + refuel %s ($%d exact quote)", "exact fuel quote", "GetPersistentVehicleId().ToString()"]),
     "sanity wired": "Verify garage fleet operations and service UX" in sanity and "verify_garage_fleet_operations.py" in sanity,
     "milestone docs": "0.0.97" in playtest and "garage" in playtest.lower() and "0.0.97" in changelog and "fleet" in changelog.lower(),
 }

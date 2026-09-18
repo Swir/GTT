@@ -7,6 +7,7 @@
 
 class UStaticMeshComponent;
 class AGTTRoadVehicleNativePawn;
+class APawn;
 
 enum class EGTTServiceType : uint8
 {
@@ -24,8 +25,20 @@ public:
     virtual void Interact_Implementation(AActor* Interactor) override;
     virtual FText GetInteractionText_Implementation() const override;
     void SetServiceType(EGTTServiceType NewType) { ServiceType = NewType; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Service|Workshop")
     int32 GetNativeRoadRepairQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Service|Workshop")
     int32 GetNativeRoadFuelQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
+
+    /**
+     * Authoritative voluntary workshop transaction for an owned native road vehicle.
+     * Reuses the existing native service path, validates exact identity/cargo continuity,
+     * refunds + rolls back on failed post-service verification, and saves only on success.
+     */
+    UFUNCTION(BlueprintCallable, Category="GTT|Service|Workshop")
+    bool PurchaseNativeRoadWorkshopService(AGTTRoadVehicleNativePawn* Vehicle, APawn* CustomerPawn);
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Service") TObjectPtr<UStaticMeshComponent> TerminalMesh;
