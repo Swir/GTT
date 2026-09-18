@@ -105,18 +105,17 @@ def main() -> int:
         "bFarmCargoContractActive", "FarmCargoBoundVehicleId == VehicleId",
         "ImpoundedVehicleId == VehicleId",
     ], "authority guards")
-    forbidden_writes = [
-        "FarmCargoStage =", "FarmCargoTimeRemaining =", "FarmCargoIntegrity =",
-        "FarmCargoBoundVehicleId =", "ImpoundedVehicleId =",
-    ]
-    for token in forbidden_writes:
-        if token in queue_cpp:
-            raise AssertionError(f"queue must not own primary authority field: {token}")
+    for field in (
+        "FarmCargoStage", "FarmCargoTimeRemaining", "FarmCargoIntegrity",
+        "FarmCargoBoundVehicleId", "ImpoundedVehicleId",
+    ):
+        if re.search(rf"\b{field}\s*=(?!=)", queue_cpp):
+            raise AssertionError(f"queue must not own primary authority field: {field}")
 
     scenarios = re.findall(r"^- \[ \] \d+\.", playtest, flags=re.MULTILINE)
-    if len(scenarios) < 80:
-        raise AssertionError(f"expected >=80 playtest scenarios, found {len(scenarios)}")
-    require(changelog, ["no pre-charge", "125 / 130 (96.2%)", "Win64"], "changelog")
+    if len(scenarios) != 80:
+        raise AssertionError(f"expected exactly 80 playtest scenarios, found {len(scenarios)}")
+    require(changelog, ["no pre-charge", "80-scenario", "125 / 130 (96.2%)", "Win64"], "changelog")
     require(workflow, [
         "verify_workshop_repair_queue.py",
         "verify_workshop_hours_emergency_service.py",
@@ -130,10 +129,10 @@ def main() -> int:
         raise AssertionError(f"roadmap truth changed unexpectedly: {done}/{done+open_}")
     if "**125** | **5** | **130** | **96.2%**" not in roadmap:
         raise AssertionError("roadmap progress table is stale")
-    if "../assets/readme/progress-mini.svg" not in roadmap:
-        raise AssertionError("roadmap progress-mini SVG missing")
-    if "assets/readme/progress-card.svg" not in readme:
-        raise AssertionError("README progress-card SVG missing")
+    if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+        raise AssertionError("roadmap must embed exactly one progress-mini SVG")
+    if readme.count("assets/readme/progress-card.svg") != 1:
+        raise AssertionError("README must embed exactly one progress-card SVG")
     if "<!-- SWIR-README-STANDARD:v2 -->" not in readme:
         raise AssertionError("README standard v2 marker missing")
     if "## 🔎 Search Keywords" not in readme:
