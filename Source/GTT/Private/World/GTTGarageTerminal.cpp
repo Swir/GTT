@@ -153,7 +153,7 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
         }
         else if (!bWorkshopOpen)
         {
-            Summary += TEXT("\nOrdinary repair/refuel waits for its appointment; garage dispatch remains available for serviceable vehicles.");
+            Summary += TEXT("\nOrdinary repair/refuel waits for opening and then its appointment; garage dispatch remains available for serviceable vehicles.");
         }
         Economy->PushMessage(Summary, 10.0f);
         return;
