@@ -21,6 +21,30 @@ def require(source: str, needle: str, label: str) -> None:
         raise AssertionError(f"missing {label}: {needle}")
 
 
+def require_min_win64_window(source: str, minimum_alive: int, minimum_timeout: int) -> None:
+    match = re.search(r"smoke_test_windows\.ps1[^\n]*-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)", source)
+    if not match:
+        raise AssertionError("could not parse Win64 smoke runtime window")
+    alive, timeout = map(int, match.groups())
+    if alive < minimum_alive or timeout < minimum_timeout or timeout <= alive:
+        raise AssertionError(f"Win64 smoke runtime window regressed: alive={alive}, timeout={timeout}")
+
+
+def require_min_candidate_version(source: str, minimum=(0, 1, 42)) -> None:
+    match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", source)
+    if not match:
+        raise AssertionError("could not parse Win64 default version")
+    version = tuple(map(int, match.groups()))
+    if version < minimum:
+        raise AssertionError(f"Win64 default version regressed below 0.1.42: {version}")
+
+
+def require_min_final_gate_schema(source: str, minimum: int) -> None:
+    schemas = [int(value) for value in re.findall(r"gate\.schema\s+-ne\s+(\d+)", source)]
+    if not schemas or max(schemas) < minimum:
+        raise AssertionError(f"final technical gate schema regressed below {minimum}: {schemas}")
+
+
 def main() -> int:
     evidence_h = text("Source/GTT/Public/Core/GTTFarmCargoWorkshopRecoveryEvidenceSubsystem.h")
     evidence_cpp = text("Source/GTT/Private/Core/GTTFarmCargoWorkshopRecoveryEvidenceSubsystem.cpp")
@@ -93,13 +117,13 @@ def main() -> int:
 
     require(smoke, "-GTTFarmCargoWorkshopRecoveryScenario", "packaged smoke launch flag")
     require(smoke, "farm_cargo_workshop_recovery_runtime_scenario = $true", "smoke evidence field")
-    require(win64, "default: '0.1.42'", "Win64 version default")
-    require(win64, "-MinimumAliveSeconds 386 -LaunchTimeoutSeconds 415", "extended runtime window")
+    require_min_candidate_version(win64)
+    require_min_win64_window(win64, 386, 415)
     require(win64, "evaluate_farm_cargo_workshop_recovery_runtime.ps1", "Win64 workshop evaluator")
     require(win64, "promote_demo_gate_workshop_recovery.ps1", "Win64 gate promotion")
     if win64.count("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json") < 4:
         raise AssertionError("workshop runtime manifest must be validated and retained in candidate/diagnostic paths")
-    require(win64, "gate.schema -ne 13", "final bundle schema 13 assertion")
+    require_min_final_gate_schema(win64, 13)
 
     # Existing roadside contract remains damage preserving and workshop directed.
     require(roadside, "damage_preserved=%s", "tow damage marker")
@@ -125,6 +149,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (AssertionError, IndexError) as exc:
+    except (AssertionError, IndexError, ValueError) as exc:
         print(f"GTT 0.1.42 packaged garage/workshop recovery evidence: FAIL: {exc}", file=sys.stderr)
         raise SystemExit(1)
