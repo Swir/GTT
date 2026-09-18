@@ -44,7 +44,7 @@ def roadmap_math() -> tuple[int, int, float]:
             "<!-- ROADMAP-PROGRESS:START -->",
             "<!-- ROADMAP-PROGRESS:END -->",
             "../assets/readme/progress-mini.svg",
-            "| 125 | 5 | 130 | 96.2% |",
+            "| **125** | **5** | **130** | **96.2%** |",
         ],
         "roadmap presentation",
     )
