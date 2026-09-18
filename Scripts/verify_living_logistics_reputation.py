@@ -70,7 +70,7 @@ if failed:
 required_style = [
     '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->',
     'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
-    '## 📊 Overall progress', '<!-- ROADMAP-PROGRESS:END -->'
+    '## 📊 Overall progress', '../assets/readme/progress-mini.svg', '<!-- ROADMAP-PROGRESS:END -->'
 ]
 for token in required_style:
     if token not in roadmap:
@@ -83,14 +83,17 @@ if not total:
     raise SystemExit("Roadmap checklist missing")
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = '█' * filled + '░' * (20 - filled)
 for token in (
     f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', 'STATUS-IN%20PROGRESS',
-    f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
+    f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
     if token not in roadmap:
         raise SystemExit("Roadmap dashboard drift: missing " + token)
 if (done, total, percent) != (125, 130, 96.2):
     raise SystemExit(f"0.1.3 source milestone must not claim build/art gates: {done}/{total} = {percent:.1f}%")
+progress_block = roadmap.split('<!-- ROADMAP-PROGRESS:START -->', 1)[1].split('<!-- ROADMAP-PROGRESS:END -->', 1)[0]
+if progress_block.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap progress block must embed exactly one canonical progress-mini.svg.')
+if re.search(r'[█▓▒░]{3,}', progress_block):
+    raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
-print(f"[OK] GTT 0.1.3 living rural logistics, multi-stop ROAD route, schedule economy and persistent reputation verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.")
+print(f"[OK] GTT 0.1.3 living rural logistics, multi-stop ROAD route, schedule economy and persistent reputation verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.")
