@@ -24,6 +24,13 @@ dispatch_contract_copy=all(x in recovery_cpp for x in [
     'quote_locked=YES',
     'workshop_repair_still_required=YES',
 ])
+workshop_dynamic_charge = (
+    'const int32 BaseCost = GetNativeRoadRepairQuote(NativeRoad);' in service_cpp
+    and 'const int32 TotalCost = bAfterHoursEmergency' in service_cpp
+    and 'GTTWorkshopHoursPolicy::CalculateEmergencyRecoveryTotal(BaseCost)' in service_cpp
+    and ': BaseCost;' in service_cpp
+    and 'SpendCash(TotalCost' in service_cpp
+)
 checks={
 'authoritative assessment subsystem':'UGTTBreakdownDecisionSubsystem : public UWorldSubsystem' in sub_h,
 'decision contract':all(x in sub_h for x in ['EGTTBreakdownRecommendation','FGTTBreakdownAssessment','RepairEstimate','TowEstimate','bCanLimpHome','bTowRecommended']),
@@ -32,7 +39,7 @@ checks={
 'bounded repair estimate':'1500' in sub_cpp and 'MechanicalLabor' in sub_cpp and 'TireParts' in sub_cpp and 'FuelCharge' in sub_cpp,
 'tow distance and damage':'DistanceMeters' in sub_cpp and 'DamageHandling' in sub_cpp and 'StructuralHandling' in sub_cpp,
 'workshop quote':'GetNativeRoadRepairQuote' in service_h and 'CalculateRepairEstimate' in service_cpp,
-'dynamic workshop charge':'const int32 TotalCost = GetNativeRoadRepairQuote(NativeRoad)' in service_cpp and 'SpendCash(TotalCost' in service_cpp,
+'dynamic workshop charge':workshop_dynamic_charge,
 'shared tow assessment':'CalculateTowEstimate' in recovery_cpp,
 'tow not free repair':'NATIVE_ROADSIDE_TOW_COMPLETE' in recovery_cpp and 'serviced=NO' in recovery_cpp and 'Damage preserved' in recovery_cpp,
 'tow preserves state':all(x in recovery_cpp for x in ['BeforeTow.ConditionPercent','AfterTow.ConditionPercent','BodyBeforeTow.FrontHealth','BodyAfterTow.FrontHealth','bDamagePreserved']),
