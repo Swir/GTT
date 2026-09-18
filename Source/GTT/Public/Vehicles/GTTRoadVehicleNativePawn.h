@@ -97,6 +97,12 @@ public:
     }
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Damage") bool ApplyScriptedImpactDamage(float ImpactSpeedKmh, EGTTRoadDamageZone Zone);
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Save") void RestorePersistentBodyDamage(const FGTTRoadBodyDamageSnapshot& InDamage, int32 DetachedPanelMask);
+    /** Restore a previously captured native migration snapshot and mirror it back to the legacy fleet actor. */
+    void RestorePersistentMigrationSnapshot(const FGTTRoadVehicleMigrationSnapshot& InSnapshot)
+    {
+        MigrationSnapshot = InSnapshot;
+        SyncLegacyMirror();
+    }
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Save") void FlushNativePersistenceMirror();
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fleet") bool IsNativeReady() const { return bNativeReady; }
@@ -126,11 +132,11 @@ protected:
     virtual float GetCargoSteeringLimit(float SpeedKmh) const;
     virtual float GetImpactDamageScale() const;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera") TObjectPtr<USpringArmComponent> CameraBoom;
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera") TObjectPtr<UCameraComponent> VehicleCamera;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> FrontDamageDebris;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> RearDamageDebris;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> LeftDamageDebris;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Vehicle|Damage") TObjectPtr<UStaticMeshComponent> RightDamageDebris;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Camera") TObjectPtr<UCameraComponent> VehicleCamera;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Chaos|Fleet") FName NativeVehicleId = NAME_None;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Chaos|Fleet") FText NativeDisplayName;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Chaos|Fleet") float FuelCapacityLiters = 45.0f;
