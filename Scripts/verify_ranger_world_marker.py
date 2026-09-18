@@ -25,8 +25,6 @@ playtest = read("Docs/PLAYTEST_0.1.26.md")
 changelog = read("CHANGELOG.d/0.1.26.md")
 workflow = read(".github/workflows/ranger-world-marker-sanity.yml")
 
-# Marker consumes the exact fixed pull-over target and road heading. It must not
-# invent a second compliance position or keep presentation alive during FLEE.
 for needle, label in [
     ("GetPullOverMarkerTransform", "shared marker transform API"),
     ("if (!HasTrafficControl())", "COMPLY/SEARCH-only marker lifetime"),
@@ -68,7 +66,6 @@ for forbidden, label in [
     if forbidden in marker_h + marker_cpp:
         raise AssertionError(f"unexpected {label} in marker actor: {forbidden}")
 
-# Director owns one reusable marker just as it owns one patrol scene actor.
 for needle, label in [
     ("class AGTTRangerPullOverMarker", "marker forward declaration"),
     ("PullOverMarkerClass", "configurable marker class"),
@@ -83,9 +80,6 @@ for needle, label in [
 ]:
     require(director_cpp, needle, label)
 
-# Patrol scene has real light components, not only toggled geometry. SEARCH is
-# intentionally distinct from the alternating roadside warning beacons, and the
-# parked actor is projected onto WorldStatic instead of trusting vehicle-pivot Z.
 for needle, label in [
     ("BeaconLightLeft", "left beacon point light"),
     ("BeaconLightRight", "right beacon point light"),
@@ -109,24 +103,30 @@ for needle, label in [
 ]:
     require(patrol_cpp, needle, label)
 
-# Critical transient-state guard: both presentation actors must explicitly hide
-# themselves at BeginPlay and clear visible lights when not deployed.
 require(marker_cpp, "SetActorHiddenInGame(true)", "marker hidden at rest")
 require(patrol_cpp, "SetActorHiddenInGame(true)", "patrol hidden at rest")
 for light in ["BeaconLightLeft", "BeaconLightRight", "SearchLamp"]:
     require(patrol_cpp, f"{light}->SetVisibility(false, true)", f"{light} cleared outside incident")
 
-# Source work must preserve the locked Roadmap truth until real Win64/runtime
-# acceptance closes one of the remaining hardware-dependent items.
-require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock")
-require(roadmap, "📊 Overall progress", "roadmap dashboard heading")
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+    "ROADMAP-96.2%25",
+    "DONE-125%2F130",
+    "| **125** | **5** | **130** | **96.2%** |",
+):
+    require(roadmap, token, "SWIR SVG-only roadmap presentation")
 checked = len(re.findall(r"^\s*- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \]", roadmap, flags=re.MULTILINE))
 if (checked, open_items, checked + open_items) != (125, 5, 130):
-    raise AssertionError(
-        f"roadmap truth changed unexpectedly: checked={checked}, open={open_items}, total={checked + open_items}"
-    )
-require(roadmap, "███████████████████░ 96.2%", "roadmap progress bar")
+    raise AssertionError(f"roadmap truth changed unexpectedly: checked={checked}, open={open_items}, total={checked + open_items}")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    raise AssertionError("roadmap must embed exactly one progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
 for text, label in [(playtest, "playtest"), (changelog, "changelog")]:
     require(text, "0.1.26", f"{label} milestone version")
@@ -143,4 +143,4 @@ print("- marker and patrol support independently project to WorldStatic while ig
 print("- marker stays non-colliding, declutters during SEARCH and disappears outside traffic control")
 print("- patrol support synchronizes real beacon lights and enables a dedicated SEARCH scene lamp")
 print("- 0.1.25 physical roadside behavior remains the regression baseline")
-print("- roadmap remains truthfully locked at 125/130 (96.2%); no Win64/demo claim is inferred")
+print("- roadmap remains truthfully locked at 125/130 (96.2%) with SVG-only presentation; no Win64/demo claim is inferred")
