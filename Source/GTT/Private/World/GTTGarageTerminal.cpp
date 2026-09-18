@@ -9,8 +9,29 @@
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTVehicleBase.h"
+#include "World/GTTDayNightCycle.h"
 #include "World/GTTGarageFleetSubsystem.h"
 #include "World/GTTGarageSlotTerminal.h"
+#include "World/GTTWorkshopHoursPolicy.h"
+
+namespace
+{
+    const AGTTDayNightCycle* FindGarageWorldClock(UWorld* World)
+    {
+        if (!World) return nullptr;
+        for (TActorIterator<AGTTDayNightCycle> It(World); It; ++It)
+        {
+            if (IsValid(*It)) return *It;
+        }
+        return nullptr;
+    }
+
+    bool IsGarageWorkshopOpen(UWorld* World)
+    {
+        const AGTTDayNightCycle* Clock = FindGarageWorldClock(World);
+        return !Clock || GTTWorkshopHoursPolicy::IsOpen(Clock->GetTimeOfDayHours());
+    }
+}
 
 AGTTGarageTerminal::AGTTGarageTerminal()
 {
@@ -75,16 +96,33 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
     if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
     {
         const int32 WorkshopHoldCount = Fleet->GetWorkshopHoldCount(FleetSlotCount);
+        const bool bWorkshopOpen = IsGarageWorkshopOpen(GetWorld());
+        const AGTTDayNightCycle* Clock = FindGarageWorldClock(GetWorld());
         FString Summary = Fleet->BuildFleetSummary(FleetSlotCount);
         Summary += TEXT("\nUse a numbered bay to dispatch a vehicle. Dispatch sets it ACTIVE and never repairs damage.");
+        Summary += FString::Printf(
+            TEXT("\nWORKSHOP %s | hours %s%s."),
+            bWorkshopOpen ? TEXT("OPEN") : TEXT("CLOSED"),
+            *GTTWorkshopHoursPolicy::GetScheduleText(),
+            Clock ? *FString::Printf(TEXT(" | %s"), *Clock->GetClockText()) : TEXT(" | world clock unavailable: fail-open"));
         if (WorkshopHoldCount > 0)
         {
             Summary += FString::Printf(
                 TEXT("\nWORKSHOP HOLD: %d vehicle%s cannot be recalled until repair/service clears TOW/IMMOBILE status."),
                 WorkshopHoldCount,
                 WorkshopHoldCount == 1 ? TEXT("") : TEXT("s"));
+            if (!bWorkshopOpen)
+            {
+                Summary += FString::Printf(
+                    TEXT(" Emergency recovery remains available after hours at +%d%%; ordinary repair/refuel waits for opening."),
+                    GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent);
+            }
         }
-        Economy->PushMessage(Summary, 9.0f);
+        else if (!bWorkshopOpen)
+        {
+            Summary += TEXT("\nOrdinary workshop repair/refuel resumes at opening; garage dispatch remains available for serviceable vehicles.");
+        }
+        Economy->PushMessage(Summary, 10.0f);
         return;
     }
 
@@ -105,9 +143,11 @@ FText AGTTGarageTerminal::GetInteractionText_Implementation() const
     }
 
     return FText::FromString(FString::Printf(
-        TEXT("Garage office: inspect fleet %d/%d | workshop holds %d | register nearby vehicle ($%d)"),
+        TEXT("Garage office: fleet %d/%d | holds %d | workshop %s %s | register ($%d)"),
         OwnedCount,
         FleetSlotCount,
         WorkshopHoldCount,
+        IsGarageWorkshopOpen(GetWorld()) ? TEXT("OPEN") : TEXT("CLOSED"),
+        *GTTWorkshopHoursPolicy::GetScheduleText(),
         RegistrationCost));
 }
