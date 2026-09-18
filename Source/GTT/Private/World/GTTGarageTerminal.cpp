@@ -97,7 +97,7 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
 
     const bool bWorkshopOpen = IsGarageWorkshopOpen(GetWorld());
     UGTTWorkshopRepairQueueSubsystem* RepairQueue = GetWorld()->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>();
-    if (!bWorkshopOpen && RepairQueue && !RepairQueue->HasQueuedRepair())
+    if (!bWorkshopOpen && RepairQueue && RepairQueue->GetQueuedRepairCount() < RepairQueue->GetQueueCapacity())
     {
         FString QueueSummary;
         if (RepairQueue->TryQueueNearestEligibleNativeRoadVehicle(GetActorLocation(), VehicleSearchRadius, QueueSummary))
@@ -125,11 +125,17 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
         {
             Summary += TEXT("\n");
             Summary += RepairQueue->GetQueueStatusText().ToString();
-            Summary += TEXT(" | exact vehicle must be parked at the workshop; payment occurs only when service executes.");
+            Summary += TEXT(" | each appointment keeps its own exact vehicle ID and locked quote; payment occurs only when that vehicle is serviced.");
+            if (!bWorkshopOpen && RepairQueue->GetQueuedRepairCount() < RepairQueue->GetQueueCapacity())
+            {
+                Summary += TEXT(" Interact again with another eligible damaged vehicle nearby to fill the next appointment slot.");
+            }
         }
         else if (!bWorkshopOpen)
         {
-            Summary += TEXT("\nAfter-hours garage desk can reserve one nearby damaged/mobile native road vehicle for the next opening with an exact-ID locked quote and no pre-charge.");
+            Summary += FString::Printf(
+                TEXT("\nAfter-hours garage desk can reserve up to %d damaged/mobile native road vehicles for deterministic next-opening service slots, each with an exact-ID locked quote and no pre-charge."),
+                RepairQueue ? RepairQueue->GetQueueCapacity() : UGTTWorkshopRepairQueueSubsystem::MaxQueuedRepairs);
         }
 
         if (WorkshopHoldCount > 0)
@@ -141,13 +147,13 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
             if (!bWorkshopOpen)
             {
                 Summary += FString::Printf(
-                    TEXT(" Emergency recovery remains available after hours at +%d%%; hard holds never enter the deferred queue."),
+                    TEXT(" Emergency recovery remains available after hours at +%d%%; hard holds never enter the deferred appointment book."),
                     GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent);
             }
         }
         else if (!bWorkshopOpen)
         {
-            Summary += TEXT("\nOrdinary repair/refuel waits for opening; garage dispatch remains available for serviceable vehicles.");
+            Summary += TEXT("\nOrdinary repair/refuel waits for its appointment; garage dispatch remains available for serviceable vehicles.");
         }
         Economy->PushMessage(Summary, 10.0f);
         return;
@@ -160,7 +166,8 @@ FText AGTTGarageTerminal::GetInteractionText_Implementation() const
 {
     int32 OwnedCount = 0;
     int32 WorkshopHoldCount = 0;
-    bool bQueuePending = false;
+    int32 QueuedCount = 0;
+    int32 QueueCapacity = UGTTWorkshopRepairQueueSubsystem::MaxQueuedRepairs;
     if (GetWorld())
     {
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
@@ -170,16 +177,18 @@ FText AGTTGarageTerminal::GetInteractionText_Implementation() const
         }
         if (const UGTTWorkshopRepairQueueSubsystem* RepairQueue = GetWorld()->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>())
         {
-            bQueuePending = RepairQueue->HasQueuedRepair();
+            QueuedCount = RepairQueue->GetQueuedRepairCount();
+            QueueCapacity = RepairQueue->GetQueueCapacity();
         }
     }
 
     return FText::FromString(FString::Printf(
-        TEXT("Garage office: fleet %d/%d | holds %d | queue %s | workshop %s %s | register ($%d)"),
+        TEXT("Garage office: fleet %d/%d | holds %d | appointments %d/%d | workshop %s %s | register ($%d)"),
         OwnedCount,
         FleetSlotCount,
         WorkshopHoldCount,
-        bQueuePending ? TEXT("1 QUEUED") : TEXT("EMPTY"),
+        QueuedCount,
+        QueueCapacity,
         IsGarageWorkshopOpen(GetWorld()) ? TEXT("OPEN") : TEXT("CLOSED"),
         *GTTWorkshopHoursPolicy::GetScheduleText(),
         RegistrationCost));
