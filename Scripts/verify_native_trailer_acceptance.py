@@ -31,7 +31,10 @@ required = [
     (playtest, 'Scenario D — Jackknife safety'),
     (changelog, '0.0.72'),
     (roadmap, '<!-- SWIR-ROADMAP-STANDARD:v1 -->'),
+    (roadmap, '<!-- ROADMAP-PROGRESS:START -->'),
+    (roadmap, '<!-- ROADMAP-PROGRESS:END -->'),
     (roadmap, '📊 Overall progress'),
+    (roadmap, '../assets/readme/progress-mini.svg'),
 ]
 missing = [token for text, token in required if token not in text]
 if missing:
@@ -44,9 +47,14 @@ remaining = total - done
 if (done, total, remaining) != (125, 130, 5):
     raise SystemExit(f'Roadmap checkbox drift: done={done} total={total} remaining={remaining}; expected 125/130/5')
 
-for token in ['ROADMAP-96.2%25', 'DONE-125%2F130', '███████████████████░ 96.2%', '| **125** | **5** | **130** | **96.2%** |']:
+for token in ['ROADMAP-96.2%25', 'DONE-125%2F130', '| **125** | **5** | **130** | **96.2%** |']:
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
+progress_block = roadmap.split('<!-- ROADMAP-PROGRESS:START -->', 1)[1].split('<!-- ROADMAP-PROGRESS:END -->', 1)[0]
+if progress_block.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap progress block must embed exactly one canonical progress-mini.svg.')
+if re.search(r'[█▓▒░]{3,}', progress_block):
+    raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
 if '- [ ] Authored skeletal trailer wheel assets and final hitch sockets' not in roadmap:
     raise SystemExit('Trailer authored-assets checkbox must remain open without real UE-authored asset/runtime evidence.')
@@ -54,4 +62,4 @@ if '- [ ] Authored skeletal trailer wheel assets and final hitch sockets' not in
 if 'JackknifeDetachYawDeg = 76.0f' not in header or 'InvalidGraceSeconds = 0.75f' not in header:
     raise SystemExit('Native trailer jackknife/fail-safe thresholds drifted unexpectedly.')
 
-print('[OK] Native trailer authored-rig contract, hitch safety, fail-safe evidence and roadmap lock verified.')
+print('[OK] Native trailer authored-rig contract, hitch safety, fail-safe evidence and SVG-only roadmap lock verified.')
