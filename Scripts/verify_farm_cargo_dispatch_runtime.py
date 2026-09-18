@@ -25,6 +25,7 @@ roadside_h = read("Source/GTT/Public/Vehicles/GTTRoadsideRecoverySubsystem.h")
 roadside_cpp = read("Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp")
 smoke = read("Scripts/smoke_test_windows.ps1")
 evaluator = read("Scripts/evaluate_farm_cargo_dispatch_runtime.ps1")
+demo_gate = read("Scripts/evaluate_demo_candidate.ps1")
 workflow = read(".github/workflows/win64-package-evidence.yml")
 roadmap = read("Docs/ROADMAP.md")
 readme = read("README.md")
@@ -98,6 +99,21 @@ for token in (
     require(evaluator, token, "0.1.38 evaluator")
 
 for token in (
+    "FARM_CARGO_DISPATCH_RUNTIME.json", "$farmCargoDispatch.result -ne 'PASS'",
+    "gtt.farm-cargo-dispatch-runtime.v1", "farm_cargo_dispatch_runtime='PASS'",
+    "farm_cargo_dispatch_patch_locked_quote", "farm_cargo_dispatch_patch_eta_advanced",
+    "farm_cargo_dispatch_patch_cancel_no_charge", "farm_cargo_dispatch_tow_locked_quote",
+    "farm_cargo_dispatch_tow_eta_advanced", "farm_cargo_dispatch_tow_cancel_no_charge",
+    "farm_cargo_dispatch_patch_charge_matched", "farm_cargo_dispatch_exact_vehicle",
+    "farm_cargo_dispatch_wrong_vehicle_rejected", "farm_cargo_dispatch_payout_delta",
+):
+    require(demo_gate, token, "demo technical gate")
+gate_schema_match = re.search(r"(?m)^\s*schema=(\d+)\s*$", demo_gate)
+assert gate_schema_match and int(gate_schema_match.group(1)) >= 11, "demo technical gate must be schema 11+ for roadside dispatch evidence"
+require(demo_gate, "$farmCargoDispatch", "demo technical gate exact-SHA chain")
+assert "$farmCargoDispatch))" in demo_gate or "$farmCargoDispatch)" in demo_gate, "dispatch manifest must participate in exact-SHA evidence checks"
+
+for token in (
     "default: '0.1.38'", "MinimumAliveSeconds 324", "LaunchTimeoutSeconds 350",
     "evaluate_farm_cargo_dispatch_runtime.ps1", "FARM_CARGO_DISPATCH_RUNTIME.json",
 ):
@@ -141,9 +157,9 @@ assert scenarios >= 72, f"PLAYTEST_0.1.38.md must contain at least 72 numbered s
 changelog = read("CHANGELOG.d/0.1.38.md")
 for token in (
     "GTT 0.1.38", "locked quote", "live ETA", "cancellation", "FARM_CARGO_DISPATCH_RUNTIME.json",
-    "125/130", "96.2%", "does not prove",
+    "DEMO_TECHNICAL_GATE.json", "schema 11", "125/130", "96.2%", "does not prove",
 ):
     assert token.lower() in changelog.lower(), f"0.1.38 changelog missing {token!r}"
 
-print("GTT 0.1.38 roadside dispatch + Farm Cargo packaged evidence source contract: PASS")
+print("GTT 0.1.38 roadside dispatch + Farm Cargo packaged evidence + demo technical gate source contract: PASS")
 print(f"Roadmap remains {done}/{len(checks)} = {done / len(checks) * 100:.1f}% until real Win64/Chaos/trailer/visual evidence exists")

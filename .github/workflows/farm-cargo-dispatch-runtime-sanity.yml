@@ -10,6 +10,7 @@ on:
       - 'Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'
       - 'Scripts/smoke_test_windows.ps1'
       - 'Scripts/evaluate_farm_cargo_dispatch_runtime.ps1'
+      - 'Scripts/evaluate_demo_candidate.ps1'
       - 'Scripts/verify_farm_cargo_dispatch_runtime.py'
       - 'Scripts/verify_farm_cargo_emergency_patch_runtime.py'
       - 'Scripts/generate_progress_svg.py'
@@ -28,6 +29,7 @@ on:
       - 'Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'
       - 'Scripts/smoke_test_windows.ps1'
       - 'Scripts/evaluate_farm_cargo_dispatch_runtime.ps1'
+      - 'Scripts/evaluate_demo_candidate.ps1'
       - 'Scripts/verify_farm_cargo_dispatch_runtime.py'
       - 'Scripts/verify_farm_cargo_emergency_patch_runtime.py'
       - 'Scripts/generate_progress_svg.py'
@@ -50,7 +52,7 @@ jobs:
         with: { python-version: '3.12' }
       - name: Preserve 0.1.35 emergency-patch runtime guarantees
         run: python3 Scripts/verify_farm_cargo_emergency_patch_runtime.py
-      - name: Verify 0.1.38 dispatch runtime evidence contract
+      - name: Verify 0.1.38 dispatch runtime + demo technical gate contract
         run: python3 Scripts/verify_farm_cargo_dispatch_runtime.py
       - name: Verify deterministic SWIR progress assets remain current
         run: python3 Scripts/generate_progress_svg.py --check

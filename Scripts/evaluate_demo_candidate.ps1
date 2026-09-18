@@ -19,8 +19,9 @@ $trailerPath=Join-Path $PackageDirectory 'NATIVE_TRAILER_RUNTIME.json'
 $farmCargoPath=Join-Path $PackageDirectory 'FARM_CARGO_RUNTIME.json'
 $farmCargoRecoveryPath=Join-Path $PackageDirectory 'FARM_CARGO_RECOVERY_RUNTIME.json'
 $farmCargoBreakdownPath=Join-Path $PackageDirectory 'FARM_CARGO_BREAKDOWN_RUNTIME.json'
+$farmCargoDispatchPath=Join-Path $PackageDirectory 'FARM_CARGO_DISPATCH_RUNTIME.json'
 
-foreach($p in @($buildPath,$smokePath,$scenarioPath,$gameplayPath,$nativePath,$drivePath,$trailerPath,$farmCargoPath,$farmCargoRecoveryPath,$farmCargoBreakdownPath,$RuntimeLog)){
+foreach($p in @($buildPath,$smokePath,$scenarioPath,$gameplayPath,$nativePath,$drivePath,$trailerPath,$farmCargoPath,$farmCargoRecoveryPath,$farmCargoBreakdownPath,$farmCargoDispatchPath,$RuntimeLog)){
     if(-not(Test-Path $p)){throw "Required demo evidence missing: $p"}
 }
 
@@ -34,6 +35,7 @@ $trailer=Get-Content -Raw $trailerPath|ConvertFrom-Json
 $farmCargo=Get-Content -Raw $farmCargoPath|ConvertFrom-Json
 $farmCargoRecovery=Get-Content -Raw $farmCargoRecoveryPath|ConvertFrom-Json
 $farmCargoBreakdown=Get-Content -Raw $farmCargoBreakdownPath|ConvertFrom-Json
+$farmCargoDispatch=Get-Content -Raw $farmCargoDispatchPath|ConvertFrom-Json
 $log=Get-Content -Raw $RuntimeLog
 
 if($smoke.result -ne 'PASS'){throw 'Packaged runtime smoke did not PASS.'}
@@ -45,6 +47,7 @@ if($trailer.result -ne 'PASS'){throw 'Authored trailer runtime acceptance did no
 if($farmCargo.result -ne 'PASS'){throw 'Farm Cargo packaged runtime exercise did not PASS.'}
 if($farmCargoRecovery.result -ne 'PASS'){throw 'Farm Cargo save/load recovery runtime did not PASS.'}
 if($farmCargoBreakdown.result -ne 'PASS'){throw 'Farm Cargo emergency-patch/breakdown/tow recovery runtime did not PASS.'}
+if($farmCargoDispatch.result -ne 'PASS'){throw 'Farm Cargo roadside dispatch contract runtime did not PASS.'}
 if($build.platform -ne 'Win64'){throw 'Build evidence is not Win64.'}
 
 if($native.schema -ne 'gtt.native-chaos-runtime.v1'){throw "Native Chaos runtime schema mismatch: $($native.schema)"}
@@ -103,6 +106,19 @@ if([int]$farmCargoBreakdown.payout_delta -le 0 -or [int]$farmCargoBreakdown.carg
 if(-not $farmCargoBreakdown.stable_vehicle_id){throw 'Farm Cargo breakdown runtime did not report the stable physical vehicle identity.'}
 if([int]$farmCargoBreakdown.diagnostic_failure_count -ne 0){throw 'Farm Cargo breakdown runtime scenario reported diagnostic failures.'}
 
+if($farmCargoDispatch.schema -ne 'gtt.farm-cargo-dispatch-runtime.v1'){throw "Farm Cargo dispatch runtime schema mismatch: $($farmCargoDispatch.schema)"}
+foreach($field in @(
+    'patch_live_eta_advanced','patch_cancel_no_charge','tow_live_eta_advanced','tow_cancel_no_charge',
+    'patch_charge_matched','exact_vehicle_preserved','cargo_timer_continued','cargo_integrity_not_improved',
+    'wrong_vehicle_rejected','hill_handoff','final_handoff','final_save','authority_cleared'
+)){
+    if(-not $farmCargoDispatch.$field){throw "Farm Cargo dispatch runtime missing PASS gate: $field"}
+}
+if([int]$farmCargoDispatch.patch_locked_quote -le 0 -or [int]$farmCargoDispatch.tow_locked_quote -le 0 -or [int]$farmCargoDispatch.patch_rerequest_locked_quote -le 0){throw 'Farm Cargo dispatch runtime did not prove positive request-time locked quotes.'}
+if([int]$farmCargoDispatch.payout_delta -le 0 -or [int]$farmCargoDispatch.cargo_completed_runs_delta -ne 1 -or [int]$farmCargoDispatch.logistics_reputation_delta -le 0){throw 'Farm Cargo dispatch runtime did not prove one authoritative completion after cancellation/re-request.'}
+if(-not $farmCargoDispatch.stable_vehicle_id){throw 'Farm Cargo dispatch runtime did not report the stable physical vehicle identity.'}
+if([int]$farmCargoDispatch.diagnostic_failure_count -ne 0){throw 'Farm Cargo dispatch runtime scenario reported diagnostic failures.'}
+
 if($scenario.schema -ne 'gtt.demo-scenario.v11'){throw "Demo scenario schema mismatch: $($scenario.schema)"}
 if([int]$scenario.required_step_count -ne 33 -or $scenario.steps.Count -ne 33){throw 'Demo scenario does not contain the complete 33-step 0.0.94 evidence route.'}
 foreach($field in @('structural_handling_passed','structural_reload_handling_passed','structural_drive_recovery_passed','structural_drive_complete')){
@@ -110,7 +126,7 @@ foreach($field in @('structural_handling_passed','structural_reload_handling_pas
 }
 
 if($ExpectedGitSha -and $ExpectedGitSha -ne 'unknown' -and $build.git_sha -ne $ExpectedGitSha){throw "Build SHA mismatch: package=$($build.git_sha), expected=$ExpectedGitSha"}
-foreach($e in @($scenario,$gameplay,$native,$drive,$trailer,$farmCargo,$farmCargoRecovery,$farmCargoBreakdown)){
+foreach($e in @($scenario,$gameplay,$native,$drive,$trailer,$farmCargo,$farmCargoRecovery,$farmCargoBreakdown,$farmCargoDispatch)){
     if($e.git_sha -and $ExpectedGitSha -and $e.git_sha -ne $ExpectedGitSha){throw 'Runtime evidence SHA mismatch.'}
 }
 
@@ -143,9 +159,9 @@ if($RequireVisual){
     $visualStatus='PASS'
 }
 
-# Schema 10 adds mandatory packaged Farm Cargo emergency-patch continuity before the existing re-breakdown/tow route.
+# Schema 11 adds mandatory roadside dispatch contract continuity after the existing Farm Cargo patch/tow proof.
 $evidence=[ordered]@{
-    schema=10
+    schema=11
     game='Grand Theft Tractor'
     result='PASS'
     git_sha=$build.git_sha
@@ -204,8 +220,23 @@ $evidence=[ordered]@{
     farm_cargo_breakdown_wrong_vehicle_rejected=$farmCargoBreakdown.wrong_vehicle_rejected_after_tow
     farm_cargo_breakdown_timer_continued=$farmCargoBreakdown.timer_continued
     farm_cargo_breakdown_damage_preserved=$farmCargoBreakdown.damage_preserved
+    farm_cargo_dispatch_runtime='PASS'
+    farm_cargo_dispatch_schema=$farmCargoDispatch.schema
+    farm_cargo_dispatch_vehicle_id=$farmCargoDispatch.stable_vehicle_id
+    farm_cargo_dispatch_patch_locked_quote=$farmCargoDispatch.patch_locked_quote
+    farm_cargo_dispatch_patch_eta_advanced=$farmCargoDispatch.patch_live_eta_advanced
+    farm_cargo_dispatch_patch_cancel_no_charge=$farmCargoDispatch.patch_cancel_no_charge
+    farm_cargo_dispatch_tow_locked_quote=$farmCargoDispatch.tow_locked_quote
+    farm_cargo_dispatch_tow_eta_advanced=$farmCargoDispatch.tow_live_eta_advanced
+    farm_cargo_dispatch_tow_cancel_no_charge=$farmCargoDispatch.tow_cancel_no_charge
+    farm_cargo_dispatch_patch_rerequest_quote=$farmCargoDispatch.patch_rerequest_locked_quote
+    farm_cargo_dispatch_patch_charge_matched=$farmCargoDispatch.patch_charge_matched
+    farm_cargo_dispatch_exact_vehicle=$farmCargoDispatch.exact_vehicle_preserved
+    farm_cargo_dispatch_wrong_vehicle_rejected=$farmCargoDispatch.wrong_vehicle_rejected
+    farm_cargo_dispatch_payout_delta=$farmCargoDispatch.payout_delta
+    farm_cargo_dispatch_reputation_delta=$farmCargoDispatch.logistics_reputation_delta
     visual_acceptance=$visualStatus
     evaluated_utc=(Get-Date).ToUniversalTime().ToString('o')
 }
 $evidence|ConvertTo-Json -Depth 8|Set-Content -Encoding UTF8 (Join-Path $PackageDirectory 'DEMO_TECHNICAL_GATE.json')
-Write-Host "[GTT] Demo technical evidence gate: PASS (schema 10 / scenario v11 / drivetrain PASS / authored trailer PASS / Farm Cargo runtime + save/load + emergency patch + re-breakdown/tow PASS / native Chaos telemetry PASS / recovery=$recoveryStatus)"
+Write-Host "[GTT] Demo technical evidence gate: PASS (schema 11 / scenario v11 / drivetrain PASS / authored trailer PASS / Farm Cargo runtime + save/load + emergency patch + re-breakdown/tow + roadside dispatch contract PASS / native Chaos telemetry PASS / recovery=$recoveryStatus)"
