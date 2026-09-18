@@ -141,7 +141,7 @@ require(read("Scripts/generate_progress_svg.py"), "SWIR-PROGRESS-SVG-PRO:v1", "p
 
 for token in (
     "GTT 0.1.40", "dispatch persistence", "SaveGame", "locked quote", "ETA", "Wanted",
-    "single charge", "schema 12", "does not prove",
+    "single-charge", "schema 12", "does not prove",
 ):
     assert token.lower() in changelog.lower(), f"0.1.40 changelog missing {token!r}"
 
