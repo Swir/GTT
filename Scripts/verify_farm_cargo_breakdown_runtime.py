@@ -107,16 +107,21 @@ def main() -> None:
         ".github/workflows/win64-package-evidence.yml",
         "evaluate_farm_cargo_breakdown_runtime.ps1",
         "FARM_CARGO_BREAKDOWN_RUNTIME.json",
-        "MinimumAliveSeconds 250",
-        "LaunchTimeoutSeconds 275",
     )
+    min_alive = re.search(r"smoke_test_windows\.ps1[^\n]*-MinimumAliveSeconds\s+(\d+)", workflow)
+    launch_timeout = re.search(r"smoke_test_windows\.ps1[^\n]*-LaunchTimeoutSeconds\s+(\d+)", workflow)
+    if not min_alive or int(min_alive.group(1)) < 250:
+        raise AssertionError("Win64 evidence window regressed below the 0.1.33 250-second minimum")
+    if not launch_timeout or int(launch_timeout.group(1)) < 275:
+        raise AssertionError("Win64 evidence timeout regressed below the 0.1.33 275-second minimum")
+
     demo_gate = require(
         "Scripts/evaluate_demo_candidate.ps1",
         "FARM_CARGO_BREAKDOWN_RUNTIME.json",
         "gtt.farm-cargo-breakdown-runtime.v1",
         "farm_cargo_breakdown_runtime='PASS'",
     )
-    _ = workflow, demo_gate
+    _ = demo_gate
 
     roadmap = text("Docs/ROADMAP.md")
     if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
