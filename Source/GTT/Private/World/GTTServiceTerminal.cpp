@@ -151,12 +151,14 @@ FText AGTTServiceTerminal::GetWorkshopStatusText() const
         return FText::FromString(FString::Printf(TEXT("Workshop OPEN | hours %s | world clock unavailable: fail-open"), *Schedule));
     }
 
-    const bool bOpen = GTTWorkshopHoursPolicy::IsOpen(Clock->GetTimeOfDayHours());
+    if (GTTWorkshopHoursPolicy::IsOpen(Clock->GetTimeOfDayHours()))
+    {
+        return FText::FromString(FString::Printf(TEXT("Workshop OPEN | %s | hours %s"), *Clock->GetClockText(), *Schedule));
+    }
+
     return FText::FromString(FString::Printf(
-        bOpen ? TEXT("Workshop OPEN | %s | hours %s") : TEXT("Workshop CLOSED | %s | hours %s | WORKSHOP HOLD emergency service +%d%%"),
-        *Clock->GetClockText(),
-        *Schedule,
-        GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent));
+        TEXT("Workshop CLOSED | %s | hours %s | WORKSHOP HOLD emergency service +%d%%"),
+        *Clock->GetClockText(), *Schedule, GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent));
 }
 
 int32 AGTTServiceTerminal::GetNativeRoadRepairQuote(const AGTTRoadVehicleNativePawn* Vehicle) const
@@ -303,10 +305,18 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
             Economy->PushMessage(TEXT("Workshop: Native Fieldmaster state refresh failed; payment returned."));
             return;
         }
-        Economy->PushMessage(FString::Printf(
-            bAfterHoursEmergency ? TEXT("%s emergency recovery service complete for $%d (+%d%% after-hours); Native Chaos state synchronized.") : TEXT("%s repaired and refuelled for $%d; Native Chaos state synchronized."),
-            *Native->GetVehicleDisplayName().ToString(), TotalCost,
-            GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent), 6.0f);
+        if (bAfterHoursEmergency)
+        {
+            Economy->PushMessage(FString::Printf(
+                TEXT("%s emergency recovery service complete for $%d (+%d%% after-hours); Native Chaos state synchronized."),
+                *Native->GetVehicleDisplayName().ToString(), TotalCost,
+                GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent), 6.0f);
+        }
+        else
+        {
+            Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled for $%d; Native Chaos state synchronized."),
+                *Native->GetVehicleDisplayName().ToString(), TotalCost), 5.0f);
+        }
         if (GameMode) GameMode->SaveProgress();
         return;
     }
@@ -329,10 +339,17 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     if (!Economy->SpendCash(TotalCost, FString::Printf(TEXT("Workshop service - $%d"), TotalCost))) return;
     Vehicle->RepairVehicle(100000.0f);
     Vehicle->RefuelVehicle(100000.0f);
-    Economy->PushMessage(FString::Printf(
-        bAfterHoursEmergency ? TEXT("%s emergency recovery service complete for $%d (+%d%% after-hours).") : TEXT("%s repaired and refuelled for $%d."),
-        *Vehicle->GetVehicleDisplayName().ToString(), TotalCost,
-        GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent), 6.0f);
+    if (bAfterHoursEmergency)
+    {
+        Economy->PushMessage(FString::Printf(TEXT("%s emergency recovery service complete for $%d (+%d%% after-hours)."),
+            *Vehicle->GetVehicleDisplayName().ToString(), TotalCost,
+            GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent), 6.0f);
+    }
+    else
+    {
+        Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled for $%d."),
+            *Vehicle->GetVehicleDisplayName().ToString(), TotalCost), 5.0f);
+    }
     if (GameMode) GameMode->SaveProgress();
 }
 
@@ -395,7 +412,11 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
             bWorkshopHold && !bWorkshopOpen ? TEXT(" emergency recovery") : TEXT("")));
     }
 
-    return FText::FromString(FString::Printf(TEXT("Workshop %s | inspect + repair nearby vehicle"), bWorkshopOpen ? TEXT("OPEN") : *FString::Printf(TEXT("CLOSED (%s)"), *WorkshopSchedule)));
+    if (bWorkshopOpen)
+    {
+        return FText::FromString(TEXT("Workshop OPEN | inspect + repair nearby vehicle"));
+    }
+    return FText::FromString(FString::Printf(TEXT("Workshop CLOSED (%s) | hard WORKSHOP HOLD emergency service only"), *WorkshopSchedule));
 }
 
 AGTTVehicleBase* AGTTServiceTerminal::FindNearestVehicle() const
