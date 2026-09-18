@@ -28,6 +28,15 @@ def parse_number(source: str, name: str) -> float:
     return float(match.group(1))
 
 
+def require_readme_milestone_at_least(readme: str, minimum=(0, 1, 43)) -> None:
+    match = re.search(r"Current development milestone:\s*\*\*(\d+)\.(\d+)\.(\d+)", readme)
+    if not match:
+        raise AssertionError("README current development milestone is missing or unparsable")
+    version = tuple(map(int, match.groups()))
+    if version < minimum:
+        raise AssertionError(f"README current development milestone regressed below 0.1.43: {version}")
+
+
 def main() -> int:
     policy = text("Source/GTT/Public/World/GTTWorkshopHoursPolicy.h")
     service_h = text("Source/GTT/Public/World/GTTServiceTerminal.h")
@@ -127,7 +136,7 @@ def main() -> int:
     require(roadmap, "| **125** | **5** | **130** | **96.2%** |", "authoritative roadmap count")
     require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "README v2 marker")
     require(readme, "assets/readme/progress-card.svg", "README progress card")
-    require(readme, "Current development milestone: **0.1.43", "README milestone sync")
+    require_readme_milestone_at_least(readme)
     require(readme, "## 🔎 Search Keywords", "README search keywords")
 
     # SWIR Visual Report v3 stays SVG-only; no retired character meter may return.

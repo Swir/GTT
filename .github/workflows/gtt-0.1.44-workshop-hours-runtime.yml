@@ -1,0 +1,47 @@
+name: GTT 0.1.44 packaged workshop hours sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/**' ]
+    paths:
+      - 'Source/GTT/Public/Core/GTTWorkshopHoursRuntimeEvidenceSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopHoursRuntimeEvidenceSubsystem.cpp'
+      - 'Source/GTT/Public/World/GTTWorkshopHoursPolicy.h'
+      - 'Source/GTT/Public/World/GTTServiceTerminal.h'
+      - 'Source/GTT/Private/World/GTTServiceTerminal.cpp'
+      - 'Scripts/smoke_test_windows.ps1'
+      - 'Scripts/evaluate_workshop_hours_runtime.ps1'
+      - 'Scripts/promote_demo_gate_workshop_hours.ps1'
+      - 'Scripts/verify_workshop_hours_runtime.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - 'Docs/PLAYTEST_0.1.44.md'
+      - 'CHANGELOG.d/0.1.44.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'assets/readme/progress-*.svg'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.1.43 workshop-hours gameplay foundation
+        run: python Scripts/verify_workshop_hours_emergency_service.py
+      - name: Verify 0.1.42 packaged workshop recovery prerequisite
+        run: python Scripts/verify_farm_cargo_workshop_recovery_runtime.py
+      - name: Verify 0.1.44 packaged workshop-hours evidence contract
+        run: python Scripts/verify_workshop_hours_runtime.py
+      - name: Verify deterministic SWIR progress presentation
+        run: python Scripts/generate_progress_svg.py --check
