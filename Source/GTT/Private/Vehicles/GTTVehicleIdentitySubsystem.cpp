@@ -93,7 +93,7 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
         {
             UsedIds.Add(Id);
         }
-        ObservedVehicles.Add(Vehicle);
+        ObservedVehicles.Add(TWeakObjectPtr<AGTTVehicleBase>(Vehicle));
     }
 
     // Existing observations retain their IDs. This prevents a later spawn whose actor name sorts
@@ -101,7 +101,8 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
     for (AGTTVehicleBase* Vehicle : Vehicles)
     {
         if (!Vehicle || Vehicle->IsOwnedByPlayer()) continue;
-        if (!ObservedVehicles.Contains(Vehicle)) continue;
+        const TWeakObjectPtr<AGTTVehicleBase> WeakVehicle(Vehicle);
+        if (!ObservedVehicles.Contains(WeakVehicle)) continue;
         const FName Id = Vehicle->GetPersistentVehicleId();
         if (!Id.IsNone()) UsedIds.Add(Id);
     }
@@ -109,7 +110,9 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
     int32 RepairedThisPass = 0;
     for (AGTTVehicleBase* Vehicle : Vehicles)
     {
-        if (!Vehicle || Vehicle->IsOwnedByPlayer() || ObservedVehicles.Contains(Vehicle)) continue;
+        if (!Vehicle || Vehicle->IsOwnedByPlayer()) continue;
+        const TWeakObjectPtr<AGTTVehicleBase> WeakVehicle(Vehicle);
+        if (ObservedVehicles.Contains(WeakVehicle)) continue;
 
         const FName BaseId = Vehicle->GetPersistentVehicleId();
         if (BaseId.IsNone())
@@ -117,14 +120,14 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
             UE_LOG(LogGTT, Warning,
                 TEXT("VEHICLE_IDENTITY event=OBSERVE result=SKIP actor=%s reason=missing_persistent_id"),
                 *Vehicle->GetName());
-            ObservedVehicles.Add(Vehicle);
+            ObservedVehicles.Add(WeakVehicle);
             continue;
         }
 
         if (!UsedIds.Contains(BaseId))
         {
             UsedIds.Add(BaseId);
-            ObservedVehicles.Add(Vehicle);
+            ObservedVehicles.Add(WeakVehicle);
             continue;
         }
 
@@ -134,12 +137,12 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
             UE_LOG(LogGTT, Error,
                 TEXT("VEHICLE_IDENTITY event=ASSIGN result=FAIL base=%s actor=%s"),
                 *BaseId.ToString(), *Vehicle->GetName());
-            ObservedVehicles.Add(Vehicle);
+            ObservedVehicles.Add(WeakVehicle);
             continue;
         }
 
         UsedIds.Add(UniqueId);
-        ObservedVehicles.Add(Vehicle);
+        ObservedVehicles.Add(WeakVehicle);
         ++CollisionRepairCount;
         ++RepairedThisPass;
         UE_LOG(LogGTT, Display,

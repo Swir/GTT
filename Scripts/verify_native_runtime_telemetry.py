@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 header = (ROOT / "Source/GTT/Public/Vehicles/GTTNativeRuntimeTelemetrySubsystem.h").read_text(encoding="utf-8")
@@ -74,7 +75,6 @@ for token in [
     "NATIVE_CHAOS_RUNTIME.json",
     "gtt.native-chaos-runtime.v1",
     "native_chaos_runtime='PASS'",
-    "schema=5",
     "max_valid_wheels",
     "max_contacts",
     "max_suspension_samples",
@@ -82,6 +82,11 @@ for token in [
     "command_samples",
 ]:
     assert token in demo_gate, f"demo technical gate missing telemetry token: {token}"
+
+# 0.1.15 introduced demo-gate schema 5. Later evidence milestones extend the gate, so guard
+# the schema floor rather than freezing the historical literal and creating false regressions.
+schema_match = re.search(r"(?m)^\s*schema=(\d+)\s*$", demo_gate)
+assert schema_match and int(schema_match.group(1)) >= 5, "demo technical gate schema regressed below 0.1.15 schema-5 floor"
 
 assert "python Scripts/verify_native_runtime_telemetry.py" in project_sanity
 assert "python Scripts/verify_native_runtime_telemetry.py" in dedicated
@@ -119,4 +124,4 @@ for token in [
 ]:
     assert token.lower() in changelog.lower(), f"0.1.15 changelog missing: {token}"
 
-print("GTT 0.1.15 Native Chaos runtime telemetry/drivetrain acceptance contract: OK")
+print(f"GTT 0.1.15 Native Chaos runtime telemetry/drivetrain acceptance contract: OK (current additive demo gate schema={schema_match.group(1)})")

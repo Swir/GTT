@@ -188,23 +188,27 @@ def main() -> None:
     )
     _ = persistence, authority
 
-    playtest = require(
-        "Docs/PLAYTEST_0.1.31.md",
+    playtest = read("Docs/PLAYTEST_0.1.31.md")
+    for token in (
         "actor recreation",
         "wrong vehicle",
         "loaded checkpoint",
         "relay checkpoint",
         "completion reload",
         "Win64",
-    )
-    changelog = require(
-        "CHANGELOG.d/0.1.31.md",
+    ):
+        if token.lower() not in playtest.lower():
+            raise AssertionError(f"0.1.31 playtest missing: {token}")
+
+    changelog = read("CHANGELOG.d/0.1.31.md")
+    for token in (
         "GTT 0.1.31",
         "Fleet Identity",
         "FARM_CARGO_RECOVERY_RUNTIME.json",
         "does not claim",
-    )
-    _ = playtest, changelog
+    ):
+        if token.lower() not in changelog.lower():
+            raise AssertionError(f"0.1.31 changelog missing: {token}")
 
     roadmap = read("Docs/ROADMAP.md")
     if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
