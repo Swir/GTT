@@ -1,0 +1,48 @@
+name: GTT 0.1.39 roadside dispatch persistence sanity
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "Source/GTT/Public/Vehicles/GTTRoadsideRecoverySubsystem.h"
+      - "Source/GTT/Private/Vehicles/GTTRoadsideRecoveryPersistence.cpp"
+      - "Source/GTT/Public/Vehicles/GTTRoadsideDispatchPersistenceSubsystem.h"
+      - "Source/GTT/Private/Vehicles/GTTRoadsideDispatchPersistenceSubsystem.cpp"
+      - "Source/GTT/Public/Save/GTTRoadsideDispatchSaveGame.h"
+      - "Scripts/verify_roadside_dispatch_persistence.py"
+      - "Docs/PLAYTEST_0.1.39.md"
+      - "CHANGELOG.d/0.1.39.md"
+      - "Docs/ROADMAP.md"
+      - "README.md"
+      - "assets/readme/**"
+  pull_request:
+    paths:
+      - "Source/GTT/Public/Vehicles/GTTRoadsideRecoverySubsystem.h"
+      - "Source/GTT/Private/Vehicles/GTTRoadsideRecoveryPersistence.cpp"
+      - "Source/GTT/Public/Vehicles/GTTRoadsideDispatchPersistenceSubsystem.h"
+      - "Source/GTT/Private/Vehicles/GTTRoadsideDispatchPersistenceSubsystem.cpp"
+      - "Source/GTT/Public/Save/GTTRoadsideDispatchSaveGame.h"
+      - "Scripts/verify_roadside_dispatch_persistence.py"
+      - "Docs/PLAYTEST_0.1.39.md"
+      - "CHANGELOG.d/0.1.39.md"
+      - "Docs/ROADMAP.md"
+      - "README.md"
+      - "assets/readme/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  roadside-dispatch-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify persistent roadside dispatch source contract
+        run: python Scripts/verify_roadside_dispatch_persistence.py
+      - name: Verify deterministic SWIR progress presentation
+        run: python Scripts/generate_progress_svg.py --check

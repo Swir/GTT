@@ -9,6 +9,14 @@ class AGTTRoadVehicleNativePawn;
 UENUM(BlueprintType)
 enum class EGTTRoadsideRecoveryMode : uint8 { None, EmergencyPatch, RoadsideAssistance, PoliceImpound };
 
+UENUM()
+enum class EGTTRoadsideRecoveryRestoreResult : uint8
+{
+    WaitingForVehicle,
+    Restored,
+    Rejected
+};
+
 USTRUCT()
 struct FGTTRoadsideRecoveryRuntime
 {
@@ -64,6 +72,18 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Recovery")
     FName GetPendingRecoveryVehicleId(const AGTTRoadVehicleNativePawn* Vehicle) const;
+
+    /**
+     * Rebuild one voluntary dispatch from a persistence checkpoint.
+     * WaitingForVehicle means the exact actor/driver is not ready yet and the caller should retry.
+     * Rejected means the checkpoint is invalid for the current world and must be discarded.
+     * This path never charges cash; normal completion remains the single charge authority.
+     */
+    EGTTRoadsideRecoveryRestoreResult RestorePendingRecoveryCheckpoint(
+        EGTTRoadsideRecoveryMode Mode,
+        FName PersistentVehicleId,
+        int32 LockedQuote,
+        float SecondsRemaining);
 
 private:
     bool IsRecoveryEligible(const AGTTRoadVehicleNativePawn* Vehicle) const;
