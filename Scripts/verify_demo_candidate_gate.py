@@ -60,9 +60,12 @@ for token in (
     assert token in workflow, f"missing Win64 candidate workflow token: {token}"
 
 # The historical gate first required a 0.1.14 candidate label. Later milestones
-# legitimately advance the workflow default, so require a parseable version at
-# least that new instead of pinning a stale exact string.
-version_match = re.search(r"(?ms)^\s*version:\s*\n(?:\s+.*\n)*?\s+default:\s*'([0-9]+\.[0-9]+\.[0-9]+)'", workflow)
+# legitimately advance the workflow default. Match only a semantic-version default
+# line; do not use an unbounded multiline expression over the whole workflow.
+version_match = re.search(
+    r"(?m)^\s+default:\s*'([0-9]+\.[0-9]+\.[0-9]+)'\s*$",
+    workflow,
+)
 assert version_match, "Win64 candidate workflow version default is not parseable"
 candidate_version = tuple(int(part) for part in version_match.group(1).split("."))
 assert candidate_version >= (0, 1, 14), (
