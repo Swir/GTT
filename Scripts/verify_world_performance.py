@@ -37,26 +37,30 @@ for rel, tokens in required.items():
         raise SystemExit(f"[FAIL] {rel} missing hooks: {missing}")
 
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
-if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-    raise SystemExit("[FAIL] SWIR roadmap style marker missing")
-if "ROADMAP-PROGRESS:START" not in roadmap or "ROADMAP-PROGRESS:END" not in roadmap:
-    raise SystemExit("[FAIL] roadmap progress block missing")
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "<!-- ROADMAP-PROGRESS:START -->", "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress", "../assets/readme/progress-mini.svg",
+):
+    if token not in roadmap:
+        raise SystemExit(f"[FAIL] roadmap structure/progress missing: {token}")
 if "- [x] Performance passes" not in roadmap:
     raise SystemExit("[FAIL] performance roadmap milestone not checked")
 
-checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M)
-done = sum(state == "x" for state in checks)
+checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M | re.IGNORECASE)
+done = sum(state.lower() == "x" for state in checks)
 total = len(checks)
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = "█" * filled + "░" * (20 - filled)
 expect = [
     f"ROADMAP-{percent:.1f}%25", f"DONE-{done}%2F{total}",
-    f"{bar} {percent:.1f}%", f"**{done}**", f"**{remaining}**", f"**{total}**", f"**{percent:.1f}%**"
+    f"| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |",
 ]
 missing = [token for token in expect if token not in roadmap]
 if missing:
     raise SystemExit(f"[FAIL] roadmap dashboard mismatch for {done}/{total}={percent:.1f}%: {missing}")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("[FAIL] roadmap must embed exactly one progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise SystemExit("[FAIL] legacy text/Unicode roadmap progress meter must not return")
 
-print(f"[OK] GTT 0.0.25 world performance milestone sane; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
+print(f"[OK] GTT 0.0.25 world performance milestone sane; roadmap {done}/{total} = {percent:.1f}% with SVG-only presentation.")
