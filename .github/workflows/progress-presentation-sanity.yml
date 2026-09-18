@@ -1,0 +1,28 @@
+name: SWIR Visual Report v3 presentation sanity
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'README.md'
+      - 'Docs/ROADMAP.md'
+      - 'assets/readme/progress-*.svg'
+      - 'Scripts/generate_progress_svg.py'
+      - 'Scripts/verify_progress_presentation.py'
+      - '.github/workflows/progress-presentation-sanity.yml'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  progress-presentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify deterministic generated SVG assets
+        run: python Scripts/generate_progress_svg.py --check
+      - name: Verify SVG-only maintained progress presentation
+        run: python Scripts/verify_progress_presentation.py
