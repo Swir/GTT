@@ -1,0 +1,24 @@
+name: GTT 0.1.37 roadside dispatch HUD sanity
+
+on:
+  push:
+    branches: [main, "milestone/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify authoritative dispatch HUD integration
+        run: python Scripts/verify_roadside_dispatch_hud.py
+      - name: Verify deterministic SWIR progress SVG remains current
+        run: python Scripts/generate_progress_svg.py --check
