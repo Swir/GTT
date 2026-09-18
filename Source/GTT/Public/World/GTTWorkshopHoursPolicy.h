@@ -25,6 +25,22 @@ namespace GTTWorkshopHoursPolicy
         return Normalized >= OpeningHour || Normalized < ClosingHour;
     }
 
+    inline void ResolveNextOpening(int32 CurrentDay, float CurrentHour, int32& OutDay, float& OutHour)
+    {
+        const float Normalized = NormalizeHour(CurrentHour);
+        OutHour = OpeningHour;
+        OutDay = Normalized < OpeningHour ? FMath::Max(1, CurrentDay) : FMath::Max(1, CurrentDay + 1);
+    }
+
+    inline float HoursUntilNextOpening(int32 CurrentDay, float CurrentHour)
+    {
+        int32 ReadyDay = CurrentDay;
+        float ReadyHour = OpeningHour;
+        ResolveNextOpening(CurrentDay, CurrentHour, ReadyDay, ReadyHour);
+        return FMath::Max(0.0f,
+            static_cast<float>(ReadyDay - CurrentDay) * 24.0f + ReadyHour - NormalizeHour(CurrentHour));
+    }
+
     inline int32 CalculateEmergencyRecoveryTotal(int32 BaseQuote)
     {
         const int32 SafeBase = FMath::Max(0, BaseQuote);

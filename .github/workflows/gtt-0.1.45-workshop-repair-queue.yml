@@ -1,0 +1,43 @@
+name: GTT 0.1.45 workshop repair queue sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/**' ]
+    paths:
+      - 'Source/GTT/Public/Save/GTTWorkshopQueueSaveGame.h'
+      - 'Source/GTT/Public/World/GTTWorkshopRepairQueueSubsystem.h'
+      - 'Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp'
+      - 'Source/GTT/Public/World/GTTWorkshopHoursPolicy.h'
+      - 'Source/GTT/Private/World/GTTGarageTerminal.cpp'
+      - 'Scripts/verify_workshop_repair_queue.py'
+      - 'Docs/PLAYTEST_0.1.45.md'
+      - 'CHANGELOG.d/0.1.45.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'assets/readme/progress-*.svg'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.1.43 workshop-hours gameplay foundation
+        run: python Scripts/verify_workshop_hours_emergency_service.py
+      - name: Verify 0.1.44 packaged workshop-hours evidence contract
+        run: python Scripts/verify_workshop_hours_runtime.py
+      - name: Verify 0.1.45 persistent workshop repair queue
+        run: python Scripts/verify_workshop_repair_queue.py
+      - name: Verify deterministic SWIR progress presentation
+        run: python Scripts/generate_progress_svg.py --check
