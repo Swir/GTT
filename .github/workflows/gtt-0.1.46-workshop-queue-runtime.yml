@@ -1,0 +1,44 @@
+name: GTT 0.1.46 packaged workshop queue sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/**' ]
+    paths:
+      - 'Source/GTT/Public/Core/GTTWorkshopQueueRuntimeEvidenceSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopQueueRuntimeEvidenceSubsystem.cpp'
+      - 'Source/GTT/Public/World/GTTWorkshopRepairQueueSubsystem.h'
+      - 'Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp'
+      - 'Scripts/smoke_test_windows.ps1'
+      - 'Scripts/evaluate_workshop_queue_runtime.ps1'
+      - 'Scripts/promote_demo_gate_workshop_queue.ps1'
+      - 'Scripts/verify_workshop_queue_runtime.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - 'Docs/PLAYTEST_0.1.46.md'
+      - 'CHANGELOG.d/0.1.46.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'assets/readme/progress-*.svg'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify persistent workshop queue gameplay foundation
+        run: python Scripts/verify_workshop_repair_queue.py
+      - name: Verify workshop-hours packaged prerequisite
+        run: python Scripts/verify_workshop_hours_runtime.py
+      - name: Verify 0.1.46 packaged queue evidence contract
+        run: python Scripts/verify_workshop_queue_runtime.py
+      - name: Verify deterministic SWIR progress presentation
+        run: python Scripts/generate_progress_svg.py --check
