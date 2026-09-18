@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.38 — packaged roadside dispatch + Farm Cargo continuity evidence**.
+Current development milestone: **0.1.40 — packaged roadside dispatch persistence + SaveGame continuity evidence**.
 
 ## What is GTT?
 
@@ -52,7 +52,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
-| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding and recovery checkpoints. |
+| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding and in-flight roadside dispatch checkpoints. |
 | 📻 Original radio framework | Four fictional stations with track rotation and project-owned/cleared audio workflow. |
 | 🎮 Input support | Keyboard/mouse plus controller mappings for movement, vehicles, interaction, combat, radio, roadside recovery and save/load. |
 
@@ -134,11 +134,15 @@ Milestone 0.1.37 wires that authoritative dispatch contract into the native vehi
 
 Milestone 0.1.38 adds a later packaged evidence route for those same production contracts. It accepts real Farm Cargo, binds the exact native Mulebox, observes a locked patch quote and decreasing ETA, cancels with no charge, repeats the same proof for tow, re-requests patch and verifies the final charge equals the locked quote, then rejects a decoy vehicle before completing Hill Farm and North Wood Yard through normal terminals. The generated runtime manifest is required by the Win64 evidence workflow but is not claimed until the packaged executable actually emits PASS evidence.
 
+Milestone 0.1.39 persists an in-flight voluntary PATCH/TOW as a small transactional SaveGame sidecar. It stores only the exact target `PersistentVehicleId`, locked quote, remaining ETA and conservative authorization-time replay guards; cash is still charged only by the production completion path. Restore waits for the exact vehicle + driver, rejects Wanted/conflicting/invalid state and preserves active Farm Cargo vehicle authority instead of transferring service to a substitute.
+
+Milestone 0.1.40 adds the packaged evidence contract for that persistence path. The deterministic route saves and reloads the primary world around real sidecar checkpoints, proves restored tow quote/ETA/exact-ID plus no-charge cancellation, proves Wanted invalidation fails closed without charge, restores a patch and proves one exact locked-quote debit, then finishes the same Farm Cargo contract through wrong-vehicle rejection, Hill Farm and North Wood Yard. The technical demo gate advances to schema 12, but this remains a future runtime requirement until the exact candidate runs on the qualifying Win64 + UE 5.8 runner.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
 
-A successful future packaged Farm Cargo candidate must produce `FARM_CARGO_RUNTIME.json` (`gtt.farm-cargo-runtime.v1`), `FARM_CARGO_RECOVERY_RUNTIME.json` (`gtt.farm-cargo-recovery-runtime.v1`), `FARM_CARGO_BREAKDOWN_RUNTIME.json` (`gtt.farm-cargo-breakdown-runtime.v2`) and `FARM_CARGO_DISPATCH_RUNTIME.json` (`gtt.farm-cargo-dispatch-runtime.v1`). These progressively prove exact-vehicle contract continuity, mid-route save/load + recreated-actor rebinding, emergency patch + exact-ID/body/timer continuity followed by deliberate re-breakdown/paid tow, and locked-quote/live-ETA/cancellation/re-request dispatch authority. **None of these manifests is claimed until the packaged Unreal executable actually runs and emits the required PASS evidence.**
+A successful future packaged Farm Cargo candidate must produce `FARM_CARGO_RUNTIME.json` (`gtt.farm-cargo-runtime.v1`), `FARM_CARGO_RECOVERY_RUNTIME.json` (`gtt.farm-cargo-recovery-runtime.v1`), `FARM_CARGO_BREAKDOWN_RUNTIME.json` (`gtt.farm-cargo-breakdown-runtime.v2`), `FARM_CARGO_DISPATCH_RUNTIME.json` (`gtt.farm-cargo-dispatch-runtime.v1`) and `FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json` (`gtt.farm-cargo-dispatch-persistence-runtime.v1`). These progressively prove exact-vehicle contract continuity, mid-route save/load + recreated-actor rebinding, emergency patch + exact-ID/body/timer continuity followed by deliberate re-breakdown/paid tow, locked-quote/live-ETA/cancellation/re-request dispatch authority, and dispatch-sidecar SaveGame restore/replay safety. **None of these manifests is claimed until the packaged Unreal executable actually runs and emits the required PASS evidence.**
 
 The roadmap graphics are deterministic outputs of `Scripts/generate_progress_svg.py`; `--check` verifies checklist mathematics, XML, bounded fill geometry, README/Roadmap embeds, SVG-only presentation and separation between roadmap completion and release readiness.
 

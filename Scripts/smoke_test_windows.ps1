@@ -20,7 +20,7 @@ $runtimeLog = Join-Path $PackageDirectory 'GTT_RUNTIME.log'
 if (Test-Path $runtimeLog) { Remove-Item -Force $runtimeLog }
 $arguments = @(
     '-unattended', '-nosplash', '-nullrhi', '-NoSound',
-    '-GTTDemoSmokeScenario', '-GTTFarmCargoRuntimeScenario', '-GTTFarmCargoRecoveryScenario', '-GTTFarmCargoBreakdownScenario', '-GTTFarmCargoDispatchScenario',
+    '-GTTDemoSmokeScenario', '-GTTFarmCargoRuntimeScenario', '-GTTFarmCargoRecoveryScenario', '-GTTFarmCargoBreakdownScenario', '-GTTFarmCargoDispatchScenario', '-GTTFarmCargoDispatchPersistenceScenario',
     '-log', "-abslog=$runtimeLog"
 )
 $startedUtc = (Get-Date).ToUniversalTime()
@@ -48,7 +48,7 @@ try {
         started_utc = $startedUtc.ToString('o'); observed_utc = (Get-Date).ToUniversalTime().ToString('o')
         runner = $env:RUNNER_NAME; git_sha = $env:GITHUB_SHA; null_rhi = $true; deterministic_demo_scenario = $true
         farm_cargo_runtime_scenario = $true; farm_cargo_recovery_runtime_scenario = $true; farm_cargo_breakdown_runtime_scenario = $true
-        farm_cargo_dispatch_runtime_scenario = $true
+        farm_cargo_dispatch_runtime_scenario = $true; farm_cargo_dispatch_persistence_runtime_scenario = $true
         runtime_log = 'GTT_RUNTIME.log'; visual_acceptance = 'NOT_PERFORMED'; terminated_by_smoke_test = $true
     }
     $evidencePath = Join-Path $PackageDirectory 'RUNTIME_SMOKE.json'

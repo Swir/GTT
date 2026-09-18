@@ -25,11 +25,20 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     virtual TStatId GetStatId() const override;
 
+    /**
+     * Packaged-evidence hook for 0.1.40 only. Re-arms the normal sidecar loader after an
+     * in-process SaveGame reload so the deterministic Win64 route can prove the same
+     * production checkpoint/restore path without manufacturing service or economy state.
+     * The hook is rejected unless -GTTFarmCargoDispatchPersistenceScenario is present.
+     */
+    bool ReloadCheckpointForRuntimeEvidence();
+
 private:
     void LoadCheckpointOnce();
     bool TryRestoreLoadedCheckpoint();
     void CaptureLiveCheckpoint();
     void ClearCheckpoint(const TCHAR* Reason);
+    void ResetInMemoryCheckpointState();
     int32 ReadPrimaryWorldRevision() const;
     int32 ReadPrimaryCash() const;
     bool IsCargoVehicleCompatible(FName VehicleId) const;

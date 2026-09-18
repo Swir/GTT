@@ -3,6 +3,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Save/GTTSaveGame.h"
 #include "Save/GTTRoadsideDispatchSaveGame.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
@@ -44,6 +46,36 @@ void UGTTRoadsideDispatchPersistenceSubsystem::Tick(float DeltaSeconds)
     }
 
     CaptureLiveCheckpoint();
+}
+
+bool UGTTRoadsideDispatchPersistenceSubsystem::ReloadCheckpointForRuntimeEvidence()
+{
+    if (!FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoDispatchPersistenceScenario")))
+    {
+        UE_LOG(LogGTT, Warning,
+            TEXT("NATIVE_ROADSIDE_DISPATCH_EVIDENCE_RELOAD result=REJECTED reason=EVIDENCE_FLAG_REQUIRED"));
+        return false;
+    }
+
+    if (!UGameplayStatics::DoesSaveGameExist(RoadsideDispatchSlot, SaveUserIndex))
+    {
+        UE_LOG(LogGTT, Warning,
+            TEXT("NATIVE_ROADSIDE_DISPATCH_EVIDENCE_RELOAD result=REJECTED reason=CHECKPOINT_MISSING"));
+        return false;
+    }
+
+    // Reset only transient reader/capture state. The sidecar stays on disk and remains the
+    // sole source for the next LoadCheckpointOnce call; no service/cash state is fabricated.
+    ResetInMemoryCheckpointState();
+    bCheckpointLoaded = false;
+    bCheckpointOnDisk = true;
+    CheckpointAccumulator = 0.0f;
+    LoadCheckpointOnce();
+
+    UE_LOG(LogGTT, Display,
+        TEXT("NATIVE_ROADSIDE_DISPATCH_EVIDENCE_RELOAD result=%s checkpoint_pending=%s charged=NO"),
+        bRestorePending ? TEXT("PASS") : TEXT("REJECTED"), bRestorePending ? TEXT("YES") : TEXT("NO"));
+    return bRestorePending;
 }
 
 void UGTTRoadsideDispatchPersistenceSubsystem::LoadCheckpointOnce()
@@ -251,14 +283,8 @@ void UGTTRoadsideDispatchPersistenceSubsystem::CaptureLiveCheckpoint()
         AuthorizedCash, AuthorizedPrimaryRevision, PrimaryRevision);
 }
 
-void UGTTRoadsideDispatchPersistenceSubsystem::ClearCheckpoint(const TCHAR* Reason)
+void UGTTRoadsideDispatchPersistenceSubsystem::ResetInMemoryCheckpointState()
 {
-    if (UGameplayStatics::DoesSaveGameExist(RoadsideDispatchSlot, SaveUserIndex))
-    {
-        UGameplayStatics::DeleteGameInSlot(RoadsideDispatchSlot, SaveUserIndex);
-    }
-
-    bCheckpointOnDisk = false;
     bRestorePending = false;
     RestoreMode = EGTTRoadsideRecoveryMode::None;
     RestoreVehicleId = NAME_None;
@@ -273,6 +299,17 @@ void UGTTRoadsideDispatchPersistenceSubsystem::ClearCheckpoint(const TCHAR* Reas
     LastSavedPrimaryRevision = INDEX_NONE;
     AuthorizedCash = INDEX_NONE;
     AuthorizedPrimaryRevision = 0;
+}
+
+void UGTTRoadsideDispatchPersistenceSubsystem::ClearCheckpoint(const TCHAR* Reason)
+{
+    if (UGameplayStatics::DoesSaveGameExist(RoadsideDispatchSlot, SaveUserIndex))
+    {
+        UGameplayStatics::DeleteGameInSlot(RoadsideDispatchSlot, SaveUserIndex);
+    }
+
+    bCheckpointOnDisk = false;
+    ResetInMemoryCheckpointState();
     UE_LOG(LogGTT, VeryVerbose,
         TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_CLEARED reason=%s"), Reason ? Reason : TEXT("UNKNOWN"));
 }
