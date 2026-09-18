@@ -55,13 +55,24 @@ for token in ["mud", "collision", "TireIntegrity", "NATIVE_TERRAIN_RESPONSE", "N
 if "Native Terrain Grip & Collision Consequences" not in changelog:
     raise SystemExit("0.0.59 changelog milestone title missing")
 
-if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-    raise SystemExit("SWIR roadmap style lock marker missing")
-completed = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+):
+    if token not in roadmap:
+        raise SystemExit("SWIR roadmap SVG-only presentation missing: " + token)
+completed = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 remaining = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
 if (completed, remaining, completed + remaining) != (125, 5, 130):
     raise SystemExit(f"Roadmap unexpectedly changed: {completed}/130 complete, {remaining} remaining")
-if "DONE-125%2F130" not in roadmap or "96.2%" not in roadmap or "███████████████████░ 96.2%" not in roadmap:
-    raise SystemExit("ROADMAP-PROGRESS dashboard is not synchronized with the checklist")
+if "DONE-125%2F130" not in roadmap or "ROADMAP-96.2%25" not in roadmap or "| **125** | **5** | **130** | **96.2%** |" not in roadmap:
+    raise SystemExit("ROADMAP-PROGRESS numeric dashboard is not synchronized with the checklist")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("Roadmap must embed exactly one canonical progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise SystemExit("Legacy text/Unicode roadmap progress meter must not return")
 
-print("Native terrain grip / collision consequences and roadmap honesty verified.")
+print("Native terrain grip / collision consequences and roadmap honesty verified with SVG-only progress presentation.")
