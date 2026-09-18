@@ -17,8 +17,10 @@ bool UGTTGarageFleetSubsystem::IsVehicleOnWorkshopHold(FName VehicleId) const
 int32 UGTTGarageFleetSubsystem::GetWorkshopHoldCount(int32 MaxSlots) const
 {
     const TArray<FGTTGarageFleetSnapshot> Fleet = BuildFleetSnapshot(FMath::Max(1, MaxSlots));
-    return Fleet.CountByPredicate([](const FGTTGarageFleetSnapshot& Snapshot)
+    int32 HoldCount = 0;
+    for (const FGTTGarageFleetSnapshot& Snapshot : Fleet)
     {
-        return GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot);
-    });
+        HoldCount += GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot) ? 1 : 0;
+    }
+    return HoldCount;
 }
