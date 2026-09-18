@@ -211,8 +211,15 @@ def main() -> None:
             raise AssertionError(f"0.1.31 changelog missing: {token}")
 
     roadmap = read("Docs/ROADMAP.md")
-    if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-        raise AssertionError("SWIR Roadmap v1 marker missing")
+    for token in (
+        "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+        "<!-- ROADMAP-PROGRESS:START -->",
+        "<!-- ROADMAP-PROGRESS:END -->",
+        "## 📊 Overall progress",
+        "../assets/readme/progress-mini.svg",
+    ):
+        if token not in roadmap:
+            raise AssertionError(f"SWIR Roadmap SVG-only structure missing: {token}")
     checks = re.findall(r"^- \[([ xX])\]", roadmap, flags=re.M)
     done = sum(1 for mark in checks if mark.lower() == "x")
     total = len(checks)
@@ -221,12 +228,14 @@ def main() -> None:
     for token in (
         "ROADMAP-96.2%25",
         "DONE-125%2F130",
-        "███████████████████░ 96.2%",
         "| **125** | **5** | **130** | **96.2%** |",
-        "../assets/readme/progress-mini.svg",
     ):
         if token not in roadmap:
             raise AssertionError(f"roadmap dashboard drift: missing {token}")
+    if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+        raise AssertionError("roadmap must embed exactly one progress-mini.svg")
+    if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+        raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
     readme = require(
         "README.md",
@@ -246,7 +255,7 @@ def main() -> None:
         f"loaded/relay save-load, actor recreation, wrong-vehicle rejection and completion reload; runtime={alive}s/{timeout}s."
     )
     print("[OK] Demo technical gate requires FARM_CARGO_RECOVERY_RUNTIME.json schema v1 and remains bound to exact Win64 build SHA.")
-    print("[OK] Roadmap remains 125/130 (96.2%); source CI does not close the five runtime/hardware blockers.")
+    print("[OK] Roadmap remains 125/130 (96.2%) with SVG-only presentation; source CI does not close the five runtime/hardware blockers.")
 
 
 if __name__ == "__main__":
