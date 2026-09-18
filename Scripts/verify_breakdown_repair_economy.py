@@ -32,7 +32,7 @@ checks={
 'bounded repair estimate':'1500' in sub_cpp and 'MechanicalLabor' in sub_cpp and 'TireParts' in sub_cpp and 'FuelCharge' in sub_cpp,
 'tow distance and damage':'DistanceMeters' in sub_cpp and 'DamageHandling' in sub_cpp and 'StructuralHandling' in sub_cpp,
 'workshop quote':'GetNativeRoadRepairQuote' in service_h and 'CalculateRepairEstimate' in service_cpp,
-'dynamic workshop charge':'const int32 TotalCost = GetNativeRoadRepairQuote(NativeRoad)' in service_cpp and 'SpendCash(TotalCost' in service_cpp,
+'dynamic workshop charge':all(x in service_cpp for x in ['PurchaseNativeRoadWorkshopService','const int32 TotalCost = GetNativeRoadRepairQuote(Vehicle)','SpendCash(TotalCost','ExpectedVehicleId','bCargoPreserved']),
 'shared tow assessment':'CalculateTowEstimate' in recovery_cpp,
 'tow not free repair':'NATIVE_ROADSIDE_TOW_COMPLETE' in recovery_cpp and 'serviced=NO' in recovery_cpp and 'Damage preserved' in recovery_cpp,
 'tow preserves state':all(x in recovery_cpp for x in ['BeforeTow.ConditionPercent','AfterTow.ConditionPercent','BodyBeforeTow.FrontHealth','BodyAfterTow.FrontHealth','bDamagePreserved']),
