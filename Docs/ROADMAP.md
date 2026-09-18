@@ -112,6 +112,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.38 packaged dispatch evidence:** a later deterministic packaged route exercises locked patch/tow quotes, live ETA, no-charge cancellation, explicit re-request, exact charge, exact cargo-vehicle continuity, decoy rejection, final payout/reputation and primary save. `FARM_CARGO_DISPATCH_RUNTIME.json` is required by the Win64 candidate workflow, but the roadmap remains 125/130 until a real UE 5.8 Win64 package produces the evidence and the visual/runtime gates pass.
 
+> **0.1.39 dispatch SaveGame persistence:** voluntary in-flight PATCH/TOW service now has a transactional sidecar that preserves exact target ID, locked quote and remaining ETA through save/load while keeping economy authority in the production completion path. It fails closed on stale/replayed charge evidence, Wanted/conflicting state or cargo-ID mismatch. This source work does not close any runtime/art blocker.
+
+> **0.1.40 packaged dispatch-persistence evidence:** the Win64 candidate contract now requires a later deterministic route that reads the real sidecar, performs primary SaveGame roundtrips, proves restored tow and patch quote/ETA/exact-ID continuity, proves no-charge Wanted rejection and restored patch single-charge behavior, then finishes the same Farm Cargo route. `FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json` and demo technical gate schema 12 remain future runtime evidence until the exact candidate executes on a qualifying UE 5.8 Win64 runner.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
