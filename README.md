@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.44 — packaged workshop-hours and after-hours recovery evidence**.
+Current development milestone: **0.1.45 — persistent workshop repair queue and deferred economy**.
 
 ## What is GTT?
 
@@ -45,14 +45,14 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 |---|---|
 | 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances use collision-safe persistent IDs before ownership. |
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
-| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. |
+| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. Ordinary damaged/mobile native road vehicles can now reserve next-opening workshop service from the garage after hours with an exact vehicle ID, locked quote, no pre-charge and persistent queue state. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
-| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding and in-flight roadside dispatch checkpoints. |
+| 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding, in-flight roadside dispatch checkpoints and deferred workshop reservations. |
 | 📻 Original radio framework | Four fictional stations with track rotation and project-owned/cleared audio workflow. |
 | 🎮 Input support | Keyboard/mouse plus controller mappings for movement, vehicles, interaction, combat, radio, roadside recovery and save/load. |
 
@@ -145,6 +145,8 @@ Milestone 0.1.42 adds a future packaged evidence route for that same recovery lo
 Milestone 0.1.43 makes workshop availability part of the living village clock instead of an always-open service menu. Regular repair/refuel is available from 06:30 through 20:00; after closing, ordinary mobile vehicles wait for opening while a real `TOW`/`IMMOBILE` WORKSHOP HOLD keeps an emergency recovery path at a deterministic +35% surcharge. The surcharge uses the same authoritative repair quote, service mutation, rollback and save path, and the garage office exposes the current OPEN/CLOSED schedule so the rule is visible before dispatch decisions.
 
 Milestone 0.1.44 extends that policy into the future packaged candidate. A later deterministic runtime window proves the actual 06:30–20:00 boundaries, rejects ordinary closed-hours service before cash or vehicle mutation, creates a hard hold through the production roadside tow, verifies the exact +35% emergency checkout quote and single debit, then requires real repair/refuel, hold release and stable persistent vehicle identity. `WORKSHOP_HOURS_RUNTIME.json` is required before the existing schema-13 technical gate can be promoted to schema 14; source CI does not claim that packaged proof has run.
+
+Milestone 0.1.45 turns closed-hours ordinary repair into a persistent deferred service rather than a dead end. From the garage desk, one nearby owned damaged/mobile native road vehicle can reserve the next workshop opening with its exact `PersistentVehicleId`, request-time locked repair quote and no pre-charge. `GTT_WorkshopQueue_01` preserves that reservation through reload; at/after opening, only the same owned exact-ID vehicle parked by a real workshop terminal can execute the existing authoritative repair, economy and primary-save path. Insufficient cash leaves the reservation unpaid, mutation failure refunds the exact debit, active Farm Cargo requires the same bound vehicle, and hard TOW/IMMOBILE WORKSHOP HOLD remains on the separate +35% emergency lane.
 
 ## Verification
 
