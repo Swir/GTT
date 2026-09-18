@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.40 — packaged roadside dispatch persistence + SaveGame continuity evidence**.
+Current development milestone: **0.1.41 — garage/workshop recovery integration and workshop-hold enforcement**.
 
 ## What is GTT?
 
@@ -45,7 +45,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 |---|---|
 | 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances use collision-safe persistent IDs before ownership. |
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
-| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; active Farm Cargo keeps exact-vehicle authority. |
+| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
@@ -137,6 +137,8 @@ Milestone 0.1.38 adds a later packaged evidence route for those same production 
 Milestone 0.1.39 persists an in-flight voluntary PATCH/TOW as a small transactional SaveGame sidecar. It stores only the exact target `PersistentVehicleId`, locked quote, remaining ETA and conservative authorization-time replay guards; cash is still charged only by the production completion path. Restore waits for the exact vehicle + driver, rejects Wanted/conflicting/invalid state and preserves active Farm Cargo vehicle authority instead of transferring service to a substitute.
 
 Milestone 0.1.40 adds the packaged evidence contract for that persistence path. The deterministic route saves and reloads the primary world around real sidecar checkpoints, proves restored tow quote/ETA/exact-ID plus no-charge cancellation, proves Wanted invalidation fails closed without charge, restores a patch and proves one exact locked-quote debit, then finishes the same Farm Cargo contract through wrong-vehicle rejection, Hill Farm and North Wood Yard. The technical demo gate advances to schema 12, but this remains a future runtime requirement until the exact candidate runs on the qualifying Win64 + UE 5.8 runner.
+
+Milestone 0.1.41 closes the garage-recall loophole after an ordinary roadside tow. The tow still preserves damage and exact identity at the workshop, while the numbered garage bays now treat authoritative `TOW`/`IMMOBILE` fleet states as a hard WORKSHOP HOLD before any recall movement or fee. The existing paid native workshop service clears the underlying damage state, saves progress and naturally releases the hold; `LIMP` and ordinary `SERVICE` states remain advisory so drivable marginal vehicles are not unnecessarily locked out.
 
 ## Verification
 
