@@ -75,13 +75,16 @@ assert '- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup' in roadm
 assert '- [ ] Full Unreal compile + packaged Win64 smoke test' in roadmap
 assert '- [ ] Full Win64 CI/build runner' in roadmap
 
-checked = len(re.findall(r'^- \[x\] ', roadmap, flags=re.MULTILINE))
+checked = len(re.findall(r'^- \[x\] ', roadmap, flags=re.MULTILINE | re.IGNORECASE))
 unchecked = len(re.findall(r'^- \[ \] ', roadmap, flags=re.MULTILINE))
 total = checked + unchecked
 assert (checked, total) == (125, 130), f"unexpected roadmap count: {checked}/{total}"
-assert '<!-- SWIR-ROADMAP-STANDARD:v1 -->' in roadmap
-assert 'ROADMAP-96.2%25' in roadmap
-assert 'DONE-125%2F130' in roadmap
-assert '███████████████████░ 96.2%' in roadmap
+for token in (
+    '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->', '<!-- ROADMAP-PROGRESS:END -->',
+    '## 📊 Overall progress', '../assets/readme/progress-mini.svg', 'ROADMAP-96.2%25', 'DONE-125%2F130',
+    '| **125** | **5** | **130** | **96.2%** |'):
+    assert token in roadmap, f"roadmap SVG-only presentation missing {token}"
+assert roadmap.count('../assets/readme/progress-mini.svg') == 1
+assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE), "legacy text/Unicode roadmap progress meter must not return"
 
-print('Native authored wheel/suspension acceptance contract verified.')
+print('Native authored wheel/suspension acceptance contract verified with SVG-only progress presentation.')
