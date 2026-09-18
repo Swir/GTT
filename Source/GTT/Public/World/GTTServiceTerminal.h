@@ -24,6 +24,7 @@ public:
     virtual void Interact_Implementation(AActor* Interactor) override;
     virtual FText GetInteractionText_Implementation() const override;
     void SetServiceType(EGTTServiceType NewType) { ServiceType = NewType; }
+    EGTTServiceType GetServiceType() const { return ServiceType; }
     int32 GetNativeRoadRepairQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
     int32 GetNativeRoadFuelQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
 
