@@ -11,7 +11,17 @@ legacy_separate_price_copy='Tow $%d; workshop estimate $%d is separate.' in reco
 choice_separate_price_copy=all(x in recovery_cpp for x in [
     'patch $%d for limp-home, or T / D-Pad Up tow $%d',
     'Full workshop repair ~$%d.',
-    'Temporary limp-home service only; body damage and workshop repairs remain.',
+    'workshop_repair_still_required=YES',
+]) and (
+    'Temporary limp-home service only; body damage and workshop repairs remain.' in recovery_cpp
+    or 'Limp-home service only; body damage and workshop repairs remain.' in recovery_cpp
+    or 'Limp-home only — body damage remains and a full workshop repair is still recommended.' in recovery_cpp
+)
+dispatch_contract_copy=all(x in recovery_cpp for x in [
+    'Tow dispatched: locked quote $%d, charged on arrival.',
+    'Damage is preserved; workshop estimate $%d remains separate.',
+    'Emergency patch dispatched: locked quote $%d, charged on arrival.',
+    'quote_locked=YES',
     'workshop_repair_still_required=YES',
 ])
 checks={
@@ -27,7 +37,7 @@ checks={
 'tow not free repair':'NATIVE_ROADSIDE_TOW_COMPLETE' in recovery_cpp and 'serviced=NO' in recovery_cpp and 'Damage preserved' in recovery_cpp,
 'tow preserves state':all(x in recovery_cpp for x in ['BeforeTow.ConditionPercent','AfterTow.ConditionPercent','BodyBeforeTow.FrontHealth','BodyAfterTow.FrontHealth','bDamagePreserved']),
 'impound mandatory service':'Police impound + mandatory safety service' in recovery_cpp and 'ApplyNativeWorkshopService()' in recovery_cpp,
-'separate price messaging':legacy_separate_price_copy or choice_separate_price_copy,
+'separate price messaging':legacy_separate_price_copy or choice_separate_price_copy or dispatch_contract_copy,
 'native driver services':'AGTTRoadVehicleNativePawn' in statics and 'NativeRoad->GetDriverPawn()' in statics,
 'sanity wired':'Verify breakdown decision towing and repair economy' in sanity and 'verify_breakdown_repair_economy.py' in sanity,
 'docs':'0.0.95' in playtest and 'tow' in playtest.lower() and '0.0.95' in changelog and 'damage-based' in changelog.lower(),
