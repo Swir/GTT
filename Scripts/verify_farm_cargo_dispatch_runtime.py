@@ -19,6 +19,10 @@ def require(text: str, token: str, where: str) -> None:
     assert token in text, f"{where}: missing {token!r}"
 
 
+def version_tuple(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.split("."))
+
+
 header = read("Source/GTT/Public/Core/GTTFarmCargoDispatchEvidenceSubsystem.h")
 cpp = read("Source/GTT/Private/Core/GTTFarmCargoDispatchEvidenceSubsystem.cpp")
 roadside_h = read("Source/GTT/Public/Vehicles/GTTRoadsideRecoverySubsystem.h")
@@ -83,9 +87,7 @@ for token in (
 ):
     require(roadside_cpp, token, "production roadside implementation")
 
-for token in (
-    "-GTTFarmCargoDispatchScenario", "farm_cargo_dispatch_runtime_scenario = $true",
-):
+for token in ("-GTTFarmCargoDispatchScenario", "farm_cargo_dispatch_runtime_scenario = $true"):
     require(smoke, token, "packaged smoke")
 
 for token in (
@@ -111,18 +113,22 @@ for token in (
 gate_schema_match = re.search(r"(?m)^\s*schema=(\d+)\s*$", demo_gate)
 assert gate_schema_match and int(gate_schema_match.group(1)) >= 11, "demo technical gate must be schema 11+ for roadside dispatch evidence"
 require(demo_gate, "$farmCargoDispatch", "demo technical gate exact-SHA chain")
-assert "$farmCargoDispatch))" in demo_gate or "$farmCargoDispatch)" in demo_gate, "dispatch manifest must participate in exact-SHA evidence checks"
+assert "$farmCargoDispatch" in re.search(r"foreach\(\$e in @\((.*?)\)\)", demo_gate, flags=re.S).group(1), "dispatch manifest must participate in exact-SHA evidence checks"
 
-for token in (
-    "default: '0.1.38'", "MinimumAliveSeconds 324", "LaunchTimeoutSeconds 350",
-    "evaluate_farm_cargo_dispatch_runtime.ps1", "FARM_CARGO_DISPATCH_RUNTIME.json",
-):
+for token in ("evaluate_farm_cargo_dispatch_runtime.ps1", "FARM_CARGO_DISPATCH_RUNTIME.json"):
     require(workflow, token, "Win64 package evidence workflow")
+workflow_version = re.search(r"(?m)^\s*default:\s*'([0-9]+\.[0-9]+\.[0-9]+)'\s*$", workflow)
+assert workflow_version and version_tuple(workflow_version.group(1)) >= (0, 1, 38), "Win64 workflow must target 0.1.38 or later"
+alive = re.search(r"MinimumAliveSeconds\s+(\d+)", workflow)
+timeout = re.search(r"LaunchTimeoutSeconds\s+(\d+)", workflow)
+assert alive and int(alive.group(1)) >= 324, "Win64 runtime evidence window must stay at least 324 seconds"
+assert timeout and int(timeout.group(1)) >= 350, "Win64 smoke timeout must stay at least 350 seconds"
 assert workflow.count("FARM_CARGO_DISPATCH_RUNTIME.json") >= 4, "dispatch manifest must be validated and retained in candidate/diagnostics"
 
 require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "README")
 require(readme, "## 🔎 Search Keywords", "README")
-require(readme, "Current development milestone: **0.1.38", "README")
+current_milestone = re.search(r"Current development milestone: \*\*([0-9]+\.[0-9]+\.[0-9]+)", readme)
+assert current_milestone and version_tuple(current_milestone.group(1)) >= (0, 1, 38), "README milestone must be 0.1.38 or later"
 require(readme, "Release readiness: **NOT READY**", "README")
 require(readme, "assets/readme/progress-card.svg", "README")
 assert readme.count("assets/readme/progress-card.svg") == 1, "README must embed exactly one project progress card"
