@@ -128,6 +128,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.46 packaged workshop-queue evidence:** the future Win64 candidate now has a deterministic route for after-hours queue booking with exact persistent ID, request-time locked quote and zero pre-charge; it loads the real queue sidecar from disk, proves a substitute owned vehicle cannot consume the reservation at opening, then completes service only for the exact queued vehicle with one locked-quote debit, sidecar cleanup and preserved Farm Cargo authority. `WORKSHOP_QUEUE_RUNTIME.json` can promote the schema-14 technical gate to schema 15 only after same-SHA packaged PASS evidence. Source CI still closes no Native Chaos, trailer or Win64/runtime/visual checkbox.
 
+> **0.1.47 multi-vehicle workshop appointments:** the after-hours workshop desk now supports up to four independent exact-vehicle reservations instead of one global slot. Each appointment preserves its own request-time locked quote and `PersistentVehicleId`, receives a deterministic 45-minute service-capacity slot, persists through the additive `GTT_WorkshopQueue_01` appointment list and can be cancelled independently without charge. An underfunded ready vehicle remains queued but does not block later due affordable appointments; successful service charges only that exact locked quote once, while TOW/IMMOBILE WORKSHOP HOLD stays on the separate emergency lane. This connected fleet/economy/save milestone leaves the five Native Chaos, trailer and Win64/runtime/visual blockers unchanged.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
