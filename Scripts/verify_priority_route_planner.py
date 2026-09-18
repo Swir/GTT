@@ -99,6 +99,7 @@ def verify_conflict_hold_is_real_gameplay() -> None:
     ):
         require(relationships, token, "authoritative dispatcher hold integration")
 
+    # Existing stock-backed queue consequence remains the authority underneath the new cap.
     for token in (
         "FeedDepotStock -= RequiredStock",
         "FeedDepotStock = FMath::Clamp(FeedDepotStock +",
@@ -107,6 +108,8 @@ def verify_conflict_hold_is_real_gameplay() -> None:
     ):
         require(logistics, token, "reservation/expiry regression")
 
+    # Existing actors already consume ContractDeskSummary, so planner output reaches player-facing
+    # dispatcher/board surfaces without adding a separate debug-only terminal.
     require(dispatcher, "Relationships->GetContractDeskSummary()", "dispatcher desk presentation")
 
 
@@ -144,7 +147,6 @@ def verify_docs_ci_and_roadmap() -> None:
         'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
         "## 📊 Overall progress",
         "| ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |",
-        "../assets/readme/progress-mini.svg",
     ):
         require(roadmap, token, "SWIR Roadmap Style Lock")
 
@@ -154,15 +156,15 @@ def verify_docs_ci_and_roadmap() -> None:
     remaining = total - completed
     assert total > 0, "roadmap checklist not found"
     percent = round(completed * 100.0 / total, 1)
+    filled = round(completed * 20.0 / total)
+    bar = "█" * filled + "░" * (20 - filled)
     for token in (
         f"ROADMAP-{percent:.1f}%25",
         f"DONE-{completed}%2F{total}",
+        f"{bar} {percent:.1f}%",
         f"| **{completed}** | **{remaining}** | **{total}** | **{percent:.1f}%** |",
     ):
         require(roadmap, token, "truthful roadmap dashboard")
-    assert not re.search(r"[█░▓▒]{4,}|\[[#=\-]{8,}\]", roadmap), (
-        "Roadmap must use the deterministic Progress SVG rather than a legacy character meter"
-    )
     assert (completed, remaining, total, percent) == (125, 5, 130, 96.2), (
         f"0.1.12 cannot close hardware/package blockers: {completed}/{total} = {percent:.1f}%"
     )
