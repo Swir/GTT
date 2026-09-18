@@ -46,17 +46,21 @@ failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit('Damage persistence/workshop recovery verification failed: ' + ', '.join(failed))
 
-if '<!-- SWIR-ROADMAP-STANDARD:v1 -->' not in roadmap or '## 📊 Overall progress' not in roadmap:
-    raise SystemExit('SWIR roadmap style lock missing')
+for token in ('<!-- SWIR-ROADMAP-STANDARD:v1 -->','<!-- ROADMAP-PROGRESS:START -->','<!-- ROADMAP-PROGRESS:END -->','## 📊 Overall progress','../assets/readme/progress-mini.svg'):
+    if token not in roadmap:
+        raise SystemExit('SWIR roadmap style lock missing: ' + token)
 items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE)
 done = sum(v == 'x' for v in items)
 total = len(items)
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = '█' * filled + '░' * (20 - filled)
-for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
+for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
+progress_block=roadmap.split('<!-- ROADMAP-PROGRESS:START -->',1)[1].split('<!-- ROADMAP-PROGRESS:END -->',1)[0]
+if progress_block.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap progress block must embed exactly one canonical progress-mini.svg.')
+if re.search(r'[█▓▒░]{3,}',progress_block):
+    raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
-print(f'[OK] Spike damage save/load persistence + paid workshop recovery retained ({len(checks)} checks; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}%.')
+print(f'[OK] Spike damage save/load persistence + paid workshop recovery retained ({len(checks)} checks; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')
