@@ -19,17 +19,37 @@ required = [
     (cpp, 'NATIVE_POLICE_IMPOUND_ARMED'), (cpp, 'NATIVE_POLICE_IMPOUND'), (road_h, 'GetMigrationSnapshot'),
     (road_h, 'GetBodyDamageRepairSurcharge'), (workflow, 'Verify Native roadside recovery and police impound'),
     (workflow, 'python Scripts/verify_native_roadside_recovery.py'), (playtest, 'Scenario D — Police impound'),
-    (playtest, 'NATIVE_ROADSIDE_RECOVERY_DENIED'), (changelog, '0.0.71'), (roadmap, '<!-- SWIR-ROADMAP-STANDARD:v1 -->'), (roadmap, '📊 Overall progress'),
+    (playtest, 'NATIVE_ROADSIDE_RECOVERY_DENIED'), (changelog, '0.0.71'), (roadmap, '<!-- SWIR-ROADMAP-STANDARD:v1 -->'),
+    (roadmap, '<!-- ROADMAP-PROGRESS:START -->'), (roadmap, '<!-- ROADMAP-PROGRESS:END -->'),
+    (roadmap, '📊 Overall progress'), (roadmap, '../assets/readme/progress-mini.svg'),
 ]
 missing = [token for text, token in required if token not in text]
-if missing: raise SystemExit('Missing required tokens: ' + ', '.join(missing))
+if missing:
+    raise SystemExit('Missing required tokens: ' + ', '.join(missing))
 for token in ['ConditionPercent <= 0.05f','FuelLiters <= 0.05f','TireIntegrity <= 0.08f','MaxRecoverySpeedKmh']:
-    if token not in cpp: raise SystemExit('Recovery eligibility drift: missing ' + token)
-if cpp.find('SpendCash(Cost') > cpp.find('ApplyNativeWorkshopService()'): raise SystemExit('Recovery payment must occur before any mandatory-service branch.')
-if cpp.find('ChargeFine(Cost') > cpp.find('ApplyNativeWorkshopService()'): raise SystemExit('Police impound must charge before workshop restoration.')
-if 'WantedLevel == 1' not in cpp or 'WantedLevel >= 2' not in cpp: raise SystemExit('Wanted-aware roadside block / police impound thresholds are missing.')
-checks = re.findall(r'^- \[(x|X| )\]', roadmap, flags=re.MULTILINE); done=sum(1 for value in checks if value.lower()=='x'); total=len(checks); remaining=total-done
-if (done,total,remaining)!=(125,130,5): raise SystemExit(f'Roadmap checkbox drift: done={done} total={total} remaining={remaining}; expected 125/130/5')
-for token in ['ROADMAP-96.2%25','DONE-125%2F130','███████████████████░ 96.2%','| **125** | **5** | **130** | **96.2%** |']:
-    if token not in roadmap: raise SystemExit('Roadmap dashboard drift: missing ' + token)
-print('[OK] Native roadside tow, damage preservation, wanted-aware impound, economy/workshop separation and roadmap lock verified.')
+    if token not in cpp:
+        raise SystemExit('Recovery eligibility drift: missing ' + token)
+if cpp.find('SpendCash(Cost') > cpp.find('ApplyNativeWorkshopService()'):
+    raise SystemExit('Recovery payment must occur before any mandatory-service branch.')
+if cpp.find('ChargeFine(Cost') > cpp.find('ApplyNativeWorkshopService()'):
+    raise SystemExit('Police impound must charge before workshop restoration.')
+if 'WantedLevel == 1' not in cpp or 'WantedLevel >= 2' not in cpp:
+    raise SystemExit('Wanted-aware roadside block / police impound thresholds are missing.')
+
+checks = re.findall(r'^- \[(x|X| )\]', roadmap, flags=re.MULTILINE)
+done = sum(1 for value in checks if value.lower() == 'x')
+total = len(checks)
+remaining = total - done
+if (done, total, remaining) != (125, 130, 5):
+    raise SystemExit(f'Roadmap checkbox drift: done={done} total={total} remaining={remaining}; expected 125/130/5')
+for token in ['ROADMAP-96.2%25','DONE-125%2F130','| **125** | **5** | **130** | **96.2%** |']:
+    if token not in roadmap:
+        raise SystemExit('Roadmap dashboard drift: missing ' + token)
+
+progress_block = roadmap.split('<!-- ROADMAP-PROGRESS:START -->', 1)[1].split('<!-- ROADMAP-PROGRESS:END -->', 1)[0]
+if progress_block.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap progress block must embed exactly one canonical progress-mini.svg.')
+if re.search(r'[█▓▒░]{3,}', progress_block):
+    raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
+
+print('[OK] Native roadside tow, damage preservation, wanted-aware impound, economy/workshop separation and SVG-only roadmap lock verified.')
