@@ -59,7 +59,8 @@ def main() -> int:
     require(slot, "Damage, fuel and tuning were preserved.", "garage recall preservation contract")
 
     # Garage office exposes the consequence rather than silently hiding an unavailable slot.
-    require(office, "WorkshopHoldCount", "garage office hold count")
+    require(office, "GetWorkshopHoldCount(FleetSlotCount)", "garage office uses authoritative hold count")
+    require(office, "WorkshopHoldCount", "garage office hold UX")
     require(office, "repair/service clears TOW/IMMOBILE status", "garage office recovery guidance")
 
     # Workshop is the only path that clears a hard hold by repairing authoritative native state.
