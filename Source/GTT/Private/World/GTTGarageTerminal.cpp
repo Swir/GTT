@@ -74,7 +74,17 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
 
     if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
     {
-        Economy->PushMessage(Fleet->BuildFleetSummary(FleetSlotCount) + TEXT("\nUse a numbered bay to dispatch a vehicle. Dispatch sets it ACTIVE and never repairs damage."), 8.0f);
+        const int32 WorkshopHoldCount = Fleet->GetWorkshopHoldCount(FleetSlotCount);
+        FString Summary = Fleet->BuildFleetSummary(FleetSlotCount);
+        Summary += TEXT("\nUse a numbered bay to dispatch a vehicle. Dispatch sets it ACTIVE and never repairs damage.");
+        if (WorkshopHoldCount > 0)
+        {
+            Summary += FString::Printf(
+                TEXT("\nWORKSHOP HOLD: %d vehicle%s cannot be recalled until repair/service clears TOW/IMMOBILE status."),
+                WorkshopHoldCount,
+                WorkshopHoldCount == 1 ? TEXT("") : TEXT("s"));
+        }
+        Economy->PushMessage(Summary, 9.0f);
         return;
     }
 
@@ -84,14 +94,20 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
 FText AGTTGarageTerminal::GetInteractionText_Implementation() const
 {
     int32 OwnedCount = 0;
+    int32 WorkshopHoldCount = 0;
     if (GetWorld())
     {
         if (const UGTTGarageFleetSubsystem* Fleet = GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>())
         {
             OwnedCount = Fleet->BuildFleetSnapshot(FleetSlotCount).Num();
+            WorkshopHoldCount = Fleet->GetWorkshopHoldCount(FleetSlotCount);
         }
     }
 
-    return FText::FromString(FString::Printf(TEXT("Garage office: inspect fleet %d/%d / register nearby vehicle ($%d)"),
-        OwnedCount, FleetSlotCount, RegistrationCost));
+    return FText::FromString(FString::Printf(
+        TEXT("Garage office: inspect fleet %d/%d | workshop holds %d | register nearby vehicle ($%d)"),
+        OwnedCount,
+        FleetSlotCount,
+        WorkshopHoldCount,
+        RegistrationCost));
 }

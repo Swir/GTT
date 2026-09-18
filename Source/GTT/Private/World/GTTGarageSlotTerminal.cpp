@@ -17,6 +17,7 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTGarageFleetSubsystem.h"
+#include "World/GTTGarageServicePolicy.h"
 
 namespace
 {
@@ -102,8 +103,12 @@ void AGTTGarageSlotTerminal::RefreshLabel()
     const FString NativeTag = Snapshot.bNativeAuthority ? TEXT(" [N]") : TEXT("");
     const FString ActiveTag = Snapshot.bPreferredDispatch ? TEXT(" [ACTIVE]") : TEXT("");
     const FString LoadoutTag = Snapshot.bRoleLoadout ? TEXT(" [LOADOUT]") : TEXT("");
+    const bool bWorkshopHold = GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot);
+    const FString ActionLine = bWorkshopHold
+        ? FString::Printf(TEXT("WORKSHOP HOLD ~$%d"), Snapshot.RepairEstimate)
+        : FString::Printf(TEXT("E - DISPATCH $%d"), RecallServiceCost);
     Label->SetText(FText::FromString(FString::Printf(
-        TEXT("GARAGE %d%s%s\n%s%s | %s | %s\nC %.0f  F %.0f  T %.0f  B %.0f\nE - DISPATCH $%d"),
+        TEXT("GARAGE %d%s%s\n%s%s | %s | %s\nC %.0f  F %.0f  T %.0f  B %.0f\n%s"),
         SlotIndex + 1,
         *ActiveTag,
         *LoadoutTag,
@@ -115,7 +120,7 @@ void AGTTGarageSlotTerminal::RefreshLabel()
         Snapshot.FuelPercent * 100.0f,
         Snapshot.TireIntegrity * 100.0f,
         Snapshot.BodyHealth * 100.0f,
-        RecallServiceCost)));
+        *ActionLine)));
 }
 
 void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
@@ -152,7 +157,22 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
     }
 
     FGTTGarageFleetSnapshot Snapshot;
-    if (Fleet) Fleet->GetSlotSnapshot(SlotIndex, Snapshot);
+    if (!Fleet || !Fleet->GetSlotSnapshot(SlotIndex, Snapshot))
+    {
+        Economy->PushMessage(TEXT("Garage fleet snapshot unavailable; dispatch aborted without charge."), 4.0f);
+        return;
+    }
+
+    // A damage-preserving tow ends at the workshop. A TOW/IMMOBILE fleet state is therefore a
+    // real service consequence, not something that can be bypassed with the cheaper garage recall.
+    // LIMP/SERVICE remain advisory so a marginal but mobile vehicle can still be deliberately used.
+    if (GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot))
+    {
+        Economy->PushMessage(
+            FString::Printf(TEXT("SLOT %d WORKSHOP HOLD: %s"), SlotIndex + 1, *GTTGarageServicePolicy::BuildWorkshopHoldReason(Snapshot)),
+            7.0f);
+        return;
+    }
 
     const FName VehicleId = Vehicle->GetPersistentVehicleId();
     const bool bNativeRoadSlot = VehicleId == FName(TEXT("Rattleback82")) || VehicleId == FName(TEXT("Mulebox1200"));
@@ -245,6 +265,16 @@ FText AGTTGarageSlotTerminal::GetInteractionText_Implementation() const
     if (!Fleet || !Fleet->GetSlotSnapshot(SlotIndex, Snapshot))
     {
         return FText::Format(NSLOCTEXT("GTT", "GarageSlotEmptyFleet", "Garage slot {0}: empty"), FText::AsNumber(SlotIndex + 1));
+    }
+
+    if (GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot))
+    {
+        return FText::FromString(FString::Printf(
+            TEXT("Workshop hold slot %d: %s [%s] — service first (~$%d)"),
+            SlotIndex + 1,
+            *Snapshot.DisplayName,
+            *Snapshot.ServiceStatus,
+            Snapshot.RepairEstimate));
     }
 
     return FText::FromString(FString::Printf(TEXT("Dispatch slot %d: %s [%s%s%s] ($%d)"),

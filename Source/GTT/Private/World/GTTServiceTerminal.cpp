@@ -13,6 +13,8 @@
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
+#include "World/GTTGarageFleetSubsystem.h"
+#include "World/GTTGarageServicePolicy.h"
 
 namespace
 {
@@ -67,6 +69,21 @@ namespace
         const bool bBodyDamaged = Body.FrontHealth < 0.999f || Body.RearHealth < 0.999f ||
             Body.LeftHealth < 0.999f || Body.RightHealth < 0.999f || Body.CoolingStress > 0.01f || Body.DetachedPanelCount > 0;
         return State.ConditionPercent < 0.999f || State.TireIntegrity < 0.999f || bBodyDamaged;
+    }
+
+    bool ResolveFleetSnapshot(UWorld* World, FName VehicleId, FGTTGarageFleetSnapshot& OutSnapshot)
+    {
+        if (!World || VehicleId.IsNone()) return false;
+        const UGTTGarageFleetSubsystem* Fleet = World->GetSubsystem<UGTTGarageFleetSubsystem>();
+        if (!Fleet) return false;
+        const TArray<FGTTGarageFleetSnapshot> Vehicles = Fleet->BuildFleetSnapshot(8);
+        if (const FGTTGarageFleetSnapshot* Found = Vehicles.FindByPredicate([VehicleId](const FGTTGarageFleetSnapshot& Candidate)
+            { return Candidate.VehicleId == VehicleId; }))
+        {
+            OutSnapshot = *Found;
+            return true;
+        }
+        return false;
     }
 
     AGTTVehicleBase* FindFieldmasterMirror(UWorld* World, const AGTTFieldmasterNativePawn* Native)
@@ -130,7 +147,10 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
     {
         const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
-        const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad);
+        FGTTGarageFleetSnapshot FleetSnapshot;
+        const bool bHasFleetSnapshot = ResolveFleetSnapshot(GetWorld(), NativeRoad->GetPersistentVehicleId(), FleetSnapshot);
+        const bool bWorkshopHold = bHasFleetSnapshot && GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(FleetSnapshot);
+        const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad) || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < NativeRoad->GetFuelCapacityLiters();
 
         if (!bNeedsMechanical && !bNeedsFuel)
@@ -140,6 +160,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         }
 
         // Fuel-only visits use a dedicated per-litre quote instead of charging a full damage-service fee.
+        // A hard workshop hold always goes through mechanical service so garage recall cannot clear it cheaply.
         if (!bNeedsMechanical && bNeedsFuel)
         {
             const int32 FuelCost = GetNativeRoadFuelQuote(NativeRoad);
@@ -166,7 +187,17 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
             Economy->PushMessage(TEXT("Workshop: Native road state refresh failed; payment returned."));
             return;
         }
-        Economy->PushMessage(FString::Printf(TEXT("%s repaired + refuelled for $%d (structural parts $%d)."), *NativeRoad->GetVehicleDisplayName().ToString(), TotalCost, BodyParts), 6.0f);
+
+        if (bWorkshopHold)
+        {
+            Economy->PushMessage(FString::Printf(
+                TEXT("%s recovery service complete for $%d (structural parts $%d). WORKSHOP HOLD cleared; garage dispatch is available again."),
+                *NativeRoad->GetVehicleDisplayName().ToString(), TotalCost, BodyParts), 7.0f);
+        }
+        else
+        {
+            Economy->PushMessage(FString::Printf(TEXT("%s repaired + refuelled for $%d (structural parts $%d)."), *NativeRoad->GetVehicleDisplayName().ToString(), TotalCost, BodyParts), 6.0f);
+        }
         if (GameMode) GameMode->SaveProgress();
         return;
     }
@@ -216,12 +247,18 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
     if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
     {
         const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
-        const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad);
+        FGTTGarageFleetSnapshot FleetSnapshot;
+        const bool bHasFleetSnapshot = ResolveFleetSnapshot(GetWorld(), NativeRoad->GetPersistentVehicleId(), FleetSnapshot);
+        const bool bWorkshopHold = bHasFleetSnapshot && GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(FleetSnapshot);
+        const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad) || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < NativeRoad->GetFuelCapacityLiters();
         if (!bNeedsMechanical && !bNeedsFuel)
             return FText::FromString(FString::Printf(TEXT("Workshop: %s is ready"), *NativeRoad->GetVehicleDisplayName().ToString()));
         if (!bNeedsMechanical && bNeedsFuel)
             return FText::FromString(FString::Printf(TEXT("Refuel %s ($%d exact fuel quote)"), *NativeRoad->GetVehicleDisplayName().ToString(), GetNativeRoadFuelQuote(NativeRoad)));
+        if (bWorkshopHold)
+            return FText::FromString(FString::Printf(TEXT("Complete recovery service: %s [%s] ($%d estimate)"),
+                *NativeRoad->GetVehicleDisplayName().ToString(), *FleetSnapshot.ServiceStatus, GetNativeRoadRepairQuote(NativeRoad)));
         return FText::FromString(FString::Printf(TEXT("Workshop: repair + refuel %s ($%d estimate)"), *NativeRoad->GetVehicleDisplayName().ToString(), GetNativeRoadRepairQuote(NativeRoad)));
     }
 

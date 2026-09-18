@@ -90,6 +90,13 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Garage")
     FString BuildFleetSummary(int32 MaxSlots = 4) const;
 
+    /** Hard recovery/service state used by garage UI and future Blueprint presentation. */
+    UFUNCTION(BlueprintPure, Category="GTT|Garage|Service")
+    bool IsVehicleOnWorkshopHold(FName VehicleId) const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Garage|Service")
+    int32 GetWorkshopHoldCount(int32 MaxSlots = 4) const;
+
     UFUNCTION(BlueprintPure, Category="GTT|Garage|Dispatch")
     FName GetPreferredVehicleId() const { return PreferredVehicleId; }
 
