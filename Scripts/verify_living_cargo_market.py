@@ -48,7 +48,10 @@ checks = {
     "multi-stop farm stage exposed": "DeliverFinalStop" in farm_h and "TryCompleteFinalStop" in farm_h,
     "final handoff terminal type exposed": "FinalFinish" in farm_terminal_h and "TryCompleteFinalStop(Pawn)" in farm_terminal_cpp,
     "real North Wood final terminal spawned": "SpawnActor<AGTTFarmJobTerminal>(FVector(7850.0f, 1120.0f, 55.0f)" in farm_cpp and "FinalFinish" in farm_cpp,
-    "loaded timer spans relay and final leg": "Stage != EGTTFarmJobStage::DeliverCargo && Stage != EGTTFarmJobStage::DeliverFinalStop" in farm_cpp and "TimeRemaining = FMath::Max(0.0f, TimeRemaining - DeltaSeconds)" in farm_cpp and "UpdateDeliveryRisk" in farm_cpp,
+    "loaded timer spans relay and final leg": all(token in farm_cpp for token in (
+        "Stage != EGTTFarmJobStage::DeliverCargo && Stage != EGTTFarmJobStage::DeliverFinalStop",
+        "TimeRemaining = FMath::Max(0.0f, TimeRemaining - DeltaSeconds)",
+        "Stage = EGTTFarmJobStage::DeliverFinalStop")),
     "Mulebox cargo stays physically loaded through relay": "SetCargoLoadFactor(1.0f)" in farm_cpp and "ClearLoadedVehicleCargoState();" in farm_cpp,
     "schedule enforced before cargo start": "IsCargoDepotWindowOpen()" in farm_cpp and "return at 07:00" in farm_cpp,
     "market multiplier locked at acceptance": "MarketMultiplierAtStart = Logistics->GetCargoMarketMultiplier()" in farm_cpp and "FleetAdjustedReward" in farm_cpp and "MarketMultiplierAtStart" in farm_cpp,
