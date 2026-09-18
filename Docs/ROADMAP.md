@@ -118,6 +118,10 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.41 garage/workshop recovery integration:** ordinary roadside tow remains damage-preserving and drops the exact native road vehicle at the workshop. Garage bays now treat authoritative `TOW`/`IMMOBILE` fleet states as a hard WORKSHOP HOLD, rejecting cheap recall before movement or payment; the workshop clears that hold only by applying the existing paid native repair/refuel service and saving the resulting vehicle state. `LIMP`/ordinary `SERVICE` remain advisory. This connected gameplay milestone does not close any Native Chaos, trailer or Win64 acceptance blocker.
 
+> **0.1.42 packaged workshop recovery evidence:** the future Win64 candidate now has a deterministic Farm Cargo route that must prove ordinary tow → hard WORKSHOP HOLD → blocked garage recall → paid workshop service → hold release while preserving exact cargo identity/economy continuity. `FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json` promotes the demo technical gate to schema 13 only after packaged PASS evidence; source CI alone still closes no runtime/art checkbox.
+
+> **0.1.43 workshop hours and after-hours recovery:** the existing day/night clock now controls regular workshop availability from 06:30 through 20:00. Ordinary repair/refuel waits while closed, but a genuine `TOW`/`IMMOBILE` WORKSHOP HOLD retains an emergency recovery lane at a deterministic +35% surcharge using the same authoritative repair, economy and save path. Garage office status surfaces the schedule and emergency rule. This connected economy milestone leaves the five Native Chaos, trailer and Win64 acceptance blockers unchanged.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery

@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.41 — garage/workshop recovery integration and workshop-hold enforcement**.
+Current development milestone: **0.1.43 — workshop opening hours and after-hours recovery economy**.
 
 ## What is GTT?
 
@@ -45,7 +45,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 |---|---|
 | 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances use collision-safe persistent IDs before ownership. |
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
-| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. |
+| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
@@ -140,11 +140,15 @@ Milestone 0.1.40 adds the packaged evidence contract for that persistence path. 
 
 Milestone 0.1.41 closes the garage-recall loophole after an ordinary roadside tow. The tow still preserves damage and exact identity at the workshop, while the numbered garage bays now treat authoritative `TOW`/`IMMOBILE` fleet states as a hard WORKSHOP HOLD before any recall movement or fee. The existing paid native workshop service clears the underlying damage state, saves progress and naturally releases the hold; `LIMP` and ordinary `SERVICE` states remain advisory so drivable marginal vehicles are not unnecessarily locked out.
 
+Milestone 0.1.42 adds a future packaged evidence route for that same recovery loop. The exact Farm Cargo Mulebox must survive ordinary tow, hard WORKSHOP HOLD, a rejected garage-recall bypass and the existing paid workshop service before continuing through wrong-vehicle rejection and final delivery. `FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json` is required before the future demo technical gate can be promoted to schema 13; source CI does not claim that packaged proof has run.
+
+Milestone 0.1.43 makes workshop availability part of the living village clock instead of an always-open service menu. Regular repair/refuel is available from 06:30 through 20:00; after closing, ordinary mobile vehicles wait for opening while a real `TOW`/`IMMOBILE` WORKSHOP HOLD keeps an emergency recovery path at a deterministic +35% surcharge. The surcharge uses the same authoritative repair quote, service mutation, rollback and save path, and the garage office exposes the current OPEN/CLOSED schedule so the rule is visible before dispatch decisions.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
 
-A successful future packaged Farm Cargo candidate must produce `FARM_CARGO_RUNTIME.json` (`gtt.farm-cargo-runtime.v1`), `FARM_CARGO_RECOVERY_RUNTIME.json` (`gtt.farm-cargo-recovery-runtime.v1`), `FARM_CARGO_BREAKDOWN_RUNTIME.json` (`gtt.farm-cargo-breakdown-runtime.v2`), `FARM_CARGO_DISPATCH_RUNTIME.json` (`gtt.farm-cargo-dispatch-runtime.v1`) and `FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json` (`gtt.farm-cargo-dispatch-persistence-runtime.v1`). These progressively prove exact-vehicle contract continuity, mid-route save/load + recreated-actor rebinding, emergency patch + exact-ID/body/timer continuity followed by deliberate re-breakdown/paid tow, locked-quote/live-ETA/cancellation/re-request dispatch authority, and dispatch-sidecar SaveGame restore/replay safety. **None of these manifests is claimed until the packaged Unreal executable actually runs and emits the required PASS evidence.**
+A successful future packaged Farm Cargo candidate must produce `FARM_CARGO_RUNTIME.json` (`gtt.farm-cargo-runtime.v1`), `FARM_CARGO_RECOVERY_RUNTIME.json` (`gtt.farm-cargo-recovery-runtime.v1`), `FARM_CARGO_BREAKDOWN_RUNTIME.json` (`gtt.farm-cargo-breakdown-runtime.v2`), `FARM_CARGO_DISPATCH_RUNTIME.json` (`gtt.farm-cargo-dispatch-runtime.v1`), `FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json` (`gtt.farm-cargo-dispatch-persistence-runtime.v1`) and `FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json` (`gtt.farm-cargo-workshop-recovery-runtime.v1`). These progressively prove exact-vehicle contract continuity, mid-route save/load + recreated-actor rebinding, emergency patch + exact-ID/body/timer continuity followed by deliberate re-breakdown/paid tow, locked-quote/live-ETA/cancellation/re-request dispatch authority, dispatch-sidecar SaveGame restore/replay safety, and tow → hard hold → blocked recall → paid workshop recovery continuity. **None of these manifests is claimed until the packaged Unreal executable actually runs and emits the required PASS evidence.**
 
 The roadmap graphics are deterministic outputs of `Scripts/generate_progress_svg.py`; `--check` verifies checklist mathematics, XML, bounded fill geometry, README/Roadmap embeds, SVG-only presentation and separation between roadmap completion and release readiness.
 
@@ -190,7 +194,7 @@ The current repository also contains prototype/source-built presentation and sys
 
 ## 🔎 Search Keywords
 
-`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside emergency repair` • `C++ Unreal game`
+`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside emergency repair` • `vehicle workshop economy` • `C++ Unreal game`
 
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="SWIR electric divider" />
 

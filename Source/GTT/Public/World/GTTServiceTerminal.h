@@ -27,6 +27,13 @@ public:
     EGTTServiceType GetServiceType() const { return ServiceType; }
     int32 GetNativeRoadRepairQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
     int32 GetNativeRoadFuelQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
+    int32 GetNativeRoadCheckoutQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Service|Workshop")
+    bool IsWorkshopOpenNow() const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Service|Workshop")
+    FText GetWorkshopStatusText() const;
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Service") TObjectPtr<UStaticMeshComponent> TerminalMesh;

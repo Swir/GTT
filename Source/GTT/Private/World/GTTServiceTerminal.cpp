@@ -13,12 +13,24 @@
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
+#include "World/GTTDayNightCycle.h"
 #include "World/GTTGarageFleetSubsystem.h"
 #include "World/GTTGarageServicePolicy.h"
+#include "World/GTTWorkshopHoursPolicy.h"
 
 namespace
 {
     const FName FieldmasterVehicleId(TEXT("RustyFieldmaster60"));
+
+    const AGTTDayNightCycle* FindDayNightCycle(UWorld* World)
+    {
+        if (!World) return nullptr;
+        for (TActorIterator<AGTTDayNightCycle> It(World); It; ++It)
+        {
+            if (IsValid(*It)) return *It;
+        }
+        return nullptr;
+    }
 
     AGTTFieldmasterNativePawn* FindActiveNativeFieldmaster(UWorld* World, const FVector& Origin, float Radius)
     {
@@ -86,6 +98,14 @@ namespace
         return false;
     }
 
+    bool IsWorkshopHold(UWorld* World, FName VehicleId, FGTTGarageFleetSnapshot* OutSnapshot = nullptr)
+    {
+        FGTTGarageFleetSnapshot Snapshot;
+        if (!ResolveFleetSnapshot(World, VehicleId, Snapshot)) return false;
+        if (OutSnapshot) *OutSnapshot = Snapshot;
+        return GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot);
+    }
+
     AGTTVehicleBase* FindFieldmasterMirror(UWorld* World, const AGTTFieldmasterNativePawn* Native)
     {
         if (!World || !Native) return nullptr;
@@ -115,6 +135,32 @@ AGTTServiceTerminal::AGTTServiceTerminal()
     if (CubeFinder.Succeeded()) TerminalMesh->SetStaticMesh(CubeFinder.Object);
 }
 
+bool AGTTServiceTerminal::IsWorkshopOpenNow() const
+{
+    const AGTTDayNightCycle* Clock = FindDayNightCycle(GetWorld());
+    // Fail open in test/minimal maps that intentionally do not spawn the world clock.
+    return !Clock || GTTWorkshopHoursPolicy::IsOpen(Clock->GetTimeOfDayHours());
+}
+
+FText AGTTServiceTerminal::GetWorkshopStatusText() const
+{
+    const AGTTDayNightCycle* Clock = FindDayNightCycle(GetWorld());
+    const FString Schedule = GTTWorkshopHoursPolicy::GetScheduleText();
+    if (!Clock)
+    {
+        return FText::FromString(FString::Printf(TEXT("Workshop OPEN | hours %s | world clock unavailable: fail-open"), *Schedule));
+    }
+
+    if (GTTWorkshopHoursPolicy::IsOpen(Clock->GetTimeOfDayHours()))
+    {
+        return FText::FromString(FString::Printf(TEXT("Workshop OPEN | %s | hours %s"), *Clock->GetClockText(), *Schedule));
+    }
+
+    return FText::FromString(FString::Printf(
+        TEXT("Workshop CLOSED | %s | hours %s | WORKSHOP HOLD emergency service +%d%%"),
+        *Clock->GetClockText(), *Schedule, GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent));
+}
+
 int32 AGTTServiceTerminal::GetNativeRoadRepairQuote(const AGTTRoadVehicleNativePawn* Vehicle) const
 {
     if (!Vehicle || !GetWorld()) return WorkshopServiceCost;
@@ -130,6 +176,15 @@ int32 AGTTServiceTerminal::GetNativeRoadFuelQuote(const AGTTRoadVehicleNativePaw
     return MissingLiters <= KINDA_SMALL_NUMBER ? 0 : FMath::Max(1, FMath::CeilToInt(MissingLiters * NativeFuelPricePerLiter));
 }
 
+int32 AGTTServiceTerminal::GetNativeRoadCheckoutQuote(const AGTTRoadVehicleNativePawn* Vehicle) const
+{
+    const int32 BaseQuote = GetNativeRoadRepairQuote(Vehicle);
+    if (!Vehicle || IsWorkshopOpenNow()) return BaseQuote;
+    return IsWorkshopHold(GetWorld(), Vehicle->GetPersistentVehicleId())
+        ? GTTWorkshopHoursPolicy::CalculateEmergencyRecoveryTotal(BaseQuote)
+        : BaseQuote;
+}
+
 void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
 {
     APawn* Pawn = Cast<APawn>(Interactor);
@@ -143,19 +198,29 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     }
 
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
+    const bool bWorkshopOpen = IsWorkshopOpenNow();
+    const FString WorkshopSchedule = GTTWorkshopHoursPolicy::GetScheduleText();
 
     if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
     {
         const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
         FGTTGarageFleetSnapshot FleetSnapshot;
-        const bool bHasFleetSnapshot = ResolveFleetSnapshot(GetWorld(), NativeRoad->GetPersistentVehicleId(), FleetSnapshot);
-        const bool bWorkshopHold = bHasFleetSnapshot && GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(FleetSnapshot);
+        const bool bWorkshopHold = IsWorkshopHold(GetWorld(), NativeRoad->GetPersistentVehicleId(), &FleetSnapshot);
         const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad) || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < NativeRoad->GetFuelCapacityLiters();
+        const bool bAfterHoursEmergency = bWorkshopHold && !bWorkshopOpen;
 
         if (!bNeedsMechanical && !bNeedsFuel)
         {
             Economy->PushMessage(TEXT("Workshop: that Native road vehicle is already ready to go."));
+            return;
+        }
+
+        if (!bWorkshopOpen && !bWorkshopHold)
+        {
+            Economy->PushMessage(FString::Printf(
+                TEXT("Workshop CLOSED (%s). Ordinary repair/refuel waits for opening; hard WORKSHOP HOLD recovery remains available after hours."),
+                *WorkshopSchedule), 6.0f);
             return;
         }
 
@@ -179,7 +244,10 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         }
 
         const int32 BodyParts = NativeRoad->GetBodyDamageRepairSurcharge();
-        const int32 TotalCost = GetNativeRoadRepairQuote(NativeRoad);
+        const int32 BaseCost = GetNativeRoadRepairQuote(NativeRoad);
+        const int32 TotalCost = bAfterHoursEmergency
+            ? GTTWorkshopHoursPolicy::CalculateEmergencyRecoveryTotal(BaseCost)
+            : BaseCost;
         if (!Economy->SpendCash(TotalCost, FString::Printf(TEXT("Native road workshop estimate - $%d"), TotalCost))) return;
         if (!NativeRoad->ApplyNativeWorkshopService())
         {
@@ -188,7 +256,14 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
             return;
         }
 
-        if (bWorkshopHold)
+        if (bAfterHoursEmergency)
+        {
+            Economy->PushMessage(FString::Printf(
+                TEXT("%s after-hours recovery complete for $%d (daytime base $%d, emergency +%d%%). WORKSHOP HOLD cleared; garage dispatch is available again."),
+                *NativeRoad->GetVehicleDisplayName().ToString(), TotalCost, BaseCost,
+                GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent), 8.0f);
+        }
+        else if (bWorkshopHold)
         {
             Economy->PushMessage(FString::Printf(
                 TEXT("%s recovery service complete for $%d (structural parts $%d). WORKSHOP HOLD cleared; garage dispatch is available again."),
@@ -207,33 +282,74 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         AGTTVehicleBase* Mirror = FindFieldmasterMirror(GetWorld(), Native);
         if (!Mirror) { Economy->PushMessage(TEXT("Workshop: Native Fieldmaster compatibility mirror is unavailable.")); return; }
         const FGTTVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
-        const bool bNeedsRepair = State.ConditionPercent < 0.999f;
+        const bool bWorkshopHold = IsWorkshopHold(GetWorld(), FieldmasterVehicleId);
+        const bool bNeedsRepair = State.ConditionPercent < 0.999f || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < Mirror->GetFuelCapacity();
         if (!bNeedsRepair && !bNeedsFuel) { Economy->PushMessage(TEXT("Workshop: that machine is already ready to go.")); return; }
-        if (!Economy->SpendCash(WorkshopServiceCost, FString::Printf(TEXT("Workshop service - $%d"), WorkshopServiceCost))) return;
+        if (!bWorkshopOpen && !bWorkshopHold)
+        {
+            Economy->PushMessage(FString::Printf(TEXT("Workshop CLOSED (%s). Fieldmaster service resumes at opening."), *WorkshopSchedule), 5.0f);
+            return;
+        }
+        const bool bAfterHoursEmergency = bWorkshopHold && !bWorkshopOpen;
+        const int32 TotalCost = bAfterHoursEmergency
+            ? GTTWorkshopHoursPolicy::CalculateEmergencyRecoveryTotal(WorkshopServiceCost)
+            : WorkshopServiceCost;
+        if (!Economy->SpendCash(TotalCost, FString::Printf(TEXT("Workshop service - $%d"), TotalCost))) return;
         Mirror->RepairVehicle(100000.0f);
         Mirror->RefuelVehicle(100000.0f);
         FString ImportSummary;
         if (!Native->ImportLegacyGameplayState(Mirror, ImportSummary))
         {
-            Economy->AddCash(WorkshopServiceCost, TEXT("Workshop service rollback"));
+            Economy->AddCash(TotalCost, TEXT("Workshop service rollback"));
             Economy->PushMessage(TEXT("Workshop: Native Fieldmaster state refresh failed; payment returned."));
             return;
         }
-        Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled; Native Chaos state synchronized."), *Native->GetVehicleDisplayName().ToString()), 5.0f);
+        if (bAfterHoursEmergency)
+        {
+            Economy->PushMessage(FString::Printf(
+                TEXT("%s emergency recovery service complete for $%d (+%d%% after-hours); Native Chaos state synchronized."),
+                *Native->GetVehicleDisplayName().ToString(), TotalCost,
+                GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent), 6.0f);
+        }
+        else
+        {
+            Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled for $%d; Native Chaos state synchronized."),
+                *Native->GetVehicleDisplayName().ToString(), TotalCost), 5.0f);
+        }
         if (GameMode) GameMode->SaveProgress();
         return;
     }
 
     AGTTVehicleBase* Vehicle = FindNearestVehicle();
     if (!Vehicle) { Economy->PushMessage(TEXT("Workshop: park a vehicle nearby first.")); return; }
-    const bool bNeedsRepair = Vehicle->GetConditionPercent() < 0.999f;
+    const bool bWorkshopHold = IsWorkshopHold(GetWorld(), Vehicle->GetPersistentVehicleId());
+    const bool bNeedsRepair = Vehicle->GetConditionPercent() < 0.999f || bWorkshopHold;
     const bool bNeedsFuel = Vehicle->GetFuelPercent() < 0.999f;
     if (!bNeedsRepair && !bNeedsFuel) { Economy->PushMessage(TEXT("Workshop: that machine is already ready to go.")); return; }
-    if (!Economy->SpendCash(WorkshopServiceCost, FString::Printf(TEXT("Workshop service - $%d"), WorkshopServiceCost))) return;
+    if (!bWorkshopOpen && !bWorkshopHold)
+    {
+        Economy->PushMessage(FString::Printf(TEXT("Workshop CLOSED (%s). Ordinary service resumes at opening."), *WorkshopSchedule), 5.0f);
+        return;
+    }
+    const bool bAfterHoursEmergency = bWorkshopHold && !bWorkshopOpen;
+    const int32 TotalCost = bAfterHoursEmergency
+        ? GTTWorkshopHoursPolicy::CalculateEmergencyRecoveryTotal(WorkshopServiceCost)
+        : WorkshopServiceCost;
+    if (!Economy->SpendCash(TotalCost, FString::Printf(TEXT("Workshop service - $%d"), TotalCost))) return;
     Vehicle->RepairVehicle(100000.0f);
     Vehicle->RefuelVehicle(100000.0f);
-    Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled."), *Vehicle->GetVehicleDisplayName().ToString()), 5.0f);
+    if (bAfterHoursEmergency)
+    {
+        Economy->PushMessage(FString::Printf(TEXT("%s emergency recovery service complete for $%d (+%d%% after-hours)."),
+            *Vehicle->GetVehicleDisplayName().ToString(), TotalCost,
+            GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent), 6.0f);
+    }
+    else
+    {
+        Economy->PushMessage(FString::Printf(TEXT("%s repaired and refuelled for $%d."),
+            *Vehicle->GetVehicleDisplayName().ToString(), TotalCost), 5.0f);
+    }
     if (GameMode) GameMode->SaveProgress();
 }
 
@@ -244,18 +360,26 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
         return NSLOCTEXT("GTT", "SellFish", "Sell all fish");
     }
 
+    const bool bWorkshopOpen = IsWorkshopOpenNow();
+    const FString WorkshopSchedule = GTTWorkshopHoursPolicy::GetScheduleText();
+
     if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
     {
         const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
         FGTTGarageFleetSnapshot FleetSnapshot;
-        const bool bHasFleetSnapshot = ResolveFleetSnapshot(GetWorld(), NativeRoad->GetPersistentVehicleId(), FleetSnapshot);
-        const bool bWorkshopHold = bHasFleetSnapshot && GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(FleetSnapshot);
+        const bool bWorkshopHold = IsWorkshopHold(GetWorld(), NativeRoad->GetPersistentVehicleId(), &FleetSnapshot);
         const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad) || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < NativeRoad->GetFuelCapacityLiters();
         if (!bNeedsMechanical && !bNeedsFuel)
             return FText::FromString(FString::Printf(TEXT("Workshop: %s is ready"), *NativeRoad->GetVehicleDisplayName().ToString()));
+        if (!bWorkshopOpen && !bWorkshopHold)
+            return FText::FromString(FString::Printf(TEXT("Workshop CLOSED (%s): %s waits for daytime service"), *WorkshopSchedule, *NativeRoad->GetVehicleDisplayName().ToString()));
         if (!bNeedsMechanical && bNeedsFuel)
             return FText::FromString(FString::Printf(TEXT("Refuel %s ($%d exact fuel quote)"), *NativeRoad->GetVehicleDisplayName().ToString(), GetNativeRoadFuelQuote(NativeRoad)));
+        if (bWorkshopHold && !bWorkshopOpen)
+            return FText::FromString(FString::Printf(TEXT("Emergency recovery: %s [%s] ($%d incl. +%d%% after-hours)"),
+                *NativeRoad->GetVehicleDisplayName().ToString(), *FleetSnapshot.ServiceStatus,
+                GetNativeRoadCheckoutQuote(NativeRoad), GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent));
         if (bWorkshopHold)
             return FText::FromString(FString::Printf(TEXT("Complete recovery service: %s [%s] ($%d estimate)"),
                 *NativeRoad->GetVehicleDisplayName().ToString(), *FleetSnapshot.ServiceStatus, GetNativeRoadRepairQuote(NativeRoad)));
@@ -264,10 +388,35 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
 
     if (AGTTFieldmasterNativePawn* Native = FindActiveNativeFieldmaster(GetWorld(), GetActorLocation(), VehicleSearchRadius))
     {
-        return FText::FromString(FString::Printf(TEXT("Workshop: inspect %s ($%d base service)"), *Native->GetVehicleDisplayName().ToString(), WorkshopServiceCost));
+        const bool bWorkshopHold = IsWorkshopHold(GetWorld(), FieldmasterVehicleId);
+        if (!bWorkshopOpen && !bWorkshopHold)
+            return FText::FromString(FString::Printf(TEXT("Workshop CLOSED (%s): Fieldmaster service waits for opening"), *WorkshopSchedule));
+        const int32 Quote = bWorkshopHold && !bWorkshopOpen
+            ? GTTWorkshopHoursPolicy::CalculateEmergencyRecoveryTotal(WorkshopServiceCost)
+            : WorkshopServiceCost;
+        return FText::FromString(FString::Printf(TEXT("Workshop: inspect %s ($%d%s)"),
+            *Native->GetVehicleDisplayName().ToString(), Quote,
+            bWorkshopHold && !bWorkshopOpen ? TEXT(" emergency recovery") : TEXT(" base service")));
     }
 
-    return NSLOCTEXT("GTT", "WorkshopService", "Inspect + repair nearby vehicle (damage-based quote)");
+    if (AGTTVehicleBase* Vehicle = FindNearestVehicle())
+    {
+        const bool bWorkshopHold = IsWorkshopHold(GetWorld(), Vehicle->GetPersistentVehicleId());
+        if (!bWorkshopOpen && !bWorkshopHold)
+            return FText::FromString(FString::Printf(TEXT("Workshop CLOSED (%s): ordinary service waits for opening"), *WorkshopSchedule));
+        const int32 Quote = bWorkshopHold && !bWorkshopOpen
+            ? GTTWorkshopHoursPolicy::CalculateEmergencyRecoveryTotal(WorkshopServiceCost)
+            : WorkshopServiceCost;
+        return FText::FromString(FString::Printf(TEXT("Inspect + repair %s ($%d%s)"),
+            *Vehicle->GetVehicleDisplayName().ToString(), Quote,
+            bWorkshopHold && !bWorkshopOpen ? TEXT(" emergency recovery") : TEXT("")));
+    }
+
+    if (bWorkshopOpen)
+    {
+        return FText::FromString(TEXT("Workshop OPEN | inspect + repair nearby vehicle"));
+    }
+    return FText::FromString(FString::Printf(TEXT("Workshop CLOSED (%s) | hard WORKSHOP HOLD emergency service only"), *WorkshopSchedule));
 }
 
 AGTTVehicleBase* AGTTServiceTerminal::FindNearestVehicle() const
