@@ -20,17 +20,36 @@ required = [
     (service_cpp, 'GetNativeRoadRepairQuote'),
     (workflow, 'Verify Native road body damage and workshop integration'), (workflow, 'python Scripts/verify_native_road_body_damage.py'),
     (playtest, 'NATIVE_ROAD_PANEL_DETACH'), (playtest, 'Workshop'), (changelog, '0.0.70'),
-    (roadmap, '<!-- SWIR-ROADMAP-STANDARD:v1 -->'), (roadmap, '📊 Overall progress'),
+    (roadmap, '<!-- SWIR-ROADMAP-STANDARD:v1 -->'), (roadmap, '<!-- ROADMAP-PROGRESS:START -->'),
+    (roadmap, '<!-- ROADMAP-PROGRESS:END -->'), (roadmap, '📊 Overall progress'),
+    (roadmap, '../assets/readme/progress-mini.svg'),
 ]
 missing = [token for text, token in required if token not in text]
-if missing: raise SystemExit('Missing required tokens: ' + ', '.join(missing))
+if missing:
+    raise SystemExit('Missing required tokens: ' + ', '.join(missing))
+
 checks = re.findall(r'^- \[(x|X| )\]', roadmap, flags=re.MULTILINE)
-done = sum(1 for value in checks if value.lower() == 'x'); total = len(checks); remaining = total - done
-if (done, total, remaining) != (125, 130, 5): raise SystemExit(f'Roadmap checkbox drift: done={done} total={total} remaining={remaining}; expected 125/130/5')
-for token in ['ROADMAP-96.2%25','DONE-125%2F130','███████████████████░ 96.2%','| **125** | **5** | **130** | **96.2%** |']:
-    if token not in roadmap: raise SystemExit('Roadmap dashboard drift: missing ' + token)
+done = sum(1 for value in checks if value.lower() == 'x')
+total = len(checks)
+remaining = total - done
+if (done, total, remaining) != (125, 130, 5):
+    raise SystemExit(f'Roadmap checkbox drift: done={done} total={total} remaining={remaining}; expected 125/130/5')
+
+for token in ['ROADMAP-96.2%25', 'DONE-125%2F130', '| **125** | **5** | **130** | **96.2%** |']:
+    if token not in roadmap:
+        raise SystemExit('Roadmap dashboard drift: missing ' + token)
+
+progress_block = roadmap.split('<!-- ROADMAP-PROGRESS:START -->', 1)[1].split('<!-- ROADMAP-PROGRESS:END -->', 1)[0]
+if progress_block.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap progress block must embed exactly one canonical progress-mini.svg.')
+if re.search(r'[█▓▒░]{3,}', progress_block):
+    raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
+
 if road_cpp.find('UpdateNativeWheelRuntime(DeltaSeconds);') > road_cpp.find('UpdateDamageConsequences(DeltaSeconds);'):
     raise SystemExit('Damage consequences must run after wheel-state refresh so both control layers compose predictably.')
-native_service_pos = service_cpp.find('if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle'); legacy_service_pos = service_cpp.find('AGTTVehicleBase* Vehicle = FindNearestVehicle();')
-if native_service_pos < 0 or legacy_service_pos < 0 or native_service_pos > legacy_service_pos: raise SystemExit('Native road workshop handling must precede generic legacy vehicle servicing.')
-print('[OK] Native road body zones, detachable debris, handling/cooling consequences, dynamic workshop integration and roadmap lock verified.')
+native_service_pos = service_cpp.find('if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle')
+legacy_service_pos = service_cpp.find('AGTTVehicleBase* Vehicle = FindNearestVehicle();')
+if native_service_pos < 0 or legacy_service_pos < 0 or native_service_pos > legacy_service_pos:
+    raise SystemExit('Native road workshop handling must precede generic legacy vehicle servicing.')
+
+print('[OK] Native road body zones, detachable debris, handling/cooling consequences, dynamic workshop integration and SVG-only roadmap lock verified.')
