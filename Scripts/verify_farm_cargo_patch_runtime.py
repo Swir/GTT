@@ -14,6 +14,10 @@ def text(path: str) -> str:
     return p.read_text(encoding="utf-8")
 
 
+def visible_markdown(data: str) -> str:
+    return re.sub(r"<!--.*?-->", "", data, flags=re.DOTALL)
+
+
 def require(path: str, *needles: str) -> str:
     data = text(path)
     for needle in needles:
@@ -134,8 +138,8 @@ def main() -> None:
         raise AssertionError(f"0.1.35 source evidence must not close runtime roadmap gates: got {done}/{done+open_}")
     if "96.2%" not in roadmap or "125" not in roadmap or "130" not in roadmap:
         raise AssertionError("roadmap dashboard no longer reflects 125/130 = 96.2%")
-    if re.search(r"[█░▓▒]{4,}", roadmap):
-        raise AssertionError("legacy character progress meter returned; SWIR Progress SVG PRO requires SVG-only visualization")
+    if re.search(r"[█░▓▒]{4,}", visible_markdown(roadmap)):
+        raise AssertionError("a rendered legacy character progress meter returned; SWIR Progress SVG PRO requires SVG-only visualization")
     if "../assets/readme/progress-mini.svg" not in roadmap:
         raise AssertionError("roadmap mini progress SVG embed missing")
 
@@ -159,8 +163,8 @@ def main() -> None:
         "Release readiness: **NOT READY**",
         "FARM_CARGO_PATCH_RUNTIME.json",
     )
-    if re.search(r"[█░▓▒]{4,}", readme):
-        raise AssertionError("README must not reintroduce a legacy character progress meter")
+    if re.search(r"[█░▓▒]{4,}", visible_markdown(readme)):
+        raise AssertionError("README must not render a legacy character progress meter")
 
     playtest = text("Docs/PLAYTEST_0.1.35.md")
     scenarios = len(re.findall(r"^\d+\. ", playtest, flags=re.MULTILINE))
@@ -177,7 +181,7 @@ def main() -> None:
     _ = changelog
 
     print("GTT 0.1.35 Farm Cargo emergency-patch runtime evidence contract: PASS")
-    print(f"Roadmap remains {done}/{done+open_} = {done/(done+open_)*100:.1f}% with SVG-only progress presentation")
+    print(f"Roadmap remains {done}/{done+open_} = {done/(done+open_)*100:.1f}% with SVG-only rendered progress presentation")
 
 
 if __name__ == "__main__":
