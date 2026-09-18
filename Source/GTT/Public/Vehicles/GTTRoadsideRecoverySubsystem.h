@@ -7,7 +7,7 @@
 class AGTTRoadVehicleNativePawn;
 
 UENUM(BlueprintType)
-enum class EGTTRoadsideRecoveryMode : uint8 { None, RoadsideAssistance, PoliceImpound };
+enum class EGTTRoadsideRecoveryMode : uint8 { None, EmergencyPatch, RoadsideAssistance, PoliceImpound };
 
 USTRUCT()
 struct FGTTRoadsideRecoveryRuntime
@@ -18,6 +18,8 @@ struct FGTTRoadsideRecoveryRuntime
     EGTTRoadsideRecoveryMode Mode = EGTTRoadsideRecoveryMode::None;
     bool bAnnounced = false;
     bool bTowRequested = false;
+    bool bPatchRequested = false;
+    int32 PendingPatchQuote = 0;
 };
 
 UCLASS()
@@ -32,13 +34,22 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Recovery")
     bool RequestRoadsideTow(AGTTRoadVehicleNativePawn* Vehicle);
 
+    /** Cheap temporary limp-home patch. Preserves body damage and never replaces workshop repair. */
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Recovery")
+    bool RequestEmergencyRoadsidePatch(AGTTRoadVehicleNativePawn* Vehicle);
+
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Recovery")
     bool IsRoadsideTowPending(const AGTTRoadVehicleNativePawn* Vehicle) const;
 
+    UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Recovery")
+    bool IsRoadsidePatchPending(const AGTTRoadVehicleNativePawn* Vehicle) const;
+
 private:
     bool IsRecoveryEligible(const AGTTRoadVehicleNativePawn* Vehicle) const;
+    bool IsPlayerRecoveryChoiceEligible(const AGTTRoadVehicleNativePawn* Vehicle) const;
     void UpdateVehicle(AGTTRoadVehicleNativePawn* Vehicle, float DeltaSeconds);
     bool CompleteRecovery(AGTTRoadVehicleNativePawn* Vehicle, EGTTRoadsideRecoveryMode Mode);
+    bool CompleteEmergencyPatch(AGTTRoadVehicleNativePawn* Vehicle, int32 PatchQuote);
     int32 CalculateRoadsideCost(const AGTTRoadVehicleNativePawn* Vehicle) const;
     int32 CalculateImpoundCost(const AGTTRoadVehicleNativePawn* Vehicle, int32 WantedLevel) const;
     FVector GetWorkshopDropLocation(const AGTTRoadVehicleNativePawn* Vehicle) const;

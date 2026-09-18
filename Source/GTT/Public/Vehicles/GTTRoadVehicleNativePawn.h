@@ -57,6 +57,21 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle") void ExitNativeVehicle();
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Cargo") virtual void SetCargoLoadFactor(float NewLoadFactor);
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Workshop") bool ApplyNativeWorkshopService();
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Recovery") bool ApplyNativeEmergencyRoadsidePatch()
+    {
+        if (!bTakeoverActive) return false;
+        const float PreviousCondition = MigrationSnapshot.ConditionPercent;
+        const float PreviousTires = MigrationSnapshot.TireIntegrity;
+        const float PreviousFuel = MigrationSnapshot.FuelLiters;
+        MigrationSnapshot.ConditionPercent = FMath::Max(MigrationSnapshot.ConditionPercent, 0.30f);
+        MigrationSnapshot.TireIntegrity = FMath::Max(MigrationSnapshot.TireIntegrity, 0.32f);
+        MigrationSnapshot.FuelLiters = FMath::Max(MigrationSnapshot.FuelLiters, FMath::Min(FuelCapacityLiters, 5.0f));
+        const bool bChanged = !FMath::IsNearlyEqual(PreviousCondition, MigrationSnapshot.ConditionPercent, 0.001f)
+            || !FMath::IsNearlyEqual(PreviousTires, MigrationSnapshot.TireIntegrity, 0.001f)
+            || !FMath::IsNearlyEqual(PreviousFuel, MigrationSnapshot.FuelLiters, 0.001f);
+        if (bChanged) SyncLegacyMirror();
+        return bChanged;
+    }
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Service") bool RepairNativeTires()
     {
         if (!bTakeoverActive || MigrationSnapshot.TireIntegrity >= 0.999f) return false;

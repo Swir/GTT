@@ -33,6 +33,42 @@ int32 UGTTBreakdownDecisionSubsystem::CalculateTowEstimate(const AGTTRoadVehicle
     return FMath::Clamp(110 + DistanceCharge + DamageHandling + StructuralHandling, 110, 850);
 }
 
+bool UGTTBreakdownDecisionSubsystem::CanEmergencyPatch(const AGTTRoadVehicleNativePawn* Vehicle) const
+{
+    if (!Vehicle || !Vehicle->IsLegacyTakeoverActive()) return false;
+    const FGTTRoadVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
+    const FGTTRoadBodyDamageSnapshot Body = Vehicle->GetBodyDamageSnapshot();
+
+    const bool bBodyDisabled = Body.DetachedPanelCount >= 3 && MinimumBodyHealth(Body) <= 0.20f;
+    if (bBodyDisabled) return false;
+
+    if (const UWorld* World = GetWorld())
+    {
+        if (const UGTTStructuralDriveConsequenceSubsystem* Drive = World->GetSubsystem<UGTTStructuralDriveConsequenceSubsystem>())
+        {
+            const FGTTStructuralDriveState Structural = Drive->GetDriveStateForVehicle(Vehicle);
+            if (Structural.DamageSeverity >= 0.72f) return false;
+        }
+    }
+
+    return State.ConditionPercent < 0.30f || State.TireIntegrity < 0.32f || State.FuelLiters < 5.0f;
+}
+
+int32 UGTTBreakdownDecisionSubsystem::CalculateRoadsidePatchEstimate(const AGTTRoadVehicleNativePawn* Vehicle) const
+{
+    if (!Vehicle || !CanEmergencyPatch(Vehicle)) return 0;
+    const FGTTRoadVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
+
+    const float ConditionNeed = FMath::Max(0.0f, 0.30f - State.ConditionPercent);
+    const float TireNeed = FMath::Max(0.0f, 0.32f - State.TireIntegrity);
+    const float FuelNeed = FMath::Max(0.0f, 5.0f - State.FuelLiters);
+    const int32 MechanicalAid = FMath::RoundToInt(ConditionNeed * 290.0f);
+    const int32 TireAid = FMath::RoundToInt(TireNeed * 220.0f);
+    const int32 FuelAid = FMath::RoundToInt(FuelNeed * 3.0f);
+
+    return FMath::Clamp(55 + MechanicalAid + TireAid + FuelAid, 55, 260);
+}
+
 FGTTBreakdownAssessment UGTTBreakdownDecisionSubsystem::AssessVehicle(const AGTTRoadVehicleNativePawn* Vehicle, int32 BaseWorkshopCost) const
 {
     FGTTBreakdownAssessment Result;
@@ -46,6 +82,8 @@ FGTTBreakdownAssessment UGTTBreakdownDecisionSubsystem::AssessVehicle(const AGTT
     Result.Severity = FMath::Clamp(FMath::Max3(MechanicalSeverity, BodySeverity, Structural.DamageSeverity), 0.0f, 1.0f);
     Result.RepairEstimate = CalculateRepairEstimate(Vehicle, BaseWorkshopCost);
     Result.TowEstimate = CalculateTowEstimate(Vehicle);
+    Result.bEmergencyPatchPossible = CanEmergencyPatch(Vehicle);
+    Result.EmergencyPatchEstimate = Result.bEmergencyPatchPossible ? CalculateRoadsidePatchEstimate(Vehicle) : 0;
     const bool bBodyDisabled = Body.DetachedPanelCount >= 3 && MinimumBodyHealth(Body) <= 0.20f;
     const bool bImmobilized = State.ConditionPercent <= 0.05f || State.FuelLiters <= 0.05f || State.TireIntegrity <= 0.08f || bBodyDisabled;
     Result.bTowRecommended = bImmobilized || Result.Severity >= 0.72f || State.TireIntegrity <= 0.22f || State.ConditionPercent <= 0.20f;

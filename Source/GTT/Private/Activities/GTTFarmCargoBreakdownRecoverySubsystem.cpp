@@ -81,8 +81,6 @@ void UGTTFarmCargoBreakdownRecoverySubsystem::EvaluateCargoRecovery()
     AGTTRoadVehicleNativePawn* NativeVehicle = Cast<AGTTRoadVehicleNativePawn>(BoundPawn);
     if (!NativeVehicle)
     {
-        // Legacy work vehicles keep the exact-vehicle authority but do not use the native
-        // roadside recovery service. Existing Farm Cargo damage/integrity rules still apply.
         SetRecoveryState(EGTTFarmCargoRecoveryState::Healthy, nullptr, FString());
         return;
     }
@@ -91,19 +89,33 @@ void UGTTFarmCargoBreakdownRecoverySubsystem::EvaluateCargoRecovery()
     const UGTTBreakdownDecisionSubsystem* Breakdown = World->GetSubsystem<UGTTBreakdownDecisionSubsystem>();
     UGTTRoadsideRecoverySubsystem* Roadside = World->GetSubsystem<UGTTRoadsideRecoverySubsystem>();
     const FGTTBreakdownAssessment Assessment = Breakdown ? Breakdown->AssessVehicle(NativeVehicle) : FGTTBreakdownAssessment();
+    const bool bPatchPending = Roadside && Roadside->IsRoadsidePatchPending(NativeVehicle);
     const bool bTowPending = Roadside && Roadside->IsRoadsideTowPending(NativeVehicle);
 
     int32 WantedLevel = 0;
     if (Driver)
     {
-        if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(Driver))
-        {
-            WantedLevel = Wanted->GetWantedLevel();
-        }
+        if (UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(Driver)) WantedLevel = Wanted->GetWantedLevel();
     }
 
+    const bool bWasPatchPending = RecoveryState == EGTTFarmCargoRecoveryState::PatchPending;
     const bool bWasTowPending = RecoveryState == EGTTFarmCargoRecoveryState::TowPending;
     const bool bWasImpoundPending = RecoveryState == EGTTFarmCargoRecoveryState::PoliceImpoundPending;
+
+    if (bPatchPending)
+    {
+        if (!bWasPatchPending)
+        {
+            RecoveryVehicleId = BoundId;
+            bPreRecoveryCheckpointWritten = CheckpointPrimarySave(TEXT("cargo-roadside-patch-pre-service"));
+            SetRecoveryState(EGTTFarmCargoRecoveryState::PatchPending, Driver,
+                FString::Printf(TEXT("CARGO PATCH: %s stays bound to this load. Temporary roadside service does not pause the delivery timer."), *BoundId.ToString()));
+            UE_LOG(LogGTT, Display,
+                TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=PATCH_CHECKPOINT vehicle=%s saved=%s timer_paused=NO transfer_allowed=NO"),
+                *BoundId.ToString(), bPreRecoveryCheckpointWritten ? TEXT("YES") : TEXT("NO"));
+        }
+        return;
+    }
 
     if (bTowPending)
     {
@@ -137,15 +149,34 @@ void UGTTFarmCargoBreakdownRecoverySubsystem::EvaluateCargoRecovery()
         return;
     }
 
+    if (bWasPatchPending)
+    {
+        const FName ExpectedId = RecoveryVehicleId;
+        const bool bIdentityPreserved = VerifyExactCargoVehicle(CargoAuthority, NativeVehicle, ExpectedId);
+        if (!bIdentityPreserved)
+        {
+            SetRecoveryState(EGTTFarmCargoRecoveryState::AwaitingExactVehicle, Driver,
+                FString::Printf(TEXT("CARGO PATCH HOLD: exact vehicle %s was not restored. Delivery remains blocked until it returns."), *ExpectedId.ToString()));
+            UE_LOG(LogGTT, Error,
+                TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=POST_PATCH_VERIFY result=FAIL expected=%s actual=%s handoff_locked=YES transfer_allowed=NO"),
+                *ExpectedId.ToString(), *CargoAuthority->GetBoundCargoVehicleId().ToString());
+            return;
+        }
+
+        const bool bPostSave = CheckpointPrimarySave(TEXT("cargo-roadside-patch-post-service"));
+        SetRecoveryState(EGTTFarmCargoRecoveryState::Patched, Driver,
+            FString::Printf(TEXT("CARGO PATCHED: %s kept the load identity. Limp carefully; the route clock continues and workshop repair remains due."), *ExpectedId.ToString()));
+        UE_LOG(LogGTT, Display,
+            TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=POST_PATCH_VERIFY result=PASS vehicle=%s identity_preserved=YES saved=%s timer_paused=NO transfer_allowed=NO"),
+            *ExpectedId.ToString(), bPostSave ? TEXT("YES") : TEXT("NO"));
+        bPreRecoveryCheckpointWritten = false;
+        return;
+    }
+
     if (bWasTowPending || bWasImpoundPending)
     {
         const FName ExpectedId = RecoveryVehicleId;
-        const bool bRebound = CargoAuthority->TryRebindBoundVehicle();
-        APawn* ReboundPawn = CargoAuthority->GetBoundCargoVehicle();
-        const bool bIdentityPreserved = bRebound && ReboundPawn == NativeVehicle &&
-            CargoAuthority->GetBoundCargoVehicleId() == ExpectedId &&
-            NativeVehicle->GetPersistentVehicleId() == ExpectedId;
-
+        const bool bIdentityPreserved = VerifyExactCargoVehicle(CargoAuthority, NativeVehicle, ExpectedId);
         if (!bIdentityPreserved)
         {
             SetRecoveryState(EGTTFarmCargoRecoveryState::AwaitingExactVehicle, Driver,
@@ -174,35 +205,44 @@ void UGTTFarmCargoBreakdownRecoverySubsystem::EvaluateCargoRecovery()
         case EGTTBreakdownRecommendation::Immobilized:
         case EGTTBreakdownRecommendation::TowRecommended:
             DesiredState = EGTTFarmCargoRecoveryState::TowRecommended;
-            Message = FString::Printf(TEXT("CARGO BREAKDOWN: tow is recommended for %s. Calling tow preserves exact cargo identity; the contract clock keeps running."), *BoundId.ToString());
+            if (Assessment.bEmergencyPatchPossible)
+            {
+                Message = FString::Printf(TEXT("CARGO BREAKDOWN: %s can use Y patch $%d for limp-home or T tow $%d. The contract clock keeps running either way."), *BoundId.ToString(), Assessment.EmergencyPatchEstimate, Assessment.TowEstimate);
+            }
+            else
+            {
+                Message = FString::Printf(TEXT("CARGO BREAKDOWN: tow is required for %s; structural/body damage is too severe for a roadside patch. The contract clock keeps running."), *BoundId.ToString());
+            }
             break;
         case EGTTBreakdownRecommendation::LimpToWorkshop:
-            DesiredState = EGTTFarmCargoRecoveryState::Degraded;
-            Message = FString::Printf(TEXT("CARGO VEHICLE DAMAGED: %s can limp on, but cargo integrity and the delivery clock remain at risk."), *BoundId.ToString());
+            DesiredState = RecoveryState == EGTTFarmCargoRecoveryState::Patched ? EGTTFarmCargoRecoveryState::Patched : EGTTFarmCargoRecoveryState::Degraded;
+            if (DesiredState == EGTTFarmCargoRecoveryState::Degraded)
+            {
+                Message = FString::Printf(TEXT("CARGO VEHICLE DAMAGED: %s can limp on, but cargo integrity and the delivery clock remain at risk."), *BoundId.ToString());
+            }
             break;
         default:
-            DesiredState = RecoveryState == EGTTFarmCargoRecoveryState::Recovered
-                ? EGTTFarmCargoRecoveryState::Recovered
-                : EGTTFarmCargoRecoveryState::Healthy;
+            DesiredState = RecoveryState == EGTTFarmCargoRecoveryState::Patched ? EGTTFarmCargoRecoveryState::Patched : RecoveryState == EGTTFarmCargoRecoveryState::Recovered ? EGTTFarmCargoRecoveryState::Recovered : EGTTFarmCargoRecoveryState::Healthy;
             break;
     }
     SetRecoveryState(DesiredState, Driver, Message);
 }
 
-void UGTTFarmCargoBreakdownRecoverySubsystem::SetRecoveryState(
-    EGTTFarmCargoRecoveryState NewState,
-    APawn* Driver,
-    const FString& PlayerMessage)
+bool UGTTFarmCargoBreakdownRecoverySubsystem::VerifyExactCargoVehicle(UGTTFarmCargoAuthoritySubsystem* CargoAuthority, AGTTRoadVehicleNativePawn* ExpectedVehicle, FName ExpectedId) const
+{
+    if (!CargoAuthority || !ExpectedVehicle || ExpectedId.IsNone()) return false;
+    const bool bRebound = CargoAuthority->TryRebindBoundVehicle();
+    APawn* ReboundPawn = CargoAuthority->GetBoundCargoVehicle();
+    return bRebound && ReboundPawn == ExpectedVehicle && CargoAuthority->GetBoundCargoVehicleId() == ExpectedId && ExpectedVehicle->GetPersistentVehicleId() == ExpectedId;
+}
+
+void UGTTFarmCargoBreakdownRecoverySubsystem::SetRecoveryState(EGTTFarmCargoRecoveryState NewState, APawn* Driver, const FString& PlayerMessage)
 {
     if (RecoveryState == NewState) return;
     RecoveryState = NewState;
-
     if (Driver && !PlayerMessage.IsEmpty())
     {
-        if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Driver))
-        {
-            Economy->PushMessage(PlayerMessage, 7.0f);
-        }
+        if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(Driver)) Economy->PushMessage(PlayerMessage, 7.0f);
     }
 }
 
@@ -212,15 +252,11 @@ bool UGTTFarmCargoBreakdownRecoverySubsystem::CheckpointPrimarySave(const TCHAR*
     const bool bSaved = GameMode && GameMode->SaveProgress();
     if (bSaved)
     {
-        UE_LOG(LogGTT, Display,
-            TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=CHECKPOINT reason=%s result=PASS vehicle=%s"),
-            Reason ? Reason : TEXT("unknown"), *RecoveryVehicleId.ToString());
+        UE_LOG(LogGTT, Display, TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=CHECKPOINT reason=%s result=PASS vehicle=%s"), Reason ? Reason : TEXT("unknown"), *RecoveryVehicleId.ToString());
     }
     else
     {
-        UE_LOG(LogGTT, Warning,
-            TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=CHECKPOINT reason=%s result=FAIL vehicle=%s"),
-            Reason ? Reason : TEXT("unknown"), *RecoveryVehicleId.ToString());
+        UE_LOG(LogGTT, Warning, TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=CHECKPOINT reason=%s result=FAIL vehicle=%s"), Reason ? Reason : TEXT("unknown"), *RecoveryVehicleId.ToString());
     }
     return bSaved;
 }
@@ -239,7 +275,9 @@ FString UGTTFarmCargoBreakdownRecoverySubsystem::GetRecoveryStateLabel() const
     {
         case EGTTFarmCargoRecoveryState::Healthy: return TEXT("CARGO VEHICLE OK");
         case EGTTFarmCargoRecoveryState::Degraded: return TEXT("CARGO VEHICLE DEGRADED");
-        case EGTTFarmCargoRecoveryState::TowRecommended: return TEXT("CARGO TOW RECOMMENDED");
+        case EGTTFarmCargoRecoveryState::TowRecommended: return TEXT("CARGO RECOVERY CHOICE");
+        case EGTTFarmCargoRecoveryState::PatchPending: return TEXT("CARGO PATCH INBOUND");
+        case EGTTFarmCargoRecoveryState::Patched: return TEXT("CARGO VEHICLE PATCHED");
         case EGTTFarmCargoRecoveryState::TowPending: return TEXT("CARGO TOW INBOUND");
         case EGTTFarmCargoRecoveryState::PoliceImpoundPending: return TEXT("CARGO POLICE IMPOUND");
         case EGTTFarmCargoRecoveryState::AwaitingExactVehicle: return TEXT("CARGO VEHICLE RECOVERY REQUIRED");

@@ -1,0 +1,61 @@
+name: GTT 0.1.34 roadside patch and cargo recovery sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/**' ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTRoadVehicleNativePawn.h'
+      - 'Source/GTT/Public/Vehicles/GTTBreakdownDecisionSubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTBreakdownDecisionSubsystem.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTRoadsideRecoverySubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'
+      - 'Source/GTT/Public/Activities/GTTFarmCargoBreakdownRecoverySubsystem.h'
+      - 'Source/GTT/Private/Activities/GTTFarmCargoBreakdownRecoverySubsystem.cpp'
+      - 'Source/GTT/Public/UI/GTTGameHUD.h'
+      - 'Source/GTT/Private/UI/GTTGameHUD.cpp'
+      - 'Scripts/verify_roadside_patch_cargo_recovery.py'
+      - 'Scripts/verify_farm_cargo_breakdown_recovery.py'
+      - 'Scripts/verify_farm_cargo_breakdown_runtime.py'
+      - 'Scripts/generate_progress_svg.py'
+      - 'Docs/PLAYTEST_0.1.34.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'CHANGELOG.d/0.1.34.md'
+      - 'assets/readme/progress-*.svg'
+  pull_request:
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTRoadVehicleNativePawn.h'
+      - 'Source/GTT/Public/Vehicles/GTTBreakdownDecisionSubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTBreakdownDecisionSubsystem.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTRoadsideRecoverySubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'
+      - 'Source/GTT/Public/Activities/GTTFarmCargoBreakdownRecoverySubsystem.h'
+      - 'Source/GTT/Private/Activities/GTTFarmCargoBreakdownRecoverySubsystem.cpp'
+      - 'Source/GTT/Public/UI/GTTGameHUD.h'
+      - 'Source/GTT/Private/UI/GTTGameHUD.cpp'
+      - 'Scripts/verify_roadside_patch_cargo_recovery.py'
+      - 'Scripts/verify_farm_cargo_breakdown_recovery.py'
+      - 'Scripts/verify_farm_cargo_breakdown_runtime.py'
+      - 'Scripts/generate_progress_svg.py'
+      - 'Docs/PLAYTEST_0.1.34.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'CHANGELOG.d/0.1.34.md'
+      - 'assets/readme/progress-*.svg'
+
+permissions:
+  contents: read
+
+jobs:
+  roadside-patch-cargo-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preserve 0.1.32 Farm Cargo breakdown/tow recovery contract
+        run: python3 Scripts/verify_farm_cargo_breakdown_recovery.py
+      - name: Preserve 0.1.33 packaged breakdown recovery evidence contract
+        run: python3 Scripts/verify_farm_cargo_breakdown_runtime.py
+      - name: Verify 0.1.34 roadside patch and cargo recovery-choice contract
+        run: python3 Scripts/verify_roadside_patch_cargo_recovery.py
+      - name: Verify deterministic SWIR progress assets remain current
+        run: python3 Scripts/generate_progress_svg.py --check

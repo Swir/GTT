@@ -106,6 +106,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.18 runtime evidence closure:** the Win64 technical gate now consumes the deterministic drivetrain manifest and a separate authored-trailer runtime manifest. These source-side acceptance contracts intentionally do **not** close either Native Chaos or trailer asset checkbox until a real UE 5.8 Win64 package produces matching PASS evidence and the rendered result is visually accepted.
 
+> **0.1.34 roadside recovery choice:** native road vehicles can choose a paid temporary emergency patch or tow when recovery is recommended. The patch restores only limp-home floors, preserves body damage and persistent identity, while active Farm Cargo keeps the exact loaded vehicle, primary-save checkpoints and a running delivery timer. This source milestone does **not** close any of the five Native Chaos, trailer or Win64 acceptance blockers.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
