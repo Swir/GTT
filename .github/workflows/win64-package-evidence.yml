@@ -5,7 +5,7 @@ on:
       version:
         description: 'GTT version label for the package'
         required: true
-        default: '0.1.14'
+        default: '0.1.35'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -41,13 +41,13 @@ jobs:
         run: ./Scripts/package_windows.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -Configuration "$env:GTT_CONFIGURATION" -ArchiveDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -SkipZip
       - name: Runtime smoke test packaged EXE with deterministic scenarios
         shell: pwsh
-        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 250 -LaunchTimeoutSeconds 275
+        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 280 -LaunchTimeoutSeconds 305
       - name: Evaluate structural limp-home, persistence and workshop recovery scenario
         shell: pwsh
         run: ./Scripts/evaluate_demo_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Evaluate packaged gameplay smoke
         shell: pwsh
-        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 250
+        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 280
       - name: Evaluate live Native Chaos drivetrain and wheel telemetry
         shell: pwsh
         run: ./Scripts/evaluate_native_chaos_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
@@ -63,7 +63,7 @@ jobs:
       - name: Evaluate Farm Cargo mid-route save/load recovery runtime
         shell: pwsh
         run: ./Scripts/evaluate_farm_cargo_recovery_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate Farm Cargo native breakdown and paid tow recovery runtime
+      - name: Evaluate Farm Cargo emergency patch, re-breakdown and paid tow continuity runtime
         shell: pwsh
         run: ./Scripts/evaluate_farm_cargo_breakdown_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Re-validate technical evidence bundle
