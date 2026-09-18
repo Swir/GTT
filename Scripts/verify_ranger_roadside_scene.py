@@ -29,8 +29,6 @@ playtest = read("Docs/PLAYTEST_0.1.25.md")
 changelog = read("CHANGELOG.d/0.1.25.md")
 workflow = read(".github/workflows/ranger-roadside-scene-sanity.yml")
 
-# One fixed incident frame owns lane control, the actual shoulder destination and
-# patrol parking. These values are intentionally bounded and source-verifiable.
 for needle, label in [
     ("PullOverAheadCm = 700.0f", "bounded forward pull-over target"),
     ("PullOverLateralCm = 420.0f", "bounded shoulder offset"),
@@ -58,16 +56,12 @@ for needle, label in [
 ]:
     require(subsystem_cpp, needle, label)
 
-# Critical regression guard: the road frame is captured when the stop begins and
-# must not be refreshed every UpdateStop tick, otherwise the marker chases the car.
 update_body = subsystem_cpp.split("void UGTTRangerRoadStopSubsystem::UpdateStop", 1)[1].split(
     "void UGTTRangerRoadStopSubsystem::MarkFlee", 1
 )[0]
 if "RefreshRoadFrame(Target)" in update_body:
     raise AssertionError("UpdateStop must not move the fixed roadside frame with the target")
 
-# Compliance now requires both the existing speed requirement and the real
-# shoulder zone; legacy vehicle-family coverage and old escalation contract stay.
 for needle, label in [
     ("RoadStopShoulderOffset = 190.0f", "existing ranger shoulder staging contract"),
     ("RoadStopSearchRadius = 275.0f", "existing search/pull-over tolerance"),
@@ -88,7 +82,6 @@ for needle, label in [
 ]:
     require(ranger_cpp, needle, label)
 
-# The patrol unit is presentation/support, not a second garage/persistence vehicle.
 for needle, label in [
     ("class GTT_API AGTTRangerPatrolVehicle : public AActor", "non-drivable patrol support actor"),
     ("IsRoadsideDeployed", "patrol deployment state"),
@@ -132,25 +125,28 @@ for needle, label in [
 ]:
     require(director_cpp, needle, label)
 
-# Existing consumers remain authoritative; 0.1.25 extends their common scene
-# instead of replacing traffic or HUD systems with parallel implementations.
 require(traffic_cpp, "RoadStop->GetTrafficResponse", "existing physical traffic controller")
 require(hud_cpp, "GetPresentationSnapshot", "existing compact road-stop HUD consumer")
 require(hud_cpp, "Snapshot.Progress01", "single compact progress bar preserved")
 
-# No source-only milestone may fake the remaining runtime/hardware acceptance.
-require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock")
-require(roadmap, "📊 Overall progress", "roadmap dashboard heading")
+for token, label in [
+    ("<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock"),
+    ("<!-- ROADMAP-PROGRESS:START -->", "roadmap progress start"),
+    ("<!-- ROADMAP-PROGRESS:END -->", "roadmap progress end"),
+    ("📊 Overall progress", "roadmap dashboard heading"),
+    ("../assets/readme/progress-mini.svg", "SVG-only roadmap progress"),
+    ("| **125** | **5** | **130** | **96.2%** |", "roadmap numeric truth"),
+]:
+    require(roadmap, token, label)
 checked = len(re.findall(r"^\s*- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \]", roadmap, flags=re.MULTILINE))
 if (checked, open_items, checked + open_items) != (125, 5, 130):
-    raise AssertionError(
-        f"roadmap truth changed unexpectedly: checked={checked}, open={open_items}, total={checked + open_items}"
-    )
-require(roadmap, "███████████████████░ 96.2%", "roadmap progress bar")
+    raise AssertionError(f"roadmap truth changed unexpectedly: checked={checked}, open={open_items}, total={checked + open_items}")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    raise AssertionError("roadmap must embed exactly one progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
-# README intentionally keeps the current canonical family marker/search section and
-# truthful no-demo statement; verifier follows the canonical v2 standard.
 require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "current SWIR README v2 contract")
 require(readme, "## 🔎 Search Keywords", "README discoverability section")
 require(readme, "No public demo release is available yet", "truthful demo status")
@@ -175,4 +171,4 @@ print("- compliance requires a stable physical shoulder target plus the existing
 print("- ranger, traffic, civilians and the patrol support unit share one frozen roadside incident frame")
 print("- the original code-built patrol actor is hidden/non-colliding outside the scene and owns no save/Wanted/economy state")
 print("- 0.1.24 enforcement UX, same-direction traffic control and compact HUD remain authoritative")
-print("- roadmap remains truthfully locked at 125/130 (96.2%); no Win64/demo claim is inferred")
+print("- roadmap remains truthfully locked at 125/130 (96.2%) with SVG-only presentation; no Win64/demo claim is inferred")

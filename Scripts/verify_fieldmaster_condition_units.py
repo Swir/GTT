@@ -41,25 +41,27 @@ if failed:
 required_style = [
     '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->',
     'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
-    '## 📊 Overall progress', '<!-- ROADMAP-PROGRESS:END -->'
+    '## 📊 Overall progress', '../assets/readme/progress-mini.svg', '<!-- ROADMAP-PROGRESS:END -->'
 ]
 for token in required_style:
     if token not in roadmap:
         raise SystemExit("SWIR roadmap style lock missing: " + token)
 
-items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE)
-done = sum(v == 'x' for v in items)
+items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE | re.IGNORECASE)
+done = sum(v.lower() == 'x' for v in items)
 total = len(items)
 remaining = total - done
 percent = round(done * 100.0 / total, 1) if total else 0.0
-filled = round(done * 20.0 / total) if total else 0
-bar = '█' * filled + '░' * (20 - filled)
 for token in (
     f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', 'STATUS-IN%20PROGRESS',
-    f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
+    f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
     if token not in roadmap:
         raise SystemExit("Roadmap dashboard drift: missing " + token)
+if roadmap.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap must embed exactly one canonical progress-mini.svg')
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise SystemExit('Legacy text/Unicode roadmap progress meter must not return')
 if (done, total, percent) != (125, 130, 96.2):
     raise SystemExit(f"Unit hardening must not claim build/art gates: {done}/{total} = {percent:.1f}%")
 
-print(f"[OK] Native Fieldmaster health uses one normalized 0..1 contract across legacy mirror, collision, heavy haul and garage ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.")
+print(f"[OK] Native Fieldmaster health uses one normalized 0..1 contract across legacy mirror, collision, heavy haul and garage ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.")

@@ -40,13 +40,22 @@ assert "WHEELS %s" in bridge_cpp
 # Native Chaos tasks remain open until real UE runtime acceptance exists.
 assert "- [ ] Dedicated native Chaos wheeled tractor movement" in roadmap
 assert "- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup" in roadmap
-assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+):
+    assert token in roadmap, f"roadmap SVG-only presentation missing {token}"
 
-checks = re.findall(r"^- \[[x ]\] ", roadmap, flags=re.MULTILINE)
-done = re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE)
+checks = re.findall(r"^- \[[x ]\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE)
+done = re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE)
 assert len(checks) == 130, f"roadmap total changed unexpectedly: {len(checks)}"
 assert len(done) == 125, f"roadmap completed changed unexpectedly: {len(done)}"
 assert "DONE-125%2F130" in roadmap and "ROADMAP-96.2%25" in roadmap
-assert "███████████████████░ 96.2%" in roadmap
+assert "| **125** | **5** | **130** | **96.2%** |" in roadmap
+assert roadmap.count("../assets/readme/progress-mini.svg") == 1
+assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE), "legacy text/Unicode roadmap progress meter must not return"
 
-print("Native Chaos setup contract verified: fleet wheel classes + rig bones + bridge takeover gate; roadmap remains 125/130.")
+print("Native Chaos setup contract verified: fleet wheel classes + rig bones + bridge takeover gate; roadmap remains 125/130 with SVG-only progress.")

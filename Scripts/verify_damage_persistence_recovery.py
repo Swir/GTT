@@ -21,6 +21,10 @@ if runtime_window_ok:
     gameplay_minimum = int(gameplay_runtime.group(1))
     runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
 
+version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
+candidate_version = tuple(int(part) for part in version_match.groups()) if version_match else None
+candidate_version_ok = candidate_version is not None and candidate_version >= (0, 1, 14)
+
 checks = {
     'tickable opt-in subsystem': 'UTickableWorldSubsystem' in header and 'GTTDemoSmokeScenario' in cpp,
     'waits for core scenario': 'UGTTDemoSmokeScenarioSubsystem' in cpp and 'CoreScenario->IsTickable()' in cpp,
@@ -36,7 +40,7 @@ checks = {
     'latest schema retains recovery': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator,
     'evaluator persistence hard gate': 'damage_persistence_passed' in evaluator and 'spike damage did not survive the SaveProgress/LoadProgress round-trip' in evaluator,
     'evaluator workshop hard gate': 'workshop_recovery_passed' in evaluator and 'paid workshop did not restore persisted spike damage and handling' in evaluator,
-    'current Win64 candidate evidence': "default: '0.1.14'" in workflow and 'WIN64_PREFLIGHT.json' in workflow and 'BUILD_ATTEMPT.json' in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+    'candidate version not regressed below 0.1.14': candidate_version_ok and all(x in workflow for x in ['WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_TECHNICAL_GATE.json']),
     'extended packaged runtime': runtime_window_ok,
     'workflow evaluator ordering': workflow.index('Evaluate structural limp-home, persistence and workshop recovery scenario') < workflow.index('Evaluate packaged gameplay smoke'),
     'sanity wired': 'Verify spike damage persistence and workshop recovery' in san and 'verify_damage_persistence_recovery.py' in san,
@@ -46,17 +50,22 @@ failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit('Damage persistence/workshop recovery verification failed: ' + ', '.join(failed))
 
-if '<!-- SWIR-ROADMAP-STANDARD:v1 -->' not in roadmap or '## 📊 Overall progress' not in roadmap:
-    raise SystemExit('SWIR roadmap style lock missing')
+for token in ('<!-- SWIR-ROADMAP-STANDARD:v1 -->','<!-- ROADMAP-PROGRESS:START -->','<!-- ROADMAP-PROGRESS:END -->','## 📊 Overall progress','../assets/readme/progress-mini.svg'):
+    if token not in roadmap:
+        raise SystemExit('SWIR roadmap style lock missing: ' + token)
 items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE)
 done = sum(v == 'x' for v in items)
 total = len(items)
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = '█' * filled + '░' * (20 - filled)
-for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
+for token in (f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
+progress_block=roadmap.split('<!-- ROADMAP-PROGRESS:START -->',1)[1].split('<!-- ROADMAP-PROGRESS:END -->',1)[0]
+if progress_block.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap progress block must embed exactly one canonical progress-mini.svg.')
+if re.search(r'[█▓▒░]{3,}',progress_block):
+    raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
-print(f'[OK] Spike damage save/load persistence + paid workshop recovery retained ({len(checks)} checks; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}%.')
+label = '.'.join(str(part) for part in candidate_version)
+print(f'[OK] Spike damage save/load persistence + paid workshop recovery retained ({len(checks)} checks; candidate {label}; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')

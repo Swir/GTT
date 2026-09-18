@@ -45,7 +45,6 @@ def main() -> int:
     roadmap = read("Docs/ROADMAP.md")
     readme = read("README.md")
 
-    # 0.1.32 must be a real auto-running world subsystem, not a test-only helper.
     require(header, "UGTTFarmCargoBreakdownRecoverySubsystem : public UTickableWorldSubsystem", "runtime subsystem")
     require(header, "TowPending", "runtime state")
     require(header, "PoliceImpoundPending", "runtime state")
@@ -55,8 +54,6 @@ def main() -> int:
     require(cpp, "World->GetSubsystem<UGTTRoadsideRecoverySubsystem>()", "roadside integration")
     require(cpp, "IsRoadsideTowPending", "tow integration")
 
-    # Exact identity remains owned by the existing cargo authority. Recovery may rebind only
-    # that persistent ID; there must be no 'nearest vehicle inherits cargo' escape hatch.
     require(authority_h, "FName GetBoundCargoVehicleId()", "cargo authority")
     require(authority_h, "bool TryRebindBoundVehicle()", "cargo authority")
     require(authority_cpp, "ResolveVehicleByPersistentId", "cargo authority")
@@ -65,7 +62,6 @@ def main() -> int:
     require(cpp, "transfer_allowed=NO", "anti-transfer evidence")
     forbid(cpp, "BindLoadedVehicle(Driver", "recovery must not manufacture a new cargo binding")
 
-    # Player-authorized roadside tow stays the existing authority for cost, movement and damage.
     require(roadside_h, "RequestRoadsideTow", "roadside authority")
     require(roadside_cpp, "Economy->SpendCash", "tow economy authority")
     require(roadside_cpp, "damage_preserved", "tow damage contract")
@@ -74,8 +70,6 @@ def main() -> int:
     require(cpp, "CheckpointPrimarySave(TEXT(\"cargo-recovery-post-move\"))", "post-recovery checkpoint")
     require(cpp, "GameMode->SaveProgress()", "primary save integration")
 
-    # Recovery is a consequence, not a pause/teleport cheat: the Farm Job director remains the
-    # contract/timer/integrity authority and the new layer explicitly records that time continues.
     require(cpp, "timer_paused=NO", "timer continuity")
     forbid(cpp, "SetActorTransform", "cargo policy must not perform the tow itself")
     forbid(cpp, "SpendCash", "cargo policy must not duplicate tow billing")
@@ -83,25 +77,34 @@ def main() -> int:
     forbid(cpp, "AddCash", "cargo policy must not own payout")
     forbid(cpp, "AddReputation", "cargo policy must not own reputation")
 
-    # Preserve the already-established packaged save/load evidence rather than replacing it.
     require(recovery_runtime, "FARM_CARGO_RECOVERY_RUNTIME", "0.1.31 recovery evidence")
 
-    # Documentation standards remain locked to the current SWIR contracts.
     require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "README standard")
     require(readme, "## 🔎 Search Keywords", "README SEO")
-    require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "roadmap standard")
-    require(roadmap, "📊 Overall progress", "roadmap dashboard")
-    require(roadmap, "ROADMAP-PROGRESS", "roadmap progress block")
+    for token in (
+        "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+        "<!-- ROADMAP-PROGRESS:START -->",
+        "<!-- ROADMAP-PROGRESS:END -->",
+        "📊 Overall progress",
+        "ROADMAP-PROGRESS",
+        "../assets/readme/progress-mini.svg",
+    ):
+        require(roadmap, token, "roadmap SVG-only standard")
 
     done, total, pct = roadmap_progress(roadmap)
     if (done, total) != (125, 130):
         raise AssertionError(f"roadmap changed without runtime evidence: {done}/{total}")
     if pct != 96.2:
         raise AssertionError(f"roadmap math mismatch: {pct}")
-    require(roadmap, "███████████████████░ 96.2%", "roadmap ASCII bar")
+    for token in ("ROADMAP-96.2%25", "DONE-125%2F130", "| **125** | **5** | **130** | **96.2%** |"):
+        require(roadmap, token, "roadmap numeric dashboard")
+    if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+        raise AssertionError("roadmap must embed exactly one progress-mini.svg")
+    if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+        raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
     print("GTT 0.1.32 cargo breakdown/tow recovery contract: PASS")
-    print(f"roadmap={done}/{total} ({pct:.1f}%) release_readiness=NOT_READY")
+    print(f"roadmap={done}/{total} ({pct:.1f}%) release_readiness=NOT_READY presentation=SVG_ONLY")
     return 0
 
 

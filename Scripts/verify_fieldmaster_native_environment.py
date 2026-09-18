@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 header = (ROOT / "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h").read_text(encoding="utf-8")
@@ -75,17 +76,40 @@ for token in [
     assert token in haul, f"heavy-haul gameplay connection missing {token}"
 assert "GetMigrationSnapshot().ConditionPercent / 100.0f" not in haul, "heavy-haul must consume normalized Native Fieldmaster health directly"
 
-# SWIR Roadmap Style Lock v1 + exact current progress. 0.0.47 must not fake runtime acceptance.
-assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
-assert "ROADMAP-96.2%25" in roadmap
-assert "DONE-125%2F130" in roadmap
-assert "| **125** | **5** | **130** | **96.2%** |" in roadmap
-assert "███████████████████░ 96.2%" in roadmap
-assert "- [ ] Dedicated native Chaos wheeled tractor movement" in roadmap
-assert "- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup" in roadmap
-assert "- [ ] Authored skeletal trailer wheel assets and final hitch sockets" in roadmap
-assert "- [ ] Full Unreal compile + packaged Win64 smoke test" in roadmap
-assert "- [ ] Full Win64 CI/build runner" in roadmap
+# Keep the old milestone's gameplay assertions while validating the current
+# SWIR Roadmap v1 structure using SVG-only progress presentation.
+for token in [
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+    "ROADMAP-96.2%25",
+    "DONE-125%2F130",
+    "| **125** | **5** | **130** | **96.2%** |",
+]:
+    assert token in roadmap, f"roadmap SVG-only presentation missing {token}"
+
+checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
+open_items = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
+total = checked + open_items
+assert (checked, open_items, total) == (125, 5, 130), (checked, open_items, total)
+assert round(checked * 100.0 / total, 1) == 96.2
+assert roadmap.count("../assets/readme/progress-mini.svg") == 1
+assert not re.search(
+    r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}",
+    roadmap,
+    flags=re.MULTILINE,
+), "legacy text/Unicode roadmap progress meter must not return"
+
+for checkbox in [
+    "- [ ] Dedicated native Chaos wheeled tractor movement",
+    "- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup",
+    "- [ ] Authored skeletal trailer wheel assets and final hitch sockets",
+    "- [ ] Full Unreal compile + packaged Win64 smoke test",
+    "- [ ] Full Win64 CI/build runner",
+]:
+    assert checkbox in roadmap
 
 assert "Native Fieldmaster Terrain & Heavy-Haul Integration" in playtest
 assert "Native trailer hitch" in playtest
@@ -94,4 +118,7 @@ assert "Native Fieldmaster Terrain & Heavy-Haul Integration" in changelog
 assert "125/130 (96.2%)" in changelog
 assert "Verify Fieldmaster native terrain and heavy-haul" in workflow
 
-print("Fieldmaster native terrain/heavy-haul sanity passed with normalized native tractor health; roadmap remains 125/130 (96.2%)")
+print(
+    "Fieldmaster native terrain/heavy-haul sanity passed with normalized native tractor health; "
+    "roadmap remains 125/130 (96.2%) with SVG-only progress presentation"
+)

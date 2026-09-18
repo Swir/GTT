@@ -1,4 +1,6 @@
 from pathlib import Path
+import re
+
 root=Path(__file__).resolve().parents[1]
 scenario=(root/'Source/GTT/Private/Core/GTTDemoSmokeScenarioSubsystem.cpp').read_text(encoding='utf-8')
 header=(root/'Source/GTT/Public/Vehicles/GTTRoadVehicleNativePawn.h').read_text(encoding='utf-8')
@@ -6,6 +8,8 @@ eval_ps=(root/'Scripts/evaluate_demo_scenario.ps1').read_text(encoding='utf-8')
 workflow=(root/'.github/workflows/win64-package-evidence.yml').read_text(encoding='utf-8')
 playtest=(root/'Docs/PLAYTEST_0.0.91.md').read_text(encoding='utf-8')
 changelog=(root/'CHANGELOG.d/0.0.91.md').read_text(encoding='utf-8')
+version_match=re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'",workflow)
+candidate_version=tuple(int(part) for part in version_match.groups()) if version_match else None
 checks={
  'runtime limits exposed': all(x in header for x in ('GetRuntimeThrottleLimit','GetRuntimeSteeringLimit','GetRuntimeBrakeAssist')),
  'core scenario v8': 'DEMO_SCENARIO_BEGIN version=8 mode=post-spike-escape-dynamics' in scenario,
@@ -15,9 +19,10 @@ checks={
  'evaluator schema v11 retains post spike': 'gtt.demo-scenario.v11' in eval_ps and "'POST_SPIKE_ESCAPE'" in eval_ps,
  'evaluator hard gates control authority': 'Native handling consequence did not prove reduced control authority' in eval_ps,
  'evaluator hard gates continued motion': 'Native vehicle did not continue a measurable damaged escape' in eval_ps,
- 'current Win64 candidate route': "default: '0.1.14'" in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+ 'candidate version not regressed below 0.1.14': candidate_version is not None and candidate_version >= (0,1,14) and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
  'origin docs retained': 'Post-Spike Escape Dynamics' in changelog and 'Post-Spike Escape Dynamics' in playtest,
 }
 failed=[name for name,ok in checks.items() if not ok]
 if failed: raise SystemExit('Post-spike escape verification failed: '+', '.join(failed))
-print(f'Post-spike escape dynamics retained under current 0.1.14 candidate workflow ({len(checks)}/{len(checks)} checks).')
+label='.'.join(str(part) for part in candidate_version)
+print(f'Post-spike escape dynamics retained under additive candidate {label} ({len(checks)}/{len(checks)} checks).')

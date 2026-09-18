@@ -59,11 +59,16 @@ for open_item in [
 ]:
     assert f"- [ ] {open_item}" in roadmap, f"runtime-only roadmap item was closed without runtime evidence: {open_item}"
 
-assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
-checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "<!-- ROADMAP-PROGRESS:START -->", "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress", "../assets/readme/progress-mini.svg"):
+    assert token in roadmap, f"roadmap SVG-only presentation missing {token}"
+checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_count = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
 assert checked == 125 and open_count == 5 and checked + open_count == 130, f"roadmap drift: {checked}/{checked + open_count}"
 assert "DONE-125%2F130" in roadmap and "ROADMAP-96.2%25" in roadmap
-assert "███████████████████░ 96.2%" in roadmap
+assert "| **125** | **5** | **130** | **96.2%** |" in roadmap
+assert roadmap.count("../assets/readme/progress-mini.svg") == 1
+assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE), "legacy text/Unicode roadmap progress meter must not return"
 
-print("Fleet Native wheel-state control verifier: OK")
+print("Fleet Native wheel-state control verifier: OK; SVG-only progress verified")

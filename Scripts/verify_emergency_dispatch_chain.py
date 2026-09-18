@@ -53,8 +53,6 @@ def verify_priority_chain_model() -> None:
     cargo_reward = re.search(r"GetCargoPriorityRewardMultiplier\(\) const\s*\{(?P<body>.*?)\n\}", cpp, re.S)
     assert cargo_reward and "return 1.0f;" in cargo_reward.group("body"), "CARGO must keep neutral extra priority multiplier"
 
-    # Chain persistence must reuse the existing schema-v8 clean streak rather than introducing
-    # a second counter that can disagree with legal-delivery history.
     for token in (
         "Save->LogisticsCleanStreak = CleanStreak",
         "CleanStreak = FMath::Max(0, Save->LogisticsCleanStreak)",
@@ -104,7 +102,6 @@ def verify_road_emergency_contract() -> None:
     require(road, "ActiveDeliveryTimeLimit = DeliveryTimeLimit * LockedDeliveryTimeScale", "fast-bonus denominator uses locked timer")
     require(road, "TimeRemaining / ActiveDeliveryTimeLimit", "fast-bonus ratio uses actual emergency window")
 
-    # Existing meaningful risk loop must remain in the same contract.
     for token in (
         "ParcelIntegrity",
         "NativeImpactCountDuringRun",
@@ -132,7 +129,6 @@ def verify_cargo_sla_integration() -> None:
     ):
         require(rel, token, "effective CARGO emergency hold")
 
-    # Preserve the 0.1.9 relationship-favor baselines while capping only emergency orders.
     for token in (
         "if (Relationship >= 70) return 110",
         "if (Relationship >= 45) return 80",
@@ -151,8 +147,6 @@ def verify_cargo_sla_integration() -> None:
     ):
         require(dispatcher, token, "dispatcher applies effective SLA")
 
-    # The authoritative queue still removes stock at hold time, returns it once on expiry and
-    # consumes protected units without a second debit when the job begins.
     for token in (
         "FeedDepotStock -= RequiredStock",
         "FeedDepotStock = FMath::Clamp(FeedDepotStock +",
@@ -183,8 +177,9 @@ def verify_docs_ci_and_roadmap() -> None:
         'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
         "## 📊 Overall progress",
         "| ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |",
+        "../assets/readme/progress-mini.svg",
     ):
-        require(roadmap, token, "SWIR Roadmap Style Lock")
+        require(roadmap, token, "SWIR Roadmap SVG-only Style Lock")
 
     checkboxes = re.findall(r"^\s*-\s+\[(x|X| )\]\s+", roadmap, re.M)
     completed = sum(1 for value in checkboxes if value.lower() == "x")
@@ -192,16 +187,15 @@ def verify_docs_ci_and_roadmap() -> None:
     remaining = total - completed
     assert total > 0, "roadmap checklist not found"
     percent = round(completed * 100.0 / total, 1)
-    filled = round(completed * 20.0 / total)
-    bar = "█" * filled + "░" * (20 - filled)
 
     for token in (
         f"ROADMAP-{percent:.1f}%25",
         f"DONE-{completed}%2F{total}",
-        f"{bar} {percent:.1f}%",
         f"| **{completed}** | **{remaining}** | **{total}** | **{percent:.1f}%** |",
     ):
         require(roadmap, token, "truthful roadmap dashboard")
+    assert roadmap.count("../assets/readme/progress-mini.svg") == 1, "roadmap must embed exactly one progress-mini.svg"
+    assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, re.MULTILINE), "legacy text/Unicode roadmap progress meter must not return"
     assert (completed, remaining, total, percent) == (125, 5, 130, 96.2), (
         f"0.1.11 cannot close hardware/package blockers: {completed}/{total} = {percent:.1f}%"
     )

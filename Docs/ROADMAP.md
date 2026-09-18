@@ -13,20 +13,16 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 ## 📊 Overall progress
 
-```text
-███████████████████░ 96.2%
-```
+<p align="center">
+  <img width="100%" src="../assets/readme/progress-mini.svg" alt="GTT roadmap progress — 125 of 130 tasks complete, 96.2 percent" />
+</p>
 
 | ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |
 |---:|---:|---:|---:|
 | **125** | **5** | **130** | **96.2%** |
 
-> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and the 20-segment bar in this block. Never estimate progress from version numbers or commit count.
+> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and deterministic `progress-mini.svg` from the same checklist truth. Never estimate progress from version numbers or commit count, and do not restore a text/Unicode progress meter.
 <!-- ROADMAP-PROGRESS:END -->
-
-<p align="center">
-  <img width="100%" src="../assets/readme/progress-mini.svg" alt="GTT roadmap progress — 125 of 130 tasks complete, 96.2 percent" />
-</p>
 
 ## 0.1 — Tractor Theft Prototype
 - [x] Unreal C++ project/module skeleton

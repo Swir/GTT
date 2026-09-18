@@ -73,17 +73,24 @@ for needle, label in [
 
 # Protect the locked roadmap dashboard and prove this gameplay milestone does not
 # falsely close any of the five Win64/runtime hardware acceptance blockers.
-require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock")
-require(roadmap, "📊 Overall progress", "roadmap dashboard heading")
+for token, label in [
+    ("<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock"),
+    ("<!-- ROADMAP-PROGRESS:START -->", "roadmap progress start"),
+    ("📊 Overall progress", "roadmap dashboard heading"),
+    ("../assets/readme/progress-mini.svg", "SVG-only roadmap meter"),
+    ("| **125** | **5** | **130** | **96.2%** |", "roadmap numeric truth"),
+]:
+    require(roadmap, token, label)
 checked = len(re.findall(r"^\s*- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \]", roadmap, flags=re.MULTILINE))
 total = checked + open_items
 if (checked, open_items, total) != (125, 5, 130):
     raise AssertionError(f"roadmap checkbox truth changed unexpectedly: checked={checked}, open={open_items}, total={total}")
-require(roadmap, "███████████████████░ 96.2%", "20-segment roadmap progress bar")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
 print("GTT 0.1.21 ranger enforcement handoff sanity: PASS")
 print("- warden escalation uses the existing wanted/police system exactly once per wildlife incident")
 print("- night poaching increases both risk and fence reward and can summon a second ranger")
 print("- ranger citations confiscate the same persistent contraband created by forest poaching")
-print("- roadmap remains truthfully locked at 125/130 (96.2%)")
+print("- roadmap remains truthfully locked at 125/130 (96.2%) with SVG-only presentation")

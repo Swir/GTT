@@ -48,25 +48,35 @@ for slot in ["CombatSlotName", "StorySlotName", "Arc3SlotName", "Arc4SlotName", 
         raise SystemExit(f"[FAIL] {slot} does not appear in both migration directions")
 
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
-if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-    raise SystemExit("[FAIL] SWIR roadmap standard marker missing")
-checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M)
-done = sum(state == "x" for state in checks)
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+):
+    if token not in roadmap:
+        raise SystemExit(f"[FAIL] roadmap structure missing: {token}")
+checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M | re.IGNORECASE)
+done = sum(state.lower() == "x" for state in checks)
 total = len(checks)
 if not total:
     raise SystemExit("[FAIL] roadmap checklist missing")
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = "█" * filled + "░" * (20 - filled)
 expect = [
-    f"DONE-{done}%2F{total}", f"{percent:.1f}%", f"**{done}**", f"**{remaining}**", f"**{total}**",
-    f"{bar} {percent:.1f}%"
+    f"DONE-{done}%2F{total}",
+    f"{percent:.1f}%",
+    f"| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |",
 ]
 missing = [token for token in expect if token not in roadmap]
 if missing:
     raise SystemExit(f"[FAIL] roadmap dashboard/checklist mismatch: {done}/{total} = {percent:.1f}% missing {missing}")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("[FAIL] roadmap must embed exactly one progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise SystemExit("[FAIL] legacy text/Unicode roadmap progress meter must not return")
 if "- [x] Consolidate combat/story/faction slots into primary sandbox SaveGame" not in roadmap:
     raise SystemExit("[FAIL] unified-save roadmap milestone is not checked")
 
-print(f"[OK] unified world state structurally sane with schema v8 forward compatibility; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
+print(f"[OK] unified world state structurally sane with schema v8 forward compatibility; roadmap {done}/{total} = {percent:.1f}% with SVG-only presentation.")

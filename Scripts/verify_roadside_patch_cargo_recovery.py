@@ -42,17 +42,24 @@ require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "README")
 require(readme, "## 🔎 Search Keywords", "README")
 require(readme, "0.1.34", "README")
 require(readme, "125 / 130 tasks complete (96.2%)", "README")
-require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "ROADMAP")
-require(roadmap, "<!-- ROADMAP-PROGRESS:START -->", "ROADMAP")
-require(roadmap, "<!-- ROADMAP-PROGRESS:END -->", "ROADMAP")
-require(roadmap, "███████████████████░ 96.2%", "ROADMAP")
-require(roadmap, "**125** | **5** | **130** | **96.2%**", "ROADMAP")
-require(roadmap, "0.1.34 roadside recovery choice", "ROADMAP")
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "../assets/readme/progress-mini.svg",
+    "ROADMAP-96.2%25",
+    "DONE-125%2F130",
+    "**125** | **5** | **130** | **96.2%**",
+    "0.1.34 roadside recovery choice",
+):
+    require(roadmap, token, "ROADMAP")
 require(readme, "Release readiness: **NOT READY**", "README")
-checks = re.findall(r"^- \[(x| )\] ", roadmap, flags=re.MULTILINE)
+checks = re.findall(r"^- \[(x| )\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE)
 assert checks, "ROADMAP: no checklist items found"
-done = sum(1 for item in checks if item == "x")
+done = sum(1 for item in checks if item.lower() == "x")
 assert (done, len(checks)) == (125, 130), f"ROADMAP math changed unexpectedly: {done}/{len(checks)}"
+assert roadmap.count("../assets/readme/progress-mini.svg") == 1, "ROADMAP must embed exactly one progress-mini.svg"
+assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE), "legacy text/Unicode roadmap progress meter must not return"
 
 require(vehicle_h, "ApplyNativeEmergencyRoadsidePatch", "native vehicle")
 patch_method = function_slice(vehicle_h, "bool ApplyNativeEmergencyRoadsidePatch()", "UFUNCTION(BlueprintCallable, Category=\"GTT|Vehicle|Service\") bool RepairNativeTires")
@@ -97,4 +104,4 @@ require(changelog, "0.1.34", "changelog")
 for previous in ("Scripts/verify_farm_cargo_breakdown_recovery.py", "Scripts/verify_farm_cargo_breakdown_runtime.py", "Scripts/generate_progress_svg.py", "assets/readme/progress-card.svg", "assets/readme/progress-mini.svg", "assets/readme/progress-template.svg"):
     assert (ROOT / previous).exists(), f"missing regression/progress dependency: {previous}"
 print("GTT 0.1.34 roadside patch + Farm Cargo recovery choice contract: PASS")
-print(f"Roadmap: {done}/{len(checks)} = {done / len(checks) * 100:.1f}%")
+print(f"Roadmap: {done}/{len(checks)} = {done / len(checks) * 100:.1f}% with SVG-only presentation")

@@ -24,6 +24,10 @@ if runtime_window_ok:
     gameplay_minimum = int(gameplay_runtime.group(1))
     runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
 
+version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
+candidate_version = tuple(int(part) for part in version_match.groups()) if version_match else None
+candidate_version_ok = candidate_version is not None and candidate_version >= (0, 1, 14)
+
 checks = {
     'runtime world subsystem': 'UGTTStructuralDriveConsequenceSubsystem : public UTickableWorldSubsystem' in sub_h,
     'drive-state contract': all(x in sub_h for x in ['FGTTStructuralDriveState', 'DamageSeverity', 'DragRatePerSecond', 'LateralPullRate', 'PowerRetention', 'SteeringRetention', 'bLimpHomeActive']),
@@ -46,7 +50,7 @@ checks = {
     'evaluator schema v11': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator,
     'evaluator new hard steps': all(x in evaluator for x in ["step='STRUCTURAL_HANDLING'", "step='STRUCTURAL_RELOAD_HANDLING'", "step='STRUCTURAL_DRIVE_RECOVERY'"]),
     'evaluator new hard gates': all(x in evaluator for x in ['structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
-    'current Win64 candidate route': "default: '0.1.14'" in workflow and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+    'candidate version not regressed below 0.1.14': candidate_version_ok and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
     'extended packaged runtime': runtime_window_ok,
     'sanity wired': 'Verify persistent structural limp-home dynamics' in sanity and 'verify_structural_limp_home.py' in sanity,
     'docs': '0.0.94' in playtest and 'STRUCTURAL_HANDLING' in playtest and '0.0.94' in changelog and 'limp-home' in changelog.lower(),
@@ -56,20 +60,25 @@ failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit('Structural limp-home verification failed: ' + ', '.join(failed))
 
-if '<!-- SWIR-ROADMAP-STANDARD:v1 -->' not in roadmap or '## 📊 Overall progress' not in roadmap:
-    raise SystemExit('SWIR roadmap style lock missing')
+for token in ('<!-- SWIR-ROADMAP-STANDARD:v1 -->','<!-- ROADMAP-PROGRESS:START -->','<!-- ROADMAP-PROGRESS:END -->','## 📊 Overall progress','../assets/readme/progress-mini.svg'):
+    if token not in roadmap:
+        raise SystemExit('SWIR roadmap style lock missing: ' + token)
 items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE)
 done = sum(v == 'x' for v in items)
 total = len(items)
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = '█' * filled + '░' * (20 - filled)
 for token in (
-    f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', f'{bar} {percent:.1f}%',
+    f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}',
     f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'
 ):
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
+progress_block=roadmap.split('<!-- ROADMAP-PROGRESS:START -->',1)[1].split('<!-- ROADMAP-PROGRESS:END -->',1)[0]
+if progress_block.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap progress block must embed exactly one canonical progress-mini.svg.')
+if re.search(r'[█▓▒░]{3,}',progress_block):
+    raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
-print(f'[OK] Persistent structural limp-home dynamics verified ({len(checks)} checks; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}%.')
+label = '.'.join(str(part) for part in candidate_version)
+print(f'[OK] Persistent structural limp-home dynamics verified ({len(checks)} checks; candidate {label}; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')

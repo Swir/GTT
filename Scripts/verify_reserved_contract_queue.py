@@ -104,15 +104,12 @@ done = sum(1 for value in checkboxes if value.lower() == "x")
 total = len(checkboxes)
 remaining = total - done
 progress = round(done * 100.0 / total, 1) if total else 0.0
-filled = round(done * 20.0 / total) if total else 0
-bar = "█" * filled + "░" * (20 - filled)
 
 required_style = (
     "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "<!-- ROADMAP-PROGRESS:START -->", "<!-- ROADMAP-PROGRESS:END -->",
     'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
-    "## 📊 Overall progress", f"ROADMAP-{progress:.1f}%25", f"DONE-{done}%2F{total}",
-    "STATUS-IN%20PROGRESS", f"{bar} {progress:.1f}%",
-    "| ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |",
+    "## 📊 Overall progress", "../assets/readme/progress-mini.svg", f"ROADMAP-{progress:.1f}%25", f"DONE-{done}%2F{total}",
+    "STATUS-IN%20PROGRESS", "| ✅ Completed | ⏳ Remaining | 📦 Total | 🎯 Progress |",
     f"| **{done}** | **{remaining}** | **{total}** | **{progress:.1f}%** |",
 )
 for token in required_style:
@@ -120,5 +117,10 @@ for token in required_style:
         raise SystemExit("SWIR roadmap dashboard drift: missing " + token)
 if (done, remaining, total, progress) != (125, 5, 130, 96.2):
     raise SystemExit(f"0.1.9 source milestone must not claim build/art gates: {done}/{total} = {progress:.1f}%")
+progress_block = roadmap.split("<!-- ROADMAP-PROGRESS:START -->", 1)[1].split("<!-- ROADMAP-PROGRESS:END -->", 1)[0]
+if progress_block.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("Roadmap progress block must embed exactly one canonical progress-mini.svg.")
+if re.search(r"[█▓▒░]{3,}", progress_block):
+    raise SystemExit("Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.")
 
-print(f"[OK] GTT 0.1.9 stock-backed reservation queue and dispatcher favors verified; roadmap {done}/{total} = {progress:.1f}%.")
+print(f"[OK] GTT 0.1.9 stock-backed reservation queue and dispatcher favors verified; roadmap {done}/{total} = {progress:.1f}% with SVG-only progress.")

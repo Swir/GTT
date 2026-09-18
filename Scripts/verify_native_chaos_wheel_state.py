@@ -45,14 +45,15 @@ if "0.0.63" not in changelog or "FWheelStatus" not in changelog:
 if "NATIVE_CHAOS_WHEEL_STATE_EVIDENCE" not in migration:
     raise SystemExit("Chaos migration documentation is missing the runtime wheel-state evidence contract")
 
-if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-    raise SystemExit("ROADMAP style-lock marker disappeared")
-for required_dashboard in ('alt="CI"', 'badge/ROADMAP-', 'badge/DONE-', 'badge/STATUS-', '## 📊 Overall progress'):
+for required_dashboard in (
+    '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->', '<!-- ROADMAP-PROGRESS:END -->',
+    'alt="CI"', 'badge/ROADMAP-', 'badge/DONE-', 'badge/STATUS-', '## 📊 Overall progress',
+    '../assets/readme/progress-mini.svg'):
     if required_dashboard not in roadmap:
         raise SystemExit(f"ROADMAP dashboard element missing: {required_dashboard}")
 
-checks = re.findall(r"^- \[(x| )\] ", roadmap, flags=re.MULTILINE)
-done = sum(1 for mark in checks if mark == "x")
+checks = re.findall(r"^- \[(x| )\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE)
+done = sum(1 for mark in checks if mark.lower() == "x")
 total = len(checks)
 if (done, total) != (125, 130):
     raise SystemExit(f"Roadmap checklist changed unexpectedly: {done}/{total}, expected 125/130")
@@ -68,10 +69,14 @@ for item in runtime_open:
     if f"- [ ] {item}" not in roadmap:
         raise SystemExit(f"Runtime-only roadmap item was closed without runtime proof: {item}")
 
-if "███████████████████░ 96.2%" not in roadmap:
-    raise SystemExit("ROADMAP 20-segment progress bar no longer matches 125/130")
+if "ROADMAP-96.2%25" not in roadmap or "DONE-125%2F130" not in roadmap:
+    raise SystemExit("ROADMAP numeric badges no longer match 125/130")
 if "| **125** | **5** | **130** | **96.2%** |" not in roadmap:
     raise SystemExit("ROADMAP dashboard table no longer matches 125/130")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("ROADMAP must embed exactly one canonical progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise SystemExit("Legacy text/Unicode roadmap progress meter must not return")
 
 print("Native Chaos wheel-state runtime evidence contract OK")
-print("Roadmap remains 125/130; UE 5.8 / packaged Win64 acceptance is still required before closing runtime tasks")
+print("Roadmap remains 125/130 with SVG-only progress; UE 5.8 / packaged Win64 acceptance is still required before closing runtime tasks")

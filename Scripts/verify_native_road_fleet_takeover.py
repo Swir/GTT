@@ -32,20 +32,20 @@ missing = [name for name, ok in required.items() if not ok]
 if missing:
     raise SystemExit('Native road fleet takeover verification failed: ' + ', '.join(missing))
 
-checks = re.findall(r'^\s*- \[(x| )\] ', roadmap, flags=re.MULTILINE)
-done = sum(1 for state in checks if state == 'x')
+checks = re.findall(r'^\s*- \[(x| )\] ', roadmap, flags=re.MULTILINE | re.IGNORECASE)
+done = sum(1 for state in checks if state.lower() == 'x')
 total = len(checks)
 if (done, total) != (125, 130):
     raise SystemExit(f'Roadmap checkbox count changed unexpectedly: {done}/{total}')
-if '<!-- SWIR-ROADMAP-STANDARD:v1 -->' not in roadmap:
-    raise SystemExit('Missing SWIR roadmap style lock marker')
-if '<!-- ROADMAP-PROGRESS:START -->' not in roadmap or '<!-- ROADMAP-PROGRESS:END -->' not in roadmap:
-    raise SystemExit('Missing ROADMAP-PROGRESS block')
-if 'DONE-125%2F130' not in roadmap or 'ROADMAP-96.2%25' not in roadmap:
-    raise SystemExit('Roadmap dashboard is stale or inconsistent')
-if '███████████████████░ 96.2%' not in roadmap:
-    raise SystemExit('Roadmap progress bar is stale or inconsistent')
-if '| **125** | **5** | **130** | **96.2%** |' not in roadmap:
-    raise SystemExit('Roadmap table is stale or inconsistent')
+for token in (
+    '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->', '<!-- ROADMAP-PROGRESS:END -->',
+    '## 📊 Overall progress', '../assets/readme/progress-mini.svg', 'DONE-125%2F130', 'ROADMAP-96.2%25',
+    '| **125** | **5** | **130** | **96.2%** |'):
+    if token not in roadmap:
+        raise SystemExit('Roadmap SVG-only dashboard is stale or inconsistent: ' + token)
+if roadmap.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap must embed exactly one canonical progress-mini.svg')
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise SystemExit('Legacy text/Unicode roadmap progress meter must not return')
 
-print('Native road fleet takeover foundation verified; ROADMAP remains 125/130 (96.2%).')
+print('Native road fleet takeover foundation verified; ROADMAP remains 125/130 (96.2%) with SVG-only progress.')

@@ -9,7 +9,6 @@ def read(path: str) -> str:
     assert p.exists(), f"missing required file: {path}"
     return p.read_text(encoding="utf-8")
 
-
 bridge_h = read("Source/GTT/Public/Vehicles/GTTChaosVehicleBridgeComponent.h")
 bridge_cpp = read("Source/GTT/Private/Vehicles/GTTChaosVehicleBridgeComponent.cpp")
 rig_h = read("Source/GTT/Public/Vehicles/GTTChaosRigContract.h")
@@ -57,20 +56,26 @@ for open_task in [
 ]:
     assert open_task in roadmap, f"acceptance task closed prematurely: {open_task}"
 
-assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
-checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE))
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+):
+    assert token in roadmap, f"roadmap SVG-only presentation missing {token}"
+checked = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 uncheck = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
 total = checked + uncheck
 assert (checked, total) == (125, 130), f"0.0.36 must keep roadmap honest: {checked}/{total}"
 percent = round(checked / total * 100, 1)
-segments = round(checked / total * 20)
-bar = "█" * segments + "░" * (20 - segments)
 assert f"ROADMAP-{percent:.1f}%25" in roadmap
 assert f"DONE-{checked}%2F{total}" in roadmap
 assert f"| **{checked}** | **{uncheck}** | **{total}** | **{percent:.1f}%** |" in roadmap
-assert f"{bar} {percent:.1f}%" in roadmap
+assert roadmap.count("../assets/readme/progress-mini.svg") == 1
+assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE), "legacy text/Unicode roadmap progress meter must not return"
 
 print(
     "Native rig acceptance sanity OK: bone/socket validation gates Chaos takeover; "
-    f"trailer consumes validated rear_hitch; roadmap {checked}/{total} ({percent:.1f}%)"
+    f"trailer consumes validated rear_hitch; roadmap {checked}/{total} ({percent:.1f}%), SVG-only progress verified"
 )

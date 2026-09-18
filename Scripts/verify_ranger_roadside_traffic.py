@@ -94,14 +94,18 @@ for forbidden, label in [
         raise AssertionError(f"unexpected {label}: {forbidden}")
 
 require(roadmap, "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "SWIR roadmap style lock")
+require(roadmap, "<!-- ROADMAP-PROGRESS:START -->", "roadmap progress block")
 require(roadmap, "📊 Overall progress", "roadmap dashboard heading")
+require(roadmap, "../assets/readme/progress-mini.svg", "SVG-only roadmap meter")
 checked = len(re.findall(r"^\s*- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \]", roadmap, flags=re.MULTILINE))
 if (checked, open_items, checked + open_items) != (125, 5, 130):
     raise AssertionError(
         f"roadmap truth changed unexpectedly: checked={checked}, open={open_items}, total={checked + open_items}"
     )
-require(roadmap, "███████████████████░ 96.2%", "roadmap progress bar")
+require(roadmap, "| **125** | **5** | **130** | **96.2%** |", "roadmap numeric progress table")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise AssertionError("legacy text/Unicode roadmap progress meter must not return")
 
 for text, label in [(playtest, "playtest"), (changelog, "changelog")]:
     require(text, "0.1.23", f"{label} milestone version")
@@ -113,4 +117,4 @@ print("- one world-authoritative road stop coordinates primary ranger, reinforce
 print("- FLEE stays latched for the live wildlife incident so reinforcement cannot re-stop/proximity-cite it")
 print("- traffic progressively slows, physically holds near the stop and resumes without a persistent queue state")
 print("- post-evasion proximity citations cannot erase a police escalation on the following ranger tick")
-print("- roadmap remains truthfully locked at 125/130 (96.2%)")
+print("- roadmap remains truthfully locked at 125/130 (96.2%) with SVG-only presentation")

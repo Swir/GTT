@@ -63,11 +63,16 @@ if (checked, open_items, checked + open_items) != (125, 5, 130):
     errors.append(f"roadmap checkbox drift: {checked}/{checked + open_items}, open={open_items}")
 
 for token in [
-    "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "ROADMAP-96.2%25", "DONE-125%2F130",
-    "███████████████████░ 96.2%", "| **125** | **5** | **130** | **96.2%** |", "0.1.18 runtime evidence closure",
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "<!-- ROADMAP-PROGRESS:START -->", "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress", "ROADMAP-96.2%25", "DONE-125%2F130",
+    "../assets/readme/progress-mini.svg", "| **125** | **5** | **130** | **96.2%** |", "0.1.18 runtime evidence closure",
 ]:
     if token not in roadmap:
         errors.append(f"roadmap style/progress/status drift: {token}")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    errors.append("roadmap must embed exactly one progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    errors.append("legacy text/Unicode roadmap progress meter must not return")
 
 for token in ["drivetrain manifest is now mandatory", "authored trailer runtime", "NATIVE_TRAILER_RUNTIME.json", "schema 6", "does not close"]:
     if token.lower() not in changelog.lower():
@@ -78,10 +83,12 @@ for token in ["NATIVE_DRIVETRAIN_SCENARIO.json", "NATIVE_TRAILER_RUNTIME.json", 
 
 if errors:
     print("GTT 0.1.18 runtime acceptance closure verification FAILED")
-    for error in errors: print(" -", error)
+    for error in errors:
+        print(" -", error)
     sys.exit(1)
 
 print(f"GTT 0.1.18 runtime acceptance closure verification OK (current additive gate schema={schema_match.group(1)})")
 print(" - technical gate still consumes deterministic drivetrain evidence")
 print(" - authored trailer rig/contact/hitch evidence remains mandatory")
 print(" - five runtime/hardware Roadmap blockers remain open until real UE 5.8 Win64 proof exists")
+print(" - roadmap presentation is SVG-only; numeric checklist truth remains 125/130 (96.2%)")

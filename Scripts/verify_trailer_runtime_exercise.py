@@ -13,41 +13,24 @@ changelog = (root / 'CHANGELOG.d/0.1.19.md').read_text(encoding='utf-8')
 authoring = (root / 'Docs/NATIVE_TRAILER_AUTHORING.md').read_text(encoding='utf-8')
 
 required = [
-    (header + cpp, 'UGTTTrailerEvidenceScenarioSubsystem'),
-    (cpp, 'StartDelaySeconds = 126.0f'),
-    (cpp, 'GlobalDeadlineSeconds = 172.0f'),
-    (cpp, 'AttachToNativeFieldmaster'),
-    (cpp, 'SetCargoLoaded(true)'),
-    (cpp, 'GTT.AuthoredTrailerRig'),
-    (cpp, 'tow_eye'),
-    (cpp, 'GetRuntimeSnapshot'),
-    (cpp, 'MovingDualContactSamples'),
-    (cpp, 'MinimumTowDistanceCm = 900.0f'),
-    (cpp, 'NATIVE_TRAILER_SCENARIO_SAMPLE'),
-    (cpp, 'NATIVE_TRAILER_SCENARIO_COMPLETE'),
-    (cpp, 'phase=CONTROLLED_STOP'),
-    (evaluator, 'NATIVE_TRAILER_SCENARIO_COMPLETE'),
-    (evaluator, 'safe_loaded_motion_samples'),
-    (evaluator, 'deterministic_loaded_tow'),
+    (header + cpp, 'UGTTTrailerEvidenceScenarioSubsystem'), (cpp, 'StartDelaySeconds = 126.0f'),
+    (cpp, 'GlobalDeadlineSeconds = 172.0f'), (cpp, 'AttachToNativeFieldmaster'), (cpp, 'SetCargoLoaded(true)'),
+    (cpp, 'GTT.AuthoredTrailerRig'), (cpp, 'tow_eye'), (cpp, 'GetRuntimeSnapshot'),
+    (cpp, 'MovingDualContactSamples'), (cpp, 'MinimumTowDistanceCm = 900.0f'),
+    (cpp, 'NATIVE_TRAILER_SCENARIO_SAMPLE'), (cpp, 'NATIVE_TRAILER_SCENARIO_COMPLETE'),
+    (cpp, 'phase=CONTROLLED_STOP'), (evaluator, 'NATIVE_TRAILER_SCENARIO_COMPLETE'),
+    (evaluator, 'safe_loaded_motion_samples'), (evaluator, 'deterministic_loaded_tow'),
     (evaluator, 'fewer than eight safe moving loaded trailer samples'),
-    (playtest, 'loaded authored-trailer motion'),
-    (changelog, '0.1.19'),
-    (authoring, 'motion-under-load'),
+    (playtest, 'loaded authored-trailer motion'), (changelog, '0.1.19'), (authoring, 'motion-under-load'),
 ]
 missing = [token for text, token in required if token not in text]
 if missing:
     raise SystemExit('GTT 0.1.19 trailer runtime exercise missing tokens: ' + ', '.join(missing))
 
-# 0.1.19 established a minimum 178-second runtime window. Later milestones may extend that
-# window, so verify the lower bound and timeout relationship instead of freezing old literals.
 smoke_match = re.search(
-    r'smoke_test_windows\.ps1[^\n]*-MinimumAliveSeconds\s+(\d+)[^\n]*-LaunchTimeoutSeconds\s+(\d+)',
-    workflow,
+    r'smoke_test_windows\.ps1[^\n]*-MinimumAliveSeconds\s+(\d+)[^\n]*-LaunchTimeoutSeconds\s+(\d+)', workflow,
 )
-gameplay_match = re.search(
-    r'evaluate_packaged_gameplay_smoke\.ps1[^\n]*-MinimumRuntimeSeconds\s+(\d+)',
-    workflow,
-)
+gameplay_match = re.search(r'evaluate_packaged_gameplay_smoke\.ps1[^\n]*-MinimumRuntimeSeconds\s+(\d+)', workflow)
 if not smoke_match or not gameplay_match:
     raise SystemExit('Win64 evidence workflow no longer exposes deterministic runtime duration arguments.')
 minimum_alive = int(smoke_match.group(1))
@@ -60,13 +43,7 @@ if launch_timeout <= minimum_alive or launch_timeout < 205:
 if minimum_gameplay < minimum_alive:
     raise SystemExit(f'Packaged gameplay evidence window is shorter than smoke survival: gameplay={minimum_gameplay}s alive={minimum_alive}s')
 
-for token in [
-    'AUTHORED_TRAILER_RUNTIME_EVIDENCE',
-    'gtt.native-trailer-runtime.v1',
-    'NATIVE_CHAOS_RUNTIME.json',
-    'NATIVE_DRIVETRAIN_SCENARIO.json',
-    'exit 5',
-]:
+for token in ['AUTHORED_TRAILER_RUNTIME_EVIDENCE', 'gtt.native-trailer-runtime.v1', 'NATIVE_CHAOS_RUNTIME.json', 'NATIVE_DRIVETRAIN_SCENARIO.json', 'exit 5']:
     if token not in evaluator:
         raise SystemExit('Trailer evaluator regression: missing ' + token)
 
@@ -83,25 +60,24 @@ if (done, total, remaining) != (125, 130, 5):
     raise SystemExit(f'Roadmap checkbox drift: done={done} total={total} remaining={remaining}; expected 125/130/5')
 
 for token in [
-    '<!-- SWIR-ROADMAP-STANDARD:v1 -->',
-    'ROADMAP-96.2%25',
-    'DONE-125%2F130',
-    '📊 Overall progress',
-    '███████████████████░ 96.2%',
+    '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->', '<!-- ROADMAP-PROGRESS:END -->',
+    'ROADMAP-96.2%25', 'DONE-125%2F130', '📊 Overall progress', '../assets/readme/progress-mini.svg',
     '| **125** | **5** | **130** | **96.2%** |',
 ]:
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
+if roadmap.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap dashboard must embed exactly one progress-mini.svg')
+if re.search(r'^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}', roadmap, flags=re.MULTILINE):
+    raise SystemExit('Legacy text/Unicode roadmap progress meter must not return')
 
 for open_item in [
-    '- [ ] Dedicated native Chaos wheeled tractor movement',
-    '- [ ] Full Unreal compile + packaged Win64 smoke test',
+    '- [ ] Dedicated native Chaos wheeled tractor movement', '- [ ] Full Unreal compile + packaged Win64 smoke test',
     '- [ ] Dedicated native Chaos drivetrain/suspension/wheel setup',
-    '- [ ] Authored skeletal trailer wheel assets and final hitch sockets',
-    '- [ ] Full Win64 CI/build runner',
+    '- [ ] Authored skeletal trailer wheel assets and final hitch sockets', '- [ ] Full Win64 CI/build runner',
 ]:
     if open_item not in roadmap:
         raise SystemExit('Runtime/hardware blocker was closed without real UE 5.8 evidence: ' + open_item)
 
 print(f'[OK] GTT 0.1.19 deterministic loaded authored-trailer exercise preserved with runtime window {minimum_alive}s / timeout {launch_timeout}s / gameplay {minimum_gameplay}s.')
-print('[OK] Authored trailer evidence gate and Roadmap lock verified.')
+print('[OK] Authored trailer evidence gate and Roadmap lock verified with SVG-only progress presentation.')

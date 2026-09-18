@@ -37,18 +37,31 @@ for rel, tokens in required.items():
         raise SystemExit(f"[FAIL] {rel} missing hooks: {missing}")
 
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
-if "<!-- SWIR-ROADMAP-STANDARD:v1 -->" not in roadmap:
-    raise SystemExit("[FAIL] SWIR roadmap style marker missing")
+for token in (
+    "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
+    "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
+):
+    if token not in roadmap:
+        raise SystemExit(f"[FAIL] roadmap SVG-only structure missing: {token}")
 if "- [x] Accessibility/settings" not in roadmap or "- [x] Controller support" not in roadmap:
     raise SystemExit("[FAIL] player-experience roadmap tasks not checked")
-checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M)
-done = sum(x == "x" for x in checks)
+checks = re.findall(r'^- \[(x| )\]', roadmap, flags=re.M | re.IGNORECASE)
+done = sum(x.lower() == "x" for x in checks)
 total = len(checks)
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = "█" * filled + "░" * (20 - filled)
-for token in [f"ROADMAP-{percent:.1f}%25", f"DONE-{done}%2F{total}", f"{bar} {percent:.1f}%", f"**{done}**", f"**{remaining}**", f"**{total}**", f"**{percent:.1f}%**"]:
+for token in [
+    f"ROADMAP-{percent:.1f}%25",
+    f"DONE-{done}%2F{total}",
+    f"| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |",
+]:
     if token not in roadmap:
         raise SystemExit(f"[FAIL] roadmap dashboard mismatch: missing {token}")
-print(f"[OK] GTT 0.0.26 player experience sane; roadmap {done}/{total} = {percent:.1f}% ({filled}/20 cells).")
+if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+    raise SystemExit("[FAIL] roadmap must embed exactly one progress-mini.svg")
+if re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, flags=re.MULTILINE):
+    raise SystemExit("[FAIL] legacy text/Unicode roadmap progress meter must not return")
+print(f"[OK] GTT 0.0.26 player experience sane; roadmap {done}/{total} = {percent:.1f}% with SVG-only presentation.")
