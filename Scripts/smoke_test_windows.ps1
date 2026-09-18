@@ -20,7 +20,7 @@ $runtimeLog = Join-Path $PackageDirectory 'GTT_RUNTIME.log'
 if (Test-Path $runtimeLog) { Remove-Item -Force $runtimeLog }
 $arguments = @(
     '-unattended', '-nosplash', '-nullrhi', '-NoSound',
-    '-GTTDemoSmokeScenario', '-GTTFarmCargoRuntimeScenario', '-GTTFarmCargoRecoveryScenario', '-GTTFarmCargoBreakdownScenario', '-GTTFarmCargoDispatchScenario', '-GTTFarmCargoDispatchPersistenceScenario', '-GTTFarmCargoWorkshopRecoveryScenario',
+    '-GTTDemoSmokeScenario', '-GTTFarmCargoRuntimeScenario', '-GTTFarmCargoRecoveryScenario', '-GTTFarmCargoBreakdownScenario', '-GTTFarmCargoDispatchScenario', '-GTTFarmCargoDispatchPersistenceScenario', '-GTTFarmCargoWorkshopRecoveryScenario', '-GTTWorkshopHoursRuntimeScenario',
     '-log', "-abslog=$runtimeLog"
 )
 $startedUtc = (Get-Date).ToUniversalTime()
@@ -43,13 +43,13 @@ try {
 
     $evidence = [ordered]@{
         game = 'Grand Theft Tractor'; version = $Version; result = 'PASS'
-        executable = [IO.Path]::GetRelativePath($PackageDirectory, $exe.FullName).Replace('\','/')
+        executable = [IO.Path]::GetRelativePath($PackageDirectory, $exe.FullName).Replace('\\','/')
         launch_arguments = $arguments; minimum_alive_seconds = $MinimumAliveSeconds; survived_seconds = $survivedSeconds
         started_utc = $startedUtc.ToString('o'); observed_utc = (Get-Date).ToUniversalTime().ToString('o')
         runner = $env:RUNNER_NAME; git_sha = $env:GITHUB_SHA; null_rhi = $true; deterministic_demo_scenario = $true
         farm_cargo_runtime_scenario = $true; farm_cargo_recovery_runtime_scenario = $true; farm_cargo_breakdown_runtime_scenario = $true
         farm_cargo_dispatch_runtime_scenario = $true; farm_cargo_dispatch_persistence_runtime_scenario = $true
-        farm_cargo_workshop_recovery_runtime_scenario = $true
+        farm_cargo_workshop_recovery_runtime_scenario = $true; workshop_hours_runtime_scenario = $true
         runtime_log = 'GTT_RUNTIME.log'; visual_acceptance = 'NOT_PERFORMED'; terminated_by_smoke_test = $true
     }
     $evidencePath = Join-Path $PackageDirectory 'RUNTIME_SMOKE.json'
