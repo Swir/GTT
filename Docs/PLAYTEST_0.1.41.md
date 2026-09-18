@@ -2,95 +2,95 @@
 
 ## Scope
 
-This milestone closes the gameplay gap between **paid roadside tow** and **actual player-authorized workshop service**. Tow remains a separate transport transaction. Once the exact owned native vehicle is physically at the workshop, the player can purchase one full service quote that restores mechanical condition, tires, fuel and native body damage while preserving the same persistent vehicle identity and any active Farm Cargo load binding.
+This milestone connects the existing roadside tow, garage fleet and **existing `AGTTServiceTerminal` workshop** into one authoritative recovery loop. No parallel workshop subsystem is introduced. Tow remains a separate transport transaction; once the exact owned native road vehicle is physically beside the workshop terminal, the player uses the normal **E / Interact** flow to buy fuel-only service or a full repair/refuel/body service.
 
 Source-contract CI is not packaged-runtime evidence. Native Chaos, Win64 packaging, packaged EXE smoke and demo visual acceptance remain separate open gates.
 
-## Acceptance matrix
+## Acceptance matrix — 68 scenarios
 
 | # | Scenario | Expected result |
 |---:|---|---|
-| 1 | Owned damaged Rattleback at workshop | Service quote available. |
-| 2 | Owned damaged Mulebox at workshop | Service quote available. |
-| 3 | Healthy full vehicle at workshop | No paid service offered. |
-| 4 | Vehicle outside workshop radius | Service unavailable. |
-| 5 | Vehicle moving above workshop speed limit | Service unavailable. |
-| 6 | Player too far from workshop vehicle | Service unavailable. |
-| 7 | Unowned native vehicle at workshop | Service unavailable. |
-| 8 | Vehicle with missing persistent ID | Service unavailable. |
-| 9 | Native takeover inactive | Service unavailable. |
-| 10 | Wanted level 1 | Voluntary workshop service blocked. |
-| 11 | Wanted level 2+ | Voluntary workshop service blocked. |
-| 12 | Wanted clears | Service becomes available without vehicle recreation. |
-| 13 | Quote with mechanical damage | Mechanical labor contributes to price. |
-| 14 | Quote with tire wear | Tire parts contribute to price. |
-| 15 | Quote with missing fuel | Fuel contributes to price. |
-| 16 | Quote with body damage | Body surcharge contributes to price. |
-| 17 | Quote with detached panels | Detachment surcharge contributes to price. |
-| 18 | Mixed severe damage | Quote remains bounded by production estimate. |
-| 19 | Press H near eligible vehicle | Exactly one purchase attempt occurs. |
-| 20 | Insufficient cash | No debit and no vehicle mutation. |
-| 21 | Exact cash balance | Service may complete and balance reaches expected value. |
-| 22 | Sufficient cash | Exactly one `SpendCash` transaction occurs. |
-| 23 | Service succeeds | Condition reaches full. |
-| 24 | Service succeeds | Tires reach full integrity. |
-| 25 | Service succeeds | Fuel reaches native capacity. |
-| 26 | Service succeeds | Native body zones restore. |
-| 27 | Service succeeds | Detached panel count/mask clears. |
-| 28 | Service succeeds | `NeedsNativeWorkshopService()` becomes false. |
-| 29 | Service succeeds | Persistent vehicle ID is unchanged. |
-| 30 | Service succeeds | Fleet persistence mirror is flushed. |
-| 31 | Service post-check fails | Migration snapshot rolls back. |
-| 32 | Service post-check fails | Body snapshot and detached mask roll back. |
-| 33 | Service post-check fails | Cargo load factor rolls back. |
-| 34 | Service post-check fails | Exact charge is refunded. |
-| 35 | Service post-check fails | Failure is logged as FAIL, not PASS. |
-| 36 | Roadside tow completes | Vehicle appears inside workshop service radius. |
-| 37 | Roadside tow completes | Tow damage remains before service purchase. |
-| 38 | Roadside tow completes | Tow charge remains separate from workshop quote. |
-| 39 | Tow then service | Tow cannot silently auto-charge workshop service. |
-| 40 | Emergency patch then workshop | Workshop can later perform full service. |
-| 41 | Emergency patch then workshop | Body damage left by patch is repaired only after paid workshop service. |
-| 42 | Police impound | Existing police safety-service path remains separate. |
-| 43 | Police impound | H purchase path does not execute during active Wanted. |
-| 44 | Active Farm Cargo + tow | Exact loaded Mulebox remains the same vehicle at workshop. |
-| 45 | Active Farm Cargo + service | Persistent cargo vehicle ID does not change. |
-| 46 | Active Farm Cargo + service | Cargo load factor is preserved. |
-| 47 | Active Farm Cargo + service | No cargo payout occurs from workshop code. |
-| 48 | Active Farm Cargo + service | No job completion occurs from workshop code. |
-| 49 | Active Farm Cargo + service | Delivery timer is not reset by workshop code. |
-| 50 | Active Farm Cargo + service | Cargo integrity is not repaired by workshop code. |
-| 51 | Decoy Mulebox near workshop | Closest owned eligible exact actor is selected only by physical proximity. |
-| 52 | Decoy is unowned | Decoy is ignored. |
-| 53 | Vehicle identity mutates unexpectedly during service | Post-check fails and transaction rolls back/refunds. |
-| 54 | Cargo factor mutates unexpectedly during service | Post-check fails and transaction rolls back/refunds. |
-| 55 | H pressed repeatedly after success | Healthy vehicle prevents repeat billing. |
-| 56 | Service prompt | Shows exact persistent ID and current full-service quote. |
-| 57 | Service prompt | Explicitly states tow charge is separate. |
-| 58 | Prompt cooldown | No per-frame message spam. |
-| 59 | Save after successful service | Legacy persistence mirror contains restored service state. |
-| 60 | Reload after normal primary save | Serviced condition/fuel/tire state remains restored. |
-| 61 | Source verifier | Rejects missing ownership/exact-ID/Wanted guards. |
-| 62 | Source verifier | Rejects missing rollback/refund verification. |
-| 63 | Source verifier | Rejects cargo-authority mutation from workshop source. |
-| 64 | SWIR presentation verifier | Roadmap remains 125/130 = 96.2%, SVG-only. |
-| 65 | Qualifying Win64 candidate (future gate) | Compile/cook/package must succeed. |
-| 66 | Packaged candidate (future gate) | H workshop service must be exercised in runtime smoke. |
-| 67 | Packaged candidate (future gate) | Tow → workshop → paid service must preserve exact vehicle ID. |
-| 68 | Demo candidate (future gate) | Visual workshop area/HUD must pass human acceptance before Release. |
+| 1 | Owned damaged Rattleback beside existing workshop | Exact repair quote is shown. |
+| 2 | Owned damaged Mulebox beside existing workshop | Exact repair quote is shown. |
+| 3 | Healthy/full vehicle beside workshop | No paid service is applied. |
+| 4 | Vehicle outside terminal radius | Service unavailable. |
+| 5 | Unowned native road vehicle nearby | Ignored by native workshop selection. |
+| 6 | Vehicle with empty persistent ID | Rejected from native paid service. |
+| 7 | Native takeover inactive | Native paid service unavailable. |
+| 8 | Wanted level 1 | Voluntary workshop service blocked. |
+| 9 | Wanted level 2+ | Voluntary workshop service blocked. |
+| 10 | Wanted clears | Existing workshop becomes usable again. |
+| 11 | Mechanical-only damage | Existing breakdown repair estimate feeds quote. |
+| 12 | Tire wear | Tire parts contribute to quote. |
+| 13 | Missing fuel + mechanical damage | Fuel contributes to full-service quote. |
+| 14 | Body damage | Body surcharge contributes to quote. |
+| 15 | Detached panel | Structural/body surcharge contributes to quote. |
+| 16 | Fuel-only visit | Exact per-litre fuel quote is used instead of full-service fee. |
+| 17 | Fuel-only exact cash | One debit only. |
+| 18 | Full-service exact cash | One debit only. |
+| 19 | Insufficient repair cash | No service mutation. |
+| 20 | Insufficient fuel cash | No refuel mutation. |
+| 21 | Press E on existing terminal | `PurchaseNativeRoadWorkshopService` owns native transaction. |
+| 22 | Full service succeeds | Condition reaches full. |
+| 23 | Full service succeeds | Tires reach full integrity. |
+| 24 | Full service succeeds | Fuel reaches native capacity. |
+| 25 | Full service succeeds | Native body zones restore. |
+| 26 | Full service succeeds | Detached panel count/mask clears. |
+| 27 | Full service succeeds | `NeedsNativeWorkshopService()` becomes false. |
+| 28 | Full service succeeds | Persistent vehicle ID remains unchanged. |
+| 29 | Full service succeeds | Native cargo load factor remains unchanged. |
+| 30 | Full service succeeds | Persistence mirror is flushed. |
+| 31 | Full service succeeds | Existing GameMode primary save path is called. |
+| 32 | Post-service identity mismatch | Migration/body state rolls back. |
+| 33 | Post-service cargo mismatch | Migration/body state rolls back. |
+| 34 | Post-service restoration mismatch | Migration/body state rolls back. |
+| 35 | Full-service verification failure | Exact service charge is refunded. |
+| 36 | Fuel verification failure | Fuel state rolls back and exact charge refunds. |
+| 37 | Roadside tow completes | Existing tow destination remains WORKSHOP. |
+| 38 | Roadside tow completes | Tow preserves ordinary damage. |
+| 39 | Roadside tow completes | Tow preserves exact persistent vehicle ID. |
+| 40 | Roadside tow completes | Tow remains `serviced=NO`. |
+| 41 | Tow then E-interact | Workshop quote is separate from locked tow quote. |
+| 42 | Tow then full service | Same towed actor is repaired, not a substitute. |
+| 43 | Emergency patch then workshop | Full service can later restore remaining damage. |
+| 44 | Emergency patch then workshop | Body damage left by patch is repaired only after paid service. |
+| 45 | Police impound | Existing mandatory police safety-service path remains separate. |
+| 46 | Active Wanted | Voluntary terminal service cannot bypass police recovery. |
+| 47 | Active Farm Cargo + tow | Exact loaded Mulebox remains authoritative at workshop. |
+| 48 | Active Farm Cargo + service | Persistent cargo vehicle ID is unchanged. |
+| 49 | Active Farm Cargo + service | Native cargo load factor is unchanged. |
+| 50 | Active Farm Cargo + service | Workshop source does not call Farm Cargo payout. |
+| 51 | Active Farm Cargo + service | Workshop source does not complete a job. |
+| 52 | Active Farm Cargo + service | Workshop source does not reset delivery timer. |
+| 53 | Active Farm Cargo + service | Workshop source does not repair cargo integrity. |
+| 54 | Decoy unowned Mulebox near terminal | Decoy is ignored. |
+| 55 | Two owned vehicles in radius | Nearest active native road vehicle is selected deterministically. |
+| 56 | Interaction prompt | Shows display name + exact persistent ID. |
+| 57 | Interaction prompt | Shows exact fuel quote for fuel-only state. |
+| 58 | Interaction prompt | Shows exact full-service quote for mechanical damage. |
+| 59 | Service repeated after success | Healthy state prevents repeat billing. |
+| 60 | Save after service | Existing GameMode save records synchronized mirror state. |
+| 61 | Reload after normal primary save | Service result persists through existing fleet save. |
+| 62 | Existing garage dashboard | Repair/tow estimates remain readable. |
+| 63 | Existing garage recall | Recall still preserves damage; no free repair introduced. |
+| 64 | Source verifier | Rejects any reintroduction of a parallel workshop subsystem. |
+| 65 | Source verifier | Rejects missing rollback/refund/exact-ID/cargo guards. |
+| 66 | SWIR presentation | Roadmap remains 125/130 = 96.2% with SVG-only meter. |
+| 67 | Qualifying Win64 candidate (future) | Compile/cook/package + runtime workshop loop must pass. |
+| 68 | Demo candidate (future) | Exact candidate workshop area/UI must pass rendered visual acceptance. |
 
 ## Manual play route
 
 1. Start with an owned Rattleback or Mulebox and enough cash.
-2. Damage condition/tires/body or drain fuel until workshop service is needed.
+2. Damage condition/tires/body or drain fuel until service is needed.
 3. If recovery is required, order a normal paid tow and wait for arrival.
-4. Confirm tow places the same `PersistentVehicleId` at the workshop and does not repair ordinary damage.
-5. Stand near the vehicle. Confirm the workshop prompt shows the exact vehicle ID and one full-service quote.
-6. Press **H**. Verify one debit only, then check condition, tires, fuel, body zones and detached panels.
-7. Repeat with insufficient cash; verify no vehicle state changes.
-8. Repeat during Wanted; verify the voluntary workshop is blocked.
-9. Repeat with active Farm Cargo. Confirm exact-vehicle authority and cargo load survive service and the route still must finish through its real terminals.
-10. Save after service, reload normally and verify the serviced fleet state persists through the existing save path.
+4. Confirm tow places the same `PersistentVehicleId` at the workshop and does **not** repair ordinary damage.
+5. Walk to the existing workshop terminal and use normal **E / Interact**. Confirm the prompt names the exact vehicle ID and quote.
+6. Buy service. Verify exactly one debit, then check condition, tires, fuel, body zones and detached panels.
+7. Repeat with fuel-only state; verify per-litre billing and no mechanical mutation.
+8. Repeat with insufficient cash and Wanted; verify no vehicle mutation or hidden charge.
+9. Repeat with active Farm Cargo; exact-vehicle authority and cargo load must survive while the real route still owns timer/integrity/payout.
+10. Save after service, reload normally and verify fleet service state persists.
 
 ## Demo gate
 

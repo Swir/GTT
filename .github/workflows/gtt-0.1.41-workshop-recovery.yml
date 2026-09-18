@@ -5,9 +5,13 @@ on:
     branches: [main, "milestone/0.1.41-workshop-recovery"]
   pull_request:
     paths:
-      - "Source/GTT/**"
+      - "Source/GTT/Private/World/GTTServiceTerminal.cpp"
+      - "Source/GTT/Public/World/GTTServiceTerminal.h"
+      - "Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp"
+      - "Source/GTT/Private/World/GTTGarageFleetSubsystem.cpp"
       - "Scripts/verify_workshop_recovery_integration.py"
       - "Docs/PLAYTEST_0.1.41.md"
+      - "CHANGELOG.d/0.1.41.md"
       - "Docs/ROADMAP.md"
       - "README.md"
       - ".github/workflows/gtt-0.1.41-workshop-recovery.yml"
@@ -25,7 +29,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Verify workshop recovery integration
+      - name: Verify existing workshop + roadside recovery integration
         run: python Scripts/verify_workshop_recovery_integration.py
+      - name: Verify existing garage fleet contract remains green
+        run: python Scripts/verify_garage_fleet_operations.py
+      - name: Verify existing roadside recovery contract remains green
+        run: python Scripts/verify_native_roadside_recovery.py
       - name: Verify deterministic SWIR progress SVG
         run: python Scripts/generate_progress_svg.py --check
