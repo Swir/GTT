@@ -29,6 +29,10 @@ MINI_TRACK_WIDTH = 700.0
 SVG_NS = "http://www.w3.org/2000/svg"
 ET.register_namespace("", SVG_NS)
 
+# Real textual meter glyphs are forbidden in maintained README / active roadmap status.
+# Numeric percentages/counters stay as accessible fallback; visual meter = SVG only.
+LEGACY_METER_RE = re.compile(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}[^\n]*%?", re.MULTILINE)
+
 
 @dataclass(frozen=True)
 class Progress:
@@ -73,18 +77,30 @@ def read_progress() -> Progress:
     if progress.fraction is None:
         raise AssertionError("GTT roadmap scope is unexpectedly empty; progress must be N/A until scope is restored")
 
-    expected_bar_filled = min(20, max(0, int(round(progress.fraction * 20))))
-    expected_bar = "█" * expected_bar_filled + "░" * (20 - expected_bar_filled)
     expected_dashboard = [
         "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
         "<!-- ROADMAP-PROGRESS:START -->",
         "<!-- ROADMAP-PROGRESS:END -->",
-        f"{expected_bar} {progress.percentage_text}",
+        "## 📊 Overall progress",
+        "../assets/readme/progress-mini.svg",
         f"| **{progress.completed}** | **{progress.total - progress.completed}** | **{progress.total}** | **{progress.percentage_text}** |",
     ]
     for token in expected_dashboard:
         if token not in text:
             raise AssertionError(f"Docs/ROADMAP.md dashboard does not match checklist truth: missing {token!r}")
+    if LEGACY_METER_RE.search(text):
+        raise AssertionError("Docs/ROADMAP.md contains a legacy text/Unicode progress meter; use progress-mini.svg only")
+
+    block_match = re.search(
+        r"<!-- ROADMAP-PROGRESS:START -->(.*?)<!-- ROADMAP-PROGRESS:END -->",
+        text,
+        flags=re.DOTALL,
+    )
+    if not block_match:
+        raise AssertionError("Docs/ROADMAP.md ROADMAP-PROGRESS block is missing")
+    block = block_match.group(1)
+    if block.count("../assets/readme/progress-mini.svg") != 1:
+        raise AssertionError("ROADMAP-PROGRESS block must embed exactly one progress-mini.svg")
     return progress
 
 
@@ -203,14 +219,31 @@ def verify_embeddings(progress: Progress) -> None:
     roadmap = ROADMAP.read_text(encoding="utf-8")
     if "<!-- SWIR-README-STANDARD:v2 -->" not in readme:
         raise AssertionError("README v2 marker missing or downgraded")
-    if "assets/readme/progress-card.svg" not in readme:
-        raise AssertionError("README does not embed progress-card.svg")
-    if "../assets/readme/progress-mini.svg" not in roadmap:
-        raise AssertionError("Docs/ROADMAP.md does not embed progress-mini.svg with the correct relative path")
+    if readme.count("assets/readme/progress-card.svg") != 1:
+        raise AssertionError("README must embed exactly one progress-card.svg for roadmap scope")
+    if "progress-mini.svg" in readme:
+        raise AssertionError("README roadmap scope must not duplicate card + mini")
+    if roadmap.count("../assets/readme/progress-mini.svg") != 1:
+        raise AssertionError("Docs/ROADMAP.md must embed exactly one progress-mini.svg with the correct relative path")
+    if "progress-card.svg" in roadmap:
+        raise AssertionError("Roadmap scope must not duplicate mini + card")
+    if "progress-template.svg" in readme or "progress-template.svg" in roadmap:
+        raise AssertionError("progress-template.svg is a TEMPLATE and must not be embedded as project data")
     if f"{progress.completed} / {progress.total} tasks complete ({progress.percentage_text})" not in readme:
-        raise AssertionError("README textual progress fallback is missing or stale")
+        raise AssertionError("README textual numeric progress fallback is missing or stale")
     if "Release readiness: **NOT READY**" not in readme:
         raise AssertionError("README must keep release readiness separate from roadmap completion")
+    if LEGACY_METER_RE.search(readme) or LEGACY_METER_RE.search(roadmap):
+        raise AssertionError("legacy text/Unicode progress meter detected; maintained surfaces must be SVG-only")
+
+
+def verify_template() -> None:
+    text = TEMPLATE.read_text(encoding="utf-8")
+    ET.parse(TEMPLATE)
+    if "TEMPLATE" not in text.upper():
+        raise AssertionError("progress-template.svg must be clearly marked TEMPLATE")
+    if "N/A" not in text:
+        raise AssertionError("progress-template.svg must use N/A rather than fabricated project progress")
 
 
 def main() -> int:
@@ -232,13 +265,15 @@ def main() -> int:
             raise AssertionError("stale generated progress assets: " + ", ".join(mismatches))
         validate_svg(CARD, CARD_TRACK_WIDTH, progress.fraction)
         validate_svg(MINI, MINI_TRACK_WIDTH, progress.fraction)
-        ET.parse(TEMPLATE)
+        verify_template()
         verify_embeddings(progress)
-        print(f"SWIR Progress SVG PRO: PASS — {progress.counter_text}, {progress.percentage_text}; release readiness kept separate.")
+        print(f"SWIR Progress SVG PRO: PASS — {progress.counter_text}, {progress.percentage_text}; release readiness kept separate; legacy meters absent.")
         return 0
 
     CARD.write_text(expected_card, encoding="utf-8")
     MINI.write_text(expected_mini, encoding="utf-8")
+    verify_template()
+    verify_embeddings(progress)
     print(f"generated {CARD.relative_to(ROOT)} and {MINI.relative_to(ROOT)} from Docs/ROADMAP.md: {progress.counter_text}, {progress.percentage_text}")
     return 0
 
