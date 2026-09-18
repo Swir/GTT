@@ -47,7 +47,6 @@ assert schema_match and int(schema_match.group(1)) >= 5, (
 )
 
 for token in (
-    "default: '0.1.14'",
     "runs-on: [self-hosted, windows, x64, unreal-5.8]",
     "evaluate_demo_scenario.ps1",
     "evaluate_native_chaos_runtime.ps1",
@@ -59,6 +58,16 @@ for token in (
     "actions/upload-artifact@v4",
 ):
     assert token in workflow, f"missing Win64 candidate workflow token: {token}"
+
+# The historical gate first required a 0.1.14 candidate label. Later milestones
+# legitimately advance the workflow default, so require a parseable version at
+# least that new instead of pinning a stale exact string.
+version_match = re.search(r"(?ms)^\s*version:\s*\n(?:\s+.*\n)*?\s+default:\s*'([0-9]+\.[0-9]+\.[0-9]+)'", workflow)
+assert version_match, "Win64 candidate workflow version default is not parseable"
+candidate_version = tuple(int(part) for part in version_match.group(1).split("."))
+assert candidate_version >= (0, 1, 14), (
+    f"Win64 candidate workflow default regressed below 0.1.14: {version_match.group(1)}"
+)
 
 runtime_match = re.search(
     r"-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)",
@@ -129,6 +138,6 @@ for token in (
 print(
     "[OK] Win64 Native structural limp-home + native telemetry candidate gate verified; "
     f"scenario v11/33 hard-bound; additive technical schema={schema_match.group(1)}; "
-    f"current workflow default remains last proven 0.1.14; runtime window={minimum_alive}/{launch_timeout}s; "
+    f"workflow candidate default={version_match.group(1)}; runtime window={minimum_alive}/{launch_timeout}s; "
     "roadmap 125/130 with SVG-only progress presentation."
 )
