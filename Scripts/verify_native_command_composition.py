@@ -95,11 +95,14 @@ if "0.0.77" not in changelog or "composition" not in changelog.lower():
 
 style_tokens = (
     "<!-- SWIR-ROADMAP-STANDARD:v1 -->",
+    "<!-- ROADMAP-PROGRESS:START -->",
+    "<!-- ROADMAP-PROGRESS:END -->",
     '<img alt="CI"',
     '<img alt="Roadmap progress"',
     '<img alt="Completed"',
     '<img alt="Status"',
     "## 📊 Overall progress",
+    "../assets/readme/progress-mini.svg",
 )
 for token in style_tokens:
     if token not in roadmap:
@@ -110,18 +113,21 @@ done = sum(1 for state in checks if state.lower() == "x")
 total = len(checks)
 remaining = total - done
 progress = round(done / total * 100.0, 1)
-segments = round(progress / 5.0)
-bar = "█" * segments + "░" * (20 - segments)
 if (done, total, remaining) != (125, 130, 5):
     errors.append(f"roadmap checklist drift: {done}/{total}, remaining={remaining}")
 for token in (
     f"ROADMAP-{progress:.1f}%25",
     f"DONE-{done}%2F{total}",
-    f"{bar} {progress:.1f}%",
     f"| **{done}** | **{remaining}** | **{total}** | **{progress:.1f}%** |",
 ):
     if token not in roadmap:
         errors.append("roadmap dashboard drift: missing " + token)
+if "<!-- ROADMAP-PROGRESS:START -->" in roadmap and "<!-- ROADMAP-PROGRESS:END -->" in roadmap:
+    progress_block = roadmap.split("<!-- ROADMAP-PROGRESS:START -->", 1)[1].split("<!-- ROADMAP-PROGRESS:END -->", 1)[0]
+    if progress_block.count("../assets/readme/progress-mini.svg") != 1:
+        errors.append("roadmap progress block must embed exactly one canonical progress-mini.svg")
+    if re.search(r"[█▓▒░]{3,}", progress_block):
+        errors.append("legacy text/Unicode progress meter must not return to active Roadmap dashboard")
 
 for open_item in (
     "- [ ] Dedicated native Chaos wheeled tractor movement",
@@ -144,4 +150,4 @@ print(" - axle subsystem is evidence-only for movement input ownership")
 print(" - final throttle/brake/steering commands compose drivetrain and axle limits")
 print(" - strictest brake and torque-cut semantics are enforced")
 print(" - four-wheel live suspension evidence is sampled")
-print(f" - roadmap remains honest at {done}/{total} ({progress:.1f}%)")
+print(f" - roadmap remains honest at {done}/{total} ({progress:.1f}%) with SVG-only progress")
