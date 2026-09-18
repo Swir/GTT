@@ -108,6 +108,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.34 roadside recovery choice:** native road vehicles can choose a paid temporary emergency patch or tow when recovery is recommended. The patch restores only limp-home floors, preserves body damage and persistent identity, while active Farm Cargo keeps the exact loaded vehicle, primary-save checkpoints and a running delivery timer. This source milestone does **not** close any of the five Native Chaos, trailer or Win64 acceptance blockers.
 
+> **0.1.35 packaged recovery evidence:** the Farm Cargo packaged-evidence route now requires the production emergency patch on the exact loaded native Mulebox, verifies body/identity/timer/cargo-integrity continuity through the real cooldown, then deliberately re-breaks that same vehicle for paid tow, decoy rejection and authoritative final delivery. The evidence manifest and demo technical gate are strengthened, but the roadmap remains 125/130 until a real UE 5.8 Win64 package supplies the required runtime and visual proof.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
