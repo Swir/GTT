@@ -32,11 +32,21 @@ workflow_order_ok = scenario_step in workflow and packaged_step in workflow and 
 runtime_match = re.search(r'-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)', workflow)
 gameplay_runtime_match = re.search(r'-MinimumRuntimeSeconds\s+(\d+)', workflow)
 runtime_window_ok = False
+minimum_alive = launch_timeout = gameplay_minimum = 0
 if runtime_match and gameplay_runtime_match:
     minimum_alive = int(runtime_match.group(1))
     launch_timeout = int(runtime_match.group(2))
     gameplay_minimum = int(gameplay_runtime_match.group(1))
     runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
+
+# 0.1.14 established this acceptance contract. Later milestones are additive and
+# must be allowed to advance the truthful workflow label without weakening it.
+version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
+candidate_version = None
+candidate_version_ok = False
+if version_match:
+    candidate_version = tuple(int(part) for part in version_match.groups())
+    candidate_version_ok = candidate_version >= (0, 1, 14)
 
 checks = {
     'core world subsystem': 'UTickableWorldSubsystem' in h,
@@ -67,10 +77,11 @@ checks = {
     'workflow order': workflow_order_ok,
     'extended packaged runtime': runtime_window_ok,
     'artifact retained': '\\DEMO_SCENARIO.json' in workflow,
-    'current candidate version': "default: '0.1.14'" in workflow,
+    'candidate version not regressed below 0.1.14': candidate_version_ok,
     'current build evidence': all(x in workflow for x in ['WIN64_PREFLIGHT.json', 'BUILD_ATTEMPT.json', 'RUNTIME_SMOKE.json', 'DEMO_TECHNICAL_GATE.json']),
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit('Deterministic demo scenario verification failed: ' + ', '.join(failed))
-print(f'Deterministic demo scenario verification passed under current 0.1.14 candidate workflow ({len(checks)} checks; runtime={minimum_alive}s, timeout={launch_timeout}s).')
+label = '.'.join(str(part) for part in candidate_version) if candidate_version else 'unknown'
+print(f'Deterministic demo scenario verification passed under additive candidate {label} ({len(checks)} checks; runtime={minimum_alive}s, timeout={launch_timeout}s).')
