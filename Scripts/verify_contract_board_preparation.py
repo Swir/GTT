@@ -70,29 +70,31 @@ if failed:
     raise SystemExit("Contract board/fleet preparation verification failed: " + ", ".join(failed))
 
 required_style = [
-    '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->',
+    '<!-- SWIR-ROADMAP-STANDARD:v1 -->', '<!-- ROADMAP-PROGRESS:START -->', '<!-- ROADMAP-PROGRESS:END -->',
     'alt="CI"', 'alt="Roadmap progress"', 'alt="Completed"', 'alt="Status"',
-    '## 📊 Overall progress', '<!-- ROADMAP-PROGRESS:END -->'
+    '## 📊 Overall progress', '../assets/readme/progress-mini.svg'
 ]
 for token in required_style:
     if token not in roadmap:
         raise SystemExit("SWIR roadmap style lock missing: " + token)
 
-items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE)
-done = sum(v == 'x' for v in items)
+items = re.findall(r'^- \[(x| )\] ', roadmap, flags=re.MULTILINE | re.IGNORECASE)
+done = sum(v.lower() == 'x' for v in items)
 total = len(items)
 if not total:
     raise SystemExit("Roadmap checklist missing")
 remaining = total - done
 percent = round(done * 100.0 / total, 1)
-filled = round(done * 20.0 / total)
-bar = '█' * filled + '░' * (20 - filled)
 for token in (
     f'ROADMAP-{percent:.1f}%25', f'DONE-{done}%2F{total}', 'STATUS-IN%20PROGRESS',
-    f'{bar} {percent:.1f}%', f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
+    f'| **{done}** | **{remaining}** | **{total}** | **{percent:.1f}%** |'):
     if token not in roadmap:
         raise SystemExit("Roadmap dashboard drift: missing " + token)
+if roadmap.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit("Roadmap dashboard must embed exactly one progress-mini.svg")
+if re.search(r'^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}', roadmap, flags=re.MULTILINE):
+    raise SystemExit("Legacy text/Unicode roadmap progress meter must not return")
 if (done, total, percent) != (125, 130, 96.2):
     raise SystemExit(f"0.1.1 source milestone must not claim build/art gates: {done}/{total} = {percent:.1f}%")
 
-print(f"[OK] GTT 0.1.1 contract board, paid fleet preparation and bypass economics verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}%.")
+print(f"[OK] GTT 0.1.1 contract board, paid fleet preparation and bypass economics verified ({len(checks)} checks); roadmap {done}/{total} = {percent:.1f}% with SVG-only presentation.")
