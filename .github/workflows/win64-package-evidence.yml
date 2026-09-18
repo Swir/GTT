@@ -5,7 +5,7 @@ on:
       version:
         description: 'GTT version label for the package'
         required: true
-        default: '0.1.35'
+        default: '0.1.38'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -41,13 +41,13 @@ jobs:
         run: ./Scripts/package_windows.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -Configuration "$env:GTT_CONFIGURATION" -ArchiveDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -SkipZip
       - name: Runtime smoke test packaged EXE with deterministic scenarios
         shell: pwsh
-        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 280 -LaunchTimeoutSeconds 305
+        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 324 -LaunchTimeoutSeconds 350
       - name: Evaluate structural limp-home, persistence and workshop recovery scenario
         shell: pwsh
         run: ./Scripts/evaluate_demo_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Evaluate packaged gameplay smoke
         shell: pwsh
-        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 280
+        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 324
       - name: Evaluate live Native Chaos drivetrain and wheel telemetry
         shell: pwsh
         run: ./Scripts/evaluate_native_chaos_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
@@ -66,11 +66,14 @@ jobs:
       - name: Evaluate Farm Cargo emergency patch, re-breakdown and paid tow continuity runtime
         shell: pwsh
         run: ./Scripts/evaluate_farm_cargo_breakdown_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
+      - name: Evaluate Farm Cargo roadside dispatch contract continuity runtime
+        shell: pwsh
+        run: ./Scripts/evaluate_farm_cargo_dispatch_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
       - name: Re-validate technical evidence bundle
         shell: pwsh
         run: |
           ./Scripts/validate_windows_package.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Configuration "$env:GTT_CONFIGURATION" -Version "$env:GTT_VERSION"
-          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','NATIVE_CHAOS_RUNTIME.json','NATIVE_DRIVETRAIN_SCENARIO.json','NATIVE_TRAILER_RUNTIME.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
+          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','NATIVE_CHAOS_RUNTIME.json','NATIVE_DRIVETRAIN_SCENARIO.json','NATIVE_TRAILER_RUNTIME.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','FARM_CARGO_DISPATCH_RUNTIME.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
       - name: Evaluate demo technical candidate
         shell: pwsh
         run: ./Scripts/evaluate_demo_candidate.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
@@ -83,7 +86,7 @@ jobs:
       - name: Verify complete candidate evidence bundle
         shell: pwsh
         run: |
-          foreach($f in @('DEMO_TECHNICAL_GATE.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','VISUAL_RUNTIME_SMOKE.json','DEMO_VISUAL_EVIDENCE.json','GTT_VISUAL_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing from complete candidate."}}
+          foreach($f in @('DEMO_TECHNICAL_GATE.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','FARM_CARGO_DISPATCH_RUNTIME.json','VISUAL_RUNTIME_SMOKE.json','DEMO_VISUAL_EVIDENCE.json','GTT_VISUAL_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing from complete candidate."}}
           $shots=@(Get-ChildItem (Join-Path $env:GTT_PACKAGE_DIR 'DemoVisualEvidence') -File -Filter 'GTT_visual_*.png')
           if($shots.Count -ne 5){throw "Expected exactly five rendered review screenshots, found $($shots.Count)."}
       - name: Build final ZIP and hash
@@ -92,7 +95,7 @@ jobs:
           $zip="$env:GTT_PACKAGE_DIR.zip"
           if(Test-Path $zip){Remove-Item -Force $zip}
           Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal
-          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip.FullName).Hash.ToLowerInvariant()
           Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
       - name: Upload verified Win64 evidence
         uses: actions/upload-artifact@v4
@@ -114,6 +117,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RECOVERY_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_BREAKDOWN_RUNTIME.json
+            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_DISPATCH_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_TECHNICAL_GATE.json
             ${{ env.GTT_PACKAGE_DIR }}\VISUAL_RUNTIME_SMOKE.json
@@ -136,6 +140,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RECOVERY_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_BREAKDOWN_RUNTIME.json
+            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_DISPATCH_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\VISUAL_RUNTIME_SMOKE.json
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json

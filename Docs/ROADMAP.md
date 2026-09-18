@@ -106,6 +106,12 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.35 packaged recovery evidence:** the Farm Cargo packaged-evidence route now requires the production emergency patch on the exact loaded native Mulebox, verifies body/identity/timer/cargo-integrity continuity through the real cooldown, then deliberately re-breaks that same vehicle for paid tow, decoy rejection and authoritative final delivery. The evidence manifest and demo technical gate are strengthened, but the roadmap remains 125/130 until a real UE 5.8 Win64 package supplies the required runtime and visual proof.
 
+> **0.1.36 roadside dispatch authority:** voluntary patch/tow now locks its request-time quote and exact `PersistentVehicleId`, supports explicit no-charge cancellation before arrival and exposes pending mode/quote/ETA/target to UI. Police impound remains a separate non-cancellable consequence. This source milestone does not close runtime acceptance blockers.
+
+> **0.1.37 dispatch HUD contract:** native vehicle and Farm Cargo HUD presentation reads the authoritative locked quote, live ETA and target vehicle from the roadside subsystem after service acceptance instead of recalculating mutable estimates. This UX wiring does not change the five runtime/art blockers.
+
+> **0.1.38 packaged dispatch evidence:** a later deterministic packaged route exercises locked patch/tow quotes, live ETA, no-charge cancellation, explicit re-request, exact charge, exact cargo-vehicle continuity, decoy rejection, final payout/reputation and primary save. `FARM_CARGO_DISPATCH_RUNTIME.json` is required by the Win64 candidate workflow, but the roadmap remains 125/130 until a real UE 5.8 Win64 package produces the evidence and the visual/runtime gates pass.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery

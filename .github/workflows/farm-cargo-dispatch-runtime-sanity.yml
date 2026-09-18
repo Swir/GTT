@@ -1,0 +1,56 @@
+name: GTT 0.1.38 Farm Cargo roadside dispatch runtime sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/**' ]
+    paths:
+      - 'Source/GTT/Public/Core/GTTFarmCargoDispatchEvidenceSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTFarmCargoDispatchEvidenceSubsystem.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTRoadsideRecoverySubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'
+      - 'Scripts/smoke_test_windows.ps1'
+      - 'Scripts/evaluate_farm_cargo_dispatch_runtime.ps1'
+      - 'Scripts/verify_farm_cargo_dispatch_runtime.py'
+      - 'Scripts/verify_farm_cargo_emergency_patch_runtime.py'
+      - 'Scripts/generate_progress_svg.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - 'Docs/PLAYTEST_0.1.38.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'CHANGELOG.d/0.1.38.md'
+      - 'assets/readme/progress-*.svg'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Core/GTTFarmCargoDispatchEvidenceSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTFarmCargoDispatchEvidenceSubsystem.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTRoadsideRecoverySubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTRoadsideRecoverySubsystem.cpp'
+      - 'Scripts/smoke_test_windows.ps1'
+      - 'Scripts/evaluate_farm_cargo_dispatch_runtime.ps1'
+      - 'Scripts/verify_farm_cargo_dispatch_runtime.py'
+      - 'Scripts/verify_farm_cargo_emergency_patch_runtime.py'
+      - 'Scripts/generate_progress_svg.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - 'Docs/PLAYTEST_0.1.38.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'CHANGELOG.d/0.1.38.md'
+      - 'assets/readme/progress-*.svg'
+
+permissions:
+  contents: read
+
+jobs:
+  farm-cargo-roadside-dispatch-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Preserve 0.1.35 emergency-patch runtime guarantees
+        run: python3 Scripts/verify_farm_cargo_emergency_patch_runtime.py
+      - name: Verify 0.1.38 dispatch runtime evidence contract
+        run: python3 Scripts/verify_farm_cargo_dispatch_runtime.py
+      - name: Verify deterministic SWIR progress assets remain current
+        run: python3 Scripts/generate_progress_svg.py --check

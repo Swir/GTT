@@ -18,6 +18,10 @@ def require(text: str, token: str, where: str) -> None:
     assert token in text, f"{where}: missing {token!r}"
 
 
+def version_tuple(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.split("."))
+
+
 header = read("Source/GTT/Public/Core/GTTFarmCargoBreakdownEvidenceSubsystem.h")
 cpp = read("Source/GTT/Private/Core/GTTFarmCargoBreakdownEvidenceSubsystem.cpp")
 production = read("Source/GTT/Private/Activities/GTTFarmCargoBreakdownRecoverySubsystem.cpp")
@@ -95,11 +99,17 @@ for token in (
     require(demo_gate, token, "demo technical gate")
 
 for token in (
-    "default: '0.1.35'", "MinimumAliveSeconds 280", "LaunchTimeoutSeconds 305",
-    "MinimumRuntimeSeconds 280", "evaluate_farm_cargo_breakdown_runtime.ps1",
+    "evaluate_farm_cargo_breakdown_runtime.ps1",
     "FARM_CARGO_BREAKDOWN_RUNTIME.json",
 ):
     require(workflow, token, "Win64 package workflow")
+version_match = re.search(r"default:\s*'([0-9]+\.[0-9]+\.[0-9]+)'", workflow)
+assert version_match, "Win64 workflow version default missing"
+assert version_tuple(version_match.group(1)) >= version_tuple("0.1.35"), "Win64 workflow regressed below 0.1.35"
+alive_match = re.search(r"MinimumAliveSeconds\s+(\d+)", workflow)
+timeout_match = re.search(r"LaunchTimeoutSeconds\s+(\d+)", workflow)
+assert alive_match and int(alive_match.group(1)) >= 280, "Win64 runtime window regressed below 280 seconds"
+assert timeout_match and int(timeout_match.group(1)) > int(alive_match.group(1)), "Win64 launch timeout must exceed alive window"
 
 require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "README")
 require(readme, "## 🔎 Search Keywords", "README")
@@ -112,11 +122,13 @@ assert checks, "ROADMAP checklist missing"
 done = sum(item == "x" for item in checks)
 assert (done, len(checks)) == (125, 130), f"runtime-evidence work must not close hardware/runtime gates: {done}/{len(checks)}"
 assert "96.2%" in roadmap and "**125** | **5** | **130** | **96.2%**" in roadmap
+assert "../assets/readme/progress-mini.svg" in roadmap
+assert not re.search(r"[█▓▒░]{4,}|\[[#=\-]{6,}\]", roadmap), "retired character progress meter returned"
 
 for path, needles in (
     ("assets/readme/progress-card.svg", ("96.2%", "125 / 130", "NOT READY")),
     ("assets/readme/progress-mini.svg", ("96.2%", "125 / 130")),
-    ("assets/readme/progress-template.svg", ("N/A",)),
+    ("assets/readme/progress-template.svg", ("N/A", "TEMPLATE")),
 ):
     data = read(path)
     for needle in needles:
@@ -127,8 +139,9 @@ playtest = read("Docs/PLAYTEST_0.1.35.md")
 scenarios = len(re.findall(r"^\d+\. ", playtest, flags=re.MULTILINE))
 assert scenarios >= 60, f"PLAYTEST_0.1.35.md must contain at least 60 numbered scenarios, found {scenarios}"
 changelog = read("CHANGELOG.d/0.1.35.md")
-for token in ("GTT 0.1.35", "emergency patch", "FARM_CARGO_BREAKDOWN_RUNTIME.json", "schema v2", "125/130", "does not prove"):
-    require(changelog, token, "0.1.35 changelog")
+for token in ("GTT 0.1.35", "FARM_CARGO_BREAKDOWN_RUNTIME.json", "schema v2", "125/130", "does not prove"):
+    require(changelog.lower() if token == "emergency patch" else changelog, token, "0.1.35 changelog")
+assert "emergency patch" in changelog.lower(), "0.1.35 changelog: missing emergency patch"
 
 print("GTT 0.1.35 Farm Cargo emergency-patch + re-breakdown/tow source contract: PASS")
 print(f"Roadmap remains {done}/{len(checks)} = {done / len(checks) * 100:.1f}% until real Win64/Chaos/trailer evidence exists")
