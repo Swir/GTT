@@ -33,7 +33,10 @@ required = [
     (authoring, 'Roadmap close rule'),
     (changelog, '0.0.73'),
     (roadmap, '<!-- SWIR-ROADMAP-STANDARD:v1 -->'),
+    (roadmap, '<!-- ROADMAP-PROGRESS:START -->'),
+    (roadmap, '<!-- ROADMAP-PROGRESS:END -->'),
     (roadmap, '📊 Overall progress'),
+    (roadmap, '../assets/readme/progress-mini.svg'),
 ]
 missing = [token for text, token in required if token not in text]
 if missing:
@@ -49,11 +52,14 @@ if (done, total, remaining) != (125, 130, 5):
 for token in [
     'ROADMAP-96.2%25',
     'DONE-125%2F130',
-    '███████████████████░ 96.2%',
     '| **125** | **5** | **130** | **96.2%** |',
 ]:
     if token not in roadmap:
         raise SystemExit('Roadmap dashboard drift: missing ' + token)
+if roadmap.count('../assets/readme/progress-mini.svg') != 1:
+    raise SystemExit('Roadmap must embed exactly one progress-mini.svg')
+if re.search(r'^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}', roadmap, flags=re.MULTILINE):
+    raise SystemExit('Legacy text/Unicode roadmap progress meter must not return')
 
 if '- [ ] Authored skeletal trailer wheel assets and final hitch sockets' not in roadmap:
     raise SystemExit('Authored trailer roadmap item must remain open until a real final Unreal asset/runtime proof exists.')
@@ -64,4 +70,4 @@ if 'GroundTraceDistanceCm = 105.0f' not in header or 'HitchWarningErrorCm = 80.0
 if 'SetVisibility(false, true)' not in cpp or 'SetVisibility(Trailer->HasCargo(), true)' not in cpp:
     raise SystemExit('Safe authored/greybox presentation takeover fallback is missing.')
 
-print('[OK] Authored trailer runtime takeover, wheel-contact dynamics, heavy-haul integration and roadmap lock verified.')
+print('[OK] Authored trailer runtime takeover, wheel-contact dynamics, heavy-haul integration and SVG-only roadmap lock verified.')
