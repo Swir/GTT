@@ -43,7 +43,7 @@ try {
 
     $evidence = [ordered]@{
         game = 'Grand Theft Tractor'; version = $Version; result = 'PASS'
-        executable = [IO.Path]::GetRelativePath($PackageDirectory, $exe.FullName).Replace('\\','/')
+        executable = [IO.Path]::GetRelativePath($PackageDirectory, $exe.FullName).Replace('\','/')
         launch_arguments = $arguments; minimum_alive_seconds = $MinimumAliveSeconds; survived_seconds = $survivedSeconds
         started_utc = $startedUtc.ToString('o'); observed_utc = (Get-Date).ToUniversalTime().ToString('o')
         runner = $env:RUNNER_NAME; git_sha = $env:GITHUB_SHA; null_rhi = $true; deterministic_demo_scenario = $true
