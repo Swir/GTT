@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Source-contract verifier for GTT 0.1.40 packaged roadside-dispatch persistence evidence.
 
-This validates repository wiring, gate strength and SWIR presentation only. It does not claim
-an Unreal Engine compile, packaged runtime PASS, visual acceptance or demo readiness.
+The verifier intentionally accepts later, stronger Win64 evidence windows and later technical-gate
+schemas while preserving every 0.1.40 persistence guarantee. It never treats source checks as a
+packaged Unreal runtime PASS.
 """
 from __future__ import annotations
 
@@ -19,8 +20,14 @@ def read(path: str) -> str:
     return p.read_text(encoding="utf-8")
 
 
-def require(text: str, token: str, where: str) -> None:
-    assert token in text, f"{where}: missing {token!r}"
+def require(source: str, token: str, where: str) -> None:
+    assert token in source, f"{where}: missing {token!r}"
+
+
+def yaml_int(source: str, pattern: str, label: str) -> int:
+    match = re.search(pattern, source)
+    assert match, f"Win64 evidence workflow: cannot resolve {label}"
+    return int(match.group(1))
 
 
 persist_h = read("Source/GTT/Public/Vehicles/GTTRoadsideDispatchPersistenceSubsystem.h")
@@ -44,8 +51,6 @@ for token in (
 ):
     require(persist_h + persist_cpp, token, "production persistence evidence hook")
 
-# The guarded re-arm may only reload the existing sidecar. It must not manufacture service,
-# change economy, or bypass the real RestorePendingRecoveryCheckpoint production path.
 reload_start = persist_cpp.index(
     "bool UGTTRoadsideDispatchPersistenceSubsystem::ReloadCheckpointForRuntimeEvidence()"
 )
@@ -70,7 +75,6 @@ for token in (
 ):
     require(evidence_h + evidence_cpp, token, "0.1.40 packaged persistence route")
 
-# Evidence route may seed/restore deterministic test state but must not shortcut the contract.
 for forbidden in ("CompleteCargoContract(", "AddCash(", "RecordCargoSuccess(Payout", "RestorePendingRecoveryCheckpoint("):
     assert forbidden not in evidence_cpp, f"runtime evidence harness bypasses production authority: {forbidden}"
 
@@ -92,25 +96,37 @@ for token in (
 ):
     require(evaluator, token, "0.1.40 runtime evaluator")
 
+# The historical evaluator must still emit schema 12 with all 0.1.40 fields. A later workflow may
+# strengthen that already-passed gate (for example schema 13) only after additional evidence.
 for token in (
     "FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json", "schema=12",
     "gtt.farm-cargo-dispatch-persistence-runtime.v1", "farm_cargo_dispatch_persistence_runtime='PASS'",
     "farm_cargo_dispatch_persistence_patch_single_charge", "farm_cargo_dispatch_persistence_wanted_rejected",
 ):
-    require(demo_gate, token, "demo technical gate schema 12")
+    require(demo_gate, token, "demo technical gate schema 12 foundation")
 assert "schema=11" not in demo_gate, "demo gate still emits schema 11"
 
-for token in (
-    "default: '0.1.40'", "MinimumAliveSeconds 354", "LaunchTimeoutSeconds 385",
-    "MinimumRuntimeSeconds 354", "evaluate_farm_cargo_dispatch_persistence_runtime.ps1",
-    "FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json", "Get-FileHash -Algorithm SHA256 -Path $zip",
-):
-    require(workflow, token, "Win64 evidence workflow")
+# Later milestones are allowed to extend the same packaged run. They must never shrink the 0.1.40
+# runtime window or remove its evaluator/manifest/hash gates.
+require(workflow, "evaluate_farm_cargo_dispatch_persistence_runtime.ps1", "Win64 persistence evaluator")
+require(workflow, "FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json", "Win64 persistence manifest")
+require(workflow, "Get-FileHash -Algorithm SHA256 -Path $zip", "Win64 release ZIP hash")
 assert "-Path $zip.FullName" not in workflow, "release ZIP hash still dereferences a string as FullName"
+version_match = re.search(r"default:\s*'([0-9]+\.[0-9]+\.[0-9]+)'", workflow)
+assert version_match, "Win64 workflow version default missing"
+version_tuple = tuple(int(part) for part in version_match.group(1).split("."))
+assert version_tuple >= (0, 1, 40), f"Win64 workflow regressed below 0.1.40: {version_match.group(1)}"
+minimum_alive = yaml_int(workflow, r"-MinimumAliveSeconds\s+(\d+)", "MinimumAliveSeconds")
+launch_timeout = yaml_int(workflow, r"-LaunchTimeoutSeconds\s+(\d+)", "LaunchTimeoutSeconds")
+minimum_runtime = yaml_int(workflow, r"-MinimumRuntimeSeconds\s+(\d+)", "MinimumRuntimeSeconds")
+assert minimum_alive >= 354, f"Win64 smoke window regressed below 354s: {minimum_alive}"
+assert launch_timeout >= 385, f"Win64 launch timeout regressed below 385s: {launch_timeout}"
+assert launch_timeout > minimum_alive, "Win64 launch timeout must exceed minimum alive window"
+assert minimum_runtime >= 354, f"packaged gameplay runtime regressed below 354s: {minimum_runtime}"
 
 checks = re.findall(r"^-\s*\[(x| )\]\s+", roadmap, flags=re.MULTILINE | re.IGNORECASE)
 done = sum(item.lower() == "x" for item in checks)
-assert (done, len(checks)) == (125, 130), f"0.1.40 source work must not close runtime/art gates: {done}/{len(checks)}"
+assert (done, len(checks)) == (125, 130), f"source work must not close runtime/art gates: {done}/{len(checks)}"
 for token in (
     "<!-- SWIR-ROADMAP-STANDARD:v1 -->", "<!-- ROADMAP-PROGRESS:START -->", "<!-- ROADMAP-PROGRESS:END -->",
     "../assets/readme/progress-mini.svg", "**125** | **5** | **130** | **96.2%**",
@@ -121,9 +137,11 @@ assert not re.search(r"[█▓▒░]{4,}|\[[#=\-]{6,}\]", roadmap), "retired ch
 
 for token in (
     "<!-- SWIR-README-STANDARD:v2 -->", "assets/readme/progress-card.svg", "## 🔎 Search Keywords",
-    "Release readiness: **NOT READY**", "0.1.40",
+    "Release readiness: **NOT READY**",
 ):
     require(readme, token, "README")
+# README may advance to later milestones; it must never falsely claim an earlier source-only route is packaged proof.
+assert re.search(r"0\.1\.(?:4[0-9]|[5-9][0-9]|[1-9][0-9]{2,})", readme), "README milestone regressed below 0.1.40"
 assert readme.count("assets/readme/progress-card.svg") == 1
 assert "progress-mini.svg" not in readme
 assert not re.search(r"[█▓▒░]{4,}|\[[#=\-]{6,}\]", readme), "retired README progress meter returned"
@@ -150,4 +168,5 @@ assert scenarios >= 80, f"PLAYTEST_0.1.40.md must contain at least 80 numbered s
 
 print("GTT 0.1.40 packaged roadside dispatch persistence source contract: PASS")
 print(f"Roadmap remains {done}/{len(checks)} = {done / len(checks) * 100:.1f}% until real Win64/Chaos/trailer/visual evidence exists")
+print(f"Later packaged window accepted safely: version={version_match.group(1)} alive={minimum_alive}s runtime={minimum_runtime}s timeout={launch_timeout}s")
 print("NOTE: source verifier only; no Unreal compile/package/runtime claim.")
