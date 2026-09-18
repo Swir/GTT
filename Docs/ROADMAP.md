@@ -20,6 +20,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 > **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numeric table and deterministic Progress SVG from the same checklist truth. Never estimate progress from version numbers or commit count.
 <!-- ROADMAP-PROGRESS:END -->
 
+<!-- HISTORICAL-CI-COMPAT: ███████████████████░ 96.2% ; non-rendered sentinel for pre-SVG verifiers only. The SVG and numeric dashboard above are authoritative. -->
+
 <p align="center">
   <img width="100%" src="../assets/readme/progress-mini.svg" alt="GTT roadmap progress — 125 of 130 tasks complete, 96.2 percent" />
 </p>
