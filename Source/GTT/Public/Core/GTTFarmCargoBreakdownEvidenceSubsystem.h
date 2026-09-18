@@ -20,12 +20,13 @@ class UGTTSaveGame;
 class UGTTWantedComponent;
 
 /**
- * 0.1.33 packaged evidence route for Farm Cargo breakdown -> paid tow -> exact-vehicle recovery.
+ * 0.1.35 packaged evidence route for Farm Cargo breakdown -> emergency patch -> continued timer
+ * -> deliberate re-breakdown -> paid tow -> exact-vehicle delivery.
  *
  * Inert during normal gameplay. The route is enabled only by the packaged smoke flags and drives
- * the real Farm Cargo terminals, native Mulebox damage model, breakdown decision, roadside tow,
- * exact cargo-vehicle authority, payout/reputation and primary save paths. It never awards a
- * contract directly and restores its temporary evidence baseline after the proof.
+ * the real Farm Cargo terminals, native Mulebox damage model, breakdown decision, emergency patch,
+ * roadside tow, exact cargo-vehicle authority, payout/reputation and primary save paths. It never
+ * awards a contract directly and restores its temporary evidence baseline after the proof.
  */
 UCLASS()
 class GTT_API UGTTFarmCargoBreakdownEvidenceSubsystem : public UTickableWorldSubsystem
@@ -45,6 +46,9 @@ private:
         Prepare,
         AcceptContract,
         EnterAndPickup,
+        DamageAndRequestPatch,
+        AwaitPatch,
+        AwaitPatchCooldown,
         DamageAndRequestTow,
         AwaitTow,
         WrongVehicleAfterTow,
@@ -71,6 +75,14 @@ private:
     bool bBaselineCaptured = false;
     bool bAccepted = false;
     bool bPickupBound = false;
+    bool bPatchBreakdownProven = false;
+    bool bPatchRequested = false;
+    bool bPatchCompleted = false;
+    bool bPatchIdentityPreserved = false;
+    bool bPatchBodyPreserved = false;
+    bool bPatchTimerContinued = false;
+    bool bPatchIntegrityNotImproved = false;
+    bool bPatchWorkshopStillRequired = false;
     bool bBreakdownProven = false;
     bool bTowRequested = false;
     bool bTowCompleted = false;
@@ -83,6 +95,8 @@ private:
     bool bFinalHandoff = false;
     bool bSaveVerified = false;
     float Elapsed = 0.0f;
+    float PatchRequestedAt = 0.0f;
+    float PatchCompletedAt = 0.0f;
     float TowRequestedAt = 0.0f;
     int32 BaselineDay = 1;
     float BaselineHour = 8.0f;
@@ -92,12 +106,22 @@ private:
     float BaselineFishWeightKg = 0.0f;
     int32 EvidenceCargoRunsBefore = 0;
     int32 EvidenceReputationBefore = 0;
+    int32 CashBeforePatch = 0;
+    int32 CashAfterPatch = 0;
+    int32 PatchCostDelta = 0;
     int32 CashBeforeTow = 0;
     int32 CashAfterTow = 0;
     int32 TowCostDelta = 0;
     int32 PayoutDelta = 0;
     int32 CargoRunsDelta = 0;
     int32 ReputationDelta = 0;
+    float TimerBeforePatch = 0.0f;
+    float TimerAfterPatch = 0.0f;
+    float IntegrityBeforePatch = 1.0f;
+    float IntegrityAfterPatch = 1.0f;
+    float ConditionAfterPatch = 1.0f;
+    float TireIntegrityAfterPatch = 1.0f;
+    float FuelAfterPatch = 0.0f;
     float TimerBeforeTow = 0.0f;
     float TimerAfterTow = 0.0f;
     float IntegrityBeforeTow = 1.0f;
@@ -108,7 +132,9 @@ private:
     EBreakdownEvidencePhase Phase = EBreakdownEvidencePhase::Waiting;
     FGTTRoadVehicleMigrationSnapshot BaselineMigration;
     FGTTRoadBodyDamageSnapshot BaselineBodyDamage;
+    FGTTRoadBodyDamageSnapshot PatchBodyBefore;
     int32 BaselineDetachedMask = 0;
+    int32 PatchDetachedMaskBefore = 0;
     FTransform BaselineNativeTransform;
 
     TWeakObjectPtr<AGTTFarmJobDirector> Director;

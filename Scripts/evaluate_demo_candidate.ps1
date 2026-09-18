@@ -44,7 +44,7 @@ if($drive.result -ne 'PASS'){throw 'Deterministic Native drivetrain scenario did
 if($trailer.result -ne 'PASS'){throw 'Authored trailer runtime acceptance did not PASS.'}
 if($farmCargo.result -ne 'PASS'){throw 'Farm Cargo packaged runtime exercise did not PASS.'}
 if($farmCargoRecovery.result -ne 'PASS'){throw 'Farm Cargo save/load recovery runtime did not PASS.'}
-if($farmCargoBreakdown.result -ne 'PASS'){throw 'Farm Cargo breakdown/tow recovery runtime did not PASS.'}
+if($farmCargoBreakdown.result -ne 'PASS'){throw 'Farm Cargo emergency-patch/breakdown/tow recovery runtime did not PASS.'}
 if($build.platform -ne 'Win64'){throw 'Build evidence is not Win64.'}
 
 if($native.schema -ne 'gtt.native-chaos-runtime.v1'){throw "Native Chaos runtime schema mismatch: $($native.schema)"}
@@ -83,17 +83,23 @@ if([int]$farmCargoRecovery.payout_delta -le 0 -or [int]$farmCargoRecovery.cargo_
 if(-not $farmCargoRecovery.stable_vehicle_id){throw 'Farm Cargo recovery runtime did not report the stable physical vehicle identity.'}
 if([int]$farmCargoRecovery.diagnostic_failure_count -ne 0){throw 'Farm Cargo recovery runtime scenario reported diagnostic failures.'}
 
-if($farmCargoBreakdown.schema -ne 'gtt.farm-cargo-breakdown-runtime.v1'){throw "Farm Cargo breakdown runtime schema mismatch: $($farmCargoBreakdown.schema)"}
+if($farmCargoBreakdown.schema -ne 'gtt.farm-cargo-breakdown-runtime.v2'){throw "Farm Cargo breakdown runtime schema mismatch: $($farmCargoBreakdown.schema)"}
 foreach($field in @(
+    'emergency_patch_breakdown_proven','player_authorized_patch','patch_completed','patch_exact_vehicle_identity_preserved',
+    'patch_body_preserved','patch_timer_continued','patch_cargo_integrity_not_improved','patch_workshop_still_required',
+    'production_pre_patch_checkpoint','production_post_patch_identity_verification','native_patch_request_marker','native_patch_complete_marker',
     'native_breakdown_proven','player_authorized_tow','tow_completed','exact_vehicle_identity_preserved',
     'timer_continued','cargo_integrity_not_improved','damage_preserved','wrong_vehicle_rejected_after_tow',
     'authority_cleared','final_save','production_pre_tow_checkpoint','production_post_tow_identity_verification',
     'native_tow_request_marker','native_tow_complete_marker'
 )){
-    if(-not $farmCargoBreakdown.$field){throw "Farm Cargo breakdown runtime missing PASS gate: $field"}
+    if(-not $farmCargoBreakdown.$field){throw "Farm Cargo emergency-patch/breakdown runtime missing PASS gate: $field"}
 }
-if([int]$farmCargoBreakdown.tow_cost_delta -le 0){throw 'Farm Cargo breakdown runtime did not prove a paid roadside tow.'}
-if([int]$farmCargoBreakdown.payout_delta -le 0 -or [int]$farmCargoBreakdown.cargo_completed_runs_delta -ne 1 -or [int]$farmCargoBreakdown.logistics_reputation_delta -le 0){throw 'Farm Cargo breakdown runtime did not prove one authoritative completion after paid tow.'}
+if([int]$farmCargoBreakdown.patch_cost_delta -le 0){throw 'Farm Cargo breakdown runtime did not prove a paid emergency patch.'}
+if([double]$farmCargoBreakdown.patch_condition_after -lt 0.299 -or [double]$farmCargoBreakdown.patch_tire_after -lt 0.319 -or [double]$farmCargoBreakdown.patch_fuel_after -lt 4.99){throw 'Farm Cargo emergency patch did not prove the limp-home floors.'}
+if([double]$farmCargoBreakdown.patch_cooldown_wait_seconds -lt 12.0){throw 'Farm Cargo emergency patch route did not survive the real roadside recovery cooldown.'}
+if([int]$farmCargoBreakdown.tow_cost_delta -le 0){throw 'Farm Cargo breakdown runtime did not prove a paid roadside tow after the patch.'}
+if([int]$farmCargoBreakdown.payout_delta -le 0 -or [int]$farmCargoBreakdown.cargo_completed_runs_delta -ne 1 -or [int]$farmCargoBreakdown.logistics_reputation_delta -le 0){throw 'Farm Cargo breakdown runtime did not prove one authoritative completion after emergency patch and paid tow.'}
 if(-not $farmCargoBreakdown.stable_vehicle_id){throw 'Farm Cargo breakdown runtime did not report the stable physical vehicle identity.'}
 if([int]$farmCargoBreakdown.diagnostic_failure_count -ne 0){throw 'Farm Cargo breakdown runtime scenario reported diagnostic failures.'}
 
@@ -137,9 +143,9 @@ if($RequireVisual){
     $visualStatus='PASS'
 }
 
-# Schema 9 adds mandatory native Farm Cargo breakdown + paid tow + exact-vehicle continuation evidence.
+# Schema 10 adds mandatory packaged Farm Cargo emergency-patch continuity before the existing re-breakdown/tow route.
 $evidence=[ordered]@{
-    schema=9
+    schema=10
     game='Grand Theft Tractor'
     result='PASS'
     git_sha=$build.git_sha
@@ -185,6 +191,13 @@ $evidence=[ordered]@{
     farm_cargo_breakdown_runtime='PASS'
     farm_cargo_breakdown_schema=$farmCargoBreakdown.schema
     farm_cargo_breakdown_vehicle_id=$farmCargoBreakdown.stable_vehicle_id
+    farm_cargo_emergency_patch='PASS'
+    farm_cargo_patch_cost=$farmCargoBreakdown.patch_cost_delta
+    farm_cargo_patch_identity_preserved=$farmCargoBreakdown.patch_exact_vehicle_identity_preserved
+    farm_cargo_patch_body_preserved=$farmCargoBreakdown.patch_body_preserved
+    farm_cargo_patch_timer_continued=$farmCargoBreakdown.patch_timer_continued
+    farm_cargo_patch_integrity_not_improved=$farmCargoBreakdown.patch_cargo_integrity_not_improved
+    farm_cargo_patch_workshop_still_required=$farmCargoBreakdown.patch_workshop_still_required
     farm_cargo_breakdown_tow_cost=$farmCargoBreakdown.tow_cost_delta
     farm_cargo_breakdown_payout_delta=$farmCargoBreakdown.payout_delta
     farm_cargo_breakdown_reputation_delta=$farmCargoBreakdown.logistics_reputation_delta
@@ -195,4 +208,4 @@ $evidence=[ordered]@{
     evaluated_utc=(Get-Date).ToUniversalTime().ToString('o')
 }
 $evidence|ConvertTo-Json -Depth 8|Set-Content -Encoding UTF8 (Join-Path $PackageDirectory 'DEMO_TECHNICAL_GATE.json')
-Write-Host "[GTT] Demo technical evidence gate: PASS (schema 9 / scenario v11 / drivetrain PASS / authored trailer PASS / Farm Cargo runtime + save/load + breakdown/tow PASS / native Chaos telemetry PASS / recovery=$recoveryStatus)"
+Write-Host "[GTT] Demo technical evidence gate: PASS (schema 10 / scenario v11 / drivetrain PASS / authored trailer PASS / Farm Cargo runtime + save/load + emergency patch + re-breakdown/tow PASS / native Chaos telemetry PASS / recovery=$recoveryStatus)"
