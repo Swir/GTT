@@ -26,7 +26,9 @@
 namespace
 {
 constexpr float StartDelaySeconds = 228.0f;
-constexpr float GlobalDeadlineSeconds = 248.0f;
+constexpr float GlobalDeadlineSeconds = 272.0f;
+constexpr float PatchDispatchProofSeconds = 3.25f;
+constexpr float PatchCooldownProofSeconds = 12.25f;
 constexpr float ExactVehicleFarOffsetCm = 1500.0f;
 constexpr float HandoffParkingOffsetCm = 120.0f;
 constexpr float MinimumTowMovementCm = 500.0f;
@@ -44,6 +46,16 @@ const TCHAR* StageLabel(EGTTFarmJobStage Stage)
         default: return TEXT("Unknown");
     }
 }
+
+bool BodyDamageEqual(const FGTTRoadBodyDamageSnapshot& A, const FGTTRoadBodyDamageSnapshot& B)
+{
+    return FMath::IsNearlyEqual(A.FrontHealth, B.FrontHealth, 0.001f)
+        && FMath::IsNearlyEqual(A.RearHealth, B.RearHealth, 0.001f)
+        && FMath::IsNearlyEqual(A.LeftHealth, B.LeftHealth, 0.001f)
+        && FMath::IsNearlyEqual(A.RightHealth, B.RightHealth, 0.001f)
+        && FMath::IsNearlyEqual(A.CoolingStress, B.CoolingStress, 0.001f)
+        && A.DetachedPanelCount == B.DetachedPanelCount;
+}
 }
 
 void UGTTFarmCargoBreakdownEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -56,7 +68,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Initialize(FSubsystemCollectionBas
     if (bEnabled)
     {
         UE_LOG(LogGTT, Log,
-            TEXT("FARM_CARGO_BREAKDOWN_RUNTIME_BEGIN version=1 route=feed-breakdown-tow-hill-wood start_delay=%.1f deadline=%.1f native_mulebox=required exact_vehicle=required paid_tow=required wrong_vehicle_probe=required"),
+            TEXT("FARM_CARGO_BREAKDOWN_RUNTIME_BEGIN version=2 route=feed-breakdown-patch-tow-hill-wood start_delay=%.1f deadline=%.1f native_mulebox=required exact_vehicle=required emergency_patch=required paid_tow=required wrong_vehicle_probe=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
 }
@@ -214,19 +226,25 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::FinishScenario(const TCHAR* Reason
 {
     const bool bAuthorityCleared = Authority.IsValid() && !Authority->HasBoundCargoVehicle()
         && Authority->GetBoundCargoVehicleId().IsNone();
-    const bool bPass = bSequenceHealthy && bAccepted && bPickupBound && bBreakdownProven && bTowRequested
-        && bTowCompleted && bIdentityPreserved && bTimerContinued && bIntegrityNotImproved && bDamagePreserved
+    const bool bPass = bSequenceHealthy && bAccepted && bPickupBound
+        && bPatchBreakdownProven && bPatchRequested && bPatchCompleted && bPatchIdentityPreserved
+        && bPatchBodyPreserved && bPatchTimerContinued && bPatchIntegrityNotImproved && bPatchWorkshopStillRequired
+        && bBreakdownProven && bTowRequested && bTowCompleted && bIdentityPreserved
+        && bTimerContinued && bIntegrityNotImproved && bDamagePreserved
         && bWrongVehicleRejected && bHillHandoff && bFinalHandoff && bSaveVerified && bAuthorityCleared
-        && TowCostDelta > 0 && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0;
+        && PatchCostDelta > 0 && TowCostDelta > 0 && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0;
 
     UE_LOG(LogGTT, Log,
-        TEXT("FARM_CARGO_BREAKDOWN_RUNTIME_COMPLETE result=%s route=feed-breakdown-tow-hill-wood accepted=%d pickup=%d breakdown=%d tow_requested=%d tow_complete=%d identity_preserved=%d timer_continued=%d integrity_not_improved=%d damage_preserved=%d wrong_vehicle_rejected=%d hill=%d final=%d save=%d authority_cleared=%d tow_cost_delta=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d vehicle=%s reason=%s elapsed=%.2f"),
+        TEXT("FARM_CARGO_BREAKDOWN_RUNTIME_COMPLETE result=%s route=feed-breakdown-patch-tow-hill-wood accepted=%d pickup=%d patch_breakdown=%d patch_requested=%d patch_complete=%d patch_identity_preserved=%d patch_body_preserved=%d patch_timer_continued=%d patch_integrity_not_improved=%d patch_workshop_required=%d breakdown=%d tow_requested=%d tow_complete=%d identity_preserved=%d timer_continued=%d integrity_not_improved=%d damage_preserved=%d wrong_vehicle_rejected=%d hill=%d final=%d save=%d authority_cleared=%d patch_cost_delta=%d tow_cost_delta=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bAccepted ? 1 : 0, bPickupBound ? 1 : 0,
+        bPatchBreakdownProven ? 1 : 0, bPatchRequested ? 1 : 0, bPatchCompleted ? 1 : 0,
+        bPatchIdentityPreserved ? 1 : 0, bPatchBodyPreserved ? 1 : 0, bPatchTimerContinued ? 1 : 0,
+        bPatchIntegrityNotImproved ? 1 : 0, bPatchWorkshopStillRequired ? 1 : 0,
         bBreakdownProven ? 1 : 0, bTowRequested ? 1 : 0, bTowCompleted ? 1 : 0,
         bIdentityPreserved ? 1 : 0, bTimerContinued ? 1 : 0, bIntegrityNotImproved ? 1 : 0,
         bDamagePreserved ? 1 : 0, bWrongVehicleRejected ? 1 : 0, bHillHandoff ? 1 : 0,
         bFinalHandoff ? 1 : 0, bSaveVerified ? 1 : 0, bAuthorityCleared ? 1 : 0,
-        TowCostDelta, PayoutDelta, CargoRunsDelta, ReputationDelta, *LoadedVehicleId.ToString(),
+        PatchCostDelta, TowCostDelta, PayoutDelta, CargoRunsDelta, ReputationDelta, *LoadedVehicleId.ToString(),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 
     RestoreBaselineState();
@@ -367,19 +385,123 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
             FinishScenario(TEXT("pickup-failed"));
             return;
         }
-        Phase = EBreakdownEvidencePhase::DamageAndRequestTow;
+        Phase = EBreakdownEvidencePhase::DamageAndRequestPatch;
         break;
     }
 
-    case EBreakdownEvidencePhase::DamageAndRequestTow:
+    case EBreakdownEvidencePhase::DamageAndRequestPatch:
     {
         StageActor(NativeMulebox.Get(), PickupTerminal->GetActorLocation() + FVector(1400.0f, 500.0f, 80.0f));
+        TimerBeforePatch = Director->GetTimeRemaining();
+        IntegrityBeforePatch = Director->GetCargoIntegrity();
+        CashBeforePatch = Economy->GetCash();
+        PatchBodyBefore = NativeMulebox->GetBodyDamageSnapshot();
+        PatchDetachedMaskBefore = NativeMulebox->GetDetachedPanelMask();
+
+        FGTTRoadVehicleMigrationSnapshot Staged = NativeMulebox->GetMigrationSnapshot();
+        Staged.ConditionPercent = FMath::Min(Staged.ConditionPercent, 0.19f);
+        Staged.TireIntegrity = FMath::Min(Staged.TireIntegrity, 0.20f);
+        Staged.FuelLiters = FMath::Max(Staged.FuelLiters, FMath::Min(NativeMulebox->GetFuelCapacityLiters(), 6.0f));
+        NativeMulebox->RestorePersistentMigrationSnapshot(Staged);
+
+        const FGTTBreakdownAssessment Assessment = Breakdown->AssessVehicle(NativeMulebox.Get());
+        bPatchBreakdownProven = Assessment.Recommendation == EGTTBreakdownRecommendation::TowRecommended
+            && Assessment.bEmergencyPatchPossible && Assessment.EmergencyPatchEstimate > 0;
+        bPatchRequested = bPatchBreakdownProven && Roadside->RequestEmergencyRoadsidePatch(NativeMulebox.Get());
+        PatchRequestedAt = Elapsed;
+        UE_LOG(LogGTT, Log,
+            TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=BREAKDOWN_PATCH_REQUEST result=%s breakdown=%d patch_requested=%d severity=%.4f condition=%.4f tire_integrity=%.4f fuel=%.3f patch_quote=%d tow_quote=%d timer_before=%.2f integrity_before=%.4f cash_before=%d vehicle=%s"),
+            (bPatchBreakdownProven && bPatchRequested) ? TEXT("PASS") : TEXT("FAIL"), bPatchBreakdownProven ? 1 : 0,
+            bPatchRequested ? 1 : 0, Assessment.Severity, Staged.ConditionPercent, Staged.TireIntegrity, Staged.FuelLiters,
+            Assessment.EmergencyPatchEstimate, Assessment.TowEstimate, TimerBeforePatch, IntegrityBeforePatch,
+            CashBeforePatch, *LoadedVehicleId.ToString());
+        if (!bPatchBreakdownProven || !bPatchRequested)
+        {
+            MarkFailure(TEXT("tow-recommended-emergency-patch-request-failed"));
+            FinishScenario(TEXT("patch-request-failed"));
+            return;
+        }
+        Phase = EBreakdownEvidencePhase::AwaitPatch;
+        break;
+    }
+
+    case EBreakdownEvidencePhase::AwaitPatch:
+    {
+        if (Elapsed - PatchRequestedAt < PatchDispatchProofSeconds) break;
+        if (Roadside->IsRoadsidePatchPending(NativeMulebox.Get()))
+        {
+            if (Elapsed - PatchRequestedAt > 6.0f)
+            {
+                MarkFailure(TEXT("roadside-patch-did-not-complete"));
+                FinishScenario(TEXT("patch-timeout"));
+            }
+            break;
+        }
+
+        CashAfterPatch = Economy->GetCash();
+        PatchCostDelta = CashBeforePatch - CashAfterPatch;
+        TimerAfterPatch = Director->GetTimeRemaining();
+        IntegrityAfterPatch = Director->GetCargoIntegrity();
+        const FGTTRoadVehicleMigrationSnapshot AfterPatch = NativeMulebox->GetMigrationSnapshot();
+        const FGTTRoadBodyDamageSnapshot BodyAfterPatch = NativeMulebox->GetBodyDamageSnapshot();
+        ConditionAfterPatch = AfterPatch.ConditionPercent;
+        TireIntegrityAfterPatch = AfterPatch.TireIntegrity;
+        FuelAfterPatch = AfterPatch.FuelLiters;
+        bPatchCompleted = PatchCostDelta > 0 && AfterPatch.ConditionPercent >= 0.299f
+            && AfterPatch.TireIntegrity >= 0.319f && AfterPatch.FuelLiters >= FMath::Min(NativeMulebox->GetFuelCapacityLiters(), 5.0f) - 0.01f;
+        bPatchIdentityPreserved = Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
+            && Authority->GetBoundCargoVehicleId() == LoadedVehicleId
+            && NativeMulebox->GetPersistentVehicleId() == LoadedVehicleId;
+        bPatchBodyPreserved = BodyDamageEqual(PatchBodyBefore, BodyAfterPatch)
+            && PatchDetachedMaskBefore == NativeMulebox->GetDetachedPanelMask();
+        bPatchTimerContinued = TimerAfterPatch < TimerBeforePatch;
+        bPatchIntegrityNotImproved = IntegrityAfterPatch <= IntegrityBeforePatch + KINDA_SMALL_NUMBER;
+        bPatchWorkshopStillRequired = AfterPatch.ConditionPercent < 0.999f || AfterPatch.TireIntegrity < 0.999f
+            || BodyAfterPatch.DetachedPanelCount > 0 || !BodyDamageEqual(BodyAfterPatch, FGTTRoadBodyDamageSnapshot());
+        UE_LOG(LogGTT, Log,
+            TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=PATCH_COMPLETE result=%s patch_complete=%d identity_preserved=%d body_preserved=%d timer_continued=%d integrity_not_improved=%d workshop_still_required=%d patch_cost_delta=%d timer_before=%.2f timer_after=%.2f integrity_before=%.4f integrity_after=%.4f condition_after=%.4f tire_after=%.4f fuel_after=%.3f vehicle=%s"),
+            (bPatchCompleted && bPatchIdentityPreserved && bPatchBodyPreserved && bPatchTimerContinued && bPatchIntegrityNotImproved && bPatchWorkshopStillRequired) ? TEXT("PASS") : TEXT("FAIL"),
+            bPatchCompleted ? 1 : 0, bPatchIdentityPreserved ? 1 : 0, bPatchBodyPreserved ? 1 : 0,
+            bPatchTimerContinued ? 1 : 0, bPatchIntegrityNotImproved ? 1 : 0, bPatchWorkshopStillRequired ? 1 : 0,
+            PatchCostDelta, TimerBeforePatch, TimerAfterPatch, IntegrityBeforePatch, IntegrityAfterPatch,
+            ConditionAfterPatch, TireIntegrityAfterPatch, FuelAfterPatch, *LoadedVehicleId.ToString());
+        if (!bPatchCompleted || !bPatchIdentityPreserved || !bPatchBodyPreserved || !bPatchTimerContinued
+            || !bPatchIntegrityNotImproved || !bPatchWorkshopStillRequired)
+        {
+            MarkFailure(TEXT("post-patch-cargo-continuity-proof-failed"));
+            FinishScenario(TEXT("patch-proof-failed"));
+            return;
+        }
+        PatchCompletedAt = Elapsed;
+        Phase = EBreakdownEvidencePhase::AwaitPatchCooldown;
+        break;
+    }
+
+    case EBreakdownEvidencePhase::AwaitPatchCooldown:
+        if (Elapsed - PatchCompletedAt < PatchCooldownProofSeconds) break;
+        if (Director->GetStage() != EGTTFarmJobStage::DeliverCargo
+            || Authority->GetBoundCargoVehicle() != NativeMulebox.Get()
+            || Authority->GetBoundCargoVehicleId() != LoadedVehicleId)
+        {
+            MarkFailure(TEXT("cargo-authority-changed-during-patch-cooldown"));
+            FinishScenario(TEXT("patch-cooldown-failed"));
+            return;
+        }
+        UE_LOG(LogGTT, Log,
+            TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=PATCH_COOLDOWN result=PASS waited=%.2f stage=%s timer=%.2f integrity=%.4f vehicle=%s"),
+            Elapsed - PatchCompletedAt, StageLabel(Director->GetStage()), Director->GetTimeRemaining(), Director->GetCargoIntegrity(),
+            *LoadedVehicleId.ToString());
+        Phase = EBreakdownEvidencePhase::DamageAndRequestTow;
+        break;
+
+    case EBreakdownEvidencePhase::DamageAndRequestTow:
+    {
         TimerBeforeTow = Director->GetTimeRemaining();
         IntegrityBeforeTow = Director->GetCargoIntegrity();
         CashBeforeTow = Economy->GetCash();
         PreTowLocation = NativeMulebox->GetActorLocation();
 
-        const bool bDamageApplied = NativeMulebox->ApplyPoliceSpikeDamage(0.96f, 0.08f);
+        const bool bDamageApplied = NativeMulebox->ApplyPoliceSpikeDamage(0.96f, 0.30f);
         const FGTTRoadVehicleMigrationSnapshot DamagedState = NativeMulebox->GetMigrationSnapshot();
         TireIntegrityAfterDamage = DamagedState.TireIntegrity;
         const FGTTBreakdownAssessment Assessment = Breakdown->AssessVehicle(NativeMulebox.Get());
@@ -394,7 +516,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
             TimerBeforeTow, IntegrityBeforeTow, CashBeforeTow, *LoadedVehicleId.ToString());
         if (!bBreakdownProven || !bTowRequested)
         {
-            MarkFailure(TEXT("native-breakdown-or-paid-tow-request-failed"));
+            MarkFailure(TEXT("native-rebreakdown-or-paid-tow-request-failed"));
             FinishScenario(TEXT("tow-request-failed"));
             return;
         }
@@ -490,7 +612,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
             Authority->GetBoundCargoVehicleId() == LoadedVehicleId ? 1 : 0, Director->GetTimeRemaining(), Director->GetCargoIntegrity());
         if (!bHillHandoff)
         {
-            MarkFailure(TEXT("hill-handoff-after-tow-failed"));
+            MarkFailure(TEXT("hill-handoff-after-patch-and-tow-failed"));
             FinishScenario(TEXT("hill-failed"));
             return;
         }
