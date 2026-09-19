@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.50 — workshop job board and safe appointment control**.
+Current development milestone: **0.1.51 — workshop priority, pickup and fleet return**.
 
 ## What is GTT?
 
@@ -45,7 +45,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 |---|---|
 | 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances use collision-safe persistent IDs before ownership. |
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
-| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. Ordinary damaged/mobile native road vehicles can hold one of four persistent exact-ID appointments with locked quotes, timed 30–90 minute service, no pre-charge and a physical job board for lifecycle status plus guarded cancellation. |
+| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. Ordinary damaged/mobile native road vehicles can hold one of four persistent exact-ID appointments with locked quotes, timed 30–90 minute service, no pre-charge, STANDARD/URGENT priority, a physical job board for lifecycle status/guarded cancellation, and explicit paid pickup before fleet redispatch. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
@@ -157,6 +157,8 @@ Milestone 0.1.48 adds packaged-capacity evidence for two independent exact-ID ap
 Milestone 0.1.49 makes deferred appointments physical timed work instead of instant due-time mutation. The exact booked vehicle must reach the workshop and progress through `READY → IN_SERVICE → AWAITING_PAYMENT → checkout`; service takes 30–90 in-world minutes based on vehicle workload, leaving the service area pauses safely, and the ordinary workshop terminal cannot bypass the queue's locked quote or persisted timer. Hard WORKSHOP HOLD remains the higher-priority emergency lane.
 
 Milestone 0.1.50 adds a physical workshop job board beside the garage. It reads the authoritative four-slot queue and presents exact vehicle identity, locked quote, lifecycle state and ETA without becoming a second repair/economy authority. Waiting/ready appointments gain an exact-ID two-step cancellation guard; checked-in/payment states remain queue-owned. The milestone adds a 48-case source/playtest matrix and leaves all five Native Chaos, trailer and Win64 runtime/visual blockers unchanged.
+
+Milestone 0.1.51 adds deliberate workshop priority and an explicit fleet-return handoff without creating a second economy authority. A separate exact-ID priority desk can promote a waiting STANDARD appointment to URGENT with a persisted +20% locked checkout quote and x0.80 service duration, always without pre-charge. After the existing timed service completes and the locked quote is paid once, the exact repaired vehicle remains `READY_FOR_PICKUP`; the job board releases it only when that exact vehicle is physically at the workshop, and numbered garage dispatch stays on PICKUP HOLD until collection. Legacy workshop evidence uses an evidence-only bridge that calls the same production pickup API rather than bypassing repair/payment logic.
 
 ## Verification
 
