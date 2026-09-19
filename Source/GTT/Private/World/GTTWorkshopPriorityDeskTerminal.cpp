@@ -132,7 +132,7 @@ FText AGTTWorkshopPriorityDeskTerminal::GetInteractionText_Implementation() cons
             UGTTWorkshopRepairQueueSubsystem::UrgentServiceDurationMultiplier));
     }
 
-    const UWorld* World = GetWorld();
+    UWorld* World = GetWorld();
     const UGTTWorkshopRepairQueueSubsystem* Queue = World ? World->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>() : nullptr;
     const int32 UrgentQuote = Queue ? Queue->GetUrgentQuoteForVehicle(VehicleId) : 0;
     return FText::FromString(FString::Printf(
