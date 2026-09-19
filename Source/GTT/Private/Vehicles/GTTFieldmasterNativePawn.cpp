@@ -291,7 +291,7 @@ bool AGTTFieldmasterNativePawn::ImportLegacyGameplayState(const AGTTVehicleBase*
     ApplyMigrationSnapshot(Snapshot);
 
     OutSummary = FString::Printf(TEXT("Imported %s gameplay state: condition %.1f%%, fuel %.1f L, engine upgrade %d, tire upgrade %d, tires %.0f%%, owned %s"),
-        *FieldmasterVehicleId.ToString(), MigrationSnapshot.ConditionPercent, MigrationSnapshot.FuelLiters,
+        *FieldmasterVehicleId.ToString(), MigrationSnapshot.ConditionPercent * 100.0f, MigrationSnapshot.FuelLiters,
         MigrationSnapshot.EngineUpgradeLevel, MigrationSnapshot.TireUpgradeLevel, MigrationSnapshot.TireIntegrity * 100.0f,
         MigrationSnapshot.bOwnedByPlayer ? TEXT("YES") : TEXT("NO"));
     return true;
@@ -299,11 +299,16 @@ bool AGTTFieldmasterNativePawn::ImportLegacyGameplayState(const AGTTVehicleBase*
 
 void AGTTFieldmasterNativePawn::ApplyMigrationSnapshot(const FGTTVehicleMigrationSnapshot& Snapshot)
 {
-    MigrationSnapshot.ConditionPercent = FMath::Clamp(Snapshot.ConditionPercent, 0.0f, 100.0f);
+    // Canonical native state is a 0..1 ratio, but this public migration boundary may still be
+    // reached by an older caller carrying a 0..100 condition value. Normalize once on ingress so
+    // every downstream Chaos authority consumes one consistent unit.
+    const float RawCondition = Snapshot.ConditionPercent;
+    const float NormalizedCondition = RawCondition > 1.0f ? RawCondition / 100.0f : RawCondition;
+    MigrationSnapshot.ConditionPercent = FMath::Clamp(NormalizedCondition, 0.0f, 1.0f);
     MigrationSnapshot.FuelLiters = FMath::Max(0.0f, Snapshot.FuelLiters);
     MigrationSnapshot.bOwnedByPlayer = Snapshot.bOwnedByPlayer;
-    MigrationSnapshot.EngineUpgradeLevel = FMath::Max(0, Snapshot.EngineUpgradeLevel);
-    MigrationSnapshot.TireUpgradeLevel = FMath::Max(0, Snapshot.TireUpgradeLevel);
+    MigrationSnapshot.EngineUpgradeLevel = FMath::Clamp(Snapshot.EngineUpgradeLevel, 0, 3);
+    MigrationSnapshot.TireUpgradeLevel = FMath::Clamp(Snapshot.TireUpgradeLevel, 0, 3);
     MigrationSnapshot.TireIntegrity = FMath::Clamp(Snapshot.TireIntegrity, 0.0f, 1.0f);
     RefreshNativeDriveCommand();
 }

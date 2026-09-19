@@ -71,10 +71,30 @@ if not re.search(
 ):
     errors.append("native impact damage no longer clamps Fieldmaster condition to the 0..1 runtime contract")
 
-# Import is already sourced from the normalized legacy getter. Keep the boundary visible here so a
-# future migration rewrite cannot silently reintroduce percent math in the active native path.
-if "Snapshot.ConditionPercent = LegacyVehicle->GetConditionPercent();" not in core_cpp:
-    errors.append("Fieldmaster legacy import no longer takes condition from normalized GetConditionPercent()")
+# Import is sourced from the normalized legacy getter, but ApplyMigrationSnapshot is also public.
+# Keep that public boundary fail-safe for old callers that may still submit 0..100 values while
+# guaranteeing that all stored native state is canonical 0..1 before drivetrain authority sees it.
+required_core_tokens = (
+    "Snapshot.ConditionPercent = LegacyVehicle->GetConditionPercent();",
+    "const float RawCondition = Snapshot.ConditionPercent;",
+    "const float NormalizedCondition = RawCondition > 1.0f ? RawCondition / 100.0f : RawCondition;",
+    "MigrationSnapshot.ConditionPercent = FMath::Clamp(NormalizedCondition, 0.0f, 1.0f);",
+    "MigrationSnapshot.EngineUpgradeLevel = FMath::Clamp(Snapshot.EngineUpgradeLevel, 0, 3);",
+    "MigrationSnapshot.TireUpgradeLevel = FMath::Clamp(Snapshot.TireUpgradeLevel, 0, 3);",
+    "MigrationSnapshot.ConditionPercent * 100.0f, MigrationSnapshot.FuelLiters",
+)
+for token in required_core_tokens:
+    if token not in core_cpp:
+        errors.append(f"Fieldmaster migration-boundary contract missing token: {token}")
+
+for forbidden in (
+    "FMath::Clamp(Snapshot.ConditionPercent, 0.0f, 100.0f)",
+    "*FieldmasterVehicleId.ToString(), MigrationSnapshot.ConditionPercent, MigrationSnapshot.FuelLiters",
+    "MigrationSnapshot.EngineUpgradeLevel = FMath::Max(0, Snapshot.EngineUpgradeLevel)",
+    "MigrationSnapshot.TireUpgradeLevel = FMath::Max(0, Snapshot.TireUpgradeLevel)",
+):
+    if forbidden in core_cpp:
+        errors.append(f"stale Fieldmaster migration-boundary behavior returned: {forbidden}")
 
 checked = len(re.findall(r"^\s*- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \] ", roadmap, flags=re.MULTILINE))
@@ -93,7 +113,9 @@ if errors:
     sys.exit(1)
 
 print("Fieldmaster native condition-scale verification OK")
-print(" - migration and legacy condition are consistently treated as a 0..1 ratio")
+print(" - migration and legacy condition are consistently stored as a 0..1 ratio")
+print(" - public migration ingress safely normalizes legacy 0..100 values before native authority")
+print(" - engine/tire upgrade levels are bounded to the supported 0..3 range")
 print(" - 8% critical threshold is represented as 0.08 in Native Chaos authority")
 print(" - canonical environment translation unit owns normalized impact damage")
 print(" - obsolete duplicate runtime translation unit is absent")
