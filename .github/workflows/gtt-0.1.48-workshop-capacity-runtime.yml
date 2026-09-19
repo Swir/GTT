@@ -1,0 +1,31 @@
+name: GTT 0.1.48 packaged workshop capacity sanity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workshop-capacity-runtime-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.1.48 packaged multi-vehicle capacity source contract
+        run: python Scripts/verify_workshop_capacity_runtime.py
+      - name: Keep 0.1.47 multi-vehicle production contract green
+        run: python Scripts/verify_workshop_multi_vehicle_capacity.py
+      - name: Keep single-vehicle packaged queue evidence compatible
+        run: python Scripts/verify_workshop_queue_runtime.py
+      - name: Keep repair queue fundamentals green
+        run: python Scripts/verify_workshop_repair_queue.py
+      - name: Verify Win64 evidence pipeline wiring
+        run: python Scripts/verify_win64_evidence_pipeline.py
+      - name: Verify SWIR SVG-only progress presentation
+        run: python Scripts/generate_progress_svg.py --check
