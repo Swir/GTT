@@ -48,6 +48,7 @@ private:
     AGTTTrafficCarPawn* FindDispatchVehicle(const UGTTCivilianIncidentDispatchSubsystem* Dispatch) const;
     void RequestResponder(AGTTTrafficCarPawn* Vehicle, bool bStartAtScene);
     void CancelResponder(const TCHAR* Reason, bool bResetGrace);
+    void ClearResponderSceneAuthority();
     void DestroyResponderVehicle();
     void SaveCheckpoint() const;
     void LoadCheckpoint();
@@ -55,6 +56,7 @@ private:
     void NotifyPlayer(const FString& Message, float Duration = 5.0f) const;
 
     TWeakObjectPtr<AGTTRoadsideResponderVehicle> ResponderVehicle;
+    TWeakObjectPtr<AGTTTrafficCarPawn> AuthorityVehicle;
     FName TrackedIncidentId = NAME_None;
     EGTTCivilianResponderPhase Phase = EGTTCivilianResponderPhase::None;
     float ScanAccumulator = 0.0f;

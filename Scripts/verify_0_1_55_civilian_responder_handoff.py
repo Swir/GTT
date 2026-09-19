@@ -67,6 +67,8 @@ require(
     "responder subsystem header",
     "UGTTCivilianIncidentResponderSubsystem : public UTickableWorldSubsystem",
     "EGTTCivilianResponderPhase",
+    "AuthorityVehicle",
+    "ClearResponderSceneAuthority",
     "SevereIncidentThreshold = 0.72f",
     "PlayerAssistGraceSeconds = 18.0f",
     "ResponderSceneHoldSeconds = 7.0f",
@@ -91,7 +93,7 @@ require(
     "AGTTRoadsideResponderVehicle : public AGTTVehicleBase",
     "InitializeIncidentResponse",
     "IsParkedAtScene",
-    "ROAD SERVICE" if "ROAD SERVICE" in vehicle_h else "GetAssignedIncidentId",
+    "GetAssignedIncidentId",
 )
 require(
     vehicle_cpp,
@@ -100,7 +102,7 @@ require(
     'TEXT("/Engine/BasicShapes/Sphere.Sphere")',
     "VehicleMesh->AddForce",
     "VehicleMesh->AddTorqueInRadians",
-    'TEXT("ROAD SERVICE")',
+    '"ROAD SERVICE"',
     "bIllegalToTake = true",
 )
 if "MarkOwnedByPlayer" in vehicle_cpp or "Super::Interact_Implementation" in vehicle_cpp:
@@ -134,6 +136,8 @@ require(
     "DispatchPresentation.bWardenTrafficControl",
     "Vehicle->IsRoadsideAssistanceActive()",
     "SpawnActor<AGTTRoadsideResponderVehicle>",
+    "AuthorityVehicle = Vehicle",
+    "ClearResponderSceneAuthority();",
     "Vehicle->SetRoadsideResponderSceneAuthority(true)",
     "Vehicle->CompleteRoadsideResponderRecovery()",
     "SaveGameToSlot",
@@ -143,6 +147,21 @@ require(
 for forbidden in ("AddCash(", "SpendCash(", "ChargeFine(", "SetWanted", "AddWanted"):
     if forbidden in sub_cpp:
         errors.append(f"responder subsystem must not own economy/Wanted authority: found {forbidden!r}")
+
+clear_authority = function_body(
+    sub_cpp,
+    "void UGTTCivilianIncidentResponderSubsystem::ClearResponderSceneAuthority()",
+    ("void UGTTCivilianIncidentResponderSubsystem::DestroyResponderVehicle",),
+)
+require(
+    clear_authority,
+    "stale responder authority cleanup",
+    "AuthorityVehicle.Get()",
+    "AuthorityVehicle.Reset()",
+    "TActorIterator<AGTTTrafficCarPawn>",
+    "Candidate->IsRoadsideResponderSceneAuthority()",
+    "Candidate->SetRoadsideResponderSceneAuthority(false)",
+)
 
 require(
     traffic_h,
@@ -250,4 +269,5 @@ print(" - authoritative 0.1.54 dispatch remains the incident owner")
 print(" - physical responder/grace/on-scene handoff: verified by source contract")
 print(" - player payout remains only in existing 0.1.53 assistance path")
 print(" - responder persistence/ranger priority: verified by source contract")
+print(" - stale scene-authority cleanup: verified by source contract")
 print(" - packaged Win64 runtime proof: NOT CLAIMED")

@@ -28,6 +28,7 @@ void UGTTCivilianIncidentResponderSubsystem::Deinitialize()
     {
         SaveCheckpoint();
     }
+    ClearResponderSceneAuthority();
     DestroyResponderVehicle();
     Super::Deinitialize();
 }
@@ -168,6 +169,8 @@ void UGTTCivilianIncidentResponderSubsystem::Tick(float DeltaSeconds)
     {
         Phase = EGTTCivilianResponderPhase::OnScene;
         SceneHoldRemaining = ResponderSceneHoldSeconds;
+        ClearResponderSceneAuthority();
+        AuthorityVehicle = Vehicle;
         Vehicle->SetRoadsideResponderSceneAuthority(true);
         SaveCheckpoint();
         NotifyPlayer(TEXT("COUNTY ROAD SERVICE ON SCENE: responder has the disabled vehicle. Player payout is no longer available for this incident."), 5.5f);
@@ -178,6 +181,11 @@ void UGTTCivilianIncidentResponderSubsystem::Tick(float DeltaSeconds)
 
     if (Phase == EGTTCivilianResponderPhase::OnScene)
     {
+        if (AuthorityVehicle.Get() != Vehicle)
+        {
+            ClearResponderSceneAuthority();
+            AuthorityVehicle = Vehicle;
+        }
         Vehicle->SetRoadsideResponderSceneAuthority(true);
         SceneHoldRemaining = FMath::Max(0.0f, SceneHoldRemaining - Elapsed);
         if (SceneHoldRemaining <= 0.0f)
@@ -188,6 +196,7 @@ void UGTTCivilianIncidentResponderSubsystem::Tick(float DeltaSeconds)
                 UE_LOG(LogGTT, Log,
                     TEXT("CIVILIAN_RESPONDER_HANDOFF_COMPLETE incident=%s car=%s"),
                     *TrackedIncidentId.ToString(), *Vehicle->GetName());
+                AuthorityVehicle.Reset();
                 DestroyResponderVehicle();
                 Phase = EGTTCivilianResponderPhase::None;
                 SceneHoldRemaining = 0.0f;
@@ -271,6 +280,8 @@ void UGTTCivilianIncidentResponderSubsystem::RequestResponder(AGTTTrafficCarPawn
     if (bStartAtScene)
     {
         SceneHoldRemaining = FMath::Max(0.5f, SceneHoldRemaining);
+        ClearResponderSceneAuthority();
+        AuthorityVehicle = Vehicle;
         Vehicle->SetRoadsideResponderSceneAuthority(true);
     }
     SaveCheckpoint();
@@ -292,16 +303,7 @@ void UGTTCivilianIncidentResponderSubsystem::RequestResponder(AGTTTrafficCarPawn
 
 void UGTTCivilianIncidentResponderSubsystem::CancelResponder(const TCHAR* Reason, bool bResetGrace)
 {
-    if (GetWorld())
-    {
-        if (UGTTCivilianIncidentDispatchSubsystem* Dispatch = GetWorld()->GetSubsystem<UGTTCivilianIncidentDispatchSubsystem>())
-        {
-            if (AGTTTrafficCarPawn* Vehicle = FindDispatchVehicle(Dispatch))
-            {
-                Vehicle->SetRoadsideResponderSceneAuthority(false);
-            }
-        }
-    }
+    ClearResponderSceneAuthority();
 
     if (Phase != EGTTCivilianResponderPhase::None || ResponderVehicle.IsValid())
     {
@@ -316,6 +318,29 @@ void UGTTCivilianIncidentResponderSubsystem::CancelResponder(const TCHAR* Reason
     if (bResetGrace)
     {
         PlayerGraceElapsed = 0.0f;
+    }
+}
+
+void UGTTCivilianIncidentResponderSubsystem::ClearResponderSceneAuthority()
+{
+    if (AGTTTrafficCarPawn* Vehicle = AuthorityVehicle.Get())
+    {
+        Vehicle->SetRoadsideResponderSceneAuthority(false);
+    }
+    AuthorityVehicle.Reset();
+
+    // Defensive fail-closed cleanup for travel/rebind cases where the weak pointer
+    // could have expired while a traffic actor still carries the transient flag.
+    if (UWorld* World = GetWorld())
+    {
+        for (TActorIterator<AGTTTrafficCarPawn> It(World); It; ++It)
+        {
+            AGTTTrafficCarPawn* Candidate = *It;
+            if (Candidate && Candidate->IsRoadsideResponderSceneAuthority())
+            {
+                Candidate->SetRoadsideResponderSceneAuthority(false);
+            }
+        }
     }
 }
 
