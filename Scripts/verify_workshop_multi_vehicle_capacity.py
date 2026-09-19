@@ -3,6 +3,8 @@
 
 This checks deterministic source/persistence/gameplay invariants only. It deliberately does
 not claim Unreal compilation, packaged Win64 execution, visual acceptance, or demo readiness.
+Later milestones may insert a timed service lifecycle between READY and checkout; the original
+capacity, exact-ID, locked-quote and non-blocking economy guarantees remain mandatory.
 """
 from __future__ import annotations
 
@@ -61,7 +63,6 @@ def main() -> int:
         "ApplyNativeWorkshopService()",
         "AddCash(LockedQuote",
         "later due appointments can still proceed",
-        "++Index; // Capacity rule: an underfunded vehicle never blocks later due appointments.",
         "RemoveEntryAt(Index, TEXT(\"SERVICE_COMPLETED\"))",
         "GameMode->SaveProgress()",
         "WORKSHOP_QUEUE_COMPLETED",
@@ -82,10 +83,17 @@ def main() -> int:
 
     execution = queue_cpp[queue_cpp.index("void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations"):]
     insufficient = execution.index("if (!Economy->SpendCash(LockedQuote")
-    continue_after = execution.index("++Index; // Capacity rule", insufficient)
+    continue_after = execution.index("++Index;", insufficient)
     service_after = execution.index("ApplyNativeWorkshopService()", continue_after)
     if not (insufficient < continue_after < service_after):
         raise AssertionError("underfunded appointment must continue to later due entries")
+
+    # 0.1.49 may insert timed check-in before debit; it must not weaken capacity semantics.
+    if "bCheckedIn" in queue_h or "WORKSHOP_QUEUE_CHECKED_IN" in queue_cpp:
+        require(queue_cpp, [
+            "AWAITING_PAYMENT", "appointment remains READY with the same locked quote and no charge",
+            "timed_service=YES",
+        ], "timed lifecycle forward compatibility")
 
     require(queue_cpp, [
         "bFarmCargoContractActive", "FarmCargoBoundVehicleId == VehicleId",
@@ -99,7 +107,7 @@ def main() -> int:
     ], "garage capacity presentation")
 
     # 0.1.46 packaged evidence still consumes the schema-v1 first-entry mirror, so additive
-    # capacity cannot silently invalidate the already-established exact-single-vehicle gate.
+    # capacity/lifecycle changes cannot silently remove the established exact-single-vehicle gate.
     require(old_runtime, [
         "Save->SchemaVersion == 1", "Save->bQueued", "Save->PersistentVehicleId == VehicleId",
         "Save->LockedQuote == LockedQuote", "!Queue->HasQueuedRepair()",
@@ -141,7 +149,7 @@ def main() -> int:
 
     print("GTT 0.1.47 multi-vehicle workshop capacity source contract: PASS")
     print("Capacity: 4 exact-ID appointments; spacing: 45 minutes; booking/cancel: no pre-charge")
-    print("Underfunded due appointment: non-blocking by source contract")
+    print("Underfunded due checkout: non-blocking by source contract")
     print(f"Roadmap: {done}/{done + open_} = {done/(done+open_)*100:.1f}% (unchanged)")
     print("Runtime/Win64 verification: NOT CLAIMED")
     return 0
