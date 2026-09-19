@@ -20,7 +20,7 @@ $runtimeLog = Join-Path $PackageDirectory 'GTT_RUNTIME.log'
 if (Test-Path $runtimeLog) { Remove-Item -Force $runtimeLog }
 $arguments = @(
     '-unattended', '-nosplash', '-nullrhi', '-NoSound',
-    '-GTTDemoSmokeScenario', '-GTTFarmCargoRuntimeScenario', '-GTTFarmCargoRecoveryScenario', '-GTTFarmCargoBreakdownScenario', '-GTTFarmCargoDispatchScenario', '-GTTFarmCargoDispatchPersistenceScenario', '-GTTFarmCargoWorkshopRecoveryScenario', '-GTTWorkshopHoursRuntimeScenario', '-GTTWorkshopQueueRuntimeScenario', '-GTTWorkshopCapacityRuntimeScenario',
+    '-GTTDemoSmokeScenario', '-GTTFarmCargoRuntimeScenario', '-GTTFarmCargoRecoveryScenario', '-GTTFarmCargoBreakdownScenario', '-GTTFarmCargoDispatchScenario', '-GTTFarmCargoDispatchPersistenceScenario', '-GTTFarmCargoWorkshopRecoveryScenario', '-GTTWorkshopHoursRuntimeScenario', '-GTTWorkshopQueueRuntimeScenario', '-GTTWorkshopCapacityRuntimeScenario', '-GTTWorkshopPriorityPickupRuntimeScenario',
     '-log', "-abslog=$runtimeLog"
 )
 $startedUtc = (Get-Date).ToUniversalTime()
@@ -50,7 +50,7 @@ try {
         farm_cargo_runtime_scenario = $true; farm_cargo_recovery_runtime_scenario = $true; farm_cargo_breakdown_runtime_scenario = $true
         farm_cargo_dispatch_runtime_scenario = $true; farm_cargo_dispatch_persistence_runtime_scenario = $true
         farm_cargo_workshop_recovery_runtime_scenario = $true; workshop_hours_runtime_scenario = $true; workshop_queue_runtime_scenario = $true
-        workshop_capacity_runtime_scenario = $true
+        workshop_capacity_runtime_scenario = $true; workshop_priority_pickup_runtime_scenario = $true
         runtime_log = 'GTT_RUNTIME.log'; visual_acceptance = 'NOT_PERFORMED'; terminated_by_smoke_test = $true
     }
     $evidencePath = Join-Path $PackageDirectory 'RUNTIME_SMOKE.json'
