@@ -7,6 +7,8 @@ on:
       - 'Source/GTT/Public/Save/GTTWorkshopQueueSaveGame.h'
       - 'Source/GTT/Public/World/GTTWorkshopRepairQueueSubsystem.h'
       - 'Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp'
+      - 'Source/GTT/Public/Core/GTTWorkshopCapacityLifecycleBridgeSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopCapacityLifecycleBridgeSubsystem.cpp'
       - 'Source/GTT/Private/Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.cpp'
       - 'Scripts/verify_workshop_service_lifecycle.py'
       - 'Scripts/verify_workshop_multi_vehicle_capacity.py'
