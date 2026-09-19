@@ -36,6 +36,7 @@ def main() -> int:
     save_h = read("Source/GTT/Public/Save/GTTWorkshopQueueSaveGame.h")
     queue_h = read("Source/GTT/Public/World/GTTWorkshopRepairQueueSubsystem.h")
     queue_cpp = read("Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp")
+    service_terminal_cpp = read("Source/GTT/Private/World/GTTServiceTerminal.cpp")
     old_capacity = read("Source/GTT/Private/Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.cpp")
     capacity_bridge_h = read("Source/GTT/Public/Core/GTTWorkshopCapacityLifecycleBridgeSubsystem.h")
     capacity_bridge_cpp = read("Source/GTT/Private/Core/GTTWorkshopCapacityLifecycleBridgeSubsystem.cpp")
@@ -95,6 +96,30 @@ def main() -> int:
     require(load, ["bLifecycleValid", "Saved.bCheckedIn", "Entry.ServiceCompleteHour"], "lifecycle load")
     require(write, ["Saved.bCheckedIn", "Saved.ServiceStartDay", "Saved.ServiceCompleteHour", "Save->bQueued = true"], "lifecycle write")
 
+    require(service_terminal_cpp, [
+        '#include "World/GTTWorkshopRepairQueueSubsystem.h"',
+        "ResolveQueuedWorkshopAppointment", "HasQueuedRepairForVehicle",
+        "GetQueueSnapshots", "WORKSHOP_QUEUE_TERMINAL_GUARD",
+        "queue_authority=YES", "direct_service=BLOCKED",
+        "!bWorkshopHold && ResolveQueuedWorkshopAppointment",
+        "Queue lifecycle owns this exact vehicle",
+    ], "workshop terminal queue authority")
+    native_terminal = block(
+        service_terminal_cpp,
+        "if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle",
+        "if (AGTTFieldmasterNativePawn* Native = FindActiveNativeFieldmaster",
+    )
+    guard = native_terminal.index("ResolveQueuedWorkshopAppointment")
+    direct_debit = native_terminal.index("SpendCash(TotalCost")
+    direct_mutation = native_terminal.index("ApplyNativeWorkshopService()")
+    if not (guard < direct_debit < direct_mutation):
+        raise AssertionError("queued appointment guard must run before direct workshop debit/mutation")
+    guard_block = block(native_terminal, "if (!bWorkshopHold && ResolveQueuedWorkshopAppointment", "if (!bNeedsMechanical && !bNeedsFuel)")
+    if "SpendCash(" in guard_block or "ApplyNativeWorkshopService" in guard_block:
+        raise AssertionError("terminal queue guard must never charge or mutate the queued vehicle")
+    if "return;" not in guard_block:
+        raise AssertionError("terminal queue guard must stop direct walk-up service")
+
     require(old_capacity, [
         "GTTWorkshopCapacityRuntimeScenario", "ExpectedSpacingHours = 0.75f",
         "bUnderfundedNonBlocking", "bLaterSingleDebit", "bCargoContinuity",
@@ -108,18 +133,22 @@ def main() -> int:
         "LatestCompletionAbsoluteHours", "Clock->RestoreTime",
         "WORKSHOP_CAPACITY_LIFECYCLE_BRIDGE", "0.1.49_timed_service_compatibility",
     ], "0.1.48 lifecycle bridge implementation")
-    old_capacity_verify = read("Scripts/verify_workshop_multi_vehicle_capacity.py")
     require(old_capacity_verify, ["MaxQueuedRepairs = 4", "AppointmentSpacingHours = 0.75f", "timed lifecycle forward compatibility"], "0.1.47 verifier retained")
     require(runtime_verify, ["WORKSHOP_CAPACITY_RUNTIME", "later timed-service lifecycle compatibility"], "0.1.48 runtime evaluator retained")
 
     scenarios = re.findall(r"^- \[ \] \d+\.", playtest, flags=re.MULTILINE)
-    if len(scenarios) != 64:
-        raise AssertionError(f"expected exactly 64 playtest scenarios, found {len(scenarios)}")
+    if len(scenarios) != 68:
+        raise AssertionError(f"expected exactly 68 playtest scenarios, found {len(scenarios)}")
+    require(playtest, [
+        "Direct terminal bypass protection", "direct walk-up repair/refuel remains blocked",
+        "hard WORKSHOP HOLD still takes priority",
+    ], "terminal authority playtest")
     require(changelog, [
         "0.1.49", "check-in", "30", "90", "locked quote", "no charge",
-        "125 / 130 (96.2%)", "Win64",
+        "terminal", "bypass", "125 / 130 (96.2%)", "Win64",
     ], "milestone changelog")
     require(workflow, [
+        "Source/GTT/Private/World/GTTServiceTerminal.cpp",
         "verify_workshop_service_lifecycle.py",
         "verify_workshop_multi_vehicle_capacity.py",
         "verify_workshop_capacity_runtime.py",
@@ -151,6 +180,8 @@ def main() -> int:
     print("Lifecycle: READY -> IN_SERVICE -> AWAITING_PAYMENT -> checkout")
     print("Service duration: 0.5-1.5 world hours derived from vehicle workload")
     print("Leave service area: appointment preserved, timer reset, no charge")
+    print("Workshop terminal: queued exact-ID lifecycle cannot be bypassed by direct walk-up service")
+    print("Hard WORKSHOP HOLD: retains higher-priority emergency/direct recovery authority")
     print("0.1.48 packaged-capacity route: preserved through evidence-only post-check-in clock bridge")
     print(f"Roadmap: {done}/{done + open_} = {done/(done+open_)*100:.1f}% (unchanged)")
     print("Unreal/Win64 packaged runtime verification: NOT CLAIMED")
