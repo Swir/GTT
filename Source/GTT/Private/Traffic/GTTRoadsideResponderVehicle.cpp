@@ -20,6 +20,7 @@ AGTTRoadsideResponderVehicle::AGTTRoadsideResponderVehicle()
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeFinder(TEXT("/Engine/BasicShapes/Cone.Cone"));
 
     if (CubeFinder.Succeeded())
     {
@@ -52,6 +53,27 @@ AGTTRoadsideResponderVehicle::AGTTRoadsideResponderVehicle()
     ServiceLabel->SetTextRenderColor(FColor(70, 215, 255));
     ServiceLabel->SetRelativeLocation(FVector(0.0f, 0.0f, 145.0f));
     ServiceLabel->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+
+    UStaticMesh* ConeMesh = ConeFinder.Succeeded() ? ConeFinder.Object : nullptr;
+    SafetyConeFrontLeft = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ResponderSafetyConeFrontLeft"));
+    SafetyConeFrontRight = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ResponderSafetyConeFrontRight"));
+    SafetyConeRearLeft = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ResponderSafetyConeRearLeft"));
+    SafetyConeRearRight = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ResponderSafetyConeRearRight"));
+
+    for (UStaticMeshComponent* Cone : {SafetyConeFrontLeft.Get(), SafetyConeFrontRight.Get(), SafetyConeRearLeft.Get(), SafetyConeRearRight.Get()})
+    {
+        Cone->SetupAttachment(VehicleMesh);
+        Cone->SetStaticMesh(ConeMesh);
+        Cone->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Cone->SetGenerateOverlapEvents(false);
+        Cone->SetCastShadow(false);
+        Cone->SetRelativeScale3D(FVector(0.18f, 0.18f, 0.32f));
+        Cone->SetVisibility(false, true);
+    }
+    SafetyConeFrontLeft->SetRelativeLocation(FVector(220.0f, -135.0f, -78.0f));
+    SafetyConeFrontRight->SetRelativeLocation(FVector(220.0f, 135.0f, -78.0f));
+    SafetyConeRearLeft->SetRelativeLocation(FVector(-220.0f, -135.0f, -78.0f));
+    SafetyConeRearRight->SetRelativeLocation(FVector(-220.0f, 135.0f, -78.0f));
 }
 
 void AGTTRoadsideResponderVehicle::InitializeIncidentResponse(FName InIncidentId, const FVector& InSceneLocation, bool bStartAtScene)
@@ -59,6 +81,7 @@ void AGTTRoadsideResponderVehicle::InitializeIncidentResponse(FName InIncidentId
     AssignedIncidentId = InIncidentId;
     SceneLocation = InSceneLocation;
     bParkedAtScene = bStartAtScene;
+    SetSafetyCorridorDeployed(bStartAtScene);
 
     if (bStartAtScene)
     {
@@ -101,7 +124,7 @@ void AGTTRoadsideResponderVehicle::DriveTowardScene(float DeltaSeconds)
         {
             VehicleMesh->AddForce(-FlatVelocity.GetSafeNormal() * ResponseDriveForce * 1.9f, NAME_None, true);
         }
-        ServiceLabel->SetText(NSLOCTEXT("GTT", "RoadServiceOnScene", "ROAD SERVICE - ON SCENE"));
+        SetSafetyCorridorDeployed(true);
         return;
     }
 
@@ -122,6 +145,25 @@ void AGTTRoadsideResponderVehicle::DriveTowardScene(float DeltaSeconds)
     VehicleMesh->AddTorqueInRadians(FVector::UpVector * Steering * ResponseSteeringTorque, NAME_None, true);
 }
 
+void AGTTRoadsideResponderVehicle::SetSafetyCorridorDeployed(bool bDeployed)
+{
+    bSafetyCorridorDeployed = bDeployed;
+    for (UStaticMeshComponent* Cone : {SafetyConeFrontLeft.Get(), SafetyConeFrontRight.Get(), SafetyConeRearLeft.Get(), SafetyConeRearRight.Get()})
+    {
+        if (Cone)
+        {
+            Cone->SetVisibility(bSafetyCorridorDeployed, true);
+        }
+    }
+
+    if (ServiceLabel)
+    {
+        ServiceLabel->SetText(bSafetyCorridorDeployed
+            ? NSLOCTEXT("GTT", "RoadServiceSafeCorridor", "ROAD SERVICE - SAFE CORRIDOR")
+            : NSLOCTEXT("GTT", "RoadServiceLabel", "ROAD SERVICE"));
+    }
+}
+
 void AGTTRoadsideResponderVehicle::UpdateBeacon(float DeltaSeconds)
 {
     BeaconClock += FMath::Max(0.0f, DeltaSeconds);
@@ -136,14 +178,18 @@ void AGTTRoadsideResponderVehicle::Interact_Implementation(AActor* Interactor)
     {
         if (UGTTPlayerEconomyComponent* Economy = Interactor->FindComponentByClass<UGTTPlayerEconomyComponent>())
         {
-            Economy->PushMessage(TEXT("County road service is handling an active civilian incident."), 3.0f);
+            Economy->PushMessage(
+                bSafetyCorridorDeployed
+                    ? TEXT("County road service has a safety corridor around the active civilian incident.")
+                    : TEXT("County road service is handling an active civilian incident."),
+                3.0f);
         }
     }
 }
 
 FText AGTTRoadsideResponderVehicle::GetInteractionText_Implementation() const
 {
-    return bParkedAtScene
-        ? NSLOCTEXT("GTT", "RoadServiceBusy", "County road service - incident handoff")
+    return bSafetyCorridorDeployed
+        ? NSLOCTEXT("GTT", "RoadServiceSafetyCorridor", "County road service - safety corridor active")
         : NSLOCTEXT("GTT", "RoadServiceEnRoute", "County road service - responding");
 }
