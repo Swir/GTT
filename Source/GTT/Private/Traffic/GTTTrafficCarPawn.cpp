@@ -60,6 +60,7 @@ void AGTTTrafficCarPawn::RegisterCollisionIncident(float ImpactSpeedKmh, FVector
         RoadsideAssistanceRemaining = 0.0f;
         RoadsideHelper.Reset();
         bRoadsideAssistanceActive = false;
+        bRoadsideResponderSceneAuthority = false;
     }
 
     if (HornText)
@@ -120,6 +121,12 @@ bool AGTTTrafficCarPawn::BeginRoadsideAssistance(AActor* Helper)
     UGTTPlayerEconomyComponent* Economy = Helper->FindComponentByClass<UGTTPlayerEconomyComponent>();
     if (!Economy)
     {
+        return false;
+    }
+
+    if (bRoadsideResponderSceneAuthority)
+    {
+        Economy->PushMessage(TEXT("County road service has scene authority. This incident no longer offers a player roadside payout."), 3.5f);
         return false;
     }
 
@@ -198,6 +205,56 @@ void AGTTTrafficCarPawn::CompleteRoadsideAssistance()
         *GetName(), Payout, GetConditionPercent(), IncidentLimpRemaining);
 }
 
+void AGTTTrafficCarPawn::SetRoadsideResponderSceneAuthority(bool bActive)
+{
+    bRoadsideResponderSceneAuthority = bActive && bIncidentDisabled;
+    if (bRoadsideResponderSceneAuthority && bRoadsideAssistanceActive)
+    {
+        CancelRoadsideAssistance(TEXT("county-road-service-scene-handoff"));
+    }
+
+    if (HornText && bRoadsideResponderSceneAuthority)
+    {
+        HornText->SetText(NSLOCTEXT("GTT", "TrafficRoadService", "SERVICE"));
+        HornVisualRemaining = FMath::Max(HornVisualRemaining, 0.5f);
+    }
+}
+
+bool AGTTTrafficCarPawn::CompleteRoadsideResponderRecovery()
+{
+    if (!bIncidentDisabled || !bRoadsideResponderSceneAuthority || bRoadsideAssistanceActive)
+    {
+        return false;
+    }
+
+    RepairVehicle(MaxCondition * ResponderRecoveryFraction);
+    bIncidentDisabled = GetConditionPercent() <= DisableConditionThreshold;
+    if (bIncidentDisabled)
+    {
+        UE_LOG(LogGTT, Warning, TEXT("TRAFFIC_RESPONDER_RECOVERY_RETRY car=%s condition=%.2f"), *GetName(), GetConditionPercent());
+        return false;
+    }
+
+    IncidentStopRemaining = 0.0f;
+    IncidentLimpRemaining = FMath::Max(IncidentLimpRemaining, ResponderPostRecoveryLimpSeconds);
+    LastObservedConditionPercent = GetConditionPercent();
+    bRoadsideResponderSceneAuthority = false;
+    RoadsideAssistanceRemaining = 0.0f;
+    RoadsideHelper.Reset();
+    bRoadsideAssistanceActive = false;
+
+    if (HornText)
+    {
+        HornText->SetText(NSLOCTEXT("GTT", "TrafficRoadServiceComplete", "RECOVERED"));
+        HornVisualRemaining = 2.5f;
+    }
+
+    UE_LOG(LogGTT, Log,
+        TEXT("TRAFFIC_RESPONDER_RECOVERY_COMPLETE car=%s condition=%.2f limp_s=%.1f payout=NONE"),
+        *GetName(), GetConditionPercent(), IncidentLimpRemaining);
+    return true;
+}
+
 void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
@@ -253,7 +310,7 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
     {
         if (UGTTWorldPerformanceSubsystem* Performance = GetWorld()->GetSubsystem<UGTTWorldPerformanceSubsystem>())
         {
-            const bool bForceCritical = IsOccupied() || IncidentStopRemaining > 0.0f || bIncidentDisabled || bRoadsideAssistanceActive || bYieldingForRangerStop;
+            const bool bForceCritical = IsOccupied() || IncidentStopRemaining > 0.0f || bIncidentDisabled || bRoadsideAssistanceActive || bRoadsideResponderSceneAuthority || bYieldingForRangerStop;
             const float BudgetInterval = Performance->GetRecommendedTickInterval(this, bForceCritical);
             const float TrafficInterval = bForceCritical ? 0.0f : FMath::Min(BudgetInterval, 0.35f);
             if (!FMath::IsNearlyEqual(GetActorTickInterval(), TrafficInterval, 0.01f)) SetActorTickInterval(TrafficInterval);
@@ -272,10 +329,16 @@ void AGTTTrafficCarPawn::Tick(float DeltaSeconds)
         HornVisualRemaining = FMath::Max(HornVisualRemaining, 0.30f);
     }
 
+    if (HornText && bRoadsideResponderSceneAuthority && bIncidentDisabled)
+    {
+        HornText->SetText(NSLOCTEXT("GTT", "TrafficRoadService", "SERVICE"));
+        HornVisualRemaining = FMath::Max(HornVisualRemaining, 0.30f);
+    }
+
     if (HornText)
     {
-        HornText->SetVisibility(HornVisualRemaining > 0.0f || bIncidentDisabled || bRoadsideAssistanceActive, true);
-        if (HornVisualRemaining <= 0.0f && !bIncidentDisabled && !bRoadsideAssistanceActive) HornText->SetText(NSLOCTEXT("GTT", "TrafficHorn", "BEEP!"));
+        HornText->SetVisibility(HornVisualRemaining > 0.0f || bIncidentDisabled || bRoadsideAssistanceActive || bRoadsideResponderSceneAuthority, true);
+        if (HornVisualRemaining <= 0.0f && !bIncidentDisabled && !bRoadsideAssistanceActive && !bRoadsideResponderSceneAuthority) HornText->SetText(NSLOCTEXT("GTT", "TrafficHorn", "BEEP!"));
     }
 
     if (!VehicleMesh || RoutePoints.Num() < 2 || IsOccupied()) return;
@@ -375,6 +438,17 @@ void AGTTTrafficCarPawn::Interact_Implementation(AActor* Interactor)
 {
     if (bIncidentDisabled)
     {
+        if (bRoadsideResponderSceneAuthority)
+        {
+            if (Interactor)
+            {
+                if (UGTTPlayerEconomyComponent* Economy = Interactor->FindComponentByClass<UGTTPlayerEconomyComponent>())
+                {
+                    Economy->PushMessage(TEXT("County road service has this scene. Wait for recovery to finish."), 2.8f);
+                }
+            }
+            return;
+        }
         if (!bRoadsideAssistanceCompletedForIncident && !bRoadsideAssistanceActive) BeginRoadsideAssistance(Interactor);
         else if (bRoadsideAssistanceActive && Interactor)
         {
@@ -387,6 +461,10 @@ void AGTTTrafficCarPawn::Interact_Implementation(AActor* Interactor)
 
 FText AGTTTrafficCarPawn::GetInteractionText_Implementation() const
 {
+    if (bRoadsideResponderSceneAuthority && bIncidentDisabled)
+    {
+        return NSLOCTEXT("GTT", "TrafficCarResponderScene", "County road service - recovery in progress");
+    }
     if (bRoadsideAssistanceActive)
     {
         return FText::FromString(FString::Printf(TEXT("Roadside assist - %.1fs remaining"), RoadsideAssistanceRemaining));
