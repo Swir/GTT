@@ -1,0 +1,42 @@
+name: Fieldmaster native link sanity
+
+on:
+  push:
+    branches:
+      - main
+      - "milestone/**"
+    paths:
+      - "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h"
+      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp"
+      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp"
+      - "Source/GTT/Private/World/GTTMudZone.cpp"
+      - "Scripts/verify_fieldmaster_native_link_contract.py"
+      - ".github/workflows/fieldmaster-native-link-sanity.yml"
+  pull_request:
+    paths:
+      - "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h"
+      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp"
+      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp"
+      - "Source/GTT/Private/World/GTTMudZone.cpp"
+      - "Scripts/verify_fieldmaster_native_link_contract.py"
+      - ".github/workflows/fieldmaster-native-link-sanity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-fieldmaster-native-link:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify native Fieldmaster link/runtime contract
+        run: python Scripts/verify_fieldmaster_native_link_contract.py
