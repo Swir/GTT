@@ -25,7 +25,18 @@ void UGTTRoadsideSceneSafetySubsystem::Tick(float DeltaSeconds)
     AGTTRoadsideResponderVehicle* Responder = FindOnSceneResponder();
     if (!Responder)
     {
+        const FName PreviousIncidentId = TrackedResponder.IsValid()
+            ? TrackedResponder->GetAssignedIncidentId()
+            : NAME_None;
+        if (bSafetyCorridorActive || TrackedResponder.IsValid())
+        {
+            UE_LOG(LogGTT, Log,
+                TEXT("ROADSIDE_SAFETY_CORRIDOR_CLEARED incident=%s"),
+                *PreviousIncidentId.ToString());
+        }
+
         TrackedResponder.Reset();
+        LastYieldTimeByCar.Reset();
         bSafetyCorridorActive = false;
         LastYieldCount = 0;
         return;
@@ -33,6 +44,9 @@ void UGTTRoadsideSceneSafetySubsystem::Tick(float DeltaSeconds)
 
     if (TrackedResponder.Get() != Responder)
     {
+        // Cooldown history is scoped to one physical response scene. A new
+        // responder must never inherit yield suppression from an older scene.
+        LastYieldTimeByCar.Reset();
         TrackedResponder = Responder;
         UE_LOG(LogGTT, Log,
             TEXT("ROADSIDE_SAFETY_CORRIDOR_ACTIVE incident=%s location=%s"),

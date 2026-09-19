@@ -70,7 +70,10 @@ require(
     "ReactToNearbyIncident(SceneLocation, YieldSeverity)",
     "LastYieldTimeByCar",
     "ROADSIDE_SAFETY_CORRIDOR_ACTIVE",
+    "ROADSIDE_SAFETY_CORRIDOR_CLEARED",
 )
+if safety_cpp.count("LastYieldTimeByCar.Reset();") < 2:
+    errors.append("safety corridor must clear per-scene cooldown history on responder replacement and corridor teardown")
 for forbidden in ("AddCash(", "SpendCash(", "RepairVehicle(", "SetWanted", "AddWanted", "ChargeFine("):
     if forbidden in safety_cpp:
         errors.append(f"safety corridor must not own economy/repair/Wanted authority: found {forbidden!r}")
@@ -118,8 +121,8 @@ require(
 )
 
 case_count = len(re.findall(r"^\|\s*\d+\s*\|", playtest, flags=re.MULTILINE))
-if case_count < 48:
-    errors.append(f"playtest matrix too small: expected >=48 numbered cases, found {case_count}")
+if case_count < 52:
+    errors.append(f"playtest matrix too small: expected >=52 numbered cases, found {case_count}")
 
 for phrase in (
     "source-contract verification",
@@ -133,12 +136,22 @@ for phrase in (
         errors.append(f"playtest missing verification-boundary phrase: {phrase!r}")
 
 require(
+    playtest,
+    "playtest lifecycle coverage",
+    "cooldown history is cleared",
+    "fresh scene",
+    "old scene cooldown never suppresses fresh safety authority",
+)
+
+require(
     changelog,
     "changelog fragment",
     "0.1.56",
     "Safety Corridor",
     "Cone.Cone",
     "cooldown",
+    "yield history",
+    "responder replacement",
     "warden",
     "source-contract",
     "Win64",
@@ -153,6 +166,7 @@ if errors:
 print(f"GTT 0.1.56 responder safety corridor sanity: PASS ({case_count} playtest cases)")
 print(" - on-scene responder deploys four visible runtime-built safety cones")
 print(" - nearby ambient traffic receives bounded cooldown-limited incident yielding")
+print(" - per-scene yield history resets on responder replacement and corridor teardown")
 print(" - ranger/player/incident authority remains outside the safety subsystem")
 print(" - 0.1.55 responder ownership and 0.1.53 payout authority remain unchanged")
 print(" - packaged Win64 runtime proof: NOT CLAIMED")

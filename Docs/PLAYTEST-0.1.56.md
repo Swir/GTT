@@ -41,10 +41,10 @@
 | 35 | Performance | Tick runs below 0.75 s accumulated time | No corridor scan occurs yet |
 | 36 | Performance | Scan interval elapses | One bounded scan is executed |
 | 37 | Recovery | Responder completes civilian recovery | 0.1.55 removes scene authority and responder actor |
-| 38 | Recovery | Responder actor is gone | Safety corridor becomes inactive on next scan |
+| 38 | Recovery | Responder actor is gone | Safety corridor deactivates and per-scene cooldown history is cleared on next scan |
 | 39 | Save/load | Responder checkpoint restores EnRoute | Cones stay hidden until physical arrival |
 | 40 | Save/load | Responder checkpoint restores OnScene | Cones deploy and corridor resumes from live actor state |
-| 41 | Cleanup | Dispatch changes to another incident | Old responder/corridor ownership is cleared by 0.1.55 |
+| 41 | Cleanup | Dispatch changes to another incident | Old responder/corridor ownership and yield cooldown history are cleared |
 | 42 | Cleanup | World deinitializes | No persistent actor pointer is introduced by safety subsystem |
 | 43 | Regression | Run 0.1.55 verifier | Responder handoff contract stays green |
 | 44 | Regression | Run 0.1.54 verifier | Authoritative dispatch contract stays green |
@@ -52,3 +52,7 @@
 | 46 | Regression | Inspect responder ownership | Service vehicle remains illegal to take / non-enterable |
 | 47 | Release gate | Source CI passes | Win64/demo readiness is still not claimed |
 | 48 | Roadmap | Milestone lands without closing Native Chaos/Win64 gates | Roadmap remains 125/130 (96.2%) |
+| 49 | Lifecycle | A new responder replaces a previous physical scene | Old per-car cooldown history is reset before the new scene starts yielding |
+| 50 | Lifecycle | Active responder disappears after recovery/cancel | Corridor logs closure and clears all per-scene cooldown history |
+| 51 | Lifecycle | Many incidents complete while the same traffic cars survive | Completed scenes do not accumulate stale cooldown entries across incidents |
+| 52 | Lifecycle | Same ambient car reaches a fresh scene inside 4.5 s of an old scene | New responder can yield it immediately; old scene cooldown never suppresses fresh safety authority |
