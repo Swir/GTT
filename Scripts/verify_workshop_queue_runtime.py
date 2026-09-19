@@ -41,7 +41,13 @@ def main() -> int:
     require(smoke, ["-GTTWorkshopQueueRuntimeScenario", "workshop_queue_runtime_scenario = $true"], "smoke route")
     require(evaluator, ["gtt.workshop-queue-runtime.v1", "WORKSHOP_QUEUE_RUNTIME.json", "checkpoint_disk_roundtrip=$true", "substitute_vehicle_rejected=$true", "single_debit=$true", "farm_cargo_authority_preserved=$true"], "runtime evaluator")
     require(promoter, ["schema -ne 14", "$gate.schema=15", "workshop_hours_runtime -ne 'PASS'", "workshop_queue_runtime='PASS'", "workshop_queue_farm_cargo_authority_preserved"], "gate promoter")
-    require(win64, ["evaluate_workshop_queue_runtime.ps1", "WORKSHOP_QUEUE_RUNTIME.json", "promote_demo_gate_workshop_queue.ps1", "schema -ne 15", "workshop_queue_runtime -ne 'PASS'"], "Win64 pipeline")
+    require(win64, ["evaluate_workshop_queue_runtime.ps1", "WORKSHOP_QUEUE_RUNTIME.json", "promote_demo_gate_workshop_queue.ps1", "workshop_queue_runtime -ne 'PASS'"], "Win64 pipeline")
+    # Later milestones may strengthen the terminal technical-gate schema. The 0.1.46
+    # contract only requires that the final candidate gate is at least schema 15 and
+    # still explicitly requires workshop_queue_runtime=PASS.
+    terminal_schemas = [int(value) for value in re.findall(r"schema\s+-ne\s+(\d+)", win64)]
+    if not terminal_schemas or max(terminal_schemas) < 15:
+        raise AssertionError(f"Win64 pipeline terminal technical gate regressed below schema 15: {terminal_schemas}")
 
     done = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
     open_ = len(re.findall(r"^- \[ \] ", roadmap, flags=re.MULTILINE))
@@ -55,6 +61,7 @@ def main() -> int:
     if legacy_meter.search(roadmap) or legacy_meter.search(readme):
         raise AssertionError("legacy text/Unicode progress meter returned")
     print("GTT 0.1.46 workshop queue packaged-runtime source contract: PASS")
+    print(f"Terminal technical gate schema: {max(terminal_schemas)} (0.1.46 minimum: 15)")
     print("Roadmap: 125/130 = 96.2% (unchanged; packaged proof still required)")
     return 0
 
