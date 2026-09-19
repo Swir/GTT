@@ -17,6 +17,7 @@
 #include "World/GTTGarageFleetSubsystem.h"
 #include "World/GTTGarageServicePolicy.h"
 #include "World/GTTWorkshopHoursPolicy.h"
+#include "World/GTTWorkshopRepairQueueSubsystem.h"
 
 namespace
 {
@@ -104,6 +105,25 @@ namespace
         if (!ResolveFleetSnapshot(World, VehicleId, Snapshot)) return false;
         if (OutSnapshot) *OutSnapshot = Snapshot;
         return GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot);
+    }
+
+    bool ResolveQueuedWorkshopAppointment(UWorld* World, FName VehicleId, FGTTWorkshopRepairQueueSnapshot& OutSnapshot)
+    {
+        if (!World || VehicleId.IsNone()) return false;
+        const UGTTWorkshopRepairQueueSubsystem* Queue = World->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>();
+        if (!Queue || !Queue->HasQueuedRepairForVehicle(VehicleId)) return false;
+
+        const TArray<FGTTWorkshopRepairQueueSnapshot> Snapshots = Queue->GetQueueSnapshots();
+        if (const FGTTWorkshopRepairQueueSnapshot* Found = Snapshots.FindByPredicate(
+            [VehicleId](const FGTTWorkshopRepairQueueSnapshot& Candidate)
+            {
+                return Candidate.PersistentVehicleId == VehicleId;
+            }))
+        {
+            OutSnapshot = *Found;
+            return true;
+        }
+        return false;
     }
 
     AGTTVehicleBase* FindFieldmasterMirror(UWorld* World, const AGTTFieldmasterNativePawn* Native)
@@ -209,6 +229,23 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
         const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad) || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < NativeRoad->GetFuelCapacityLiters();
         const bool bAfterHoursEmergency = bWorkshopHold && !bWorkshopOpen;
+
+        FGTTWorkshopRepairQueueSnapshot QueueSnapshot;
+        if (!bWorkshopHold && ResolveQueuedWorkshopAppointment(GetWorld(), NativeRoad->GetPersistentVehicleId(), QueueSnapshot))
+        {
+            const FString QueueState = QueueSnapshot.State.IsEmpty() ? TEXT("QUEUED") : QueueSnapshot.State;
+            const FString Timing = QueueSnapshot.bCheckedIn
+                ? FString::Printf(TEXT("service ETA %.1f h"), QueueSnapshot.HoursUntilServiceComplete)
+                : FString::Printf(TEXT("appointment day %d %s | ETA %.1f h"), QueueSnapshot.ReadyDay,
+                    *GTTWorkshopHoursPolicy::FormatHour(QueueSnapshot.ReadyHour), QueueSnapshot.HoursUntilReady);
+            Economy->PushMessage(FString::Printf(
+                TEXT("Workshop appointment %s: %s | locked $%d | %s. Queue lifecycle owns this exact vehicle; direct walk-up repair/refuel is blocked so the locked quote, timer and no-precharge contract cannot be bypassed."),
+                *QueueState, *NativeRoad->GetVehicleDisplayName().ToString(), QueueSnapshot.LockedQuote, *Timing), 8.0f);
+            UE_LOG(LogGTT, Display,
+                TEXT("WORKSHOP_QUEUE_TERMINAL_GUARD vehicle=%s state=%s locked_quote=%d queue_authority=YES direct_service=BLOCKED hard_hold=NO"),
+                *QueueSnapshot.PersistentVehicleId.ToString(), *QueueState, QueueSnapshot.LockedQuote);
+            return;
+        }
 
         if (!bNeedsMechanical && !bNeedsFuel)
         {
@@ -370,6 +407,24 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
         const bool bWorkshopHold = IsWorkshopHold(GetWorld(), NativeRoad->GetPersistentVehicleId(), &FleetSnapshot);
         const bool bNeedsMechanical = NativeRoadNeedsMechanicalService(NativeRoad) || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < NativeRoad->GetFuelCapacityLiters();
+
+        FGTTWorkshopRepairQueueSnapshot QueueSnapshot;
+        if (!bWorkshopHold && ResolveQueuedWorkshopAppointment(GetWorld(), NativeRoad->GetPersistentVehicleId(), QueueSnapshot))
+        {
+            const FString QueueState = QueueSnapshot.State.IsEmpty() ? TEXT("QUEUED") : QueueSnapshot.State;
+            if (QueueSnapshot.bCheckedIn)
+            {
+                return FText::FromString(FString::Printf(
+                    TEXT("Workshop appointment %s: %s | locked $%d | service ETA %.1f h | queue-managed"),
+                    *QueueState, *NativeRoad->GetVehicleDisplayName().ToString(), QueueSnapshot.LockedQuote,
+                    QueueSnapshot.HoursUntilServiceComplete));
+            }
+            return FText::FromString(FString::Printf(
+                TEXT("Workshop appointment %s: %s | locked $%d | day %d %s | queue-managed"),
+                *QueueState, *NativeRoad->GetVehicleDisplayName().ToString(), QueueSnapshot.LockedQuote,
+                QueueSnapshot.ReadyDay, *GTTWorkshopHoursPolicy::FormatHour(QueueSnapshot.ReadyHour)));
+        }
+
         if (!bNeedsMechanical && !bNeedsFuel)
             return FText::FromString(FString::Printf(TEXT("Workshop: %s is ready"), *NativeRoad->GetVehicleDisplayName().ToString()));
         if (!bWorkshopOpen && !bWorkshopHold)
