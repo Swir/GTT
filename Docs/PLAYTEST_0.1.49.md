@@ -79,3 +79,9 @@ This matrix validates the new timed deferred-workshop lifecycle without treating
 - [ ] 62. Garage queue text reports AWAITING_PAYMENT after the timer when checkout cannot be paid.
 - [ ] 63. Run all source verifiers plus deterministic SWIR progress SVG check; Roadmap remains 125/130 = 96.2% with no legacy text meter.
 - [ ] 64. Do not mark demo ready unless the exact candidate also passes real UE 5.8 Win64 package/runtime smoke and visual acceptance gates.
+
+## H. Direct terminal bypass protection
+- [ ] 65. With an exact queued vehicle parked at the workshop before its appointment is due, interact with the workshop terminal and confirm direct walk-up repair/refuel remains blocked with zero debit and zero mutation.
+- [ ] 66. At READY state, interact repeatedly and confirm the terminal surfaces the locked quote/queue state while the queue lifecycle, not immediate workshop service, owns check-in and service timing.
+- [ ] 67. During IN_SERVICE, interact repeatedly and confirm the terminal cannot bypass the persisted service timer, cannot recalculate the quote and cannot charge a second/direct service path.
+- [ ] 68. Put the same vehicle under a real TOW/IMMOBILE WORKSHOP HOLD and confirm hard WORKSHOP HOLD still takes priority over queued authority so the existing daytime/after-hours recovery lane remains available.
