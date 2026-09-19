@@ -69,7 +69,7 @@ if([Math]::Abs($urgentDuration-$expectedDuration) -gt 0.011){throw "Urgent servi
 
 $upgradeMarkers=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_PRIORITY_UPGRADED vehicle=$([regex]::Escape($vehicle)) .*urgent_locked_quote=$urgentQuote .*surcharge_percent=20 .*service_multiplier=0.80 charged=NO exact_id=YES.*$").Count
 $checkinMarkers=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_CHECKED_IN vehicle=$([regex]::Escape($vehicle)) priority=URGENT locked_quote=$urgentQuote .*charged=NO mutation=NO exact_id=YES.*$").Count
-$readyMarkers=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_READY_FOR_PICKUP vehicle=$([regex]::Escape($vehicle)) priority=URGENT paid_amount=$urgentQuote .*exact_id=YES.*$").Count
+$readyMarkers=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_READY_FOR_PICKUP vehicle=$([regex]::Escape($vehicle)) priority=URGENT charged=$urgentQuote locked_quote_match=YES exact_id=YES timed_service=YES saved=YES fleet_release=PENDING.*$").Count
 $pickupMarkers=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_PICKUP_RELEASED vehicle=$([regex]::Escape($vehicle)) paid_amount=$urgentQuote exact_id=YES repair_complete=YES fleet_return=YES.*$").Count
 if($upgradeMarkers -ne 1 -or $checkinMarkers -ne 1 -or $readyMarkers -ne 1 -or $pickupMarkers -ne 1){
     throw "Production marker count mismatch: priority=$upgradeMarkers checkin=$checkinMarkers ready=$readyMarkers pickup=$pickupMarkers"
