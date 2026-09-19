@@ -1,0 +1,63 @@
+name: GTT 0.1.52 workshop priority pickup runtime sanity
+
+on:
+  push:
+    paths:
+      - 'Source/GTT/Public/Core/GTTWorkshopPriorityPickupRuntimeEvidenceSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopPriorityPickupRuntimeEvidenceSubsystem.cpp'
+      - 'Source/GTT/Public/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.cpp'
+      - 'Source/GTT/Public/World/GTTWorkshopRepairQueueSubsystem.h'
+      - 'Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp'
+      - 'Scripts/smoke_test_windows.ps1'
+      - 'Scripts/evaluate_workshop_priority_pickup_runtime.ps1'
+      - 'Scripts/promote_demo_gate_workshop_priority_pickup.ps1'
+      - 'Scripts/verify_workshop_priority_pickup_runtime.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - 'Docs/PLAYTEST_0.1.52.md'
+      - 'Docs/ROADMAP.md'
+      - 'CHANGELOG.d/0.1.52.md'
+      - '.github/workflows/gtt-0.1.52-workshop-priority-pickup-runtime.yml'
+  pull_request:
+    paths:
+      - 'Source/GTT/Public/Core/GTTWorkshopPriorityPickupRuntimeEvidenceSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopPriorityPickupRuntimeEvidenceSubsystem.cpp'
+      - 'Source/GTT/Public/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.cpp'
+      - 'Source/GTT/Public/World/GTTWorkshopRepairQueueSubsystem.h'
+      - 'Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp'
+      - 'Scripts/smoke_test_windows.ps1'
+      - 'Scripts/evaluate_workshop_priority_pickup_runtime.ps1'
+      - 'Scripts/promote_demo_gate_workshop_priority_pickup.ps1'
+      - 'Scripts/verify_workshop_priority_pickup_runtime.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - 'Docs/PLAYTEST_0.1.52.md'
+      - 'Docs/ROADMAP.md'
+      - 'CHANGELOG.d/0.1.52.md'
+      - '.github/workflows/gtt-0.1.52-workshop-priority-pickup-runtime.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.1.52 packaged priority/pickup source contract
+        run: python Scripts/verify_workshop_priority_pickup_runtime.py
+      - name: Re-run 0.1.51 workshop priority/pickup gameplay contract
+        run: python Scripts/verify_workshop_priority_pickup.py
+      - name: Re-run 0.1.48 packaged capacity source contract
+        run: python Scripts/verify_workshop_capacity_runtime.py
+      - name: Re-run 0.1.49 timed lifecycle regression contract
+        run: python Scripts/verify_workshop_service_lifecycle.py
+      - name: Verify Win64 evidence pipeline source contract
+        run: python Scripts/verify_win64_evidence_pipeline.py
+      - name: Verify SWIR progress presentation remains deterministic
+        run: |
+          python Scripts/generate_progress_svg.py --check
+          python Scripts/verify_progress_presentation.py
