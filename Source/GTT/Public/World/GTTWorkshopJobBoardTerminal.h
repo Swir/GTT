@@ -10,9 +10,10 @@ class UStaticMeshComponent;
 /**
  * Player-facing workshop appointment board.
  *
- * This terminal deliberately owns presentation and safe appointment cancellation only. It never
- * charges cash and never mutates vehicle repair state; the authoritative workshop queue remains
- * responsible for check-in, timed service, payment, repair/refuel and persistence.
+ * This terminal owns presentation, safe waiting-job cancellation and explicit post-service pickup.
+ * It never charges cash and never mutates vehicle repair state; the authoritative workshop queue
+ * remains responsible for priority quotes, check-in, timed service, payment, repair/refuel and
+ * persistence. A nearby priority desk handles deliberate STANDARD -> URGENT promotion separately.
  */
 UCLASS()
 class GTT_API AGTTWorkshopJobBoardTerminal : public AActor, public IGTTInteractable
@@ -22,6 +23,7 @@ class GTT_API AGTTWorkshopJobBoardTerminal : public AActor, public IGTTInteracta
 public:
     AGTTWorkshopJobBoardTerminal();
 
+    virtual void BeginPlay() override;
     virtual void Interact_Implementation(AActor* Interactor) override;
     virtual FText GetInteractionText_Implementation() const override;
 
