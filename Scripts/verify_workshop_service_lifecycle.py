@@ -64,7 +64,6 @@ def main() -> int:
         "timed_service=YES", "checkout only after service", "AWAITING_PAYMENT",
         "Saved.bCheckedIn = Entry.bCheckedIn", "Entry.bCheckedIn = true",
         "ServiceCompleteDay", "ServiceCompleteHour",
-        "appointment remains READY with the same locked quote and no charge",
         "later due appointments can still proceed",
     ], "timed service implementation")
 
