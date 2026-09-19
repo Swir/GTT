@@ -1,0 +1,36 @@
+name: GTT 0.1.53 roadside assistance sanity
+
+on:
+  push:
+    branches: [main, "milestone/**"]
+    paths:
+      - "Source/GTT/Public/Traffic/GTTTrafficCarPawn.h"
+      - "Source/GTT/Private/Traffic/GTTTrafficCarPawn.cpp"
+      - "Scripts/verify_0_1_53_roadside_assistance.py"
+      - "Docs/PLAYTEST-0.1.53.md"
+      - ".github/workflows/gtt-0.1.53-roadside-assistance.yml"
+  pull_request:
+    paths:
+      - "Source/GTT/Public/Traffic/GTTTrafficCarPawn.h"
+      - "Source/GTT/Private/Traffic/GTTTrafficCarPawn.cpp"
+      - "Scripts/verify_0_1_53_roadside_assistance.py"
+      - "Docs/PLAYTEST-0.1.53.md"
+      - ".github/workflows/gtt-0.1.53-roadside-assistance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  roadside-assistance-source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify 0.1.53 roadside assistance contract
+        run: python Scripts/verify_0_1_53_roadside_assistance.py
