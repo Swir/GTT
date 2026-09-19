@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from pathlib import Path
 import re
 
@@ -60,7 +59,7 @@ if "SpendCash(" in cpp:
     errors.append("roadside assistance must not spend player cash")
 
 # Payout happens only in completion path, after the field repair succeeds.
-complete = cpp.split("void AGTTTrafficCarPawn::CompleteRoadsideAssistance", 1)[1].split("void AGTTTrafficCarPawn::Tick", 1)[0]
+complete = cpp.split("void AGTTTrafficCarPawn::CompleteRoadsideAssistance", 1)[1].split("void AGTTTrafficCarPawn::SetRoadsideResponderSceneAuthority", 1)[0]
 require_order(complete, [
     "RepairVehicle(MaxCondition * RoadsideRepairFraction);",
     "if (bIncidentDisabled)",
@@ -83,7 +82,15 @@ if "Super::Interact_Implementation" in interact:
 require(interact, "BeginRoadsideAssistance(Interactor)", "disabled traffic interaction")
 
 # Assistance must keep traffic in the critical simulation budget and physically stopped while work is active.
-require(cpp, "bIncidentDisabled || bRoadsideAssistanceActive || bYieldingForRangerStop", "critical tick budget")
+# Inspect required historical states semantically so additive critical states do not create a false regression.
+critical = re.search(r"const bool bForceCritical\s*=\s*([^;]+);", cpp)
+if not critical:
+    errors.append("missing critical tick budget expression")
+else:
+    critical_expr = critical.group(1)
+    for token in ("bIncidentDisabled", "bRoadsideAssistanceActive", "bYieldingForRangerStop"):
+        if token not in critical_expr:
+            errors.append(f"critical tick budget lost historical state: {token}")
 require(cpp, "bIncidentDisabled || IncidentStopRemaining > 0.0f || bRoadsideAssistanceActive", "assist stop authority")
 
 # Documentation should describe all player-visible gates without claiming packaged runtime proof.
