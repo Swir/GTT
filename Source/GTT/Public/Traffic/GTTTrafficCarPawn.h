@@ -37,6 +37,7 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Roadside") bool WasRoadsideAssistanceCompletedForIncident() const { return bRoadsideAssistanceCompletedForIncident; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|RoadStop") bool IsYieldingForRangerStop() const { return bYieldingForRangerStop; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|RoadStop") bool IsHoldingForRangerStop() const { return bHoldingForRangerStop; }
+    UFUNCTION(BlueprintPure, Category="GTT|Traffic|Responder") bool IsRoadsideResponderSceneAuthority() const { return bRoadsideResponderSceneAuthority; }
 
     /**
      * World-authority escape hatch used only when an active warden road stop owns
@@ -53,6 +54,16 @@ public:
         CancelRoadsideAssistance(TEXT("ranger-traffic-control-priority"));
         return true;
     }
+
+    /** Set/clear subordinate county-road-service scene ownership. */
+    void SetRoadsideResponderSceneAuthority(bool bActive);
+
+    /**
+     * Complete a responder-owned no-payout recovery. The traffic pawn remains
+     * the only vehicle-condition authority; the responder subsystem cannot
+     * mutate condition or economy directly.
+     */
+    bool CompleteRoadsideResponderRecovery();
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Traffic")
@@ -77,6 +88,8 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Traffic|Roadside", meta=(ClampMin="0")) int32 RoadsideBasePayout = 65;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Traffic|Roadside", meta=(ClampMin="0")) int32 RoadsideSeverityBonus = 45;
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Traffic|Roadside", meta=(ClampMin="1.0")) float RoadsidePostAssistLimpSeconds = 12.0f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Traffic|Responder", meta=(ClampMin="0.05", ClampMax="1.0")) float ResponderRecoveryFraction = 0.38f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="GTT|Traffic|Responder", meta=(ClampMin="1.0")) float ResponderPostRecoveryLimpSeconds = 18.0f;
 
 private:
     void CancelRoadsideAssistance(const TCHAR* Reason);
@@ -97,6 +110,7 @@ private:
     bool bIncidentDisabled = false;
     bool bRoadsideAssistanceActive = false;
     bool bRoadsideAssistanceCompletedForIncident = false;
+    bool bRoadsideResponderSceneAuthority = false;
     bool bYieldingForRangerStop = false;
     bool bHoldingForRangerStop = false;
 };
