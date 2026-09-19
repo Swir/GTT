@@ -24,7 +24,7 @@ void UGTTCivilianIncidentResponderSubsystem::Initialize(FSubsystemCollectionBase
 
 void UGTTCivilianIncidentResponderSubsystem::Deinitialize()
 {
-    if (!TrackedIncidentId.IsNone() && !bRecoveryCompletedThisSession)
+    if (!TrackedIncidentId.IsNone() && (!bRecoveryCompletedThisSession || Phase == EGTTCivilianResponderPhase::ClearingScene))
     {
         SaveCheckpoint();
     }
@@ -52,8 +52,32 @@ void UGTTCivilianIncidentResponderSubsystem::Tick(float DeltaSeconds)
 
     UWorld* World = GetWorld();
     UGTTCivilianIncidentDispatchSubsystem* Dispatch = World ? World->GetSubsystem<UGTTCivilianIncidentDispatchSubsystem>() : nullptr;
+
+    if (Phase == EGTTCivilianResponderPhase::ClearingScene)
+    {
+        MissingDispatchSeconds = 0.0f;
+        AdvanceSceneClearance(Elapsed);
+        if (Phase == EGTTCivilianResponderPhase::ClearingScene && CheckpointAccumulator >= CheckpointIntervalSeconds)
+        {
+            CheckpointAccumulator = 0.0f;
+            SaveCheckpoint();
+        }
+        return;
+    }
+
     if (!Dispatch || !Dispatch->HasActiveDispatch())
     {
+        if (bRecoveryCompletedThisSession && Phase == EGTTCivilianResponderPhase::None)
+        {
+            TrackedIncidentId = NAME_None;
+            LastSceneLocation = FVector::ZeroVector;
+            MissingDispatchSeconds = 0.0f;
+            bRecoveryCompletedThisSession = false;
+            bRestoredCheckpoint = false;
+            ClearCheckpoint();
+            return;
+        }
+
         if (!TrackedIncidentId.IsNone())
         {
             MissingDispatchSeconds += Elapsed;
@@ -192,16 +216,11 @@ void UGTTCivilianIncidentResponderSubsystem::Tick(float DeltaSeconds)
         {
             if (Vehicle->CompleteRoadsideResponderRecovery())
             {
-                NotifyPlayer(TEXT("COUNTY ROAD SERVICE: civilian vehicle recovered and returning to traffic. No player reward issued."), 5.0f);
+                NotifyPlayer(TEXT("COUNTY ROAD SERVICE: civilian vehicle recovered. Safety crew is reopening the lane; no player reward issued."), 5.0f);
                 UE_LOG(LogGTT, Log,
                     TEXT("CIVILIAN_RESPONDER_HANDOFF_COMPLETE incident=%s car=%s"),
                     *TrackedIncidentId.ToString(), *Vehicle->GetName());
-                AuthorityVehicle.Reset();
-                DestroyResponderVehicle();
-                Phase = EGTTCivilianResponderPhase::None;
-                SceneHoldRemaining = 0.0f;
-                bRecoveryCompletedThisSession = true;
-                ClearCheckpoint();
+                BeginSceneClearance(Vehicle);
                 return;
             }
 
@@ -256,6 +275,7 @@ void UGTTCivilianIncidentResponderSubsystem::RequestResponder(AGTTTrafficCarPawn
     }
 
     const FVector SceneLocation = Vehicle->GetActorLocation();
+    LastSceneLocation = SceneLocation;
     FVector SpawnLocation = SceneLocation + FVector(-ResponderSpawnDistanceCm, 260.0f, 110.0f);
     if (bStartAtScene)
     {
@@ -301,6 +321,104 @@ void UGTTCivilianIncidentResponderSubsystem::RequestResponder(AGTTTrafficCarPawn
     bRestoredCheckpoint = false;
 }
 
+void UGTTCivilianIncidentResponderSubsystem::RestoreClearingResponder()
+{
+    if (!GetWorld() || TrackedIncidentId.IsNone() || ResponderVehicle.IsValid())
+    {
+        return;
+    }
+
+    const FVector SpawnLocation = LastSceneLocation + FVector(-360.0f, 240.0f, 90.0f);
+    const FRotator SpawnRotation = (LastSceneLocation - SpawnLocation).Rotation();
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+    AGTTRoadsideResponderVehicle* Spawned = GetWorld()->SpawnActor<AGTTRoadsideResponderVehicle>(
+        AGTTRoadsideResponderVehicle::StaticClass(), SpawnLocation, SpawnRotation, Params);
+    if (!Spawned)
+    {
+        UE_LOG(LogGTT, Warning, TEXT("CIVILIAN_RESPONDER_CLEARANCE_RESTORE_FAILED incident=%s"), *TrackedIncidentId.ToString());
+        return;
+    }
+
+    Spawned->InitializeIncidentResponse(TrackedIncidentId, LastSceneLocation, true);
+    Spawned->BeginSceneClearance();
+    ResponderVehicle = Spawned;
+    UE_LOG(LogGTT, Log,
+        TEXT("CIVILIAN_RESPONDER_CLEARANCE_RESTORED incident=%s remaining=%.1f scene=%s"),
+        *TrackedIncidentId.ToString(), SceneClearanceRemaining, *LastSceneLocation.ToCompactString());
+}
+
+void UGTTCivilianIncidentResponderSubsystem::BeginSceneClearance(AGTTTrafficCarPawn* Vehicle)
+{
+    ClearResponderSceneAuthority();
+    if (Vehicle)
+    {
+        LastSceneLocation = Vehicle->GetActorLocation();
+    }
+
+    Phase = EGTTCivilianResponderPhase::ClearingScene;
+    SceneHoldRemaining = 0.0f;
+    SceneClearanceRemaining = ResponderSceneClearanceSeconds;
+    bRecoveryCompletedThisSession = true;
+
+    if (AGTTRoadsideResponderVehicle* Responder = ResponderVehicle.Get())
+    {
+        Responder->BeginSceneClearance();
+    }
+    else
+    {
+        RestoreClearingResponder();
+    }
+
+    SaveCheckpoint();
+    UE_LOG(LogGTT, Log,
+        TEXT("CIVILIAN_RESPONDER_CLEARANCE_BEGIN incident=%s remaining=%.1f"),
+        *TrackedIncidentId.ToString(), SceneClearanceRemaining);
+}
+
+void UGTTCivilianIncidentResponderSubsystem::AdvanceSceneClearance(float Elapsed)
+{
+    if (Phase != EGTTCivilianResponderPhase::ClearingScene)
+    {
+        return;
+    }
+
+    if (!ResponderVehicle.IsValid())
+    {
+        RestoreClearingResponder();
+    }
+
+    if (AGTTRoadsideResponderVehicle* Responder = ResponderVehicle.Get())
+    {
+        if (!Responder->IsSceneClearing())
+        {
+            Responder->BeginSceneClearance();
+        }
+    }
+    else
+    {
+        return;
+    }
+
+    SceneClearanceRemaining = FMath::Max(0.0f, SceneClearanceRemaining - FMath::Max(0.0f, Elapsed));
+    if (SceneClearanceRemaining > 0.0f)
+    {
+        return;
+    }
+
+    NotifyPlayer(TEXT("COUNTY ROAD SERVICE: lane reopened; responder clear of the civilian scene."), 4.0f);
+    UE_LOG(LogGTT, Log,
+        TEXT("CIVILIAN_RESPONDER_CLEARANCE_COMPLETE incident=%s"),
+        *TrackedIncidentId.ToString());
+
+    DestroyResponderVehicle();
+    Phase = EGTTCivilianResponderPhase::None;
+    SceneClearanceRemaining = 0.0f;
+    LastSceneLocation = FVector::ZeroVector;
+    ClearCheckpoint();
+}
+
 void UGTTCivilianIncidentResponderSubsystem::CancelResponder(const TCHAR* Reason, bool bResetGrace)
 {
     ClearResponderSceneAuthority();
@@ -315,6 +433,8 @@ void UGTTCivilianIncidentResponderSubsystem::CancelResponder(const TCHAR* Reason
     DestroyResponderVehicle();
     Phase = EGTTCivilianResponderPhase::None;
     SceneHoldRemaining = 0.0f;
+    SceneClearanceRemaining = 0.0f;
+    LastSceneLocation = FVector::ZeroVector;
     if (bResetGrace)
     {
         PlayerGraceElapsed = 0.0f;
@@ -329,8 +449,6 @@ void UGTTCivilianIncidentResponderSubsystem::ClearResponderSceneAuthority()
     }
     AuthorityVehicle.Reset();
 
-    // Defensive fail-closed cleanup for travel/rebind cases where the weak pointer
-    // could have expired while a traffic actor still carries the transient flag.
     if (UWorld* World = GetWorld())
     {
         for (TActorIterator<AGTTTrafficCarPawn> It(World); It; ++It)
@@ -355,7 +473,7 @@ void UGTTCivilianIncidentResponderSubsystem::DestroyResponderVehicle()
 
 void UGTTCivilianIncidentResponderSubsystem::SaveCheckpoint() const
 {
-    if (TrackedIncidentId.IsNone() || bRecoveryCompletedThisSession)
+    if (TrackedIncidentId.IsNone() || (bRecoveryCompletedThisSession && Phase != EGTTCivilianResponderPhase::ClearingScene))
     {
         ClearCheckpoint();
         return;
@@ -368,12 +486,14 @@ void UGTTCivilianIncidentResponderSubsystem::SaveCheckpoint() const
         return;
     }
 
-    Save->SchemaVersion = 1;
+    Save->SchemaVersion = 2;
     Save->bActive = true;
     Save->IncidentId = TrackedIncidentId;
     Save->Phase = static_cast<uint8>(Phase);
     Save->PlayerGraceElapsed = FMath::Clamp(PlayerGraceElapsed, 0.0f, PlayerAssistGraceSeconds);
     Save->SceneHoldRemaining = FMath::Clamp(SceneHoldRemaining, 0.0f, ResponderSceneHoldSeconds);
+    Save->SceneClearanceRemaining = FMath::Clamp(SceneClearanceRemaining, 0.0f, ResponderSceneClearanceSeconds);
+    Save->SceneLocation = LastSceneLocation;
     UGameplayStatics::SaveGameToSlot(Save, CivilianResponderSaveSlot, 0);
 }
 
@@ -386,7 +506,16 @@ void UGTTCivilianIncidentResponderSubsystem::LoadCheckpoint()
 
     const UGTTCivilianResponderSaveGame* Save = Cast<UGTTCivilianResponderSaveGame>(
         UGameplayStatics::LoadGameFromSlot(CivilianResponderSaveSlot, 0));
-    if (!Save || Save->SchemaVersion != 1 || !Save->bActive || Save->IncidentId.IsNone() || Save->Phase > static_cast<uint8>(EGTTCivilianResponderPhase::OnScene))
+    if (!Save || !Save->bActive || Save->IncidentId.IsNone() || (Save->SchemaVersion != 1 && Save->SchemaVersion != 2))
+    {
+        ClearCheckpoint();
+        return;
+    }
+
+    const uint8 MaxSupportedPhase = Save->SchemaVersion >= 2
+        ? static_cast<uint8>(EGTTCivilianResponderPhase::ClearingScene)
+        : static_cast<uint8>(EGTTCivilianResponderPhase::OnScene);
+    if (Save->Phase > MaxSupportedPhase)
     {
         ClearCheckpoint();
         return;
@@ -396,13 +525,23 @@ void UGTTCivilianIncidentResponderSubsystem::LoadCheckpoint()
     Phase = static_cast<EGTTCivilianResponderPhase>(Save->Phase);
     PlayerGraceElapsed = FMath::Clamp(Save->PlayerGraceElapsed, 0.0f, PlayerAssistGraceSeconds);
     SceneHoldRemaining = FMath::Clamp(Save->SceneHoldRemaining, 0.0f, ResponderSceneHoldSeconds);
+    SceneClearanceRemaining = Save->SchemaVersion >= 2
+        ? FMath::Clamp(Save->SceneClearanceRemaining, 0.0f, ResponderSceneClearanceSeconds)
+        : 0.0f;
+    LastSceneLocation = Save->SchemaVersion >= 2 ? Save->SceneLocation : FVector::ZeroVector;
     bRestoredCheckpoint = true;
-    bRecoveryCompletedThisSession = false;
+    bRecoveryCompletedThisSession = Phase == EGTTCivilianResponderPhase::ClearingScene;
     MissingDispatchSeconds = 0.0f;
 
+    if (Phase == EGTTCivilianResponderPhase::ClearingScene)
+    {
+        SceneClearanceRemaining = FMath::Max(0.5f, SceneClearanceRemaining);
+        RestoreClearingResponder();
+    }
+
     UE_LOG(LogGTT, Log,
-        TEXT("CIVILIAN_RESPONDER_LOAD incident=%s phase=%d grace=%.1f scene_hold=%.1f"),
-        *TrackedIncidentId.ToString(), static_cast<int32>(Phase), PlayerGraceElapsed, SceneHoldRemaining);
+        TEXT("CIVILIAN_RESPONDER_LOAD incident=%s phase=%d grace=%.1f scene_hold=%.1f clearance=%.1f"),
+        *TrackedIncidentId.ToString(), static_cast<int32>(Phase), PlayerGraceElapsed, SceneHoldRemaining, SceneClearanceRemaining);
 }
 
 void UGTTCivilianIncidentResponderSubsystem::ClearCheckpoint() const

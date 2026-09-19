@@ -44,8 +44,6 @@ void UGTTRoadsideSceneSafetySubsystem::Tick(float DeltaSeconds)
 
     if (TrackedResponder.Get() != Responder)
     {
-        // Cooldown history is scoped to one physical response scene. A new
-        // responder must never inherit yield suppression from an older scene.
         LastYieldTimeByCar.Reset();
         TrackedResponder = Responder;
         UE_LOG(LogGTT, Log,
@@ -86,8 +84,11 @@ void UGTTRoadsideSceneSafetySubsystem::ApplySafetyCorridor(AGTTRoadsideResponder
         return;
     }
 
+    const bool bLaneReopening = Responder->IsSceneClearing();
     const FVector SceneLocation = Responder->GetActorLocation();
-    const float OuterRadiusSq = FMath::Square(SafetyRadiusCm);
+    const float EffectiveSafetyRadiusCm = bLaneReopening ? ReopeningRadiusCm : SafetyRadiusCm;
+    const float EffectiveYieldSeverity = bLaneReopening ? ReopeningYieldSeverity : YieldSeverity;
+    const float OuterRadiusSq = FMath::Square(EffectiveSafetyRadiusCm);
     const float InnerRadiusSq = FMath::Square(InnerPassRadiusCm);
     const float NowSeconds = World->GetTimeSeconds();
     int32 Yielded = 0;
@@ -115,7 +116,7 @@ void UGTTRoadsideSceneSafetySubsystem::ApplySafetyCorridor(AGTTRoadsideResponder
             }
         }
 
-        TrafficCar->ReactToNearbyIncident(SceneLocation, YieldSeverity);
+        TrafficCar->ReactToNearbyIncident(SceneLocation, EffectiveYieldSeverity);
         LastYieldTimeByCar.Add(Key, NowSeconds);
         ++Yielded;
     }
@@ -124,8 +125,12 @@ void UGTTRoadsideSceneSafetySubsystem::ApplySafetyCorridor(AGTTRoadsideResponder
     if (Yielded > 0)
     {
         UE_LOG(LogGTT, Verbose,
-            TEXT("ROADSIDE_SAFETY_CORRIDOR_YIELD incident=%s drivers=%d radius_cm=%.0f cooldown_s=%.1f"),
-            *Responder->GetAssignedIncidentId().ToString(), Yielded, SafetyRadiusCm, ReYieldCooldownSeconds);
+            TEXT("ROADSIDE_SAFETY_CORRIDOR_YIELD incident=%s drivers=%d mode=%s radius_cm=%.0f cooldown_s=%.1f"),
+            *Responder->GetAssignedIncidentId().ToString(),
+            Yielded,
+            bLaneReopening ? TEXT("REOPENING") : TEXT("ACTIVE"),
+            EffectiveSafetyRadiusCm,
+            ReYieldCooldownSeconds);
     }
 }
 

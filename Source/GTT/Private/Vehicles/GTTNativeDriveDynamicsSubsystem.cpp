@@ -14,7 +14,10 @@ namespace
 {
     constexpr float BaseFieldmasterTopSpeedKmh = 43.0f;
     constexpr float EngineUpgradeSpeedBonusKmh = 3.0f;
-    constexpr float CriticalConditionPercent = 8.0f;
+    // FGTTVehicleMigrationSnapshot::ConditionPercent is a normalized 0..1 ratio.
+    // Keeping the threshold in the same unit prevents a healthy Fieldmaster from
+    // being treated as permanently broken by the final Native Chaos authority.
+    constexpr float CriticalConditionRatio = 0.08f;
     constexpr float LowTireIntegrityThreshold = 0.35f;
     constexpr float DynamicsEvidenceIntervalSeconds = 5.0f;
 
@@ -54,7 +57,7 @@ void UGTTNativeDriveDynamicsSubsystem::Tick(float DeltaTime)
             ? Cast<UChaosWheeledVehicleMovementComponent>(NativePawn->GetVehicleMovementComponent()) : nullptr;
         const FGTTVehicleMigrationSnapshot State = NativePawn ? NativePawn->GetMigrationSnapshot() : FGTTVehicleMigrationSnapshot();
         const bool bEligible = NativePawn && NativePawn->IsLegacyTakeoverActive() && NativePawn->IsNativeFieldmasterReady()
-            && NativePawn->IsOccupied() && State.ConditionPercent > CriticalConditionPercent && State.FuelLiters > KINDA_SMALL_NUMBER;
+            && NativePawn->IsOccupied() && State.ConditionPercent > CriticalConditionRatio && State.FuelLiters > KINDA_SMALL_NUMBER;
         ApplyDrivetrainAuthority(NativePawn, Movement, TEXT("RustyFieldmaster60"), bEligible,
             State.TireIntegrity, State.TireUpgradeLevel, DeltaTime);
     }
@@ -99,7 +102,7 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDriveDynamics(AGTTFieldmasterNativeP
     if (!Movement || !Movement->IsActive()) return;
 
     const FGTTVehicleMigrationSnapshot State = NativePawn->GetMigrationSnapshot();
-    const float ConditionAlpha = FMath::Clamp(State.ConditionPercent / 100.0f, 0.0f, 1.0f);
+    const float ConditionAlpha = FMath::Clamp(State.ConditionPercent, 0.0f, 1.0f);
     const float TireAlpha = FMath::Clamp(State.TireIntegrity, 0.0f, 1.0f);
     const int32 EngineLevel = FMath::Clamp(State.EngineUpgradeLevel, 0, 3);
     const int32 TireLevel = FMath::Clamp(State.TireUpgradeLevel, 0, 3);
@@ -112,7 +115,7 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDriveDynamics(AGTTFieldmasterNativeP
 
     float AppliedBrake = 0.0f;
     bool bGovernorActive = false;
-    const bool bCriticalBreakdown = State.ConditionPercent <= CriticalConditionPercent || State.FuelLiters <= KINDA_SMALL_NUMBER;
+    const bool bCriticalBreakdown = State.ConditionPercent <= CriticalConditionRatio || State.FuelLiters <= KINDA_SMALL_NUMBER;
 
     if (bCriticalBreakdown)
     {
@@ -146,8 +149,8 @@ void UGTTNativeDriveDynamicsSubsystem::ApplyDriveDynamics(AGTTFieldmasterNativeP
     {
         LogSeconds = 0.0f;
         UE_LOG(LogGTT, Log,
-            TEXT("NATIVE_DRIVE_DYNAMICS vehicle=RustyFieldmaster60 speed_kmh=%.1f cap_kmh=%.1f condition=%.1f tire=%.2f engine_level=%d tire_level=%d governor=%s brake=%.2f critical=%s"),
-            SpeedKmh, EffectiveTopSpeedKmh, State.ConditionPercent, State.TireIntegrity, EngineLevel, TireLevel,
+            TEXT("NATIVE_DRIVE_DYNAMICS vehicle=RustyFieldmaster60 speed_kmh=%.1f cap_kmh=%.1f condition_pct=%.1f tire=%.2f engine_level=%d tire_level=%d governor=%s brake=%.2f critical=%s"),
+            SpeedKmh, EffectiveTopSpeedKmh, State.ConditionPercent * 100.0f, State.TireIntegrity, EngineLevel, TireLevel,
             bGovernorActive ? TEXT("YES") : TEXT("NO"), AppliedBrake, bCriticalBreakdown ? TEXT("YES") : TEXT("NO"));
     }
 }

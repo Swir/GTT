@@ -81,6 +81,7 @@ void AGTTRoadsideResponderVehicle::InitializeIncidentResponse(FName InIncidentId
     AssignedIncidentId = InIncidentId;
     SceneLocation = InSceneLocation;
     bParkedAtScene = bStartAtScene;
+    bSceneClearing = false;
     SetSafetyCorridorDeployed(bStartAtScene);
 
     if (bStartAtScene)
@@ -92,6 +93,19 @@ void AGTTRoadsideResponderVehicle::InitializeIncidentResponse(FName InIncidentId
             VehicleMesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
             VehicleMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
         }
+    }
+}
+
+void AGTTRoadsideResponderVehicle::BeginSceneClearance()
+{
+    bParkedAtScene = true;
+    bSceneClearing = true;
+    SetSafetyCorridorDeployed(true);
+
+    if (VehicleMesh && VehicleMesh->IsSimulatingPhysics())
+    {
+        VehicleMesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+        VehicleMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     }
 }
 
@@ -148,19 +162,20 @@ void AGTTRoadsideResponderVehicle::DriveTowardScene(float DeltaSeconds)
 void AGTTRoadsideResponderVehicle::SetSafetyCorridorDeployed(bool bDeployed)
 {
     bSafetyCorridorDeployed = bDeployed;
-    for (UStaticMeshComponent* Cone : {SafetyConeFrontLeft.Get(), SafetyConeFrontRight.Get(), SafetyConeRearLeft.Get(), SafetyConeRearRight.Get()})
-    {
-        if (Cone)
-        {
-            Cone->SetVisibility(bSafetyCorridorDeployed, true);
-        }
-    }
+
+    if (SafetyConeFrontLeft) SafetyConeFrontLeft->SetVisibility(bSafetyCorridorDeployed && !bSceneClearing, true);
+    if (SafetyConeFrontRight) SafetyConeFrontRight->SetVisibility(bSafetyCorridorDeployed && !bSceneClearing, true);
+    if (SafetyConeRearLeft) SafetyConeRearLeft->SetVisibility(bSafetyCorridorDeployed, true);
+    if (SafetyConeRearRight) SafetyConeRearRight->SetVisibility(bSafetyCorridorDeployed, true);
 
     if (ServiceLabel)
     {
-        ServiceLabel->SetText(bSafetyCorridorDeployed
-            ? NSLOCTEXT("GTT", "RoadServiceSafeCorridor", "ROAD SERVICE - SAFE CORRIDOR")
-            : NSLOCTEXT("GTT", "RoadServiceLabel", "ROAD SERVICE"));
+        ServiceLabel->SetText(
+            bSceneClearing
+                ? NSLOCTEXT("GTT", "RoadServiceLaneReopening", "ROAD SERVICE - LANE REOPENING")
+                : bSafetyCorridorDeployed
+                    ? NSLOCTEXT("GTT", "RoadServiceSafeCorridor", "ROAD SERVICE - SAFE CORRIDOR")
+                    : NSLOCTEXT("GTT", "RoadServiceLabel", "ROAD SERVICE"));
     }
 }
 
@@ -179,9 +194,11 @@ void AGTTRoadsideResponderVehicle::Interact_Implementation(AActor* Interactor)
         if (UGTTPlayerEconomyComponent* Economy = Interactor->FindComponentByClass<UGTTPlayerEconomyComponent>())
         {
             Economy->PushMessage(
-                bSafetyCorridorDeployed
-                    ? TEXT("County road service has a safety corridor around the active civilian incident.")
-                    : TEXT("County road service is handling an active civilian incident."),
+                bSceneClearing
+                    ? TEXT("County road service is reopening the lane after the civilian recovery.")
+                    : bSafetyCorridorDeployed
+                        ? TEXT("County road service has a safety corridor around the active civilian incident.")
+                        : TEXT("County road service is handling an active civilian incident."),
                 3.0f);
         }
     }
@@ -189,7 +206,9 @@ void AGTTRoadsideResponderVehicle::Interact_Implementation(AActor* Interactor)
 
 FText AGTTRoadsideResponderVehicle::GetInteractionText_Implementation() const
 {
-    return bSafetyCorridorDeployed
-        ? NSLOCTEXT("GTT", "RoadServiceSafetyCorridor", "County road service - safety corridor active")
-        : NSLOCTEXT("GTT", "RoadServiceEnRoute", "County road service - responding");
+    return bSceneClearing
+        ? NSLOCTEXT("GTT", "RoadServiceLaneReopeningInteraction", "County road service - lane reopening")
+        : bSafetyCorridorDeployed
+            ? NSLOCTEXT("GTT", "RoadServiceSafetyCorridor", "County road service - safety corridor active")
+            : NSLOCTEXT("GTT", "RoadServiceEnRoute", "County road service - responding");
 }

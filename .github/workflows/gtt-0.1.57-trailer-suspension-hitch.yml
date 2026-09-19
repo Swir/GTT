@@ -1,0 +1,39 @@
+name: GTT 0.1.57 physical trailer suspension and hitch sanity
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTFarmTrailerDynamicsSubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTFarmTrailerDynamicsSubsystem.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTFarmTrailer.h'
+      - 'Source/GTT/Private/Vehicles/GTTFarmTrailer.cpp'
+      - 'Scripts/verify_0_1_57_trailer_suspension_hitch.py'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/gtt-0.1.57-trailer-suspension-hitch.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTFarmTrailerDynamicsSubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTFarmTrailerDynamicsSubsystem.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTFarmTrailer.h'
+      - 'Source/GTT/Private/Vehicles/GTTFarmTrailer.cpp'
+      - 'Scripts/verify_0_1_57_trailer_suspension_hitch.py'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/gtt-0.1.57-trailer-suspension-hitch.yml'
+  workflow_dispatch:
+
+jobs:
+  trailer-suspension-hitch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify physical trailer suspension and hitch contract
+        run: python Scripts/verify_0_1_57_trailer_suspension_hitch.py
+      - name: Preserve dedicated Fieldmaster Chaos movement contract
+        run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
+      - name: Preserve final Native drivetrain authority contract
+        run: python Scripts/verify_native_drivetrain_authority.py
