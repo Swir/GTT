@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.47 — multi-vehicle workshop appointments and service capacity**.
+Current development milestone: **0.1.50 — workshop job board and safe appointment control**.
 
 ## What is GTT?
 
@@ -45,7 +45,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 |---|---|
 | 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances use collision-safe persistent IDs before ownership. |
 | 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
-| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. Ordinary damaged/mobile native road vehicles can reserve one of four deterministic after-hours workshop appointments, each with an exact vehicle ID, request-time locked quote, persistent state and no pre-charge. |
+| 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. Ordinary damaged/mobile native road vehicles can hold one of four persistent exact-ID appointments with locked quotes, timed 30–90 minute service, no pre-charge and a physical job board for lifecycle status plus guarded cancellation. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
@@ -136,7 +136,7 @@ Milestone 0.1.38 adds a later packaged evidence route for those same production 
 
 Milestone 0.1.39 persists an in-flight voluntary PATCH/TOW as a small transactional SaveGame sidecar. It stores only the exact target `PersistentVehicleId`, locked quote, remaining ETA and conservative authorization-time replay guards; cash is still charged only by the production completion path. Restore waits for the exact vehicle + driver, rejects Wanted/conflicting/invalid state and preserves active Farm Cargo vehicle authority instead of transferring service to a substitute.
 
-Milestone 0.1.40 adds the packaged evidence contract for that persistence path. The deterministic route saves and reloads the primary world around real sidecar checkpoints, proves restored tow quote/ETA/exact-ID plus no-charge cancellation, proves Wanted invalidation fails closed without charge, restores a patch and proves one exact locked-quote debit, then finishes the same Farm Cargo contract through wrong-vehicle rejection, Hill Farm and North Wood Yard. The technical demo gate advances to schema 12, but this remains a future runtime requirement until the exact candidate runs on the qualifying Win64 + UE 5.8 runner.
+Milestone 0.1.40 adds the packaged evidence contract for that persistence path. The deterministic route saves and reloads the primary world around real sidecar checkpoints, proves restored tow quote/ETA/exact-ID plus no-charge cancellation, proves Wanted invalidation fails closed without charge, restores a patch and proves one exact locked-quote debit, then finishes the same Farm Cargo contract through wrong-vehicle rejection, Hill Farm and North Wood Yard. The technical demo gate advances to schema 12, but this remains a future runtime requirement until the exact candidate executes on a qualifying UE 5.8 Win64 runner.
 
 Milestone 0.1.41 closes the garage-recall loophole after an ordinary roadside tow. The tow still preserves damage and exact identity at the workshop, while the numbered garage bays now treat authoritative `TOW`/`IMMOBILE` fleet states as a hard WORKSHOP HOLD before any recall movement or fee. The existing paid native workshop service clears the underlying damage state, saves progress and naturally releases the hold; `LIMP` and ordinary `SERVICE` states remain advisory so drivable marginal vehicles are not unnecessarily locked out.
 
@@ -151,6 +151,12 @@ Milestone 0.1.45 turns closed-hours ordinary repair into a persistent deferred s
 Milestone 0.1.46 extends the persistent workshop queue into the future packaged candidate. A later deterministic runtime window books after hours with no pre-charge, reloads the real queue sidecar from disk, proves a different owned vehicle cannot consume the reservation at opening, then services only the exact queued vehicle with one locked-quote debit, sidecar cleanup, stable identity and preserved Farm Cargo authority. `WORKSHOP_QUEUE_RUNTIME.json` is required before the schema-14 technical gate can promote to schema 15; source CI does not claim this packaged proof has run.
 
 Milestone 0.1.47 expands deferred workshop service into a bounded multi-vehicle appointment system. Up to four owned damaged/mobile native road vehicles can hold independent exact-ID, request-time locked-quote reservations with deterministic 45-minute slots and additive SaveGame persistence. Booking and exact-ID cancellation take no cash; an underfunded due appointment stays queued without blocking later affordable vehicles, while successful service charges only that appointment's locked quote exactly once. Hard TOW/IMMOBILE WORKSHOP HOLD remains on the separate emergency lane, and the existing 0.1.46 packaged single-appointment evidence contract remains backward compatible.
+
+Milestone 0.1.48 adds packaged-capacity evidence for two independent exact-ID appointments on the same candidate. The future runtime route proves persistence, deterministic 45-minute spacing, cancellation/rebooking, an underfunded due vehicle that does not block the later affordable appointment, exact locked-quote debit and Farm Cargo continuity. The demo technical gate target advances only with real same-SHA packaged PASS evidence; source CI remains non-runtime proof.
+
+Milestone 0.1.49 makes deferred appointments physical timed work instead of instant due-time mutation. The exact booked vehicle must reach the workshop and progress through `READY → IN_SERVICE → AWAITING_PAYMENT → checkout`; service takes 30–90 in-world minutes based on vehicle workload, leaving the service area pauses safely, and the ordinary workshop terminal cannot bypass the queue's locked quote or persisted timer. Hard WORKSHOP HOLD remains the higher-priority emergency lane.
+
+Milestone 0.1.50 adds a physical workshop job board beside the garage. It reads the authoritative four-slot queue and presents exact vehicle identity, locked quote, lifecycle state and ETA without becoming a second repair/economy authority. Waiting/ready appointments gain an exact-ID two-step cancellation guard; checked-in/payment states remain queue-owned. The milestone adds a 48-case source/playtest matrix and leaves all five Native Chaos, trailer and Win64 runtime/visual blockers unchanged.
 
 ## Verification
 
@@ -202,7 +208,7 @@ The current repository also contains prototype/source-built presentation and sys
 
 ## 🔎 Search Keywords
 
-`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside emergency repair` • `multi-vehicle workshop appointments` • `C++ Unreal game`
+`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside emergency repair` • `multi-vehicle workshop appointments` • `workshop job board` • `timed vehicle service` • `C++ Unreal game`
 
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="SWIR electric divider" />
 
