@@ -88,12 +88,30 @@ def main() -> int:
     if not (insufficient < continue_after < service_after):
         raise AssertionError("underfunded appointment must continue to later due entries")
 
-    # 0.1.49 may insert timed check-in before debit; it must not weaken capacity semantics.
+    # 0.1.49+ may insert timed check-in before debit. Verify behavior from executable
+    # source structure rather than a changelog/comment sentence so older gates stay
+    # meaningful when wording changes.
     if "bCheckedIn" in queue_h or "WORKSHOP_QUEUE_CHECKED_IN" in queue_cpp:
         require(queue_cpp, [
-            "AWAITING_PAYMENT", "appointment remains READY with the same locked quote and no charge",
-            "timed_service=YES",
+            "AWAITING_PAYMENT", "timed_service=YES",
+            "MutableEntry.bCheckedIn = true;",
+            "ResolveServiceCompletion(Day, Hour, DurationHours",
         ], "timed lifecycle forward compatibility")
+        checkin_start = execution.index("if (!Entry.bCheckedIn)")
+        checkout_start = execution.index(
+            "if (!IsAtOrAfter(Day, Hour, Entry.ServiceCompleteDay, Entry.ServiceCompleteHour))",
+            checkin_start,
+        )
+        checkin = execution[checkin_start:checkout_start]
+        require(checkin, [
+            "if (!IsVehicleAtWorkshop(Vehicle))",
+            "MutableEntry.bCheckedIn = true;",
+            "WriteCheckpoint()",
+            "++Index;",
+            "continue;",
+        ], "timed lifecycle check-in")
+        if "SpendCash(" in checkin or "ApplyNativeWorkshopService(" in checkin:
+            raise AssertionError("timed check-in must preserve locked quote without charging or servicing before completion")
 
     require(queue_cpp, [
         "bFarmCargoContractActive", "FarmCargoBoundVehicleId == VehicleId",
