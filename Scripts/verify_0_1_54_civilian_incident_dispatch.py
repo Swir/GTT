@@ -70,14 +70,15 @@ require(
 )
 
 # These helpers accept const UObject-derived pointers and are intentionally C++
-# only. Keeping them out of reflected signatures avoids UHT version variance.
+# only. Match a UFUNCTION directly attached to the declaration; reflected methods
+# above them must not cause a false positive.
 for helper in ("IsTrackedVehicle", "GetPresentationSnapshot"):
-    helper_pos = dispatch_h.find(helper)
-    if helper_pos < 0:
-        errors.append(f"dispatch header: missing helper {helper}")
-        continue
-    prefix = dispatch_h[max(0, helper_pos - 120):helper_pos]
-    if "UFUNCTION" in prefix:
+    reflected = re.search(
+        rf"UFUNCTION\([^\n]*\)\s*\n\s*[^;\n]*\b{helper}\s*\(",
+        dispatch_h,
+        flags=re.MULTILINE,
+    )
+    if reflected:
         errors.append(f"dispatch header: {helper} must remain C++-only (no reflected const UObject pointer parameter)")
 
 require(
