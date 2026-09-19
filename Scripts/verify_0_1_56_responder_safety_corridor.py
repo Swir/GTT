@@ -21,7 +21,6 @@ PATHS = {
 
 errors: list[str] = []
 
-
 def read(name: str) -> str:
     path = PATHS[name]
     if not path.is_file():
@@ -29,12 +28,10 @@ def read(name: str) -> str:
         return ""
     return path.read_text(encoding="utf-8")
 
-
 def require(text: str, label: str, *tokens: str) -> None:
     for token in tokens:
         if token not in text:
             errors.append(f"{label}: missing token {token!r}")
-
 
 safety_h = read("safety_h")
 safety_cpp = read("safety_cpp")
@@ -67,11 +64,13 @@ require(
     "IsRoadsideAssistanceActive()",
     "IsRoadsideResponderSceneAuthority()",
     "IsYieldingForRangerStop()",
-    "ReactToNearbyIncident(SceneLocation, YieldSeverity)",
+    "ReactToNearbyIncident(SceneLocation",
     "LastYieldTimeByCar",
     "ROADSIDE_SAFETY_CORRIDOR_ACTIVE",
     "ROADSIDE_SAFETY_CORRIDOR_CLEARED",
 )
+if "YieldSeverity" not in safety_cpp and "EffectiveYieldSeverity" not in safety_cpp:
+    errors.append("safety corridor must retain an explicit bounded incident-yield severity")
 if safety_cpp.count("LastYieldTimeByCar.Reset();") < 2:
     errors.append("safety corridor must clear per-scene cooldown history on responder replacement and corridor teardown")
 for forbidden in ("AddCash(", "SpendCash(", "RepairVehicle(", "SetWanted", "AddWanted", "ChargeFine("):
@@ -166,7 +165,7 @@ if errors:
 print(f"GTT 0.1.56 responder safety corridor sanity: PASS ({case_count} playtest cases)")
 print(" - on-scene responder deploys four visible runtime-built safety cones")
 print(" - nearby ambient traffic receives bounded cooldown-limited incident yielding")
+print(" - additive reopening behavior may taper radius/severity without removing the 0.1.56 authority boundaries")
 print(" - per-scene yield history resets on responder replacement and corridor teardown")
 print(" - ranger/player/incident authority remains outside the safety subsystem")
-print(" - 0.1.55 responder ownership and 0.1.53 payout authority remain unchanged")
 print(" - packaged Win64 runtime proof: NOT CLAIMED")
