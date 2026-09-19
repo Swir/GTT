@@ -31,11 +31,28 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Incident") bool IsIncidentDisabled() const { return bIncidentDisabled; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Incident") float GetIncidentResponseRemaining() const { return IncidentStopRemaining; }
+    UFUNCTION(BlueprintPure, Category="GTT|Traffic|Incident") float GetLastIncidentSeverity() const { return LastIncidentSeverity; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Roadside") bool IsRoadsideAssistanceActive() const { return bRoadsideAssistanceActive; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Roadside") float GetRoadsideAssistanceRemaining() const { return RoadsideAssistanceRemaining; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Roadside") bool WasRoadsideAssistanceCompletedForIncident() const { return bRoadsideAssistanceCompletedForIncident; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|RoadStop") bool IsYieldingForRangerStop() const { return bYieldingForRangerStop; }
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|RoadStop") bool IsHoldingForRangerStop() const { return bHoldingForRangerStop; }
+
+    /**
+     * World-authority escape hatch used only when an active warden road stop owns
+     * the same roadside scene. It cancels the voluntary civilian helper timer
+     * without charging or repairing anything; the player can restart after the
+     * traffic-control scene clears.
+     */
+    bool CancelRoadsideAssistanceForTrafficControl()
+    {
+        if (!bRoadsideAssistanceActive)
+        {
+            return false;
+        }
+        CancelRoadsideAssistance(TEXT("ranger-traffic-control-priority"));
+        return true;
+    }
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Traffic")
