@@ -10,11 +10,14 @@ on:
       - 'Source/GTT/Private/World/GTTWorkshopJobBoardTerminal.cpp'
       - 'Source/GTT/Public/World/GTTWorkshopPriorityDeskTerminal.h'
       - 'Source/GTT/Private/World/GTTWorkshopPriorityDeskTerminal.cpp'
+      - 'Source/GTT/Public/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.cpp'
       - 'Source/GTT/Private/World/GTTGarageSlotTerminal.cpp'
       - 'Scripts/verify_workshop_priority_pickup.py'
       - 'Scripts/verify_workshop_job_board.py'
       - 'Scripts/verify_workshop_service_lifecycle.py'
       - 'Scripts/verify_workshop_multi_vehicle_capacity.py'
+      - 'Scripts/verify_workshop_capacity_runtime.py'
       - 'Docs/PLAYTEST_0.1.51.md'
       - 'Docs/ROADMAP.md'
       - 'README.md'
@@ -29,11 +32,14 @@ on:
       - 'Source/GTT/Private/World/GTTWorkshopJobBoardTerminal.cpp'
       - 'Source/GTT/Public/World/GTTWorkshopPriorityDeskTerminal.h'
       - 'Source/GTT/Private/World/GTTWorkshopPriorityDeskTerminal.cpp'
+      - 'Source/GTT/Public/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.h'
+      - 'Source/GTT/Private/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.cpp'
       - 'Source/GTT/Private/World/GTTGarageSlotTerminal.cpp'
       - 'Scripts/verify_workshop_priority_pickup.py'
       - 'Scripts/verify_workshop_job_board.py'
       - 'Scripts/verify_workshop_service_lifecycle.py'
       - 'Scripts/verify_workshop_multi_vehicle_capacity.py'
+      - 'Scripts/verify_workshop_capacity_runtime.py'
       - 'Docs/PLAYTEST_0.1.51.md'
       - 'Docs/ROADMAP.md'
       - 'README.md'
@@ -57,6 +63,8 @@ jobs:
         run: python Scripts/verify_workshop_job_board.py
       - name: Re-run 0.1.49 timed lifecycle regression contract
         run: python Scripts/verify_workshop_service_lifecycle.py
+      - name: Re-run 0.1.48 packaged capacity source contract
+        run: python Scripts/verify_workshop_capacity_runtime.py
       - name: Re-run 0.1.47 multi-vehicle capacity regression contract
         run: python Scripts/verify_workshop_multi_vehicle_capacity.py
       - name: Verify SWIR progress presentation remains deterministic
