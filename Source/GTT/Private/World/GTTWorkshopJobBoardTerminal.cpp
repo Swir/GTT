@@ -9,6 +9,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "World/GTTWorkshopHoursPolicy.h"
+#include "World/GTTWorkshopPriorityDeskTerminal.h"
 #include "World/GTTWorkshopRepairQueueSubsystem.h"
 #include "GTT.h"
 
@@ -16,10 +17,23 @@ namespace
 {
     FString ResolveBoardAction(const FGTTWorkshopRepairQueueSnapshot& Snapshot)
     {
+        if (Snapshot.State.Equals(TEXT("READY_FOR_PICKUP"), ESearchCase::IgnoreCase)) return TEXT("PICKUP");
         if (Snapshot.State.Equals(TEXT("AWAITING_PAYMENT"), ESearchCase::IgnoreCase)) return TEXT("PAYMENT");
         if (Snapshot.State.Equals(TEXT("IN_SERVICE"), ESearchCase::IgnoreCase)) return TEXT("WORKING");
         if (Snapshot.State.Equals(TEXT("READY"), ESearchCase::IgnoreCase)) return TEXT("CHECK-IN");
         return TEXT("SCHEDULED");
+    }
+
+    bool HasNearbyPriorityDesk(UWorld* World, const FVector& Origin)
+    {
+        if (!World) return false;
+        for (TActorIterator<AGTTWorkshopPriorityDeskTerminal> It(World); It; ++It)
+        {
+            const AGTTWorkshopPriorityDeskTerminal* Desk = *It;
+            if (IsValid(Desk) && FVector::DistSquared2D(Desk->GetActorLocation(), Origin) <= FMath::Square(1200.0f))
+                return true;
+        }
+        return false;
     }
 }
 
@@ -36,6 +50,20 @@ AGTTWorkshopJobBoardTerminal::AGTTWorkshopJobBoardTerminal()
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     if (CubeFinder.Succeeded()) Mesh->SetStaticMesh(CubeFinder.Object);
+}
+
+void AGTTWorkshopJobBoardTerminal::BeginPlay()
+{
+    Super::BeginPlay();
+    UWorld* World = GetWorld();
+    if (!World || HasNearbyPriorityDesk(World, GetActorLocation())) return;
+
+    // Source-built maps get a separate deliberate priority counter so cancellation/pickup on the
+    // main board never shares an interaction gesture with a quote-changing URGENT promotion.
+    const FVector DeskOffset(260.0f, 40.0f, 0.0f);
+    World->SpawnActor<AGTTWorkshopPriorityDeskTerminal>(
+        GetActorLocation() + DeskOffset,
+        GetActorRotation());
 }
 
 FName AGTTWorkshopJobBoardTerminal::FindNearestQueuedVehicle() const
@@ -69,7 +97,7 @@ FString AGTTWorkshopJobBoardTerminal::BuildBoardSummary() const
     const UGTTWorkshopRepairQueueSubsystem* Queue = World ? World->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>() : nullptr;
     if (!Queue || !Queue->HasQueuedRepair())
     {
-        return TEXT("WORKSHOP JOB BOARD | no active appointments. After-hours bookings are created at the garage office without pre-charge.");
+        return TEXT("WORKSHOP JOB BOARD | no active appointments. After-hours bookings are created at the garage office without pre-charge. The adjacent priority desk can promote a waiting STANDARD job to URGENT.");
     }
 
     const TArray<FGTTWorkshopRepairQueueSnapshot> Snapshots = Queue->GetQueueSnapshots();
@@ -79,7 +107,11 @@ FString AGTTWorkshopJobBoardTerminal::BuildBoardSummary() const
     {
         const FString Action = ResolveBoardAction(Snapshot);
         FString Timing;
-        if (Snapshot.State.Equals(TEXT("IN_SERVICE"), ESearchCase::IgnoreCase))
+        if (Snapshot.State.Equals(TEXT("READY_FOR_PICKUP"), ESearchCase::IgnoreCase))
+        {
+            Timing = FString::Printf(TEXT("paid $%d / collect exact vehicle"), Snapshot.PaidAmount);
+        }
+        else if (Snapshot.State.Equals(TEXT("IN_SERVICE"), ESearchCase::IgnoreCase))
         {
             Timing = FString::Printf(TEXT("service %.1fh"), Snapshot.HoursUntilServiceComplete);
         }
@@ -94,16 +126,20 @@ FString AGTTWorkshopJobBoardTerminal::BuildBoardSummary() const
         }
 
         Summary += FString::Printf(
-            TEXT("\n#%d %s | %s | exact %s | locked $%d | %s"),
+            TEXT("\n#%d %s | %s | %s | exact %s | locked $%d | %s"),
             Snapshot.QueuePosition,
             *Snapshot.State,
             *Action,
+            *Snapshot.Priority,
             *Snapshot.PersistentVehicleId.ToString(),
             Snapshot.LockedQuote,
             *Timing);
     }
 
-    Summary += TEXT("\nAuthority: the board never charges or repairs. Bring the exact READY vehicle to the workshop; IN_SERVICE must remain parked; PAYMENT needs the locked quote. A nearby waiting appointment requires two interactions to cancel safely.");
+    Summary += FString::Printf(
+        TEXT("\nAuthority: the board never charges or repairs. Bring the exact READY vehicle to the workshop; IN_SERVICE must remain parked; PAYMENT uses the locked quote; READY_FOR_PICKUP must be collected here. A nearby waiting appointment needs two interactions to cancel. Adjacent PRIORITY DESK promotes eligible STANDARD work to URGENT at +%d%% checkout with x%.2f service time and no pre-charge."),
+        UGTTWorkshopRepairQueueSubsystem::UrgentQuoteSurchargePercent,
+        UGTTWorkshopRepairQueueSubsystem::UrgentServiceDurationMultiplier);
     return Summary;
 }
 
@@ -131,6 +167,19 @@ void AGTTWorkshopJobBoardTerminal::Interact_Implementation(AActor* Interactor)
             {
                 return Candidate.PersistentVehicleId == NearbyQueuedId;
             });
+
+        if (Snapshot && Snapshot->bReadyForPickup)
+        {
+            FString PickupSummary;
+            const bool bReleased = Queue->ReleaseCompletedRepairForPickup(NearbyQueuedId, PickupSummary);
+            PendingCancelVehicleId = NAME_None;
+            PendingCancelExpiresAt = -1.0f;
+            Economy->PushMessage(PickupSummary, 9.0f);
+            UE_LOG(LogGTT, Display,
+                TEXT("WORKSHOP_JOB_BOARD_PICKUP vehicle=%s success=%s board_authority=RELEASE_ONLY charged=NO repair_mutation=NO"),
+                *NearbyQueuedId.ToString(), bReleased ? TEXT("YES") : TEXT("NO"));
+            return;
+        }
 
         if (Snapshot && !Snapshot->bCheckedIn)
         {
@@ -168,7 +217,11 @@ FText AGTTWorkshopJobBoardTerminal::GetInteractionText_Implementation() const
     const UGTTWorkshopRepairQueueSubsystem* Queue = World ? World->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>() : nullptr;
     const int32 Count = Queue ? Queue->GetQueuedRepairCount() : 0;
     const int32 Capacity = Queue ? Queue->GetQueueCapacity() : UGTTWorkshopRepairQueueSubsystem::MaxQueuedRepairs;
+    const int32 PickupCount = Queue
+        ? Queue->GetQueueSnapshots().CountByPredicate(
+            [](const FGTTWorkshopRepairQueueSnapshot& Snapshot) { return Snapshot.bReadyForPickup; })
+        : 0;
     return FText::FromString(FString::Printf(
-        TEXT("Workshop job board: %d/%d | view exact-ID jobs / two-step cancel nearby waiting appointment"),
-        Count, Capacity));
+        TEXT("Workshop job board: %d/%d | pickup %d | view exact-ID jobs / collect completed / guarded cancel"),
+        Count, Capacity, PickupCount));
 }

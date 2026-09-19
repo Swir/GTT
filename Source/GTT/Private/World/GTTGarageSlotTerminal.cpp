@@ -18,6 +18,7 @@
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTGarageFleetSubsystem.h"
 #include "World/GTTGarageServicePolicy.h"
+#include "World/GTTWorkshopRepairQueueSubsystem.h"
 
 namespace
 {
@@ -104,9 +105,13 @@ void AGTTGarageSlotTerminal::RefreshLabel()
     const FString ActiveTag = Snapshot.bPreferredDispatch ? TEXT(" [ACTIVE]") : TEXT("");
     const FString LoadoutTag = Snapshot.bRoleLoadout ? TEXT(" [LOADOUT]") : TEXT("");
     const bool bWorkshopHold = GTTGarageServicePolicy::RequiresWorkshopBeforeDispatch(Snapshot);
+    const UGTTWorkshopRepairQueueSubsystem* Queue = GetWorld()->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>();
+    const bool bPickupHold = Queue && Queue->IsVehicleAwaitingPickup(Snapshot.VehicleId);
     const FString ActionLine = bWorkshopHold
         ? FString::Printf(TEXT("WORKSHOP HOLD ~$%d"), Snapshot.RepairEstimate)
-        : FString::Printf(TEXT("E - DISPATCH $%d"), RecallServiceCost);
+        : bPickupHold
+            ? FString(TEXT("PICKUP HOLD - JOB BOARD"))
+            : FString::Printf(TEXT("E - DISPATCH $%d"), RecallServiceCost);
     Label->SetText(FText::FromString(FString::Printf(
         TEXT("GARAGE %d%s%s\n%s%s | %s | %s\nC %.0f  F %.0f  T %.0f  B %.0f\n%s"),
         SlotIndex + 1,
@@ -175,6 +180,17 @@ void AGTTGarageSlotTerminal::Interact_Implementation(AActor* Interactor)
     }
 
     const FName VehicleId = Vehicle->GetPersistentVehicleId();
+    if (const UGTTWorkshopRepairQueueSubsystem* Queue = GetWorld()->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>())
+    {
+        if (Queue->IsVehicleAwaitingPickup(VehicleId))
+        {
+            Economy->PushMessage(FString::Printf(
+                TEXT("SLOT %d PICKUP HOLD: %s is repaired and paid but still checked into the workshop. Collect the exact vehicle at the WORKSHOP JOB BOARD before garage dispatch; no extra charge applies."),
+                SlotIndex + 1, *Snapshot.DisplayName), 8.0f);
+            return;
+        }
+    }
+
     const bool bNativeRoadSlot = VehicleId == FName(TEXT("Rattleback82")) || VehicleId == FName(TEXT("Mulebox1200"));
     AGTTRoadVehicleNativePawn* NativeRoad = (Fleet && bNativeRoadSlot) ? Fleet->FindActiveNativeRoadVehicle(VehicleId) : nullptr;
     AGTTFieldmasterNativePawn* NativeFieldmaster = nullptr;
@@ -275,6 +291,16 @@ FText AGTTGarageSlotTerminal::GetInteractionText_Implementation() const
             *Snapshot.DisplayName,
             *Snapshot.ServiceStatus,
             Snapshot.RepairEstimate));
+    }
+
+    if (const UGTTWorkshopRepairQueueSubsystem* Queue = GetWorld()->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>())
+    {
+        if (Queue->IsVehicleAwaitingPickup(Snapshot.VehicleId))
+        {
+            return FText::FromString(FString::Printf(
+                TEXT("Pickup hold slot %d: %s — collect at workshop job board"),
+                SlotIndex + 1, *Snapshot.DisplayName));
+        }
     }
 
     return FText::FromString(FString::Printf(TEXT("Dispatch slot %d: %s [%s%s%s] ($%d)"),

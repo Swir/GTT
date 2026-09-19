@@ -36,11 +36,23 @@ for token in (
     "WORKSHOP_JOB_BOARD_CANCEL_ARMED",
     "WORKSHOP_JOB_BOARD_CANCEL_CONFIRMED",
     "board_authority=PRESENTATION_ONLY",
-    "two-step cancel",
+    "PendingCancelVehicleId == NearbyQueuedId && Now <= PendingCancelExpiresAt",
+    "PendingCancelExpiresAt = Now + CancelConfirmationSeconds",
 ):
     require(source, token, "job-board source")
 
-# The board may inspect and cancel queue entries, but must never become a second economy/repair authority.
+# The 0.1.50 two-step cancel contract is structural: cancellation can only execute inside the
+# exact-ID, non-expired confirmation branch. Later board features may change presentation text.
+confirm_gate = source.index("PendingCancelVehicleId == NearbyQueuedId && Now <= PendingCancelExpiresAt")
+cancel_call = source.index("CancelQueuedRepair(NearbyQueuedId", confirm_gate)
+confirm_log = source.index("WORKSHOP_JOB_BOARD_CANCEL_CONFIRMED", cancel_call)
+armed_assignment = source.index("PendingCancelExpiresAt = Now + CancelConfirmationSeconds")
+armed_log = source.index("WORKSHOP_JOB_BOARD_CANCEL_ARMED", armed_assignment)
+if not (confirm_gate < cancel_call < confirm_log and armed_assignment < armed_log):
+    raise AssertionError("job-board exact-ID two-step cancellation control flow drifted")
+
+# The board may inspect/cancel entries and later release already-paid pickup work, but must never
+# become a second economy or repair authority.
 for forbidden in ("SpendCash(", "ApplyNativeWorkshopService(", "AddCash("):
     if forbidden in source:
         raise AssertionError(f"job-board source must not own economy/repair mutation: found {forbidden}")
@@ -74,7 +86,7 @@ for pattern in legacy_meter_patterns:
 
 print("GTT 0.1.50 workshop job board sanity: PASS")
 print("- operational board reads authoritative multi-vehicle queue snapshots")
-print("- cancellation is exact-ID and requires a timed two-interaction confirmation")
+print("- cancellation is exact-ID and structurally gated by a timed two-interaction confirmation")
 print("- board owns no cash or repair mutation")
 print("- garage spawns only one nearby source-built fallback board")
 print("- roadmap remains 125/130 = 96.2% with no legacy text meter")
