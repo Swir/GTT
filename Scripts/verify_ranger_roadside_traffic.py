@@ -76,13 +76,25 @@ for needle, label in [
 
 for needle, label in [
     ("GetTrafficResponse", "traffic consumes shared stop"),
-    ("bForceCritical = IsOccupied() || IncidentStopRemaining > 0.0f || bIncidentDisabled || bYieldingForRangerStop", "performance-budget promotion near stop"),
+    ("bForceCritical = IsOccupied() || IncidentStopRemaining > 0.0f || bIncidentDisabled", "critical-budget base states"),
+    ("bYieldingForRangerStop", "performance-budget promotion near stop"),
     ("TrafficRangerStop", "STOP roadside traffic feedback"),
     ("TrafficRangerSlow", "SLOW roadside traffic feedback"),
     ("TrafficDriveForce * 1.45f", "physical traffic braking"),
     ("!bYieldingForRangerStop", "stuck-recovery suppression while yielding"),
 ]:
     require(traffic_cpp, needle, label)
+
+# The historical road-stop contract intentionally allows additional critical traffic states
+# (for example a live crash/roadside-assistance scene) between the disabled-state and
+# ranger-yield clauses. Verify the semantic ingredients instead of freezing one exact OR chain.
+critical_match = re.search(r"const bool bForceCritical\s*=\s*([^;]+);", traffic_cpp)
+if not critical_match:
+    raise AssertionError("missing traffic critical-budget expression")
+critical_expr = critical_match.group(1)
+for required_state in ("IsOccupied()", "IncidentStopRemaining > 0.0f", "bIncidentDisabled", "bYieldingForRangerStop"):
+    if required_state not in critical_expr:
+        raise AssertionError(f"critical-budget expression lost required state: {required_state}")
 
 # No second wanted/contraband system and no persistent traffic-stop timer may be introduced.
 for forbidden, label in [
