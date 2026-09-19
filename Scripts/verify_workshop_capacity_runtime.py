@@ -3,8 +3,8 @@
 
 This verifies source/evaluator/release-gate wiring. It never claims Unreal compilation or
 packaged runtime execution; those require the self-hosted Windows x64 UE 5.8 evidence job.
-Later workshop lifecycle milestones may add timed check-in and explicit paid pickup while
-preserving all original 0.1.48 exact-ID/capacity/economy evidence guarantees.
+Later workshop lifecycle milestones may add timed check-in, priority and explicit paid pickup
+while preserving all original 0.1.48 exact-ID/capacity/economy evidence guarantees.
 """
 from __future__ import annotations
 
@@ -63,8 +63,7 @@ def main() -> int:
     ], "production capacity authority")
     if "WORKSHOP_QUEUE_CHECKED_IN" in queue_cpp:
         require(queue_cpp, [
-            "AWAITING_PAYMENT", "timed_service=YES",
-            "MutableEntry.bCheckedIn = true;",
+            "AWAITING_PAYMENT", "timed_service=YES", "MutableEntry.bCheckedIn = true;",
             "ResolveServiceCompletion(Day, Hour, DurationHours",
         ], "later timed-service lifecycle compatibility")
         execution = queue_cpp[queue_cpp.index("void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations"):]
@@ -75,27 +74,21 @@ def main() -> int:
         )
         checkin = execution[checkin_start:checkout_start]
         require(checkin, [
-            "if (!IsVehicleAtWorkshop(Vehicle))",
-            "MutableEntry.bCheckedIn = true;",
-            "WriteCheckpoint()",
-            "++Index;",
-            "continue;",
+            "if (!IsVehicleAtWorkshop(Vehicle))", "MutableEntry.bCheckedIn = true;",
+            "WriteCheckpoint()", "++Index;", "continue;",
         ], "timed lifecycle check-in authority")
         if "SpendCash(" in checkin or "ApplyNativeWorkshopService(" in checkin:
             raise AssertionError("timed check-in must not debit or service before completion")
 
-    # 0.1.51 keeps paid repairs READY_FOR_PICKUP in ordinary gameplay. Historical packaged 0.1.48
-    # evidence still expects the serviced later appointment to disappear before its assertions.
-    # Preserve that old gate through an explicit evidence-only bridge that calls the production
-    # exact-ID pickup API under the historical command-line scenarios, never through a fake source
-    # completion marker or a second economy/repair path.
     require(legacy_bridge_h, [
         "Evidence-only compatibility bridge", "UGTTWorkshopLegacyEvidencePickupBridgeSubsystem",
+        "bPriorityPickupEvidence",
     ], "pickup compatibility bridge header")
     require(legacy_bridge_cpp, [
         "GTTDemoSmokeScenario", "GTTWorkshopCapacityRuntimeScenario", "GTTWorkshopQueueRuntimeScenario",
-        "ReleaseCompletedRepairForPickup", "WORKSHOP_LEGACY_EVIDENCE_AUTO_PICKUP",
-        "charged_again=NO", "repair_mutation=NO",
+        "GTTWorkshopPriorityPickupRuntimeScenario", "ReleaseCompletedRepairForPickup",
+        "WORKSHOP_LEGACY_EVIDENCE_AUTO_PICKUP", "charged_again=NO", "repair_mutation=NO",
+        "PriorityPickupEvidenceStartSeconds = 451.0f",
     ], "pickup compatibility bridge implementation")
     for forbidden in ("SpendCash(", "ApplyNativeWorkshopService(", "AddCash("):
         if forbidden in legacy_bridge_cpp:
@@ -109,15 +102,21 @@ def main() -> int:
     require(promoter, [
         "schema -ne 15", "$gate.schema=16", "workshop_queue_runtime", "workshop_capacity_runtime='PASS'",
         "underfunded_earlier_nonblocking", "farm_cargo_authority_preserved",
-    ], "schema-16 technical gate")
+    ], "schema-16 technical gate stage")
     require(smoke, [
         "GTTWorkshopCapacityRuntimeScenario", "workshop_capacity_runtime_scenario = $true",
     ], "packaged smoke launch")
+    # 0.1.52 adds a later schema-17 gate. The historical capacity stage itself must remain schema 16
+    # and remain present before the new priority/pickup promotion.
     require(win64, [
-        "default: '0.1.48'", "MinimumAliveSeconds 472", "LaunchTimeoutSeconds 505",
+        "default: '0.1.52'", "MinimumAliveSeconds 472", "LaunchTimeoutSeconds 505",
         "evaluate_workshop_capacity_runtime.ps1", "promote_demo_gate_workshop_capacity.ps1",
-        "WORKSHOP_CAPACITY_RUNTIME.json", "schema -ne 16", "workshop_capacity_runtime -ne 'PASS'",
-    ], "Win64 candidate wiring")
+        "WORKSHOP_CAPACITY_RUNTIME.json", "promote_demo_gate_workshop_priority_pickup.ps1",
+        "WORKSHOP_PRIORITY_PICKUP_RUNTIME.json", "schema -ne 17",
+        "workshop_priority_pickup_runtime -ne 'PASS'",
+    ], "Win64 candidate wiring with later priority/pickup gate")
+    if win64.index("promote_demo_gate_workshop_capacity.ps1") >= win64.index("promote_demo_gate_workshop_priority_pickup.ps1"):
+        raise AssertionError("schema-16 capacity promotion must precede schema-17 priority/pickup promotion")
     require(milestone_workflow, [
         "verify_workshop_capacity_runtime.py", "verify_workshop_multi_vehicle_capacity.py",
         "verify_workshop_queue_runtime.py", "verify_win64_evidence_pipeline.py",
@@ -148,8 +147,7 @@ def main() -> int:
 
     print("GTT 0.1.48 packaged multi-vehicle workshop capacity source contract: PASS")
     print("Runtime route: two exact-ID bookings -> disk -> cancel/rebook -> underfunded non-blocking execution")
-    print("0.1.51 pickup: historical packaged route auto-releases only through evidence-only production pickup bridge")
-    print("Technical gate target: schema 16 (requires real same-SHA packaged PASS evidence)")
+    print("0.1.52 compatibility: capacity still promotes schema 16 before the later schema-17 priority/pickup gate")
     print(f"Roadmap: {done}/{done + open_} = {done/(done+open_)*100:.1f}% (unchanged)")
     print("Runtime/Win64 verification: NOT CLAIMED")
     return 0

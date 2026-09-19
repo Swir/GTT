@@ -35,6 +35,7 @@ for token in required_preflight:
 
 required_workflow = [
     "workflow_dispatch:",
+    "default: '0.1.52'",
     "runs-on: [self-hosted, windows, x64, unreal-5.8]",
     "preflight_win64_unreal.ps1",
     "package_windows.ps1",
@@ -43,8 +44,11 @@ required_workflow = [
     "evaluate_workshop_capacity_runtime.ps1",
     "promote_demo_gate_workshop_capacity.ps1",
     "WORKSHOP_CAPACITY_RUNTIME.json",
-    "schema -ne 16",
-    "workshop_capacity_runtime -ne 'PASS'",
+    "evaluate_workshop_priority_pickup_runtime.ps1",
+    "promote_demo_gate_workshop_priority_pickup.ps1",
+    "WORKSHOP_PRIORITY_PICKUP_RUNTIME.json",
+    "schema -ne 17",
+    "workshop_priority_pickup_runtime -ne 'PASS'",
     "MinimumAliveSeconds 472",
     "WIN64_PREFLIGHT.json",
     "BUILD_ATTEMPT.json",
@@ -108,6 +112,8 @@ required_smoke = [
     "MinimumAliveSeconds",
     "GTTWorkshopCapacityRuntimeScenario",
     "workshop_capacity_runtime_scenario = $true",
+    "GTTWorkshopPriorityPickupRuntimeScenario",
+    "workshop_priority_pickup_runtime_scenario = $true",
     "RUNTIME_SMOKE.json",
     "result = 'PASS'",
     "visual_acceptance = 'NOT_PERFORMED'",
@@ -139,4 +145,4 @@ for required_doc_token in [
 
 assert "candidate_run_id" in release_doc
 assert "does not rebuild" in release_doc.lower() or "never" in release_doc.lower()
-print("Win64 runtime acceptance/evidence gate: OK (two-stage exact-candidate release architecture; schema-16 workshop capacity wired)")
+print("Win64 runtime acceptance/evidence gate: OK (two-stage exact-candidate release architecture; schema-17 workshop priority/pickup wired)")
