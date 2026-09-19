@@ -1,5 +1,6 @@
 #include "World/GTTServiceTerminal.h"
 
+#include "GTT.h"
 #include "Components/StaticMeshComponent.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
@@ -318,7 +319,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     {
         AGTTVehicleBase* Mirror = FindFieldmasterMirror(GetWorld(), Native);
         if (!Mirror) { Economy->PushMessage(TEXT("Workshop: Native Fieldmaster compatibility mirror is unavailable.")); return; }
-        const FGTTVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
+        const FGTTRoadVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
         const bool bWorkshopHold = IsWorkshopHold(GetWorld(), FieldmasterVehicleId);
         const bool bNeedsRepair = State.ConditionPercent < 0.999f || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < Mirror->GetFuelCapacity();
