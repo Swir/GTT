@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.53 — dynamic traffic incidents & roadside assistance**.
+Current development milestone: **0.1.56 — responder safety corridor**.
 
 ## What is GTT?
 
@@ -50,7 +50,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
-| 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. Damaged ambient traffic can now create bounded crash scenes; disabled civilian cars expose a timed legal roadside-assistance interaction instead of becoming inert scenery. |
+| 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. Damaged ambient traffic can create bounded crash scenes and legal roadside-assistance opportunities; unresolved severe incidents persist through dispatch, can escalate after a player-first grace period to a physical county ROAD SERVICE responder, and gain a visible cone-marked safety corridor with bounded ambient-traffic yielding while ranger/warden and player-payout authority remain protected. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
 | 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding, in-flight roadside dispatch checkpoints and additive multi-vehicle workshop reservations. |
 | 📻 Original radio framework | Four fictional stations with track rotation and project-owned/cleared audio workflow. |
@@ -164,6 +164,12 @@ Milestone 0.1.52 extends that production loop into the future exact packaged can
 
 Milestone 0.1.53 turns ambient traffic crashes into a small connected legal gameplay loop. A meaningful real condition drop promotes a civilian traffic car into the existing incident response, nearby traffic reacts with a bounded non-recursive slowdown, and a disabled vehicle exposes a 6-second / 500 cm roadside-assistance interaction. Staying on scene performs a 45% field repair, keeps the civilian on its route under a temporary limp state and pays a severity-scaled $65–$110 reward exactly once for that disabled incident; leaving the scene cancels without cost. A 48-case playtest matrix and dedicated source-contract CI verify the wiring, but this remains source evidence until a qualifying UE 5.8 Win64 package/runtime run executes it.
 
+Milestone 0.1.54 extends disabled civilian incidents into a bounded authoritative dispatch with persisted recovery continuity and a world-space `ROADSIDE SOS` marker. The incident sidecar can safely reacquire the exact tracked traffic vehicle after load, expires stale unresolved scenes and keeps ranger/game-warden traffic control above civilian recovery presentation. This remains source-contract evidence until a qualifying UE 5.8 Win64 package executes the path.
+
+Milestone 0.1.55 adds a player-first responder handoff for unresolved severe incidents. After the grace window a physical county ROAD SERVICE vehicle is dispatched, can restore its en-route/on-scene phase through save/load, takes temporary scene authority on arrival, performs the existing no-payout civilian recovery and clears stale authority defensively; warden traffic control can preempt the scene without creating a second economy or repair authority.
+
+Milestone 0.1.56 adds the visible traffic-safety layer around that same responder. Four engine-local safety cones appear only when ROAD SERVICE is physically on scene, while a bounded 1,800 cm corridor asks eligible ambient traffic to use the existing incident-yield response outside a 320 cm recovery pocket. Per-car re-yield is limited to 4.5 seconds and reset when the physical responder scene changes or ends; disabled incident vehicles, active player roadside assistance, responder scene authority and ranger/warden-controlled traffic are never overridden. The 52-case source/playtest contract leaves roadmap completion and demo readiness unchanged.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
@@ -214,7 +220,7 @@ The current repository also contains prototype/source-built presentation and sys
 
 ## 🔎 Search Keywords
 
-`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside assistance game` • `civilian traffic incidents` • `multi-vehicle workshop appointments` • `workshop job board` • `C++ Unreal game`
+`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `vehicle breakdown recovery` • `roadside assistance game` • `civilian traffic incidents` • `road service responder` • `traffic safety corridor` • `multi-vehicle workshop appointments` • `C++ Unreal game`
 
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="SWIR electric divider" />
 
