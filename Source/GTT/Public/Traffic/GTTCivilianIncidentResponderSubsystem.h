@@ -13,7 +13,8 @@ enum class EGTTCivilianResponderPhase : uint8
 {
     None,
     EnRoute,
-    OnScene
+    OnScene,
+    ClearingScene
 };
 
 /**
@@ -22,7 +23,9 @@ enum class EGTTCivilianResponderPhase : uint8
  * It never opens/closes incidents, awards/spends cash, changes Wanted, or
  * mutates ranger state. Severe unresolved dispatches get a player-first grace
  * window, then an original physical county road-service vehicle can arrive and
- * perform a no-payout recovery handoff through AGTTTrafficCarPawn.
+ * perform a no-payout recovery handoff through AGTTTrafficCarPawn. After a
+ * successful handoff the responder owns only a short scene-clearance phase so
+ * the safety corridor can reopen traffic before the service vehicle leaves.
  */
 UCLASS()
 class GTT_API UGTTCivilianIncidentResponderSubsystem : public UTickableWorldSubsystem
@@ -47,6 +50,9 @@ public:
 private:
     AGTTTrafficCarPawn* FindDispatchVehicle(const UGTTCivilianIncidentDispatchSubsystem* Dispatch) const;
     void RequestResponder(AGTTTrafficCarPawn* Vehicle, bool bStartAtScene);
+    void RestoreClearingResponder();
+    void BeginSceneClearance(AGTTTrafficCarPawn* Vehicle);
+    void AdvanceSceneClearance(float Elapsed);
     void CancelResponder(const TCHAR* Reason, bool bResetGrace);
     void ClearResponderSceneAuthority();
     void DestroyResponderVehicle();
@@ -59,10 +65,12 @@ private:
     TWeakObjectPtr<AGTTTrafficCarPawn> AuthorityVehicle;
     FName TrackedIncidentId = NAME_None;
     EGTTCivilianResponderPhase Phase = EGTTCivilianResponderPhase::None;
+    FVector LastSceneLocation = FVector::ZeroVector;
     float ScanAccumulator = 0.0f;
     float CheckpointAccumulator = 0.0f;
     float PlayerGraceElapsed = 0.0f;
     float SceneHoldRemaining = 0.0f;
+    float SceneClearanceRemaining = 0.0f;
     float MissingDispatchSeconds = 0.0f;
     bool bRestoredCheckpoint = false;
     bool bRecoveryCompletedThisSession = false;
@@ -72,6 +80,7 @@ private:
     static constexpr float SevereIncidentThreshold = 0.72f;
     static constexpr float PlayerAssistGraceSeconds = 18.0f;
     static constexpr float ResponderSceneHoldSeconds = 7.0f;
+    static constexpr float ResponderSceneClearanceSeconds = 9.0f;
     static constexpr float ResponderSpawnDistanceCm = 1900.0f;
     static constexpr float MissingDispatchExpirySeconds = 8.0f;
 };

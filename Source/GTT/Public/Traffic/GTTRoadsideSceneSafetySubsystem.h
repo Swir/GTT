@@ -12,8 +12,8 @@ class AGTTTrafficCarPawn;
  *
  * It does not own incidents, vehicle repair, economy, Wanted or ranger state.
  * It only creates bounded, cooldown-limited traffic yielding around a deployed
- * 0.1.55 responder so ambient drivers do not repeatedly charge through the
- * recovery scene.
+ * responder and tapers that corridor during the post-recovery lane-reopening
+ * phase.
  */
 UCLASS()
 class GTT_API UGTTRoadsideSceneSafetySubsystem : public UTickableWorldSubsystem
@@ -43,7 +43,9 @@ private:
 
     static constexpr float ScanIntervalSeconds = 0.75f;
     static constexpr float SafetyRadiusCm = 1800.0f;
+    static constexpr float ReopeningRadiusCm = 980.0f;
     static constexpr float InnerPassRadiusCm = 320.0f;
     static constexpr float ReYieldCooldownSeconds = 4.5f;
     static constexpr float YieldSeverity = 0.38f;
+    static constexpr float ReopeningYieldSeverity = 0.20f;
 };

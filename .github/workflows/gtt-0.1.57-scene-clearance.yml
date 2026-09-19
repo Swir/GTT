@@ -1,0 +1,66 @@
+name: GTT 0.1.57 scene clearance sanity
+
+on:
+  push:
+    branches:
+      - main
+      - "milestone/**"
+    paths:
+      - "Source/GTT/Public/Traffic/GTTCivilianIncidentResponderSubsystem.h"
+      - "Source/GTT/Private/Traffic/GTTCivilianIncidentResponderSubsystem.cpp"
+      - "Source/GTT/Public/Traffic/GTTRoadsideResponderVehicle.h"
+      - "Source/GTT/Private/Traffic/GTTRoadsideResponderVehicle.cpp"
+      - "Source/GTT/Public/Traffic/GTTRoadsideSceneSafetySubsystem.h"
+      - "Source/GTT/Private/Traffic/GTTRoadsideSceneSafetySubsystem.cpp"
+      - "Source/GTT/Public/Save/GTTCivilianResponderSaveGame.h"
+      - "Scripts/verify_0_1_57_scene_clearance.py"
+      - "Scripts/verify_0_1_56_responder_safety_corridor.py"
+      - "Scripts/verify_0_1_55_civilian_responder_handoff.py"
+      - "Scripts/verify_0_1_54_civilian_incident_dispatch.py"
+      - "Docs/PLAYTEST-0.1.57.md"
+      - "CHANGELOG.d/0.1.57-scene-clearance-continuity.md"
+      - ".github/workflows/gtt-0.1.57-scene-clearance.yml"
+  pull_request:
+    paths:
+      - "Source/GTT/Public/Traffic/GTTCivilianIncidentResponderSubsystem.h"
+      - "Source/GTT/Private/Traffic/GTTCivilianIncidentResponderSubsystem.cpp"
+      - "Source/GTT/Public/Traffic/GTTRoadsideResponderVehicle.h"
+      - "Source/GTT/Private/Traffic/GTTRoadsideResponderVehicle.cpp"
+      - "Source/GTT/Public/Traffic/GTTRoadsideSceneSafetySubsystem.h"
+      - "Source/GTT/Private/Traffic/GTTRoadsideSceneSafetySubsystem.cpp"
+      - "Source/GTT/Public/Save/GTTCivilianResponderSaveGame.h"
+      - "Scripts/verify_0_1_57_scene_clearance.py"
+      - "Scripts/verify_0_1_56_responder_safety_corridor.py"
+      - "Scripts/verify_0_1_55_civilian_responder_handoff.py"
+      - "Scripts/verify_0_1_54_civilian_incident_dispatch.py"
+      - "Docs/PLAYTEST-0.1.57.md"
+      - "CHANGELOG.d/0.1.57-scene-clearance-continuity.md"
+      - ".github/workflows/gtt-0.1.57-scene-clearance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  scene-clearance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify 0.1.57 scene clearance contract
+        run: python Scripts/verify_0_1_57_scene_clearance.py
+
+      - name: Re-run 0.1.56 safety corridor regression contract
+        run: python Scripts/verify_0_1_56_responder_safety_corridor.py
+
+      - name: Re-run 0.1.55 responder handoff regression contract
+        run: python Scripts/verify_0_1_55_civilian_responder_handoff.py
+
+      - name: Re-run 0.1.54 civilian dispatch regression contract
+        run: python Scripts/verify_0_1_54_civilian_incident_dispatch.py

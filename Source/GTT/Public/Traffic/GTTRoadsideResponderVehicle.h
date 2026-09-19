@@ -24,12 +24,16 @@ public:
     virtual FText GetInteractionText_Implementation() const override;
 
     void InitializeIncidentResponse(FName InIncidentId, const FVector& InSceneLocation, bool bStartAtScene);
+    void BeginSceneClearance();
 
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Responder")
     bool IsParkedAtScene() const { return bParkedAtScene; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Responder")
     bool IsSafetyCorridorDeployed() const { return bSafetyCorridorDeployed; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Traffic|Responder")
+    bool IsSceneClearing() const { return bSceneClearing; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Responder")
     FName GetAssignedIncidentId() const { return AssignedIncidentId; }
@@ -65,6 +69,7 @@ private:
     float BeaconClock = 0.0f;
     bool bParkedAtScene = false;
     bool bSafetyCorridorDeployed = false;
+    bool bSceneClearing = false;
 
     static constexpr float ArrivalRadiusCm = 430.0f;
     static constexpr float TargetCruiseSpeedCm = 820.0f;
