@@ -142,6 +142,12 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.53 dynamic traffic incidents and roadside assistance:** meaningful real condition loss on an ambient traffic car now promotes into the existing crash-response state, nearby traffic receives a bounded non-recursive slowdown, and a disabled civilian car offers a 6-second/500 cm legal roadside-assistance interaction. Completion applies a 45% field repair, leaves a temporary limp recovery state and awards a severity-scaled $65–$110 exactly once for that disabled incident; leaving the scene cancels without charge. The 48-case playtest and dedicated source-contract workflow strengthen connected village/traffic/economy coverage, but no roadmap checkbox closes because UE 5.8 Win64 runtime, Native Chaos and authored trailer evidence remain unchanged.
 
+> **0.1.54 civilian incident dispatch & recovery continuity:** severe disabled civilian traffic now opens one bounded authoritative dispatch with a world-space ROADSIDЕ SOS marker, persisted recovery continuity, exact tracked-vehicle rebinding after load and fail-closed expiry. Ranger/game-warden traffic control remains higher priority. This is source-contract gameplay work only and does not close any Native Chaos, trailer or Win64 runtime/visual gate.
+
+> **0.1.55 civilian incident responder handoff:** unresolved severe dispatches now keep a player-first grace period before a physical county ROAD SERVICE responder is sent. On arrival the responder takes scene authority, performs the existing no-payout recovery, persists through save/load, clears stale authority defensively and yields to warden traffic control. This milestone does not change the five runtime/art blockers or demo readiness.
+
+> **0.1.56 responder safety corridor:** an on-scene ROAD SERVICE responder now deploys four visible engine-local safety cones and creates a bounded 1,800 cm traffic-yield corridor with a 320 cm recovery pocket and per-car 4.5 second cooldown. Cooldown history is scoped to the physical responder scene and is reset on replacement/teardown; disabled vehicles, player roadside assistance, responder scene authority and ranger/warden traffic remain excluded. The 52-case source/playtest contract adds no economy, repair, Wanted or release authority, so roadmap completion remains 125/130 until real UE 5.8 Win64/runtime/visual blockers close.
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
