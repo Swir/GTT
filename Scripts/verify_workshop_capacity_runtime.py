@@ -3,8 +3,8 @@
 
 This verifies source/evaluator/release-gate wiring. It never claims Unreal compilation or
 packaged runtime execution; those require the self-hosted Windows x64 UE 5.8 evidence job.
-Later workshop lifecycle milestones may add timed check-in before checkout while preserving
-all original 0.1.48 exact-ID/capacity/economy evidence guarantees.
+Later workshop lifecycle milestones may add timed check-in and explicit paid pickup while
+preserving all original 0.1.48 exact-ID/capacity/economy evidence guarantees.
 """
 from __future__ import annotations
 
@@ -31,6 +31,8 @@ def main() -> int:
     header = read("Source/GTT/Public/Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.h")
     cpp = read("Source/GTT/Private/Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.cpp")
     queue_cpp = read("Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp")
+    legacy_bridge_h = read("Source/GTT/Public/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.h")
+    legacy_bridge_cpp = read("Source/GTT/Private/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.cpp")
     evaluator = read("Scripts/evaluate_workshop_capacity_runtime.ps1")
     promoter = read("Scripts/promote_demo_gate_workshop_capacity.ps1")
     smoke = read("Scripts/smoke_test_windows.ps1")
@@ -56,7 +58,8 @@ def main() -> int:
     require(queue_cpp, [
         "MaxQueuedRepairs", "AppointmentSpacingHours", "later due appointments can still proceed",
         "RequiresHardWorkshopHold(Entry.PersistentVehicleId)", "FarmCargoBoundVehicleId == VehicleId",
-        "SpendCash(LockedQuote", "ApplyNativeWorkshopService()", "WORKSHOP_QUEUE_COMPLETED",
+        "SpendCash(LockedQuote", "ApplyNativeWorkshopService()", "WORKSHOP_QUEUE_READY_FOR_PICKUP",
+        "ReleaseCompletedRepairForPickup",
     ], "production capacity authority")
     if "WORKSHOP_QUEUE_CHECKED_IN" in queue_cpp:
         require(queue_cpp, [
@@ -80,6 +83,23 @@ def main() -> int:
         ], "timed lifecycle check-in authority")
         if "SpendCash(" in checkin or "ApplyNativeWorkshopService(" in checkin:
             raise AssertionError("timed check-in must not debit or service before completion")
+
+    # 0.1.51 keeps paid repairs READY_FOR_PICKUP in ordinary gameplay. Historical packaged 0.1.48
+    # evidence still expects the serviced later appointment to disappear before its assertions.
+    # Preserve that old gate through an explicit evidence-only bridge that calls the production
+    # exact-ID pickup API under the historical command-line scenarios, never through a fake source
+    # completion marker or a second economy/repair path.
+    require(legacy_bridge_h, [
+        "Evidence-only compatibility bridge", "UGTTWorkshopLegacyEvidencePickupBridgeSubsystem",
+    ], "pickup compatibility bridge header")
+    require(legacy_bridge_cpp, [
+        "GTTDemoSmokeScenario", "GTTWorkshopCapacityRuntimeScenario", "GTTWorkshopQueueRuntimeScenario",
+        "ReleaseCompletedRepairForPickup", "WORKSHOP_LEGACY_EVIDENCE_AUTO_PICKUP",
+        "charged_again=NO", "repair_mutation=NO",
+    ], "pickup compatibility bridge implementation")
+    for forbidden in ("SpendCash(", "ApplyNativeWorkshopService(", "AddCash("):
+        if forbidden in legacy_bridge_cpp:
+            raise AssertionError(f"legacy evidence bridge must not own economy/repair mutation: {forbidden}")
 
     require(evaluator, [
         "gtt.workshop-capacity-runtime.v1", "WORKSHOP_CAPACITY_RUNTIME.json", "appointment_spacing_minutes=45",
@@ -128,6 +148,7 @@ def main() -> int:
 
     print("GTT 0.1.48 packaged multi-vehicle workshop capacity source contract: PASS")
     print("Runtime route: two exact-ID bookings -> disk -> cancel/rebook -> underfunded non-blocking execution")
+    print("0.1.51 pickup: historical packaged route auto-releases only through evidence-only production pickup bridge")
     print("Technical gate target: schema 16 (requires real same-SHA packaged PASS evidence)")
     print(f"Roadmap: {done}/{done + open_} = {done/(done+open_)*100:.1f}% (unchanged)")
     print("Runtime/Win64 verification: NOT CLAIMED")
