@@ -65,7 +65,7 @@ FName AGTTWorkshopJobBoardTerminal::FindNearestQueuedVehicle() const
 
 FString AGTTWorkshopJobBoardTerminal::BuildBoardSummary() const
 {
-    const UWorld* World = GetWorld();
+    UWorld* World = GetWorld();
     const UGTTWorkshopRepairQueueSubsystem* Queue = World ? World->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>() : nullptr;
     if (!Queue || !Queue->HasQueuedRepair())
     {
@@ -164,7 +164,7 @@ void AGTTWorkshopJobBoardTerminal::Interact_Implementation(AActor* Interactor)
 
 FText AGTTWorkshopJobBoardTerminal::GetInteractionText_Implementation() const
 {
-    const UWorld* World = GetWorld();
+    UWorld* World = GetWorld();
     const UGTTWorkshopRepairQueueSubsystem* Queue = World ? World->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>() : nullptr;
     const int32 Count = Queue ? Queue->GetQueuedRepairCount() : 0;
     const int32 Capacity = Queue ? Queue->GetQueueCapacity() : UGTTWorkshopRepairQueueSubsystem::MaxQueuedRepairs;
