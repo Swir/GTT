@@ -69,6 +69,17 @@ require(
     "SupersedeSeverityDelta = 0.20f",
 )
 
+# These helpers accept const UObject-derived pointers and are intentionally C++
+# only. Keeping them out of reflected signatures avoids UHT version variance.
+for helper in ("IsTrackedVehicle", "GetPresentationSnapshot"):
+    helper_pos = dispatch_h.find(helper)
+    if helper_pos < 0:
+        errors.append(f"dispatch header: missing helper {helper}")
+        continue
+    prefix = dispatch_h[max(0, helper_pos - 120):helper_pos]
+    if "UFUNCTION" in prefix:
+        errors.append(f"dispatch header: {helper} must remain C++-only (no reflected const UObject pointer parameter)")
+
 require(
     save_h,
     "dispatch save sidecar",
@@ -103,6 +114,8 @@ require(
     "ROADSIDE DISPATCH",
     "ROADSIDE SOS",
     "UTextRenderComponent",
+    "Vehicle->AddInstanceComponent(Marker);",
+    "Marker->RegisterComponent();",
     "SaveGameToSlot",
     "LoadGameFromSlot",
     "DeleteGameInSlot",
@@ -114,6 +127,13 @@ require(
     "RangerAuthorityRadiusCm",
     "CancelRoadsideAssistanceForTrafficControl()",
     "Economy->PushMessage",
+)
+require_order(
+    dispatch_cpp,
+    "world marker ownership",
+    "Vehicle->AddInstanceComponent(Marker);",
+    "Marker->RegisterComponent();",
+    "MarkerComponent = Marker;",
 )
 
 if "Economy->AddCash" in dispatch_cpp or "Economy->SpendCash" in dispatch_cpp or "ChargeFine" in dispatch_cpp:
@@ -200,6 +220,7 @@ if errors:
 
 print(f"GTT 0.1.54 civilian incident dispatch sanity: PASS ({case_count} playtest cases)")
 print(" - dispatch lifecycle/persistence: verified by source contract")
+print(" - world marker ownership/UHT-safe helpers: verified by source contract")
 print(" - ranger traffic-control priority: verified by source contract")
 print(" - economy ownership: existing 0.1.53 repair/payout path preserved")
 print(" - packaged Win64 runtime proof: NOT CLAIMED")

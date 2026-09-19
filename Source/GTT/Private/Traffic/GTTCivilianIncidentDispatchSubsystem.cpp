@@ -270,13 +270,13 @@ bool UGTTCivilianIncidentDispatchSubsystem::TryRebindSavedIncident()
 
 bool UGTTCivilianIncidentDispatchSubsystem::IsWardenTrafficControlBlocking(const FVector& SceneLocation) const
 {
-    const UWorld* World = GetWorld();
+    UWorld* World = GetWorld();
     if (!World)
     {
         return false;
     }
 
-    const UGTTRangerRoadStopSubsystem* RoadStop = World->GetSubsystem<UGTTRangerRoadStopSubsystem>();
+    UGTTRangerRoadStopSubsystem* RoadStop = World->GetSubsystem<UGTTRangerRoadStopSubsystem>();
     if (!RoadStop || !RoadStop->HasTrafficControl())
     {
         return false;
@@ -466,6 +466,7 @@ void UGTTCivilianIncidentDispatchSubsystem::EnsureWorldMarker()
     Marker->SetHorizontalAlignment(EHTA_Center);
     Marker->SetTextRenderColor(FColor(70, 215, 255));
     Marker->SetVisibility(true, true);
+    Vehicle->AddInstanceComponent(Marker);
     Marker->RegisterComponent();
     MarkerComponent = Marker;
 }

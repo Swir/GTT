@@ -64,10 +64,9 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Dispatch")
     float GetActiveIncidentSeverity() const { return ActiveSeverity; }
 
-    UFUNCTION(BlueprintPure, Category="GTT|Traffic|Dispatch")
+    // C++-only observation helpers. Keeping UObject pointer parameters out of
+    // reflected UFUNCTION signatures avoids UHT portability risk on UE 5.8.
     bool IsTrackedVehicle(const AGTTTrafficCarPawn* Vehicle) const;
-
-    UFUNCTION(BlueprintPure, Category="GTT|Traffic|Dispatch")
     FGTTCivilianIncidentDispatchPresentation GetPresentationSnapshot(const APawn* Viewer) const;
 
 private:
