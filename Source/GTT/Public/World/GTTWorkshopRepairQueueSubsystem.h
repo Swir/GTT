@@ -20,6 +20,12 @@ struct GTT_API FGTTWorkshopRepairQueueSnapshot
     UPROPERTY(BlueprintReadOnly) float ReadyHour = 0.0f;
     UPROPERTY(BlueprintReadOnly) float HoursUntilReady = 0.0f;
     UPROPERTY(BlueprintReadOnly) int32 QueuePosition = 0;
+    UPROPERTY(BlueprintReadOnly) bool bCheckedIn = false;
+    UPROPERTY(BlueprintReadOnly) int32 ServiceStartDay = 0;
+    UPROPERTY(BlueprintReadOnly) float ServiceStartHour = 0.0f;
+    UPROPERTY(BlueprintReadOnly) int32 ServiceCompleteDay = 0;
+    UPROPERTY(BlueprintReadOnly) float ServiceCompleteHour = 0.0f;
+    UPROPERTY(BlueprintReadOnly) float HoursUntilServiceComplete = 0.0f;
     UPROPERTY(BlueprintReadOnly) FString State = TEXT("EMPTY");
 };
 
@@ -27,10 +33,13 @@ struct GTT_API FGTTWorkshopRepairQueueSnapshot
  * Persistent deferred-repair appointments for ordinary damaged/mobile native road vehicles.
  *
  * Up to four exact vehicles can reserve separate request-time locked quotes while the workshop
- * is closed. Each booking gets a deterministic service slot. No cash is charged until that exact
- * owned vehicle is physically at a real workshop terminal at/after its appointment. A vehicle
- * without enough cash never blocks later due appointments. Hard TOW/IMMOBILE WORKSHOP HOLD stays
- * on the separate immediate emergency lane and is never converted into this queue.
+ * is closed. Each booking gets a deterministic service slot. At/after that slot the exact vehicle
+ * must physically check in at a real workshop terminal. Service then consumes real world time
+ * derived from its condition, tires, body damage and fuel deficit. No cash is charged and no repair
+ * mutation occurs until the service timer completes and checkout succeeds. Leaving the workshop
+ * before completion returns the appointment to READY without charging. A vehicle without enough
+ * cash at checkout never blocks later due appointments. Hard TOW/IMMOBILE WORKSHOP HOLD stays on
+ * the separate immediate emergency lane and is never converted into this queue.
  */
 UCLASS()
 class GTT_API UGTTWorkshopRepairQueueSubsystem : public UTickableWorldSubsystem
@@ -40,6 +49,8 @@ class GTT_API UGTTWorkshopRepairQueueSubsystem : public UTickableWorldSubsystem
 public:
     static constexpr int32 MaxQueuedRepairs = 4;
     static constexpr float AppointmentSpacingHours = 0.75f;
+    static constexpr float MinimumServiceDurationHours = 0.50f;
+    static constexpr float MaximumServiceDurationHours = 1.50f;
 
     virtual void Tick(float DeltaSeconds) override;
     virtual TStatId GetStatId() const override;
@@ -55,6 +66,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Workshop|Queue")
     bool HasQueuedRepairForVehicle(FName VehicleId) const;
+
+    UFUNCTION(BlueprintPure, Category="GTT|Workshop|Queue")
+    bool IsVehicleInWorkshopService(FName VehicleId) const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Workshop|Queue")
     int32 GetQueuedRepairCount() const { return QueueEntries.Num(); }
@@ -90,6 +104,8 @@ private:
     bool IsVehicleAtWorkshop(const AGTTRoadVehicleNativePawn* Vehicle) const;
     bool ResolveClock(int32& OutDay, float& OutHour) const;
     void ResolveNextAppointment(int32 RequestDay, float RequestHour, int32& OutReadyDay, float& OutReadyHour) const;
+    void ResolveServiceCompletion(int32 StartDay, float StartHour, float DurationHours, int32& OutDay, float& OutHour) const;
+    float CalculateServiceDurationHours(const AGTTRoadVehicleNativePawn* Vehicle) const;
     void TryExecuteReadyReservations();
     FGTTWorkshopRepairQueueSnapshot BuildSnapshot(const FGTTWorkshopRepairQueueSnapshot& Entry, int32 Position) const;
 

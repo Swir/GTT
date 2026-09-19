@@ -3,6 +3,8 @@
 
 This verifies source/evaluator/release-gate wiring. It never claims Unreal compilation or
 packaged runtime execution; those require the self-hosted Windows x64 UE 5.8 evidence job.
+Later workshop lifecycle milestones may add timed check-in before checkout while preserving
+all original 0.1.48 exact-ID/capacity/economy evidence guarantees.
 """
 from __future__ import annotations
 
@@ -53,9 +55,32 @@ def main() -> int:
     ], "runtime route")
     require(queue_cpp, [
         "MaxQueuedRepairs", "AppointmentSpacingHours", "later due appointments can still proceed",
-        "++Index; // Capacity rule: an underfunded vehicle never blocks later due appointments.",
         "RequiresHardWorkshopHold(Entry.PersistentVehicleId)", "FarmCargoBoundVehicleId == VehicleId",
+        "SpendCash(LockedQuote", "ApplyNativeWorkshopService()", "WORKSHOP_QUEUE_COMPLETED",
     ], "production capacity authority")
+    if "WORKSHOP_QUEUE_CHECKED_IN" in queue_cpp:
+        require(queue_cpp, [
+            "AWAITING_PAYMENT", "timed_service=YES",
+            "MutableEntry.bCheckedIn = true;",
+            "ResolveServiceCompletion(Day, Hour, DurationHours",
+        ], "later timed-service lifecycle compatibility")
+        execution = queue_cpp[queue_cpp.index("void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations"):]
+        checkin_start = execution.index("if (!Entry.bCheckedIn)")
+        checkout_start = execution.index(
+            "if (!IsAtOrAfter(Day, Hour, Entry.ServiceCompleteDay, Entry.ServiceCompleteHour))",
+            checkin_start,
+        )
+        checkin = execution[checkin_start:checkout_start]
+        require(checkin, [
+            "if (!IsVehicleAtWorkshop(Vehicle))",
+            "MutableEntry.bCheckedIn = true;",
+            "WriteCheckpoint()",
+            "++Index;",
+            "continue;",
+        ], "timed lifecycle check-in authority")
+        if "SpendCash(" in checkin or "ApplyNativeWorkshopService(" in checkin:
+            raise AssertionError("timed check-in must not debit or service before completion")
+
     require(evaluator, [
         "gtt.workshop-capacity-runtime.v1", "WORKSHOP_CAPACITY_RUNTIME.json", "appointment_spacing_minutes=45",
         "underfunded_earlier_nonblocking", "independent_exact_id_cancel", "production_complete_markers",

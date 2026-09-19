@@ -46,6 +46,11 @@ namespace
     {
         return DayA > DayB || (DayA == DayB && HourA > HourB + KINDA_SMALL_NUMBER);
     }
+
+    bool IsAtOrAfter(int32 Day, float Hour, int32 TargetDay, float TargetHour)
+    {
+        return Day > TargetDay || (Day == TargetDay && Hour + KINDA_SMALL_NUMBER >= TargetHour);
+    }
 }
 
 TStatId UGTTWorkshopRepairQueueSubsystem::GetStatId() const
@@ -87,6 +92,15 @@ bool UGTTWorkshopRepairQueueSubsystem::HasQueuedRepairForVehicle(FName VehicleId
         });
 }
 
+bool UGTTWorkshopRepairQueueSubsystem::IsVehicleInWorkshopService(FName VehicleId) const
+{
+    return !VehicleId.IsNone() && QueueEntries.ContainsByPredicate(
+        [VehicleId](const FGTTWorkshopRepairQueueSnapshot& Entry)
+        {
+            return Entry.PersistentVehicleId == VehicleId && Entry.bCheckedIn;
+        });
+}
+
 FName UGTTWorkshopRepairQueueSubsystem::GetQueuedVehicleId() const
 {
     return QueueEntries.Num() > 0 ? QueueEntries[0].PersistentVehicleId : NAME_None;
@@ -114,6 +128,35 @@ void UGTTWorkshopRepairQueueSubsystem::ResolveNextAppointment(
         ++OutReadyDay;
         OutReadyHour = GTTWorkshopHoursPolicy::OpeningHour;
     }
+}
+
+void UGTTWorkshopRepairQueueSubsystem::ResolveServiceCompletion(
+    int32 StartDay, float StartHour, float DurationHours, int32& OutDay, float& OutHour) const
+{
+    const float SafeDuration = FMath::Clamp(DurationHours, MinimumServiceDurationHours, MaximumServiceDurationHours);
+    const float AbsoluteHours = FMath::Max(0.0f, StartHour) + SafeDuration;
+    OutDay = FMath::Max(1, StartDay) + FMath::FloorToInt(AbsoluteHours / 24.0f);
+    OutHour = FMath::Fmod(AbsoluteHours, 24.0f);
+    if (OutHour < 0.0f) OutHour += 24.0f;
+}
+
+float UGTTWorkshopRepairQueueSubsystem::CalculateServiceDurationHours(const AGTTRoadVehicleNativePawn* Vehicle) const
+{
+    if (!Vehicle) return MinimumServiceDurationHours;
+
+    const FGTTRoadVehicleMigrationSnapshot Migration = Vehicle->GetMigrationSnapshot();
+    const FGTTRoadBodyDamageSnapshot Body = Vehicle->GetBodyDamageSnapshot();
+    const float ConditionDeficit = 1.0f - FMath::Clamp(Migration.ConditionPercent, 0.0f, 1.0f);
+    const float TireDeficit = 1.0f - FMath::Clamp(Migration.TireIntegrity, 0.0f, 1.0f);
+    const float FuelCapacity = FMath::Max(1.0f, Vehicle->GetFuelCapacityLiters());
+    const float FuelDeficit = 1.0f - FMath::Clamp(Migration.FuelLiters / FuelCapacity, 0.0f, 1.0f);
+    const float BodyHealth = FMath::Clamp(
+        (Body.FrontHealth + Body.RearHealth + Body.LeftHealth + Body.RightHealth) * 0.25f, 0.0f, 1.0f);
+    const float BodyDeficit = 1.0f - BodyHealth;
+    const float DetachedPenalty = FMath::Clamp(static_cast<float>(Body.DetachedPanelCount) / 4.0f, 0.0f, 1.0f);
+    const float Workload = ConditionDeficit * 0.35f + TireDeficit * 0.20f + FuelDeficit * 0.10f
+        + BodyDeficit * 0.25f + DetachedPenalty * 0.10f;
+    return FMath::Clamp(MinimumServiceDurationHours + Workload, MinimumServiceDurationHours, MaximumServiceDurationHours);
 }
 
 bool UGTTWorkshopRepairQueueSubsystem::TryQueueNearestEligibleNativeRoadVehicle(
@@ -208,11 +251,11 @@ bool UGTTWorkshopRepairQueueSubsystem::TryQueueNearestEligibleNativeRoadVehicle(
     }
 
     OutSummary = FString::Printf(
-        TEXT("QUEUED %d/%d: %s repair | locked quote $%d | appointment day %d %s | exact vehicle ID pinned | no pre-charge."),
+        TEXT("QUEUED %d/%d: %s repair | locked quote $%d | appointment day %d %s | exact vehicle ID pinned | check-in starts timed service | no pre-charge."),
         QueueEntries.Num(), MaxQueuedRepairs, *VehicleId.ToString(), Quote, ReadyDay,
         *GTTWorkshopHoursPolicy::FormatHour(ReadyHour));
     UE_LOG(LogGTT, Display,
-        TEXT("WORKSHOP_QUEUE_ACCEPTED vehicle=%s locked_quote=%d requested_day=%d requested_hour=%.2f ready_day=%d ready_hour=%.2f position=%d capacity=%d charged=NO exact_id=YES"),
+        TEXT("WORKSHOP_QUEUE_ACCEPTED vehicle=%s locked_quote=%d requested_day=%d requested_hour=%.2f ready_day=%d ready_hour=%.2f position=%d capacity=%d charged=NO exact_id=YES lifecycle=WAITING"),
         *VehicleId.ToString(), Quote, Day, Hour, ReadyDay, ReadyHour, QueueEntries.Num(), MaxQueuedRepairs);
     return true;
 }
@@ -241,6 +284,13 @@ bool UGTTWorkshopRepairQueueSubsystem::CancelQueuedRepair(FName VehicleId, FStri
         OutSummary = FString::Printf(TEXT("No workshop appointment belongs to %s; exact-ID cancellation rejected."), *VehicleId.ToString());
         return false;
     }
+    if (QueueEntries[Index].bCheckedIn)
+    {
+        OutSummary = FString::Printf(
+            TEXT("%s is already checked in for workshop service. Move it out of the workshop before cancelling; no payment is taken until checkout."),
+            *VehicleId.ToString());
+        return false;
+    }
 
     const FString Id = QueueEntries[Index].PersistentVehicleId.ToString();
     RemoveEntryAt(Index, TEXT("PLAYER_CANCELLED"));
@@ -258,6 +308,7 @@ FGTTWorkshopRepairQueueSnapshot UGTTWorkshopRepairQueueSubsystem::BuildSnapshot(
     Snapshot.QueuePosition = Position;
     Snapshot.State = TEXT("QUEUED");
     Snapshot.HoursUntilReady = 0.0f;
+    Snapshot.HoursUntilServiceComplete = 0.0f;
 
     int32 Day = 0;
     float Hour = 0.0f;
@@ -265,7 +316,15 @@ FGTTWorkshopRepairQueueSnapshot UGTTWorkshopRepairQueueSubsystem::BuildSnapshot(
     {
         Snapshot.HoursUntilReady = FMath::Max(0.0f,
             static_cast<float>(Entry.ReadyDay - Day) * 24.0f + Entry.ReadyHour - Hour);
-        if (Day > Entry.ReadyDay || (Day == Entry.ReadyDay && Hour + KINDA_SMALL_NUMBER >= Entry.ReadyHour))
+        if (Entry.bCheckedIn)
+        {
+            Snapshot.HoursUntilServiceComplete = FMath::Max(0.0f,
+                static_cast<float>(Entry.ServiceCompleteDay - Day) * 24.0f + Entry.ServiceCompleteHour - Hour);
+            Snapshot.State = IsAtOrAfter(Day, Hour, Entry.ServiceCompleteDay, Entry.ServiceCompleteHour)
+                ? TEXT("AWAITING_PAYMENT") : TEXT("IN_SERVICE");
+            Snapshot.HoursUntilReady = 0.0f;
+        }
+        else if (IsAtOrAfter(Day, Hour, Entry.ReadyDay, Entry.ReadyHour))
         {
             Snapshot.State = TEXT("READY");
             Snapshot.HoursUntilReady = 0.0f;
@@ -295,6 +354,13 @@ FText UGTTWorkshopRepairQueueSubsystem::GetQueueStatusText() const
 {
     if (QueueEntries.Num() == 0) return FText::FromString(TEXT("Workshop appointments: EMPTY"));
     const FGTTWorkshopRepairQueueSnapshot Next = BuildSnapshot(QueueEntries[0], 1);
+    if (Next.bCheckedIn)
+    {
+        return FText::FromString(FString::Printf(
+            TEXT("Workshop appointments: %d/%d | next %s #%d %s | locked $%d | service ETA %.1f h | checkout only after service | no pre-charge"),
+            QueueEntries.Num(), MaxQueuedRepairs, *Next.State, Next.QueuePosition,
+            *Next.PersistentVehicleId.ToString(), Next.LockedQuote, Next.HoursUntilServiceComplete));
+    }
     return FText::FromString(FString::Printf(
         TEXT("Workshop appointments: %d/%d | next %s #%d %s | locked $%d | day %d %s | ETA %.1f h | no pre-charge"),
         QueueEntries.Num(), MaxQueuedRepairs, *Next.State, Next.QueuePosition,
@@ -358,6 +424,22 @@ void UGTTWorkshopRepairQueueSubsystem::LoadCheckpointOnce()
         Entry.ReadyDay = Saved.ReadyDay;
         Entry.ReadyHour = Saved.ReadyHour;
         Entry.State = TEXT("QUEUED");
+
+        const bool bLifecycleValid = Saved.bCheckedIn
+            && Saved.ServiceStartDay > 0 && Saved.ServiceCompleteDay > 0
+            && Saved.ServiceStartHour >= 0.0f && Saved.ServiceStartHour < 24.0f
+            && Saved.ServiceCompleteHour >= 0.0f && Saved.ServiceCompleteHour < 24.0f
+            && IsAtOrAfter(Saved.ServiceCompleteDay, Saved.ServiceCompleteHour,
+                Saved.ServiceStartDay, Saved.ServiceStartHour);
+        if (Saved.bCheckedIn && !bLifecycleValid) bNeedsRewrite = true;
+        if (bLifecycleValid)
+        {
+            Entry.bCheckedIn = true;
+            Entry.ServiceStartDay = Saved.ServiceStartDay;
+            Entry.ServiceStartHour = Saved.ServiceStartHour;
+            Entry.ServiceCompleteDay = Saved.ServiceCompleteDay;
+            Entry.ServiceCompleteHour = Saved.ServiceCompleteHour;
+        }
         QueueEntries.Add(Entry);
     }
 
@@ -374,9 +456,11 @@ void UGTTWorkshopRepairQueueSubsystem::LoadCheckpointOnce()
         return;
     }
 
+    const int32 CheckedInCount = QueueEntries.CountByPredicate(
+        [](const FGTTWorkshopRepairQueueSnapshot& Entry) { return Entry.bCheckedIn; });
     UE_LOG(LogGTT, Display,
-        TEXT("WORKSHOP_QUEUE_RESTORED count=%d capacity=%d first_vehicle=%s first_locked_quote=%d charged=NO exact_id=YES legacy_migrated=%s"),
-        QueueEntries.Num(), MaxQueuedRepairs, *QueueEntries[0].PersistentVehicleId.ToString(),
+        TEXT("WORKSHOP_QUEUE_RESTORED count=%d capacity=%d checked_in=%d first_vehicle=%s first_locked_quote=%d charged=NO exact_id=YES legacy_migrated=%s"),
+        QueueEntries.Num(), MaxQueuedRepairs, CheckedInCount, *QueueEntries[0].PersistentVehicleId.ToString(),
         QueueEntries[0].LockedQuote, bMigratedLegacy ? TEXT("YES") : TEXT("NO"));
     if (bNeedsRewrite) WriteCheckpoint();
 }
@@ -404,6 +488,11 @@ bool UGTTWorkshopRepairQueueSubsystem::WriteCheckpoint()
         Saved.RequestedHour = Entry.RequestedHour;
         Saved.ReadyDay = Entry.ReadyDay;
         Saved.ReadyHour = Entry.ReadyHour;
+        Saved.bCheckedIn = Entry.bCheckedIn;
+        Saved.ServiceStartDay = Entry.ServiceStartDay;
+        Saved.ServiceStartHour = Entry.ServiceStartHour;
+        Saved.ServiceCompleteDay = Entry.ServiceCompleteDay;
+        Saved.ServiceCompleteHour = Entry.ServiceCompleteHour;
         Save->Appointments.Add(Saved);
     }
 
@@ -521,9 +610,8 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
     int32 Index = 0;
     while (Index < QueueEntries.Num())
     {
-        const FGTTWorkshopRepairQueueSnapshot Entry = QueueEntries[Index];
-        const bool bDue = Day > Entry.ReadyDay
-            || (Day == Entry.ReadyDay && Hour + KINDA_SMALL_NUMBER >= Entry.ReadyHour);
+        FGTTWorkshopRepairQueueSnapshot Entry = QueueEntries[Index];
+        const bool bDue = IsAtOrAfter(Day, Hour, Entry.ReadyDay, Entry.ReadyHour);
         if (!bDue)
         {
             ++Index;
@@ -558,7 +646,72 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
             RemoveEntryAt(Index, TEXT("NO_LONGER_NEEDS_REPAIR"));
             continue;
         }
-        if (!IsVehicleAtWorkshop(Vehicle))
+
+        if (Entry.bCheckedIn && !IsVehicleAtWorkshop(Vehicle))
+        {
+            QueueEntries[Index].bCheckedIn = false;
+            QueueEntries[Index].ServiceStartDay = 0;
+            QueueEntries[Index].ServiceStartHour = 0.0f;
+            QueueEntries[Index].ServiceCompleteDay = 0;
+            QueueEntries[Index].ServiceCompleteHour = 0.0f;
+            WriteCheckpoint();
+            if (NoticeCooldown <= 0.0f)
+            {
+                Economy->PushMessage(FString::Printf(
+                    TEXT("Workshop service paused for %s: vehicle left the service area before completion. Appointment remains READY with the same locked quote and no charge."),
+                    *Entry.PersistentVehicleId.ToString()), 7.0f);
+                NoticeCooldown = 8.0f;
+            }
+            UE_LOG(LogGTT, Display,
+                TEXT("WORKSHOP_QUEUE_SERVICE_PAUSED vehicle=%s reason=LEFT_SERVICE_AREA locked_quote=%d charged=NO appointment_preserved=YES"),
+                *Entry.PersistentVehicleId.ToString(), Entry.LockedQuote);
+            ++Index;
+            continue;
+        }
+
+        if (!Entry.bCheckedIn)
+        {
+            if (!IsVehicleAtWorkshop(Vehicle))
+            {
+                ++Index;
+                continue;
+            }
+
+            const float DurationHours = CalculateServiceDurationHours(Vehicle);
+            FGTTWorkshopRepairQueueSnapshot& MutableEntry = QueueEntries[Index];
+            MutableEntry.bCheckedIn = true;
+            MutableEntry.ServiceStartDay = Day;
+            MutableEntry.ServiceStartHour = Hour;
+            ResolveServiceCompletion(Day, Hour, DurationHours,
+                MutableEntry.ServiceCompleteDay, MutableEntry.ServiceCompleteHour);
+            if (!WriteCheckpoint())
+            {
+                MutableEntry.bCheckedIn = false;
+                MutableEntry.ServiceStartDay = 0;
+                MutableEntry.ServiceStartHour = 0.0f;
+                MutableEntry.ServiceCompleteDay = 0;
+                MutableEntry.ServiceCompleteHour = 0.0f;
+                UE_LOG(LogGTT, Error,
+                    TEXT("WORKSHOP_QUEUE_CHECKIN_FAILED vehicle=%s reason=PERSISTENCE charged=NO mutation=NO"),
+                    *Entry.PersistentVehicleId.ToString());
+                ++Index;
+                continue;
+            }
+
+            Economy->PushMessage(FString::Printf(
+                TEXT("Workshop check-in: %s | locked quote $%d | service time %.1f h | checkout day %d %s | no charge until completion."),
+                *Entry.PersistentVehicleId.ToString(), Entry.LockedQuote, DurationHours,
+                MutableEntry.ServiceCompleteDay, *GTTWorkshopHoursPolicy::FormatHour(MutableEntry.ServiceCompleteHour)), 8.0f);
+            UE_LOG(LogGTT, Display,
+                TEXT("WORKSHOP_QUEUE_CHECKED_IN vehicle=%s locked_quote=%d duration_hours=%.2f start_day=%d start_hour=%.2f complete_day=%d complete_hour=%.2f charged=NO mutation=NO exact_id=YES"),
+                *Entry.PersistentVehicleId.ToString(), Entry.LockedQuote, DurationHours,
+                MutableEntry.ServiceStartDay, MutableEntry.ServiceStartHour,
+                MutableEntry.ServiceCompleteDay, MutableEntry.ServiceCompleteHour);
+            ++Index;
+            continue;
+        }
+
+        if (!IsAtOrAfter(Day, Hour, Entry.ServiceCompleteDay, Entry.ServiceCompleteHour))
         {
             ++Index;
             continue;
@@ -571,11 +724,11 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
             if (NoticeCooldown <= 0.0f)
             {
                 Economy->PushMessage(FString::Printf(
-                    TEXT("Workshop appointment #%d for %s is ready but needs $%d. It stays locked/unpaid; later due appointments can still proceed."),
-                    Index + 1, *Entry.PersistentVehicleId.ToString(), LockedQuote), 6.0f);
+                    TEXT("Workshop service finished for %s but checkout needs $%d. It stays AWAITING PAYMENT; later due appointments can still proceed."),
+                    *Entry.PersistentVehicleId.ToString(), LockedQuote), 6.0f);
                 NoticeCooldown = 8.0f;
             }
-            ++Index; // Capacity rule: an underfunded vehicle never blocks later due appointments.
+            ++Index;
             continue;
         }
 
@@ -594,10 +747,10 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
             GameMode->SaveProgress();
 
         Economy->PushMessage(FString::Printf(
-            TEXT("Workshop appointment complete: %s | charged locked quote $%d exactly once | %d/%d appointments remain."),
+            TEXT("Workshop checkout complete: %s | charged locked quote $%d exactly once | repair/refuel complete | %d/%d appointments remain."),
             *VehicleIdText, Charged, QueueEntries.Num(), MaxQueuedRepairs), 8.0f);
         UE_LOG(LogGTT, Display,
-            TEXT("WORKSHOP_QUEUE_COMPLETED vehicle=%s charged=%d locked_quote_match=YES exact_id=YES saved=YES remaining=%d capacity=%d"),
+            TEXT("WORKSHOP_QUEUE_COMPLETED vehicle=%s charged=%d locked_quote_match=YES exact_id=YES timed_service=YES saved=YES remaining=%d capacity=%d"),
             *VehicleIdText, Charged, QueueEntries.Num(), MaxQueuedRepairs);
         // Do not increment Index: after RemoveEntryAt, the next appointment moved into this slot.
     }
