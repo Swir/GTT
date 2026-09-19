@@ -14,6 +14,7 @@
 #include "World/GTTGarageFleetSubsystem.h"
 #include "World/GTTGarageSlotTerminal.h"
 #include "World/GTTWorkshopHoursPolicy.h"
+#include "World/GTTWorkshopJobBoardTerminal.h"
 #include "World/GTTWorkshopRepairQueueSubsystem.h"
 
 namespace
@@ -32,6 +33,18 @@ namespace
     {
         const AGTTDayNightCycle* Clock = FindGarageWorldClock(World);
         return !Clock || GTTWorkshopHoursPolicy::IsOpen(Clock->GetTimeOfDayHours());
+    }
+
+    bool HasNearbyWorkshopJobBoard(UWorld* World, const FVector& Origin)
+    {
+        if (!World) return false;
+        for (TActorIterator<AGTTWorkshopJobBoardTerminal> It(World); It; ++It)
+        {
+            const AGTTWorkshopJobBoardTerminal* Board = *It;
+            if (IsValid(Board) && FVector::DistSquared2D(Board->GetActorLocation(), Origin) <= FMath::Square(1800.0f))
+                return true;
+        }
+        return false;
     }
 }
 
@@ -57,6 +70,16 @@ void AGTTGarageTerminal::BeginPlay()
         const FVector Offset(-1300.0f + Slot * 420.0f, -630.0f, 55.0f);
         AGTTGarageSlotTerminal* Selector = GetWorld()->SpawnActor<AGTTGarageSlotTerminal>(GetActorLocation() + Offset, FRotator::ZeroRotator);
         if (Selector) Selector->SetSlotIndex(Slot);
+    }
+
+    // Keep the operational job board physically attached to the existing garage/workshop loop.
+    // Authored maps may place their own board; only source-built prototype worlds receive this fallback.
+    if (!HasNearbyWorkshopJobBoard(GetWorld(), GetActorLocation()))
+    {
+        const FVector BoardOffset(420.0f, -320.0f, 80.0f);
+        GetWorld()->SpawnActor<AGTTWorkshopJobBoardTerminal>(
+            GetActorLocation() + BoardOffset,
+            GetActorRotation());
     }
 }
 
@@ -126,6 +149,7 @@ void AGTTGarageTerminal::Interact_Implementation(AActor* Interactor)
             Summary += TEXT("\n");
             Summary += RepairQueue->GetQueueStatusText().ToString();
             Summary += TEXT(" | each appointment keeps its own exact vehicle ID and locked quote; payment occurs only when that vehicle is serviced.");
+            Summary += TEXT(" Use the WORKSHOP JOB BOARD beside the garage for the full four-slot operational view and guarded exact-ID cancellation.");
             if (!bWorkshopOpen && RepairQueue->GetQueuedRepairCount() < RepairQueue->GetQueueCapacity())
             {
                 Summary += TEXT(" Interact again with another eligible damaged vehicle nearby to fill the next appointment slot.");

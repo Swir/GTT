@@ -63,26 +63,40 @@ def main() -> int:
         "WORKSHOP_QUEUE_CHECKED_IN", "WORKSHOP_QUEUE_SERVICE_PAUSED",
         "timed_service=YES", "checkout only after service", "AWAITING_PAYMENT",
         "Saved.bCheckedIn = Entry.bCheckedIn", "Entry.bCheckedIn = true",
-        "ServiceCompleteDay", "ServiceCompleteHour",
-        "later due appointments can still proceed",
+        "ServiceCompleteDay", "ServiceCompleteHour", "later due appointments can still proceed",
     ], "timed service implementation")
 
     execute = block(queue_cpp, "void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations")
-    checkin = execute.index("WORKSHOP_QUEUE_CHECKED_IN")
+    checkin_log = execute.index("WORKSHOP_QUEUE_CHECKED_IN")
+    completion_gate_token = "if (!IsAtOrAfter(Day, Hour, Entry.ServiceCompleteDay, Entry.ServiceCompleteHour))"
+    completion_gate = execute.index(completion_gate_token)
     debit = execute.index("SpendCash(LockedQuote")
     mutation = execute.index("ApplyNativeWorkshopService()")
-    completion_gate = execute.index("Entry.ServiceCompleteDay")
-    if not (checkin < completion_gate < debit < mutation):
-        raise AssertionError("service must check in and pass completion time before debit/mutation")
+    if not (checkin_log < completion_gate < debit < mutation):
+        raise AssertionError(
+            "service must log successful check-in, then pass the exact completion-time gate before debit/mutation"
+        )
 
-    pre_checkout = execute[:debit]
-    if "SpendCash(LockedQuote" in pre_checkout:
-        raise AssertionError("no locked-quote debit is allowed before timed checkout")
-    checkin_block = block(queue_cpp, "if (!Entry.bCheckedIn)", "if (!IsAtOrAfter(Day, Hour, Entry.ServiceCompleteDay")
+    # Do not use a loose `Entry.ServiceCompleteDay` substring for ordering: it also occurs inside
+    # `MutableEntry.ServiceCompleteDay` while the check-in timestamp is being assigned. The exact
+    # completion-gate statement above makes this source-contract check resilient to that aliasing.
+    checkin_block = block(
+        queue_cpp,
+        "if (!Entry.bCheckedIn)",
+        completion_gate_token,
+    )
     if "ApplyNativeWorkshopService()" in checkin_block or "SpendCash(LockedQuote" in checkin_block:
         raise AssertionError("check-in must not charge or repair")
+    require(checkin_block, [
+        "ResolveServiceCompletion", "WORKSHOP_QUEUE_CHECKED_IN", "WriteCheckpoint()",
+        "charged=NO", "mutation=NO",
+    ], "check-in persistence/no-charge contract")
 
-    pause_block = block(queue_cpp, "if (Entry.bCheckedIn && !IsVehicleAtWorkshop(Vehicle))", "if (!Entry.bCheckedIn)")
+    pause_block = block(
+        queue_cpp,
+        "if (Entry.bCheckedIn && !IsVehicleAtWorkshop(Vehicle))",
+        "if (!Entry.bCheckedIn)",
+    )
     require(pause_block, [
         "bCheckedIn = false", "ServiceCompleteDay = 0", "WriteCheckpoint()",
         "charged=NO", "appointment_preserved=YES",
@@ -90,18 +104,26 @@ def main() -> int:
     if "RemoveEntryAt" in pause_block or "SpendCash" in pause_block:
         raise AssertionError("leaving service area must preserve appointment without debit")
 
-    load = block(queue_cpp, "void UGTTWorkshopRepairQueueSubsystem::LoadCheckpointOnce", "bool UGTTWorkshopRepairQueueSubsystem::WriteCheckpoint")
-    write = block(queue_cpp, "bool UGTTWorkshopRepairQueueSubsystem::WriteCheckpoint", "void UGTTWorkshopRepairQueueSubsystem::ClearCheckpoint")
+    load = block(
+        queue_cpp,
+        "void UGTTWorkshopRepairQueueSubsystem::LoadCheckpointOnce",
+        "bool UGTTWorkshopRepairQueueSubsystem::WriteCheckpoint",
+    )
+    write = block(
+        queue_cpp,
+        "bool UGTTWorkshopRepairQueueSubsystem::WriteCheckpoint",
+        "void UGTTWorkshopRepairQueueSubsystem::ClearCheckpoint",
+    )
     require(load, ["bLifecycleValid", "Saved.bCheckedIn", "Entry.ServiceCompleteHour"], "lifecycle load")
-    require(write, ["Saved.bCheckedIn", "Saved.ServiceStartDay", "Saved.ServiceCompleteHour", "Save->bQueued = true"], "lifecycle write")
+    require(write, [
+        "Saved.bCheckedIn", "Saved.ServiceStartDay", "Saved.ServiceCompleteHour", "Save->bQueued = true",
+    ], "lifecycle write")
 
     require(service_terminal_cpp, [
         '#include "World/GTTWorkshopRepairQueueSubsystem.h"',
-        "ResolveQueuedWorkshopAppointment", "HasQueuedRepairForVehicle",
-        "GetQueueSnapshots", "WORKSHOP_QUEUE_TERMINAL_GUARD",
-        "queue_authority=YES", "direct_service=BLOCKED",
-        "!bWorkshopHold && ResolveQueuedWorkshopAppointment",
-        "Queue lifecycle owns this exact vehicle",
+        "ResolveQueuedWorkshopAppointment", "HasQueuedRepairForVehicle", "GetQueueSnapshots",
+        "WORKSHOP_QUEUE_TERMINAL_GUARD", "queue_authority=YES", "direct_service=BLOCKED",
+        "!bWorkshopHold && ResolveQueuedWorkshopAppointment", "Queue lifecycle owns this exact vehicle",
     ], "workshop terminal queue authority")
     native_terminal = block(
         service_terminal_cpp,
@@ -113,11 +135,13 @@ def main() -> int:
     direct_mutation = native_terminal.index("ApplyNativeWorkshopService()")
     if not (guard < direct_debit < direct_mutation):
         raise AssertionError("queued appointment guard must run before direct workshop debit/mutation")
-    guard_block = block(native_terminal, "if (!bWorkshopHold && ResolveQueuedWorkshopAppointment", "if (!bNeedsMechanical && !bNeedsFuel)")
-    if "SpendCash(" in guard_block or "ApplyNativeWorkshopService" in guard_block:
-        raise AssertionError("terminal queue guard must never charge or mutate the queued vehicle")
-    if "return;" not in guard_block:
-        raise AssertionError("terminal queue guard must stop direct walk-up service")
+    guard_block = block(
+        native_terminal,
+        "if (!bWorkshopHold && ResolveQueuedWorkshopAppointment",
+        "if (!bNeedsMechanical && !bNeedsFuel)",
+    )
+    if "SpendCash(" in guard_block or "ApplyNativeWorkshopService" in guard_block or "return;" not in guard_block:
+        raise AssertionError("terminal queue guard must stop direct service without charge/mutation")
 
     require(old_capacity, [
         "GTTWorkshopCapacityRuntimeScenario", "ExpectedSpacingHours = 0.75f",
@@ -127,13 +151,17 @@ def main() -> int:
         "UGTTWorkshopCapacityLifecycleBridgeSubsystem", "Evidence-only time bridge",
     ], "0.1.48 lifecycle bridge header")
     require(capacity_bridge_cpp, [
-        "GTTDemoSmokeScenario", "GTTWorkshopCapacityRuntimeScenario",
-        "Entries.Num() < 2", "Entry.bCheckedIn", "ServiceCompleteDay",
-        "LatestCompletionAbsoluteHours", "Clock->RestoreTime",
-        "WORKSHOP_CAPACITY_LIFECYCLE_BRIDGE", "0.1.49_timed_service_compatibility",
+        "GTTDemoSmokeScenario", "GTTWorkshopCapacityRuntimeScenario", "Entries.Num() < 2",
+        "Entry.bCheckedIn", "ServiceCompleteDay", "LatestCompletionAbsoluteHours",
+        "Clock->RestoreTime", "WORKSHOP_CAPACITY_LIFECYCLE_BRIDGE",
+        "0.1.49_timed_service_compatibility",
     ], "0.1.48 lifecycle bridge implementation")
-    require(old_capacity_verify, ["MaxQueuedRepairs = 4", "AppointmentSpacingHours = 0.75f", "timed lifecycle forward compatibility"], "0.1.47 verifier retained")
-    require(runtime_verify, ["WORKSHOP_CAPACITY_RUNTIME", "later timed-service lifecycle compatibility"], "0.1.48 runtime evaluator retained")
+    require(old_capacity_verify, [
+        "MaxQueuedRepairs = 4", "AppointmentSpacingHours = 0.75f", "timed lifecycle forward compatibility",
+    ], "0.1.47 verifier retained")
+    require(runtime_verify, [
+        "WORKSHOP_CAPACITY_RUNTIME", "later timed-service lifecycle compatibility",
+    ], "0.1.48 runtime evaluator retained")
 
     scenarios = re.findall(r"^- \[ \] \d+\.", playtest, flags=re.MULTILINE)
     if len(scenarios) != 68:
@@ -147,12 +175,9 @@ def main() -> int:
         "terminal", "bypass", "125 / 130 (96.2%)", "Win64",
     ], "milestone changelog")
     require(workflow, [
-        "Source/GTT/Private/World/GTTServiceTerminal.cpp",
-        "verify_workshop_service_lifecycle.py",
-        "verify_workshop_multi_vehicle_capacity.py",
-        "verify_workshop_capacity_runtime.py",
-        "GTTWorkshopCapacityLifecycleBridgeSubsystem.cpp",
-        "generate_progress_svg.py --check",
+        "Source/GTT/Private/World/GTTServiceTerminal.cpp", "verify_workshop_service_lifecycle.py",
+        "verify_workshop_multi_vehicle_capacity.py", "verify_workshop_capacity_runtime.py",
+        "GTTWorkshopCapacityLifecycleBridgeSubsystem.cpp", "generate_progress_svg.py --check",
     ], "milestone workflow")
 
     done = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
@@ -164,8 +189,7 @@ def main() -> int:
         "| **125** | **5** | **130** | **96.2%** |",
     ], "roadmap presentation")
     require(readme, [
-        "<!-- SWIR-README-STANDARD:v2 -->", "assets/readme/progress-card.svg",
-        "## 🔎 Search Keywords",
+        "<!-- SWIR-README-STANDARD:v2 -->", "assets/readme/progress-card.svg", "## 🔎 Search Keywords",
     ], "README presentation")
     if roadmap.count("../assets/readme/progress-mini.svg") != 1:
         raise AssertionError("roadmap must contain exactly one progress-mini SVG")

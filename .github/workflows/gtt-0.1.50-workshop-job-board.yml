@@ -1,0 +1,41 @@
+name: GTT 0.1.50 workshop job board sanity
+
+on:
+  push:
+    paths:
+      - 'Source/GTT/Public/World/GTTWorkshopJobBoardTerminal.h'
+      - 'Source/GTT/Private/World/GTTWorkshopJobBoardTerminal.cpp'
+      - 'Source/GTT/Private/World/GTTGarageTerminal.cpp'
+      - 'Scripts/verify_workshop_job_board.py'
+      - 'Docs/PLAYTEST_0.1.50.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'CHANGELOG.d/0.1.50.md'
+      - '.github/workflows/gtt-0.1.50-workshop-job-board.yml'
+  pull_request:
+    paths:
+      - 'Source/GTT/Public/World/GTTWorkshopJobBoardTerminal.h'
+      - 'Source/GTT/Private/World/GTTWorkshopJobBoardTerminal.cpp'
+      - 'Source/GTT/Private/World/GTTGarageTerminal.cpp'
+      - 'Scripts/verify_workshop_job_board.py'
+      - 'Docs/PLAYTEST_0.1.50.md'
+      - 'Docs/ROADMAP.md'
+      - 'README.md'
+      - 'CHANGELOG.d/0.1.50.md'
+      - '.github/workflows/gtt-0.1.50-workshop-job-board.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify workshop job board authority and cancellation guards
+        run: python Scripts/verify_workshop_job_board.py
+      - name: Verify SWIR progress presentation remains deterministic
+        run: python Scripts/verify_progress_presentation.py
