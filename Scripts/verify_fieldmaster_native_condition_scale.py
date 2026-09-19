@@ -6,14 +6,19 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 HEADER = ROOT / "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h"
 LEGACY_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTVehicleBase.cpp"
-RUNTIME_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp"
+CORE_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp"
+ENVIRONMENT_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativeEnvironment.cpp"
+OBSOLETE_RUNTIME_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp"
 DYNAMICS_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp"
 ROADMAP = ROOT / "Docs/ROADMAP.md"
 
 errors: list[str] = []
-for path in (HEADER, LEGACY_CPP, RUNTIME_CPP, DYNAMICS_CPP, ROADMAP):
+for path in (HEADER, LEGACY_CPP, CORE_CPP, ENVIRONMENT_CPP, DYNAMICS_CPP, ROADMAP):
     if not path.is_file():
         errors.append(f"missing required file: {path.relative_to(ROOT)}")
+
+if OBSOLETE_RUNTIME_CPP.exists():
+    errors.append("obsolete duplicate Fieldmaster runtime translation unit must remain removed")
 
 if errors:
     print("\n".join(f"ERROR: {item}" for item in errors))
@@ -21,7 +26,8 @@ if errors:
 
 header = HEADER.read_text(encoding="utf-8")
 legacy_cpp = LEGACY_CPP.read_text(encoding="utf-8")
-runtime_cpp = RUNTIME_CPP.read_text(encoding="utf-8")
+core_cpp = CORE_CPP.read_text(encoding="utf-8")
+environment_cpp = ENVIRONMENT_CPP.read_text(encoding="utf-8")
 dynamics_cpp = DYNAMICS_CPP.read_text(encoding="utf-8")
 roadmap = ROADMAP.read_text(encoding="utf-8")
 
@@ -59,11 +65,16 @@ for forbidden in (
 
 if not re.search(
     r"MigrationSnapshot\.ConditionPercent\s*=\s*FMath::Clamp\(\s*"
-    r"MigrationSnapshot\.ConditionPercent\s*-\s*ConditionLoss,\s*0\.0f,\s*1\.0f\)",
-    runtime_cpp,
+    r"MigrationSnapshot\.ConditionPercent\s*-\s*BodyDamageRatio,\s*0\.0f,\s*1\.0f\)",
+    environment_cpp,
     flags=re.MULTILINE,
 ):
     errors.append("native impact damage no longer clamps Fieldmaster condition to the 0..1 runtime contract")
+
+# Import is already sourced from the normalized legacy getter. Keep the boundary visible here so a
+# future migration rewrite cannot silently reintroduce percent math in the active native path.
+if "Snapshot.ConditionPercent = LegacyVehicle->GetConditionPercent();" not in core_cpp:
+    errors.append("Fieldmaster legacy import no longer takes condition from normalized GetConditionPercent()")
 
 checked = len(re.findall(r"^\s*- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
 open_items = len(re.findall(r"^\s*- \[ \] ", roadmap, flags=re.MULTILINE))
@@ -84,5 +95,6 @@ if errors:
 print("Fieldmaster native condition-scale verification OK")
 print(" - migration and legacy condition are consistently treated as a 0..1 ratio")
 print(" - 8% critical threshold is represented as 0.08 in Native Chaos authority")
-print(" - healthy Fieldmaster drivetrain authority can no longer be rejected by a 0..100 scale mismatch")
+print(" - canonical environment translation unit owns normalized impact damage")
+print(" - obsolete duplicate runtime translation unit is absent")
 print(f" - roadmap remains honest at {checked}/{total} ({checked / total * 100:.1f}%)")

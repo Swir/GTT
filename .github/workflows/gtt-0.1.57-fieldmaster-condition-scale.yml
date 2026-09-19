@@ -5,7 +5,9 @@ on:
     branches: [ main ]
     paths:
       - 'Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h'
-      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativeEnvironment.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn*.cpp'
       - 'Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp'
       - 'Source/GTT/Private/Vehicles/GTTVehicleBase.cpp'
       - 'Scripts/verify_fieldmaster_native_condition_scale.py'
@@ -17,7 +19,9 @@ on:
     branches: [ main ]
     paths:
       - 'Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h'
-      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativeEnvironment.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn*.cpp'
       - 'Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp'
       - 'Source/GTT/Private/Vehicles/GTTVehicleBase.cpp'
       - 'Scripts/verify_fieldmaster_native_condition_scale.py'

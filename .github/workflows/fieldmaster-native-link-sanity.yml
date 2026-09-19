@@ -8,7 +8,8 @@ on:
     paths:
       - "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h"
       - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp"
-      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp"
+      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn*.cpp"
+      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativeEnvironment.cpp"
       - "Source/GTT/Private/World/GTTMudZone.cpp"
       - "Scripts/verify_fieldmaster_native_link_contract.py"
       - ".github/workflows/fieldmaster-native-link-sanity.yml"
@@ -16,7 +17,8 @@ on:
     paths:
       - "Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h"
       - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp"
-      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp"
+      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn*.cpp"
+      - "Source/GTT/Private/Vehicles/GTTFieldmasterNativeEnvironment.cpp"
       - "Source/GTT/Private/World/GTTMudZone.cpp"
       - "Scripts/verify_fieldmaster_native_link_contract.py"
       - ".github/workflows/fieldmaster-native-link-sanity.yml"
