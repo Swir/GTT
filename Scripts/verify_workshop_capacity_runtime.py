@@ -61,8 +61,25 @@ def main() -> int:
     if "WORKSHOP_QUEUE_CHECKED_IN" in queue_cpp:
         require(queue_cpp, [
             "AWAITING_PAYMENT", "timed_service=YES",
-            "appointment remains READY with the same locked quote and no charge",
+            "MutableEntry.bCheckedIn = true;",
+            "ResolveServiceCompletion(Day, Hour, DurationHours",
         ], "later timed-service lifecycle compatibility")
+        execution = queue_cpp[queue_cpp.index("void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations"):]
+        checkin_start = execution.index("if (!Entry.bCheckedIn)")
+        checkout_start = execution.index(
+            "if (!IsAtOrAfter(Day, Hour, Entry.ServiceCompleteDay, Entry.ServiceCompleteHour))",
+            checkin_start,
+        )
+        checkin = execution[checkin_start:checkout_start]
+        require(checkin, [
+            "if (!IsVehicleAtWorkshop(Vehicle))",
+            "MutableEntry.bCheckedIn = true;",
+            "WriteCheckpoint()",
+            "++Index;",
+            "continue;",
+        ], "timed lifecycle check-in authority")
+        if "SpendCash(" in checkin or "ApplyNativeWorkshopService(" in checkin:
+            raise AssertionError("timed check-in must not debit or service before completion")
 
     require(evaluator, [
         "gtt.workshop-capacity-runtime.v1", "WORKSHOP_CAPACITY_RUNTIME.json", "appointment_spacing_minutes=45",
