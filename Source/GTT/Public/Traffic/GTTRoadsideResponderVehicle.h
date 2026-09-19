@@ -29,11 +29,15 @@ public:
     bool IsParkedAtScene() const { return bParkedAtScene; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Traffic|Responder")
+    bool IsSafetyCorridorDeployed() const { return bSafetyCorridorDeployed; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Traffic|Responder")
     FName GetAssignedIncidentId() const { return AssignedIncidentId; }
 
 private:
     void UpdateBeacon(float DeltaSeconds);
     void DriveTowardScene(float DeltaSeconds);
+    void SetSafetyCorridorDeployed(bool bDeployed);
 
     UPROPERTY(VisibleAnywhere, Category="GTT|Traffic|Responder")
     TObjectPtr<UStaticMeshComponent> BeaconLeft;
@@ -44,10 +48,23 @@ private:
     UPROPERTY(VisibleAnywhere, Category="GTT|Traffic|Responder")
     TObjectPtr<UTextRenderComponent> ServiceLabel;
 
+    UPROPERTY(VisibleAnywhere, Category="GTT|Traffic|Responder|Safety")
+    TObjectPtr<UStaticMeshComponent> SafetyConeFrontLeft;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Traffic|Responder|Safety")
+    TObjectPtr<UStaticMeshComponent> SafetyConeFrontRight;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Traffic|Responder|Safety")
+    TObjectPtr<UStaticMeshComponent> SafetyConeRearLeft;
+
+    UPROPERTY(VisibleAnywhere, Category="GTT|Traffic|Responder|Safety")
+    TObjectPtr<UStaticMeshComponent> SafetyConeRearRight;
+
     FName AssignedIncidentId = NAME_None;
     FVector SceneLocation = FVector::ZeroVector;
     float BeaconClock = 0.0f;
     bool bParkedAtScene = false;
+    bool bSafetyCorridorDeployed = false;
 
     static constexpr float ArrivalRadiusCm = 430.0f;
     static constexpr float TargetCruiseSpeedCm = 820.0f;
