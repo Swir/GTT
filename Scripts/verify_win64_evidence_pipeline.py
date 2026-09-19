@@ -33,7 +33,6 @@ required_preflight = [
 for token in required_preflight:
     assert token in preflight, f"missing Win64 preflight contract token: {token}"
 
-# Stage 1 remains the only authoritative build/cook/package/runtime producer.
 required_workflow = [
     "workflow_dispatch:",
     "runs-on: [self-hosted, windows, x64, unreal-5.8]",
@@ -41,6 +40,12 @@ required_workflow = [
     "package_windows.ps1",
     "smoke_test_windows.ps1",
     "validate_windows_package.ps1",
+    "evaluate_workshop_capacity_runtime.ps1",
+    "promote_demo_gate_workshop_capacity.ps1",
+    "WORKSHOP_CAPACITY_RUNTIME.json",
+    "schema -ne 16",
+    "workshop_capacity_runtime -ne 'PASS'",
+    "MinimumAliveSeconds 472",
     "WIN64_PREFLIGHT.json",
     "BUILD_ATTEMPT.json",
     "RUNTIME_SMOKE.json",
@@ -54,8 +59,6 @@ required_workflow = [
 for token in required_workflow:
     assert token in workflow, f"missing Win64 evidence workflow token: {token}"
 
-# Since 0.1.20, Stage 2 publishes the exact already-built candidate. It must
-# prove provenance/review and must never rebuild a different binary afterward.
 required_release = [
     "candidate_run_id",
     "expected_sha",
@@ -103,6 +106,8 @@ required_smoke = [
     "GTT.exe",
     "Start-Process",
     "MinimumAliveSeconds",
+    "GTTWorkshopCapacityRuntimeScenario",
+    "workshop_capacity_runtime_scenario = $true",
     "RUNTIME_SMOKE.json",
     "result = 'PASS'",
     "visual_acceptance = 'NOT_PERFORMED'",
@@ -115,7 +120,6 @@ assert "ChaosVehiclesPlugin" in uproject and '"EngineAssociation": "5.8"' in upr
 assert "python Scripts/verify_win64_evidence_pipeline.py" in dedicated_workflow
 assert "pull_request:" in dedicated_workflow and "push:" in dedicated_workflow
 
-# Acceptance honesty: source/contract work must never close hardware/runtime gates.
 assert "- [ ] Full Win64 CI/build runner" in roadmap
 assert "- [ ] Full Unreal compile + packaged Win64 smoke test" in roadmap
 assert "- [ ] Dedicated native Chaos wheeled tractor movement" in roadmap
@@ -135,4 +139,4 @@ for required_doc_token in [
 
 assert "candidate_run_id" in release_doc
 assert "does not rebuild" in release_doc.lower() or "never" in release_doc.lower()
-print("Win64 runtime acceptance/evidence gate: OK (two-stage exact-candidate release architecture)")
+print("Win64 runtime acceptance/evidence gate: OK (two-stage exact-candidate release architecture; schema-16 workshop capacity wired)")

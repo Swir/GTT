@@ -31,6 +31,9 @@ def main() -> int:
     queue_cpp = read("Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp")
     evaluator = read("Scripts/evaluate_workshop_capacity_runtime.ps1")
     promoter = read("Scripts/promote_demo_gate_workshop_capacity.ps1")
+    smoke = read("Scripts/smoke_test_windows.ps1")
+    win64 = read(".github/workflows/win64-package-evidence.yml")
+    milestone_workflow = read(".github/workflows/gtt-0.1.48-workshop-capacity-runtime.yml")
     playtest = read("Docs/PLAYTEST_0.1.48.md")
     changelog = read("CHANGELOG.d/0.1.48.md")
 
@@ -62,6 +65,19 @@ def main() -> int:
         "schema -ne 15", "$gate.schema=16", "workshop_queue_runtime", "workshop_capacity_runtime='PASS'",
         "underfunded_earlier_nonblocking", "farm_cargo_authority_preserved",
     ], "schema-16 technical gate")
+    require(smoke, [
+        "GTTWorkshopCapacityRuntimeScenario", "workshop_capacity_runtime_scenario = $true",
+    ], "packaged smoke launch")
+    require(win64, [
+        "default: '0.1.48'", "MinimumAliveSeconds 472", "LaunchTimeoutSeconds 505",
+        "evaluate_workshop_capacity_runtime.ps1", "promote_demo_gate_workshop_capacity.ps1",
+        "WORKSHOP_CAPACITY_RUNTIME.json", "schema -ne 16", "workshop_capacity_runtime -ne 'PASS'",
+    ], "Win64 candidate wiring")
+    require(milestone_workflow, [
+        "verify_workshop_capacity_runtime.py", "verify_workshop_multi_vehicle_capacity.py",
+        "verify_workshop_queue_runtime.py", "verify_win64_evidence_pipeline.py",
+        "generate_progress_svg.py --check",
+    ], "milestone workflow")
 
     scenarios = re.findall(r"^- \[ \] \d+\.", playtest, flags=re.MULTILINE)
     if len(scenarios) != 72:
@@ -71,7 +87,6 @@ def main() -> int:
         "underfunded", "125 / 130 (96.2%)", "Win64",
     ], "milestone changelog")
 
-    # Presentation truth stays unchanged: this milestone adds evidence, not a completed runtime gate.
     roadmap = read("Docs/ROADMAP.md")
     readme = read("README.md")
     done = len(re.findall(r"^- \[x\] ", roadmap, flags=re.MULTILINE | re.IGNORECASE))
