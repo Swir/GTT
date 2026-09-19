@@ -1,0 +1,45 @@
+name: GTT 0.1.57 Fieldmaster native condition scale sanity
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTVehicleBase.cpp'
+      - 'Scripts/verify_fieldmaster_native_condition_scale.py'
+      - 'Scripts/verify_fieldmaster_native_link_contract.py'
+      - 'Scripts/verify_native_drivetrain_authority.py'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/gtt-0.1.57-fieldmaster-condition-scale.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterNativePawn.h'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawnRuntime.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTNativeDriveDynamicsSubsystem.cpp'
+      - 'Source/GTT/Private/Vehicles/GTTVehicleBase.cpp'
+      - 'Scripts/verify_fieldmaster_native_condition_scale.py'
+      - 'Scripts/verify_fieldmaster_native_link_contract.py'
+      - 'Scripts/verify_native_drivetrain_authority.py'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/gtt-0.1.57-fieldmaster-condition-scale.yml'
+  workflow_dispatch:
+
+jobs:
+  fieldmaster-condition-scale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify normalized Fieldmaster condition contract
+        run: python Scripts/verify_fieldmaster_native_condition_scale.py
+      - name: Preserve native runtime-link regression contract
+        run: python Scripts/verify_fieldmaster_native_link_contract.py
+      - name: Preserve Native drivetrain authority regression contract
+        run: python Scripts/verify_native_drivetrain_authority.py
+      - name: Preserve dedicated Fieldmaster Chaos movement regression contract
+        run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
