@@ -7,6 +7,7 @@ on:
       - 'Source/GTT/Public/Save/GTTWorkshopQueueSaveGame.h'
       - 'Source/GTT/Public/World/GTTWorkshopRepairQueueSubsystem.h'
       - 'Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp'
+      - 'Source/GTT/Private/World/GTTServiceTerminal.cpp'
       - 'Source/GTT/Public/Core/GTTWorkshopCapacityLifecycleBridgeSubsystem.h'
       - 'Source/GTT/Private/Core/GTTWorkshopCapacityLifecycleBridgeSubsystem.cpp'
       - 'Source/GTT/Private/Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.cpp'
@@ -40,7 +41,7 @@ jobs:
         run: python Scripts/verify_workshop_multi_vehicle_capacity.py
       - name: Verify 0.1.48 packaged capacity evidence source contract
         run: python Scripts/verify_workshop_capacity_runtime.py
-      - name: Verify 0.1.49 timed workshop service lifecycle
+      - name: Verify 0.1.49 timed workshop service lifecycle and terminal authority
         run: python Scripts/verify_workshop_service_lifecycle.py
       - name: Verify deterministic SWIR progress presentation
         run: python Scripts/generate_progress_svg.py --check
