@@ -21,6 +21,8 @@ def main() -> int:
     header = read("Source/GTT/Public/Core/GTTWorkshopQueueRuntimeEvidenceSubsystem.h")
     cpp = read("Source/GTT/Private/Core/GTTWorkshopQueueRuntimeEvidenceSubsystem.cpp")
     queue_cpp = read("Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp")
+    bridge_h = read("Source/GTT/Public/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.h")
+    bridge_cpp = read("Source/GTT/Private/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.cpp")
     smoke = read("Scripts/smoke_test_windows.ps1")
     evaluator = read("Scripts/evaluate_workshop_queue_runtime.ps1")
     promoter = read("Scripts/promote_demo_gate_workshop_queue.ps1")
@@ -37,7 +39,27 @@ def main() -> int:
         "Snapshot.PersistentVehicleId == VehicleId", "Snapshot.LockedQuote == LockedQuote",
         "CashBeforeBooking - Economy->GetCash()", "VerifyPrimaryCargoContinuity()"
     ], "runtime implementation")
-    require(queue_cpp, ["WORKSHOP_QUEUE_ACCEPTED", "WORKSHOP_QUEUE_COMPLETED", "SpendCash(LockedQuote", "ApplyNativeWorkshopService()", "SaveProgress()"], "production queue")
+    require(queue_cpp, [
+        "WORKSHOP_QUEUE_ACCEPTED", "WORKSHOP_QUEUE_READY_FOR_PICKUP", "SpendCash(LockedQuote",
+        "ApplyNativeWorkshopService()", "ReleaseCompletedRepairForPickup", "SaveProgress()",
+    ], "production queue")
+
+    # 0.1.51 extends successful paid service with an explicit READY_FOR_PICKUP handoff. Historical
+    # 0.1.46 packaged evidence still expects the queue sidecar to disappear after exact execution;
+    # preserve that proof only under the historical evidence flags and only by calling the same
+    # production exact-ID pickup API. The bridge must never create a second economy/repair path.
+    require(bridge_h, [
+        "Evidence-only compatibility bridge", "UGTTWorkshopLegacyEvidencePickupBridgeSubsystem",
+    ], "legacy pickup bridge header")
+    require(bridge_cpp, [
+        "GTTDemoSmokeScenario", "GTTWorkshopQueueRuntimeScenario", "GTTWorkshopCapacityRuntimeScenario",
+        "ReleaseCompletedRepairForPickup", "WORKSHOP_LEGACY_EVIDENCE_AUTO_PICKUP",
+        "charged_again=NO", "repair_mutation=NO",
+    ], "legacy pickup bridge implementation")
+    for forbidden in ("SpendCash(", "ApplyNativeWorkshopService(", "AddCash("):
+        if forbidden in bridge_cpp:
+            raise AssertionError(f"legacy pickup bridge must not own economy/repair mutation: {forbidden}")
+
     require(smoke, ["-GTTWorkshopQueueRuntimeScenario", "workshop_queue_runtime_scenario = $true"], "smoke route")
     require(evaluator, ["gtt.workshop-queue-runtime.v1", "WORKSHOP_QUEUE_RUNTIME.json", "checkpoint_disk_roundtrip=$true", "substitute_vehicle_rejected=$true", "single_debit=$true", "farm_cargo_authority_preserved=$true"], "runtime evaluator")
     require(promoter, ["schema -ne 14", "$gate.schema=15", "workshop_hours_runtime -ne 'PASS'", "workshop_queue_runtime='PASS'", "workshop_queue_farm_cargo_authority_preserved"], "gate promoter")
@@ -61,6 +83,7 @@ def main() -> int:
     if legacy_meter.search(roadmap) or legacy_meter.search(readme):
         raise AssertionError("legacy text/Unicode progress meter returned")
     print("GTT 0.1.46 workshop queue packaged-runtime source contract: PASS")
+    print("0.1.51 pickup: historical evidence auto-releases only through evidence-only production pickup bridge")
     print(f"Terminal technical gate schema: {max(terminal_schemas)} (0.1.46 minimum: 15)")
     print("Roadmap: 125/130 = 96.2% (unchanged; packaged proof still required)")
     return 0
