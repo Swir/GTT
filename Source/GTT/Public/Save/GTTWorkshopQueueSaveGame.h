@@ -15,6 +15,13 @@ struct GTT_API FGTTWorkshopQueueSaveEntry
     UPROPERTY(SaveGame) float RequestedHour = 0.0f;
     UPROPERTY(SaveGame) int32 ReadyDay = 1;
     UPROPERTY(SaveGame) float ReadyHour = 6.5f;
+
+    // 0.1.49 additive lifecycle checkpoint. False/zero values mean the appointment is waiting.
+    UPROPERTY(SaveGame) bool bCheckedIn = false;
+    UPROPERTY(SaveGame) int32 ServiceStartDay = 0;
+    UPROPERTY(SaveGame) float ServiceStartHour = 0.0f;
+    UPROPERTY(SaveGame) int32 ServiceCompleteDay = 0;
+    UPROPERTY(SaveGame) float ServiceCompleteHour = 0.0f;
 };
 
 /**
@@ -22,8 +29,9 @@ struct GTT_API FGTTWorkshopQueueSaveEntry
  *
  * SchemaVersion intentionally remains 1 because the original single-reservation fields are
  * retained as a first-entry mirror. Existing 0.1.45/0.1.46 saves therefore load without a
- * destructive migration, while Appointments extends the format additively for multiple
- * exact-vehicle reservations. Cash and vehicle mutation remain authoritative in gameplay.
+ * destructive migration, while Appointments extends the format additively for multiple exact-
+ * vehicle reservations and the 0.1.49 timed check-in/service lifecycle. Missing lifecycle fields
+ * deserialize as waiting/not checked in. Cash and vehicle mutation remain authoritative in gameplay.
  */
 UCLASS()
 class GTT_API UGTTWorkshopQueueSaveGame : public USaveGame
@@ -42,6 +50,6 @@ public:
     UPROPERTY(SaveGame) int32 ReadyDay = 1;
     UPROPERTY(SaveGame) float ReadyHour = 6.5f;
 
-    // 0.1.47 additive multi-vehicle queue. Empty means "read the legacy mirror".
+    // Additive multi-vehicle queue. Empty means "read the legacy mirror".
     UPROPERTY(SaveGame) TArray<FGTTWorkshopQueueSaveEntry> Appointments;
 };
