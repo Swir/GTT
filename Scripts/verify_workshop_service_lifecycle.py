@@ -37,6 +37,8 @@ def main() -> int:
     queue_h = read("Source/GTT/Public/World/GTTWorkshopRepairQueueSubsystem.h")
     queue_cpp = read("Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp")
     old_capacity = read("Source/GTT/Private/Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.cpp")
+    capacity_bridge_h = read("Source/GTT/Public/Core/GTTWorkshopCapacityLifecycleBridgeSubsystem.h")
+    capacity_bridge_cpp = read("Source/GTT/Private/Core/GTTWorkshopCapacityLifecycleBridgeSubsystem.cpp")
     old_capacity_verify = read("Scripts/verify_workshop_multi_vehicle_capacity.py")
     runtime_verify = read("Scripts/verify_workshop_capacity_runtime.py")
     playtest = read("Docs/PLAYTEST_0.1.49.md")
@@ -88,19 +90,27 @@ def main() -> int:
     if "RemoveEntryAt" in pause_block or "SpendCash" in pause_block:
         raise AssertionError("leaving service area must preserve appointment without debit")
 
-    # Persisted lifecycle must round-trip without dropping schema-v1 compatibility.
     load = block(queue_cpp, "void UGTTWorkshopRepairQueueSubsystem::LoadCheckpointOnce", "bool UGTTWorkshopRepairQueueSubsystem::WriteCheckpoint")
     write = block(queue_cpp, "bool UGTTWorkshopRepairQueueSubsystem::WriteCheckpoint", "void UGTTWorkshopRepairQueueSubsystem::ClearCheckpoint")
     require(load, ["bLifecycleValid", "Saved.bCheckedIn", "Entry.ServiceCompleteHour"], "lifecycle load")
     require(write, ["Saved.bCheckedIn", "Saved.ServiceStartDay", "Saved.ServiceCompleteHour", "Save->bQueued = true"], "lifecycle write")
 
-    # 0.1.47/0.1.48 contracts remain visible and are explicitly regression-checked by this workflow.
     require(old_capacity, [
         "GTTWorkshopCapacityRuntimeScenario", "ExpectedSpacingHours = 0.75f",
         "bUnderfundedNonBlocking", "bLaterSingleDebit", "bCargoContinuity",
     ], "0.1.48 capacity evidence retained")
-    require(old_capacity_verify, ["MaxQueuedRepairs = 4", "AppointmentSpacingHours = 0.75f"], "0.1.47 verifier retained")
-    require(runtime_verify, ["WORKSHOP_CAPACITY_RUNTIME"], "0.1.48 runtime evaluator retained")
+    require(capacity_bridge_h, [
+        "UGTTWorkshopCapacityLifecycleBridgeSubsystem", "Evidence-only time bridge",
+    ], "0.1.48 lifecycle bridge header")
+    require(capacity_bridge_cpp, [
+        "GTTDemoSmokeScenario", "GTTWorkshopCapacityRuntimeScenario",
+        "Entries.Num() < 2", "Entry.bCheckedIn", "ServiceCompleteDay",
+        "LatestCompletionAbsoluteHours", "Clock->RestoreTime",
+        "WORKSHOP_CAPACITY_LIFECYCLE_BRIDGE", "0.1.49_timed_service_compatibility",
+    ], "0.1.48 lifecycle bridge implementation")
+    old_capacity_verify = read("Scripts/verify_workshop_multi_vehicle_capacity.py")
+    require(old_capacity_verify, ["MaxQueuedRepairs = 4", "AppointmentSpacingHours = 0.75f", "timed lifecycle forward compatibility"], "0.1.47 verifier retained")
+    require(runtime_verify, ["WORKSHOP_CAPACITY_RUNTIME", "later timed-service lifecycle compatibility"], "0.1.48 runtime evaluator retained")
 
     scenarios = re.findall(r"^- \[ \] \d+\.", playtest, flags=re.MULTILINE)
     if len(scenarios) != 64:
@@ -113,6 +123,7 @@ def main() -> int:
         "verify_workshop_service_lifecycle.py",
         "verify_workshop_multi_vehicle_capacity.py",
         "verify_workshop_capacity_runtime.py",
+        "GTTWorkshopCapacityLifecycleBridgeSubsystem.cpp",
         "generate_progress_svg.py --check",
     ], "milestone workflow")
 
@@ -140,6 +151,7 @@ def main() -> int:
     print("Lifecycle: READY -> IN_SERVICE -> AWAITING_PAYMENT -> checkout")
     print("Service duration: 0.5-1.5 world hours derived from vehicle workload")
     print("Leave service area: appointment preserved, timer reset, no charge")
+    print("0.1.48 packaged-capacity route: preserved through evidence-only post-check-in clock bridge")
     print(f"Roadmap: {done}/{done + open_} = {done/(done+open_)*100:.1f}% (unchanged)")
     print("Unreal/Win64 packaged runtime verification: NOT CLAIMED")
     return 0
