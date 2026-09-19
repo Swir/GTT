@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.52 — packaged workshop priority & pickup evidence**.
+Current development milestone: **0.1.53 — dynamic traffic incidents & roadside assistance**.
 
 ## What is GTT?
 
@@ -50,7 +50,7 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
 | 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff. |
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
-| 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. |
+| 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. Damaged ambient traffic can now create bounded crash scenes; disabled civilian cars expose a timed legal roadside-assistance interaction instead of becoming inert scenery. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
 | 💾 Persistent sandbox | Save/load for core progression, fleet state, tuning, economy, campaign systems and active Farm Cargo route/vehicle identity recovery, including exact-ID actor rebinding, in-flight roadside dispatch checkpoints and additive multi-vehicle workshop reservations. |
 | 📻 Original radio framework | Four fictional stations with track rotation and project-owned/cleared audio workflow. |
@@ -162,6 +162,8 @@ Milestone 0.1.51 adds deliberate workshop priority and an explicit fleet-return 
 
 Milestone 0.1.52 extends that production loop into the future exact packaged candidate. A later deterministic window must book STANDARD after hours, promote the same `PersistentVehicleId` to URGENT, prove the exact +20% persisted locked quote with no pre-charge, prove x0.80 timed service, one locked-quote debit, persisted `READY_FOR_PICKUP`, wrong-ID pickup rejection, exact-ID fleet release with no second charge and unchanged Farm Cargo authority. `WORKSHOP_PRIORITY_PICKUP_RUNTIME.json` can promote an already-PASS schema-16 capacity gate to schema 17 only for the same candidate SHA. Source CI verifies the contract wiring but does not claim the UE 5.8 Win64 executable has produced this evidence.
 
+Milestone 0.1.53 turns ambient traffic crashes into a small connected legal gameplay loop. A meaningful real condition drop promotes a civilian traffic car into the existing incident response, nearby traffic reacts with a bounded non-recursive slowdown, and a disabled vehicle exposes a 6-second / 500 cm roadside-assistance interaction. Staying on scene performs a 45% field repair, keeps the civilian on its route under a temporary limp state and pays a severity-scaled $65–$110 reward exactly once for that disabled incident; leaving the scene cancels without cost. A 48-case playtest matrix and dedicated source-contract CI verify the wiring, but this remains source evidence until a qualifying UE 5.8 Win64 package/runtime run executes it.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
@@ -212,7 +214,7 @@ The current repository also contains prototype/source-built presentation and sys
 
 ## 🔎 Search Keywords
 
-`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside emergency repair` • `multi-vehicle workshop appointments` • `workshop job board` • `timed vehicle service` • `C++ Unreal game`
+`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `Farm Cargo save load` • `vehicle breakdown recovery` • `roadside assistance game` • `civilian traffic incidents` • `multi-vehicle workshop appointments` • `workshop job board` • `C++ Unreal game`
 
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="SWIR electric divider" />
 
