@@ -3,8 +3,9 @@
 
 This checks deterministic source/persistence/gameplay invariants only. It deliberately does
 not claim Unreal compilation, packaged Win64 execution, visual acceptance, or demo readiness.
-Later milestones may insert a timed service lifecycle between READY and checkout; the original
-capacity, exact-ID, locked-quote and non-blocking economy guarantees remain mandatory.
+Later milestones may insert timed service and explicit pickup between READY and final queue
+removal; the original capacity, exact-ID, locked-quote and non-blocking economy guarantees
+remain mandatory.
 """
 from __future__ import annotations
 
@@ -33,6 +34,8 @@ def main() -> int:
     queue_cpp = read("Source/GTT/Private/World/GTTWorkshopRepairQueueSubsystem.cpp")
     garage = read("Source/GTT/Private/World/GTTGarageTerminal.cpp")
     old_runtime = read("Source/GTT/Private/Core/GTTWorkshopQueueRuntimeEvidenceSubsystem.cpp")
+    bridge_h = read("Source/GTT/Public/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.h")
+    bridge_cpp = read("Source/GTT/Private/Core/GTTWorkshopLegacyEvidencePickupBridgeSubsystem.cpp")
     playtest = read("Docs/PLAYTEST_0.1.47.md")
     changelog = read("CHANGELOG.d/0.1.47.md")
     workflow = read(".github/workflows/gtt-0.1.47-workshop-multi-vehicle-capacity.yml")
@@ -63,9 +66,9 @@ def main() -> int:
         "ApplyNativeWorkshopService()",
         "AddCash(LockedQuote",
         "later due appointments can still proceed",
-        "RemoveEntryAt(Index, TEXT(\"SERVICE_COMPLETED\"))",
+        "WORKSHOP_QUEUE_READY_FOR_PICKUP",
+        "ReleaseCompletedRepairForPickup",
         "GameMode->SaveProgress()",
-        "WORKSHOP_QUEUE_COMPLETED",
     ], "multi-vehicle execution")
 
     booking_start = queue_cpp.index("bool UGTTWorkshopRepairQueueSubsystem::TryQueueNearestEligibleNativeRoadVehicle")
@@ -74,8 +77,8 @@ def main() -> int:
     if "SpendCash(" in booking or "ApplyNativeWorkshopService(" in booking:
         raise AssertionError("booking must stay no-precharge/no-mutation")
 
-    # Exact-ID cancellation must remove only one appointment, not wipe the book.
-    cancel_end = queue_cpp.index("FGTTWorkshopRepairQueueSnapshot UGTTWorkshopRepairQueueSubsystem::BuildSnapshot")
+    # Exact-ID cancellation must remove only one waiting appointment, not wipe the book.
+    cancel_end = queue_cpp.index("bool UGTTWorkshopRepairQueueSubsystem::PromoteQueuedRepairToUrgent")
     cancel = queue_cpp[cancel_start:cancel_end]
     require(cancel, ["IndexOfByPredicate", "RemoveEntryAt(Index", "No workshop appointment belongs"], "exact cancellation")
     if "ClearCheckpoint(" in cancel:
@@ -88,9 +91,7 @@ def main() -> int:
     if not (insufficient < continue_after < service_after):
         raise AssertionError("underfunded appointment must continue to later due entries")
 
-    # 0.1.49+ may insert timed check-in before debit. Verify behavior from executable
-    # source structure rather than a changelog/comment sentence so older gates stay
-    # meaningful when wording changes.
+    # 0.1.49+ inserts timed check-in before debit. Verify behavior from executable source structure.
     if "bCheckedIn" in queue_h or "WORKSHOP_QUEUE_CHECKED_IN" in queue_cpp:
         require(queue_cpp, [
             "AWAITING_PAYMENT", "timed_service=YES",
@@ -113,6 +114,23 @@ def main() -> int:
         if "SpendCash(" in checkin or "ApplyNativeWorkshopService(" in checkin:
             raise AssertionError("timed check-in must preserve locked quote without charging or servicing before completion")
 
+    # 0.1.51+ keeps successful paid work READY_FOR_PICKUP. That is a forward-compatible lifecycle
+    # extension only if repair/payment remain authoritative and the historical packaged evidence can
+    # release through the same production pickup API under explicit evidence flags.
+    if "bReadyForPickup" in queue_h:
+        require(queue_cpp, [
+            "MutableEntry.bReadyForPickup = true", "PaidAmount = LockedQuote",
+            "WORKSHOP_QUEUE_READY_FOR_PICKUP", "ReleaseCompletedRepairForPickup",
+        ], "pickup forward compatibility")
+        require(bridge_h, [
+            "Evidence-only compatibility bridge", "UGTTWorkshopLegacyEvidencePickupBridgeSubsystem",
+        ], "historical evidence bridge header")
+        require(bridge_cpp, [
+            "GTTDemoSmokeScenario", "GTTWorkshopQueueRuntimeScenario", "GTTWorkshopCapacityRuntimeScenario",
+            "ReleaseCompletedRepairForPickup", "WORKSHOP_LEGACY_EVIDENCE_AUTO_PICKUP",
+            "charged_again=NO", "repair_mutation=NO",
+        ], "historical evidence bridge implementation")
+
     require(queue_cpp, [
         "bFarmCargoContractActive", "FarmCargoBoundVehicleId == VehicleId",
         "ImpoundedVehicleId == VehicleId", "RequiresHardWorkshopHold(Entry.PersistentVehicleId)",
@@ -124,8 +142,9 @@ def main() -> int:
         "hard holds never enter the deferred appointment book",
     ], "garage capacity presentation")
 
-    # 0.1.46 packaged evidence still consumes the schema-v1 first-entry mirror, so additive
-    # capacity/lifecycle changes cannot silently remove the established exact-single-vehicle gate.
+    # Historical 0.1.46 packaged evidence still consumes the schema-v1 first-entry mirror and still
+    # expects the queue to be empty after successful service. The evidence-only pickup bridge above
+    # satisfies that expectation through the production release API rather than bypassing service.
     require(old_runtime, [
         "Save->SchemaVersion == 1", "Save->bQueued", "Save->PersistentVehicleId == VehicleId",
         "Save->LockedQuote == LockedQuote", "!Queue->HasQueuedRepair()",
@@ -168,6 +187,7 @@ def main() -> int:
     print("GTT 0.1.47 multi-vehicle workshop capacity source contract: PASS")
     print("Capacity: 4 exact-ID appointments; spacing: 45 minutes; booking/cancel: no pre-charge")
     print("Underfunded due checkout: non-blocking by source contract")
+    print("Later pickup lifecycle: compatible through exact-ID production release + evidence-only bridge")
     print(f"Roadmap: {done}/{done + open_} = {done/(done+open_)*100:.1f}% (unchanged)")
     print("Runtime/Win64 verification: NOT CLAIMED")
     return 0
