@@ -7,10 +7,14 @@ on:
       - '.github/workflows/win64-package-evidence.yml'
       - '.github/workflows/release-windows.yml'
       - '.github/workflows/gtt-v0.1.61-win64-candidate-qualification.yml'
+      - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
       - 'Scripts/package_windows.ps1'
       - 'Scripts/run_win64_candidate_acceptance.ps1'
+      - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
       - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
+      - 'Scripts/verify_v0_1_61_candidate_attestation.py'
       - 'Scripts/verify_win64_evidence_pipeline.py'
       - 'Scripts/import_gtt_farm_trailer_unreal.ps1'
       - 'Scripts/Unreal/import_gtt_farm_trailer.py'
@@ -23,10 +27,14 @@ on:
       - '.github/workflows/win64-package-evidence.yml'
       - '.github/workflows/release-windows.yml'
       - '.github/workflows/gtt-v0.1.61-win64-candidate-qualification.yml'
+      - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
       - 'Scripts/package_windows.ps1'
       - 'Scripts/run_win64_candidate_acceptance.ps1'
+      - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
       - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
+      - 'Scripts/verify_v0_1_61_candidate_attestation.py'
       - 'Scripts/verify_win64_evidence_pipeline.py'
       - 'Scripts/import_gtt_farm_trailer_unreal.ps1'
       - 'Scripts/Unreal/import_gtt_farm_trailer.py'
@@ -51,5 +59,7 @@ jobs:
         run: python Scripts/verify_v0_1_61_win64_candidate_pipeline.py
       - name: Verify one-command Windows candidate acceptance runner
         run: python Scripts/verify_win64_candidate_acceptance_runner.py
+      - name: Verify exact-candidate attestation and self-hosted qualification lane
+        run: python Scripts/verify_v0_1_61_candidate_attestation.py
       - name: Preserve full Win64 evidence and release regression contract
         run: python Scripts/verify_win64_evidence_pipeline.py
