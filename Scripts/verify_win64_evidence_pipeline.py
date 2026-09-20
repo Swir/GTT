@@ -3,6 +3,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 workflow = (ROOT / ".github/workflows/win64-package-evidence.yml").read_text(encoding="utf-8")
 release_workflow = (ROOT / ".github/workflows/release-windows.yml").read_text(encoding="utf-8")
+base_runner = (ROOT / "Scripts/run_win64_candidate_acceptance.ps1").read_text(encoding="utf-8")
+attested_runner = (ROOT / "Scripts/run_win64_attested_candidate_acceptance.ps1").read_text(encoding="utf-8")
 dedicated_workflow = (ROOT / ".github/workflows/win64-runtime-acceptance-sanity.yml").read_text(encoding="utf-8")
 preflight = (ROOT / "Scripts/preflight_win64_unreal.ps1").read_text(encoding="utf-8")
 smoke = (ROOT / "Scripts/smoke_test_windows.ps1").read_text(encoding="utf-8")
@@ -33,11 +35,27 @@ required_preflight = [
 for token in required_preflight:
     assert token in preflight, f"missing Win64 preflight contract token: {token}"
 
-required_workflow = [
+# Thin workflow delegates to the single sealed runner; detailed build/runtime
+# responsibilities are verified in the runner below so historical checks do not
+# force a second hand-written acceptance route back into YAML.
+for token in [
     "workflow_dispatch:",
     "required: true",
     "ProjectVersion",
     "runs-on: [self-hosted, windows, x64, unreal-5.8]",
+    "run_win64_attested_candidate_acceptance.ps1",
+    "WIN64_ACCEPTANCE_SUMMARY.json",
+    "WIN64_CANDIDATE_ATTESTATION.json",
+    "FINAL_SHA256SUMS.txt",
+    "actions/upload-artifact@v4",
+    "if: failure()",
+    "Win64-failure-diagnostics",
+]:
+    assert token in workflow, f"missing sealed Win64 workflow token: {token}"
+assert "Compress-Archive" not in workflow
+assert "default: '0.1.52'" not in workflow, "package candidate version must not silently default to a stale milestone"
+
+required_base_runner = [
     "preflight_win64_unreal.ps1",
     "import_gtt_farm_trailer_unreal.ps1",
     "SK_GTT_FarmTrailer.uasset",
@@ -52,23 +70,24 @@ required_workflow = [
     "evaluate_workshop_priority_pickup_runtime.ps1",
     "promote_demo_gate_workshop_priority_pickup.ps1",
     "WORKSHOP_PRIORITY_PICKUP_RUNTIME.json",
-    "schema -ne 17",
-    "workshop_priority_pickup_runtime -ne 'PASS'",
-    "MinimumAliveSeconds 472",
-    "WIN64_PREFLIGHT.json",
-    "BUILD_ATTEMPT.json",
-    "RUNTIME_SMOKE.json",
-    "DEMO_SCENARIO.json",
-    "GAMEPLAY_SMOKE.json",
+    "[int]$gate.schema -ne 17",
+    '"-MinimumAliveSeconds", 472',
     "DEMO_TECHNICAL_GATE.json",
-    "actions/upload-artifact@v4",
-    "if: failure()",
-    "Win64-failure-diagnostics",
+    "capture_demo_visual_evidence.ps1",
+    "evaluate_demo_visual_evidence.ps1",
 ]
-for token in required_workflow:
-    assert token in workflow, f"missing Win64 evidence workflow token: {token}"
-assert "default: '0.1.52'" not in workflow, "package candidate version must not silently default to a stale milestone"
-assert workflow.index("import_gtt_farm_trailer_unreal.ps1") < workflow.index("package_windows.ps1"), "authored trailer import must happen before packaging"
+for token in required_base_runner:
+    assert token in base_runner, f"base exact-candidate runner missing: {token}"
+assert base_runner.index("import_gtt_farm_trailer_unreal.ps1") < base_runner.index("package_windows.ps1")
+assert base_runner.index("package_windows.ps1") < base_runner.index("smoke_test_windows.ps1")
+assert base_runner.index("evaluate_native_chaos_runtime.ps1") < base_runner.index("evaluate_demo_candidate.ps1")
+
+for token in [
+    "run_win64_candidate_acceptance.ps1",
+    "evaluate_fieldmaster_hill_haul_runtime.ps1",
+    "write_win64_candidate_attestation.ps1",
+]:
+    assert token in attested_runner, f"attested runner missing: {token}"
 
 required_release = [
     "candidate_run_id",
@@ -77,6 +96,8 @@ required_release = [
     "ProjectVersion",
     "AUTHORED_TRAILER_IMPORT.json",
     "gtt.authored-trailer-import.v1",
+    "WIN64_CANDIDATE_ATTESTATION.json",
+    "FINAL_SHA256SUMS.txt",
     "actions/download-artifact@v4",
     "run-id:",
     "DEMO_VISUAL_ACCEPTANCE.json",
@@ -161,4 +182,4 @@ for required_doc_token in [
 
 assert "candidate_run_id" in release_doc
 assert "does not rebuild" in release_doc.lower() or "never" in release_doc.lower()
-print("Win64 runtime acceptance/evidence gate: OK (canonical package version + exact-version authored import + two-stage exact-candidate release; schema-17 workshop priority/pickup wired)")
+print("Win64 runtime acceptance/evidence gate: OK (sealed delegated exact-candidate pipeline; schema-17 workshop priority/pickup wired)")

@@ -51,7 +51,7 @@ def main() -> None:
 
     scenario_h = require(
         "Source/GTT/Public/Core/GTTFarmCargoRecoveryEvidenceSubsystem.h",
-        "UGTTFarmCargoRecoveryEvidenceSubsystem",
+        "UGTTFarmCargoRecoveryEvidenceScenarioSubsystem",
         "SaveLoaded",
         "ReloadLoaded",
         "WrongVehicleAfterReload",
@@ -136,30 +136,33 @@ def main() -> None:
     )
     workflow = require(
         ".github/workflows/win64-package-evidence.yml",
-        "Evaluate Farm Cargo mid-route save/load recovery runtime",
+        "run_win64_attested_candidate_acceptance.ps1",
+        "WIN64_CANDIDATE_ATTESTATION.json",
+    )
+    base_runner = require(
+        "Scripts/run_win64_candidate_acceptance.ps1",
+        "evaluate_farm_cargo_runtime.ps1",
         "evaluate_farm_cargo_recovery_runtime.ps1",
-        "FARM_CARGO_RECOVERY_RUNTIME.json",
+        "evaluate_demo_candidate.ps1",
+        "smoke_test_windows.ps1",
     )
     runtime_match = re.search(
-        r"smoke_test_windows\.ps1[^\n]*-MinimumAliveSeconds\s+(\d+)[^\n]*-LaunchTimeoutSeconds\s+(\d+)",
-        workflow,
+        r'(?s)smoke_test_windows\.ps1".*?"-MinimumAliveSeconds",\s*(\d+).*?"-LaunchTimeoutSeconds",\s*(\d+)',
+        base_runner,
     )
-    gameplay_match = re.search(
-        r"evaluate_packaged_gameplay_smoke\.ps1[^\n]*-MinimumRuntimeSeconds\s+(\d+)",
-        workflow,
-    )
+    gameplay_match = re.search(r'"-MinimumRuntimeSeconds",\s*(\d+)', base_runner)
     if not runtime_match or not gameplay_match:
-        raise AssertionError("Win64 workflow does not expose recovery evidence timing")
+        raise AssertionError("canonical exact-candidate runner does not expose recovery evidence timing")
     alive = int(runtime_match.group(1))
     timeout = int(runtime_match.group(2))
     gameplay = int(gameplay_match.group(1))
     if alive < 228 or timeout <= alive or timeout < 250 or gameplay < alive:
         raise AssertionError(f"recovery evidence window too short: alive={alive}, gameplay={gameplay}, timeout={timeout}")
-    if workflow.index("evaluate_farm_cargo_runtime.ps1") > workflow.index("evaluate_farm_cargo_recovery_runtime.ps1"):
+    if base_runner.index("evaluate_farm_cargo_runtime.ps1") > base_runner.index("evaluate_farm_cargo_recovery_runtime.ps1"):
         raise AssertionError("base Farm Cargo evidence must be evaluated before save/load recovery evidence")
-    if workflow.index("evaluate_farm_cargo_recovery_runtime.ps1") > workflow.index("evaluate_demo_candidate.ps1"):
+    if base_runner.index("evaluate_farm_cargo_recovery_runtime.ps1") > base_runner.index("evaluate_demo_candidate.ps1"):
         raise AssertionError("save/load recovery evidence must gate the demo technical candidate")
-    _ = smoke
+    _ = smoke, workflow
 
     candidate = require(
         "Scripts/evaluate_demo_candidate.ps1",
@@ -251,7 +254,7 @@ def main() -> None:
 
     subprocess.run([sys.executable, str(ROOT / "Scripts/generate_progress_svg.py"), "--check"], check=True)
     print(
-        f"[OK] GTT 0.1.31 Farm Cargo recovery evidence wired: same-model legacy fleet IDs, "
+        f"[OK] GTT 0.1.31 Farm Cargo recovery evidence wired through sealed runner: same-model legacy fleet IDs, "
         f"loaded/relay save-load, actor recreation, wrong-vehicle rejection and completion reload; runtime={alive}s/{timeout}s."
     )
     print("[OK] Demo technical gate requires FARM_CARGO_RECOVERY_RUNTIME.json schema v1 and remains bound to exact Win64 build SHA.")

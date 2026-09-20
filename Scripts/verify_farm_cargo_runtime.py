@@ -84,17 +84,24 @@ def main() -> None:
         "farm_cargo_runtime_scenario = $true",
     )
     package_flow = require(
-        ".github/workflows/win64-package-evidence.yml", "evaluate_farm_cargo_runtime.ps1", "FARM_CARGO_RUNTIME.json",
+        ".github/workflows/win64-package-evidence.yml",
+        "run_win64_attested_candidate_acceptance.ps1",
+        "WIN64_CANDIDATE_ATTESTATION.json",
+    )
+    base_runner = require(
+        "Scripts/run_win64_candidate_acceptance.ps1",
+        "evaluate_farm_cargo_runtime.ps1",
+        "FARM_CARGO_RUNTIME",
+        "evaluate_packaged_gameplay_smoke.ps1",
+        "smoke_test_windows.ps1",
     )
     smoke_match = re.search(
-        r"smoke_test_windows\.ps1[^\n]*-MinimumAliveSeconds\s+(\d+)[^\n]*-LaunchTimeoutSeconds\s+(\d+)",
-        package_flow,
+        r'(?s)smoke_test_windows\.ps1".*?"-MinimumAliveSeconds",\s*(\d+).*?"-LaunchTimeoutSeconds",\s*(\d+)',
+        base_runner,
     )
-    gameplay_match = re.search(
-        r"evaluate_packaged_gameplay_smoke\.ps1[^\n]*-MinimumRuntimeSeconds\s+(\d+)", package_flow,
-    )
+    gameplay_match = re.search(r'"-MinimumRuntimeSeconds",\s*(\d+)', base_runner)
     if not smoke_match or not gameplay_match:
-        raise AssertionError("Win64 workflow no longer exposes deterministic Farm Cargo runtime duration arguments")
+        raise AssertionError("canonical exact-candidate runner no longer exposes deterministic Farm Cargo runtime duration arguments")
     minimum_alive = int(smoke_match.group(1))
     launch_timeout = int(smoke_match.group(2))
     minimum_gameplay = int(gameplay_match.group(1))
@@ -109,7 +116,7 @@ def main() -> None:
         "Scripts/evaluate_demo_candidate.ps1", "FARM_CARGO_RUNTIME.json", "gtt.farm-cargo-runtime.v1",
         "farm_cargo_runtime='PASS'",
     )
-    _ = smoke, candidate
+    _ = smoke, candidate, package_flow
 
     playtest = require(
         "Docs/PLAYTEST_0.1.29.md", "wrong vehicle", "Hill Farm", "North Wood Yard", "packaged", "Win64",
@@ -149,7 +156,7 @@ def main() -> None:
 
     subprocess.run([sys.executable, str(ROOT / "Scripts/generate_progress_svg.py"), "--check"], check=True)
     print(
-        f"[OK] GTT 0.1.29 Farm Cargo packaged-runtime harness preserved under extended runtime "
+        f"[OK] GTT 0.1.29 Farm Cargo packaged-runtime harness preserved under sealed runner "
         f"{minimum_alive}s / timeout {launch_timeout}s / gameplay {minimum_gameplay}s."
     )
     print("[OK] Exact-vehicle authority, payout/reputation/save observation and demo technical gate remain mandatory.")

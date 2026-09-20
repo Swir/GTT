@@ -6,6 +6,8 @@ header = (ROOT / "Source/GTT/Public/Vehicles/GTTNativeRuntimeTelemetrySubsystem.
 source = (ROOT / "Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp").read_text(encoding="utf-8")
 evaluator = (ROOT / "Scripts/evaluate_native_chaos_runtime.ps1").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/win64-package-evidence.yml").read_text(encoding="utf-8")
+base_runner = (ROOT / "Scripts/run_win64_candidate_acceptance.ps1").read_text(encoding="utf-8")
+attested_runner = (ROOT / "Scripts/run_win64_attested_candidate_acceptance.ps1").read_text(encoding="utf-8")
 demo_gate = (ROOT / "Scripts/evaluate_demo_candidate.ps1").read_text(encoding="utf-8")
 project_sanity = (ROOT / ".github/workflows/project-sanity.yml").read_text(encoding="utf-8")
 dedicated = (ROOT / ".github/workflows/native-runtime-telemetry-sanity.yml").read_text(encoding="utf-8")
@@ -61,15 +63,23 @@ for token in [
 ]:
     assert token in evaluator, f"missing runtime evaluator contract token: {token}"
 
+# Workflow delegates all runtime work to the sealed exact-candidate runner.
 for token in [
     "workflow_dispatch:",
     "runs-on: [self-hosted, windows, x64, unreal-5.8]",
-    "evaluate_native_chaos_runtime.ps1",
-    "NATIVE_CHAOS_RUNTIME.json",
-    "Upload verified Win64 evidence",
+    "run_win64_attested_candidate_acceptance.ps1",
+    "NATIVE_AUTHORITY_RUNTIME.json",
+    "Upload sealed Win64 evidence",
     "Win64-failure-diagnostics",
 ]:
-    assert token in workflow, f"Win64 workflow missing telemetry evidence token: {token}"
+    assert token in workflow, f"Win64 workflow missing sealed telemetry evidence token: {token}"
+for token in [
+    "evaluate_native_chaos_runtime.ps1",
+    "NATIVE_CHAOS_RUNTIME.json",
+    "evaluate_native_authority_runtime.ps1",
+]:
+    assert token in base_runner, f"base exact-candidate runner missing telemetry step: {token}"
+assert "run_win64_candidate_acceptance.ps1" in attested_runner
 
 for token in [
     "NATIVE_CHAOS_RUNTIME.json",
@@ -83,8 +93,6 @@ for token in [
 ]:
     assert token in demo_gate, f"demo technical gate missing telemetry token: {token}"
 
-# 0.1.15 introduced demo-gate schema 5. Later evidence milestones extend the gate, so guard
-# the schema floor rather than freezing the historical literal and creating false regressions.
 schema_match = re.search(r"(?m)^\s*schema=(\d+)\s*$", demo_gate)
 assert schema_match and int(schema_match.group(1)) >= 5, "demo technical gate schema regressed below 0.1.15 schema-5 floor"
 
@@ -92,7 +100,6 @@ assert "python Scripts/verify_native_runtime_telemetry.py" in project_sanity
 assert "python Scripts/verify_native_runtime_telemetry.py" in dedicated
 assert "pull_request:" in dedicated and "push:" in dedicated
 
-# The source-contract milestone must not close hardware/runtime acceptance gates.
 for checkbox in [
     "- [ ] Dedicated native Chaos wheeled tractor movement",
     "- [ ] Full Unreal compile + packaged Win64 smoke test",
@@ -124,4 +131,4 @@ for token in [
 ]:
     assert token.lower() in changelog.lower(), f"0.1.15 changelog missing: {token}"
 
-print(f"GTT 0.1.15 Native Chaos runtime telemetry/drivetrain acceptance contract: OK (current additive demo gate schema={schema_match.group(1)})")
+print(f"GTT 0.1.15 Native Chaos runtime telemetry/drivetrain acceptance contract: OK (current additive demo gate schema={schema_match.group(1)}; sealed delegate verified)")
