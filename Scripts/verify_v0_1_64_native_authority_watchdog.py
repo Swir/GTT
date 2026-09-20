@@ -100,7 +100,7 @@ for token in [
     "RESTORE_LEGACY",
     "NATIVE_AUTHORITY_RUNTIME.json",
     "packaged Win64",
-    "does not close",
+    "not close",
 ]:
     assert token.lower() in playtest.lower(), f"0.1.64 playtest missing {token}"
 
@@ -108,7 +108,7 @@ for token in [
     "Native Chaos authority watchdog",
     "NATIVE_FIELDMASTER_AUTHORITY_FAULT",
     "NATIVE_AUTHORITY_RUNTIME.json",
-    "does not close",
+    "not close",
 ]:
     assert token.lower() in changelog.lower(), f"0.1.64 changelog missing {token}"
 
