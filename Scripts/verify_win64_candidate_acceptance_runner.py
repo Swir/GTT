@@ -67,6 +67,7 @@ def main() -> int:
         '-MinimumAliveSeconds", 472',
         '-LaunchTimeoutSeconds", 505',
         "evaluate_native_chaos_runtime.ps1",
+        "evaluate_native_authority_runtime.ps1",
         "evaluate_drivetrain_scenario.ps1",
         "evaluate_authored_trailer_runtime.ps1",
         "evaluate_farm_cargo_runtime.ps1",
@@ -80,6 +81,7 @@ def main() -> int:
         "DEMO_VISUAL_EVIDENCE.json",
         "GTT_visual_*.png",
         "gtt.win64-candidate-acceptance.v1",
+        'native_authority_runtime = "PASS"',
         'human_visual_review = "REQUIRED"',
         "demo_release_authorized = $false",
         "WIN64_ACCEPTANCE_SUMMARY.json",
@@ -96,6 +98,7 @@ def main() -> int:
             'Invoke-GTTScript "package_windows.ps1"',
             'Invoke-GTTScript "smoke_test_windows.ps1"',
             '"evaluate_native_chaos_runtime.ps1"',
+            '"evaluate_native_authority_runtime.ps1"',
             '"evaluate_authored_trailer_runtime.ps1"',
             'Invoke-GTTScript "evaluate_demo_candidate.ps1"',
             '"promote_demo_gate_workshop_priority_pickup.ps1"',
@@ -112,7 +115,7 @@ def main() -> int:
 
     print(
         "GTT 0.1.61 Win64 candidate acceptance runner sanity: PASS "
-        "(canonical version + exact SHA + UE import/package/runtime/rendered evidence + human-review boundary)"
+        "(canonical version + exact SHA + UE import/package/runtime/native-authority/rendered evidence + human-review boundary)"
     )
     return 0
 
