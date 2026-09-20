@@ -1,5 +1,6 @@
 #include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
 
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
 #include "Vehicles/GTTChaosPowertrainSetupLibrary.h"
@@ -30,6 +31,18 @@ namespace
     constexpr float DownhillTowBrakeMin = 0.18f;
     constexpr float DownhillTowBrakeMax = 0.46f;
     constexpr float DownhillTowThrottleDeadZone = 0.10f;
+
+    // 0.1.63 trailer brake thermal control. Sustained downhill tow braking now
+    // builds a bounded thermal state. Once the safe threshold is exceeded the
+    // *trailer-assist portion* of downhill braking fades progressively, never
+    // below a conservative 55% authority. Hill hold, manual/base braking and
+    // the shared drivetrain/axle authority are intentionally not weakened.
+    constexpr float TrailerBrakeHeatBuildPerSecond = 0.18f;
+    constexpr float TrailerBrakeCoolingPerSecond = 0.09f;
+    constexpr float TrailerBrakeFadeStartHeat = 0.62f;
+    constexpr float TrailerBrakeFadeFullHeat = 0.92f;
+    constexpr float TrailerBrakeMinimumAuthority = 0.55f;
+    constexpr float TrailerBrakeThermalMaxDeltaSeconds = 0.10f;
 
     float ResolveAttachedTrailerLoad(const UActorComponent* Component)
     {
@@ -143,6 +156,8 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     HillHaulBrake = 0.0f;
     bHillHoldActive = false;
     bDownhillTowBrakeActive = false;
+    bTrailerBrakeFadeActive = false;
+    bTrailerBrakeCoolingActive = false;
 
     const AActor* Owner = GetOwner();
     float AbsoluteSpeedKmh = 0.0f;
@@ -169,6 +184,7 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     const float GradeAlpha = ResolveGradeAlpha(TravelGradeDegrees);
     const bool bTowLoaded = TowLoadFactor >= HillControlMinimumTowLoad;
     const bool bThrottleReleased = FMath::Abs(RequestedThrottle) <= DownhillTowThrottleDeadZone;
+    float RequestedDownhillTowBrake = 0.0f;
 
     // Loaded hill hold prevents the trailer from pulling a stopped/near-stopped
     // tractor backwards when the driver releases the throttle on a grade.
@@ -181,9 +197,8 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     }
 
     // When a loaded trailer is already descending, throttle-off driving receives
-    // proportional tow braking. The effect grows with both grade and speed and
-    // remains bounded so the shared drivetrain/axle composer can still apply the
-    // stricter brake result later in the frame.
+    // proportional tow braking. The requested value is fed through the 0.1.63
+    // thermal model before it becomes final trailer-assist brake authority.
     if (bTowLoaded && bThrottleReleased && TravelGradeDegrees <= -HillControlMinimumGradeDegrees &&
         AbsoluteSpeedKmh >= DownhillTowBrakeStartSpeedKmh)
     {
@@ -194,8 +209,49 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
             0.0f,
             1.0f);
         const float TowBrakeSeverity = FMath::Max(GradeAlpha, SpeedAlpha);
-        const float DownhillBrake = FMath::Lerp(DownhillTowBrakeMin, DownhillTowBrakeMax, TowBrakeSeverity) * TowLoadFactor;
-        HillHaulBrake = FMath::Max(HillHaulBrake, DownhillBrake);
+        RequestedDownhillTowBrake = FMath::Lerp(DownhillTowBrakeMin, DownhillTowBrakeMax, TowBrakeSeverity) * TowLoadFactor;
+    }
+
+    // Sustained trailer-assisted downhill braking heats the trailer brakes. The
+    // state is time-based and frame-hitch resistant (delta is capped at 100 ms).
+    // Releasing the downhill brake condition cools the system. Driver/base brake
+    // and hill-hold authority are never thermally reduced by this model.
+    float ThermalDeltaSeconds = 0.0f;
+    if (const UWorld* World = GetWorld())
+    {
+        ThermalDeltaSeconds = FMath::Clamp(World->GetDeltaSeconds(), 0.0f, TrailerBrakeThermalMaxDeltaSeconds);
+    }
+
+    if (bDownhillTowBrakeActive && RequestedDownhillTowBrake > KINDA_SMALL_NUMBER)
+    {
+        const float BrakeDemand01 = FMath::Clamp(RequestedDownhillTowBrake / DownhillTowBrakeMax, 0.0f, 1.0f);
+        const float LoadHeatScale = FMath::Lerp(0.65f, 1.0f, TowLoadFactor);
+        TrailerBrakeHeat01 = FMath::Clamp(
+            TrailerBrakeHeat01 + TrailerBrakeHeatBuildPerSecond * BrakeDemand01 * LoadHeatScale * ThermalDeltaSeconds,
+            0.0f,
+            1.0f);
+    }
+    else if (TrailerBrakeHeat01 > 0.0f)
+    {
+        bTrailerBrakeCoolingActive = ThermalDeltaSeconds > 0.0f;
+        TrailerBrakeHeat01 = FMath::Clamp(
+            TrailerBrakeHeat01 - TrailerBrakeCoolingPerSecond * ThermalDeltaSeconds,
+            0.0f,
+            1.0f);
+    }
+
+    const float FadeAlpha = FMath::Clamp(
+        (TrailerBrakeHeat01 - TrailerBrakeFadeStartHeat) /
+            (TrailerBrakeFadeFullHeat - TrailerBrakeFadeStartHeat),
+        0.0f,
+        1.0f);
+    TrailerBrakeAuthority = FMath::Lerp(1.0f, TrailerBrakeMinimumAuthority, FadeAlpha);
+    bTrailerBrakeFadeActive = FadeAlpha > KINDA_SMALL_NUMBER;
+
+    if (RequestedDownhillTowBrake > 0.0f)
+    {
+        const float ThermallyLimitedDownhillBrake = RequestedDownhillTowBrake * TrailerBrakeAuthority;
+        HillHaulBrake = FMath::Max(HillHaulBrake, ThermallyLimitedDownhillBrake);
     }
 
     if (!bFieldmasterConfigurationValid || !bHasFuel || Condition01 <= KINDA_SMALL_NUMBER)
@@ -231,6 +287,8 @@ void UGTTFieldmasterChaosMovementComponent::HoldFieldmasterStopped()
     TravelGradeDegrees = 0.0f;
     bHillHoldActive = false;
     bDownhillTowBrakeActive = false;
+    bTrailerBrakeFadeActive = TrailerBrakeHeat01 > TrailerBrakeFadeStartHeat;
+    bTrailerBrakeCoolingActive = false;
     SetThrottleInput(0.0f);
     SetSteeringInput(0.0f);
     SetBrakeInput(1.0f);
