@@ -111,6 +111,7 @@ try {
         "evaluate_demo_scenario.ps1",
         "evaluate_packaged_gameplay_smoke.ps1",
         "evaluate_native_chaos_runtime.ps1",
+        "evaluate_native_authority_runtime.ps1",
         "evaluate_drivetrain_scenario.ps1",
         "evaluate_authored_trailer_runtime.ps1",
         "evaluate_farm_cargo_runtime.ps1",
@@ -196,6 +197,7 @@ try {
         authored_trailer_import = "PASS"
         packaged_exe_smoke = "PASS"
         native_chaos_runtime = "PASS"
+        native_authority_runtime = "PASS"
         authored_trailer_runtime = "PASS"
         technical_gate_schema = 17
         technical_gate = "PASS"
