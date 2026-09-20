@@ -44,6 +44,22 @@ namespace
     constexpr float TrailerBrakeMinimumAuthority = 0.55f;
     constexpr float TrailerBrakeThermalMaxDeltaSeconds = 0.10f;
 
+    // 0.1.64 driver feedback + bounded runaway mitigation. Warning transitions
+    // use hysteresis so HUD/audio consumers do not flicker around thresholds.
+    // The emergency helper only adds a small tractor-side brake contribution
+    // while the driver is already throttle-off on a steep, fast, loaded descent.
+    constexpr float TrailerBrakeHotEnterHeat = 0.50f;
+    constexpr float TrailerBrakeHotExitHeat = 0.42f;
+    constexpr float TrailerBrakeFadeExitHeat = 0.56f;
+    constexpr float TrailerBrakeCriticalEnterHeat = 0.88f;
+    constexpr float TrailerBrakeCriticalExitHeat = 0.78f;
+    constexpr float RunawayMinimumTowLoad = 0.50f;
+    constexpr float RunawayMinimumGradeDegrees = 8.0f;
+    constexpr float RunawayMinimumSpeedKmh = 24.0f;
+    constexpr float RunawayFullSpeedKmh = 40.0f;
+    constexpr float RunawaySafetyBrakeMin = 0.08f;
+    constexpr float RunawaySafetyBrakeMax = 0.20f;
+
     float ResolveAttachedTrailerLoad(const UActorComponent* Component)
     {
         const AActor* Owner = Component ? Component->GetOwner() : nullptr;
@@ -89,6 +105,67 @@ float UGTTFieldmasterChaosMovementComponent::NormalizeCondition(float ConditionP
     // Keep the native movement authority defensive until the old save boundary disappears.
     const float Normalized = ConditionPercent > 1.0f ? ConditionPercent / 100.0f : ConditionPercent;
     return FMath::Clamp(Normalized, 0.0f, 1.0f);
+}
+
+void UGTTFieldmasterChaosMovementComponent::UpdateTrailerBrakeThermalState()
+{
+    switch (TrailerBrakeThermalState)
+    {
+        case EGTTTrailerBrakeThermalState::Critical:
+            if (TrailerBrakeHeat01 < TrailerBrakeCriticalExitHeat)
+            {
+                TrailerBrakeThermalState = TrailerBrakeHeat01 >= TrailerBrakeFadeExitHeat
+                    ? EGTTTrailerBrakeThermalState::Fading
+                    : (TrailerBrakeHeat01 >= TrailerBrakeHotExitHeat
+                        ? EGTTTrailerBrakeThermalState::Hot
+                        : EGTTTrailerBrakeThermalState::Normal);
+            }
+            break;
+
+        case EGTTTrailerBrakeThermalState::Fading:
+            if (TrailerBrakeHeat01 >= TrailerBrakeCriticalEnterHeat)
+            {
+                TrailerBrakeThermalState = EGTTTrailerBrakeThermalState::Critical;
+            }
+            else if (TrailerBrakeHeat01 < TrailerBrakeFadeExitHeat)
+            {
+                TrailerBrakeThermalState = TrailerBrakeHeat01 >= TrailerBrakeHotExitHeat
+                    ? EGTTTrailerBrakeThermalState::Hot
+                    : EGTTTrailerBrakeThermalState::Normal;
+            }
+            break;
+
+        case EGTTTrailerBrakeThermalState::Hot:
+            if (TrailerBrakeHeat01 >= TrailerBrakeCriticalEnterHeat)
+            {
+                TrailerBrakeThermalState = EGTTTrailerBrakeThermalState::Critical;
+            }
+            else if (TrailerBrakeHeat01 >= TrailerBrakeFadeStartHeat)
+            {
+                TrailerBrakeThermalState = EGTTTrailerBrakeThermalState::Fading;
+            }
+            else if (TrailerBrakeHeat01 < TrailerBrakeHotExitHeat)
+            {
+                TrailerBrakeThermalState = EGTTTrailerBrakeThermalState::Normal;
+            }
+            break;
+
+        case EGTTTrailerBrakeThermalState::Normal:
+        default:
+            if (TrailerBrakeHeat01 >= TrailerBrakeCriticalEnterHeat)
+            {
+                TrailerBrakeThermalState = EGTTTrailerBrakeThermalState::Critical;
+            }
+            else if (TrailerBrakeHeat01 >= TrailerBrakeFadeStartHeat)
+            {
+                TrailerBrakeThermalState = EGTTTrailerBrakeThermalState::Fading;
+            }
+            else if (TrailerBrakeHeat01 >= TrailerBrakeHotEnterHeat)
+            {
+                TrailerBrakeThermalState = EGTTTrailerBrakeThermalState::Hot;
+            }
+            break;
+    }
 }
 
 bool UGTTFieldmasterChaosMovementComponent::ConfigureAndValidateFieldmaster(FString& OutSummary)
@@ -158,6 +235,8 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     bDownhillTowBrakeActive = false;
     bTrailerBrakeFadeActive = false;
     bTrailerBrakeCoolingActive = false;
+    bTrailerRunawayMitigationActive = false;
+    TrailerRunawaySafetyBrake = 0.0f;
 
     const AActor* Owner = GetOwner();
     float AbsoluteSpeedKmh = 0.0f;
@@ -247,11 +326,41 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
         1.0f);
     TrailerBrakeAuthority = FMath::Lerp(1.0f, TrailerBrakeMinimumAuthority, FadeAlpha);
     bTrailerBrakeFadeActive = FadeAlpha > KINDA_SMALL_NUMBER;
+    UpdateTrailerBrakeThermalState();
 
     if (RequestedDownhillTowBrake > 0.0f)
     {
         const float ThermallyLimitedDownhillBrake = RequestedDownhillTowBrake * TrailerBrakeAuthority;
         HillHaulBrake = FMath::Max(HillHaulBrake, ThermallyLimitedDownhillBrake);
+    }
+
+    // Critical thermal state on a genuinely fast, steep, loaded descent receives
+    // a bounded tractor-side brake contribution. This is deliberately narrower
+    // than ordinary downhill assist: it never activates under deliberate throttle,
+    // never exceeds 0.20 brake input, and cannot steal drivetrain direction.
+    if (bDownhillTowBrakeActive && TrailerBrakeThermalState == EGTTTrailerBrakeThermalState::Critical &&
+        TowLoadFactor >= RunawayMinimumTowLoad && TravelGradeDegrees <= -RunawayMinimumGradeDegrees &&
+        AbsoluteSpeedKmh >= RunawayMinimumSpeedKmh)
+    {
+        const float CriticalHeatAlpha = FMath::Clamp(
+            (TrailerBrakeHeat01 - TrailerBrakeCriticalEnterHeat) /
+                (1.0f - TrailerBrakeCriticalEnterHeat),
+            0.0f,
+            1.0f);
+        const float RunawayGradeAlpha = FMath::Clamp(
+            (FMath::Abs(TravelGradeDegrees) - RunawayMinimumGradeDegrees) /
+                (HillControlFullGradeDegrees - RunawayMinimumGradeDegrees),
+            0.0f,
+            1.0f);
+        const float RunawaySpeedAlpha = FMath::Clamp(
+            (AbsoluteSpeedKmh - RunawayMinimumSpeedKmh) /
+                (RunawayFullSpeedKmh - RunawayMinimumSpeedKmh),
+            0.0f,
+            1.0f);
+        const float RunawaySeverity = FMath::Max3(CriticalHeatAlpha, RunawayGradeAlpha, RunawaySpeedAlpha);
+        TrailerRunawaySafetyBrake = FMath::Lerp(RunawaySafetyBrakeMin, RunawaySafetyBrakeMax, RunawaySeverity) * TowLoadFactor;
+        HillHaulBrake = FMath::Max(HillHaulBrake, TrailerRunawaySafetyBrake);
+        bTrailerRunawayMitigationActive = true;
     }
 
     if (!bFieldmasterConfigurationValid || !bHasFuel || Condition01 <= KINDA_SMALL_NUMBER)
@@ -289,6 +398,9 @@ void UGTTFieldmasterChaosMovementComponent::HoldFieldmasterStopped()
     bDownhillTowBrakeActive = false;
     bTrailerBrakeFadeActive = TrailerBrakeHeat01 > TrailerBrakeFadeStartHeat;
     bTrailerBrakeCoolingActive = false;
+    bTrailerRunawayMitigationActive = false;
+    TrailerRunawaySafetyBrake = 0.0f;
+    UpdateTrailerBrakeThermalState();
     SetThrottleInput(0.0f);
     SetSteeringInput(0.0f);
     SetBrakeInput(1.0f);
