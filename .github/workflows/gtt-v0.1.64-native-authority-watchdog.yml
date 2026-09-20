@@ -6,20 +6,34 @@ on:
     paths:
       - 'Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp'
       - 'Scripts/evaluate_native_authority_runtime.ps1'
+      - 'Scripts/run_win64_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_win64_candidate_acceptance_runner.py'
+      - 'Scripts/verify_v0_1_61_candidate_attestation.py'
       - 'Scripts/verify_v0_1_64_native_authority_watchdog.py'
       - 'Docs/PLAYTEST-0.1.64-NATIVE-AUTHORITY-WATCHDOG.md'
       - 'CHANGELOG.d/0.1.64-native-authority-watchdog.md'
       - 'Docs/ROADMAP.md'
+      - 'assets/readme/progress-card.svg'
+      - 'assets/readme/progress-mini.svg'
+      - 'assets/readme/progress-template.svg'
       - '.github/workflows/gtt-v0.1.64-native-authority-watchdog.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp'
       - 'Scripts/evaluate_native_authority_runtime.ps1'
+      - 'Scripts/run_win64_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_win64_candidate_acceptance_runner.py'
+      - 'Scripts/verify_v0_1_61_candidate_attestation.py'
       - 'Scripts/verify_v0_1_64_native_authority_watchdog.py'
       - 'Docs/PLAYTEST-0.1.64-NATIVE-AUTHORITY-WATCHDOG.md'
       - 'CHANGELOG.d/0.1.64-native-authority-watchdog.md'
       - 'Docs/ROADMAP.md'
+      - 'assets/readme/progress-card.svg'
+      - 'assets/readme/progress-mini.svg'
+      - 'assets/readme/progress-template.svg'
       - '.github/workflows/gtt-v0.1.64-native-authority-watchdog.yml'
   workflow_dispatch:
 
@@ -33,10 +47,16 @@ jobs:
         with: { python-version: '3.12' }
       - name: Verify 0.1.64 Native Chaos authority watchdog
         run: python Scripts/verify_v0_1_64_native_authority_watchdog.py
+      - name: Verify exact Win64 candidate acceptance chain
+        run: python Scripts/verify_win64_candidate_acceptance_runner.py
+      - name: Verify sealed candidate attestation chain
+        run: python Scripts/verify_v0_1_61_candidate_attestation.py
       - name: Preserve packaged Native Chaos telemetry contract
         run: python Scripts/verify_native_runtime_telemetry.py
       - name: Preserve dedicated Fieldmaster Chaos movement
         run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
+      - name: Preserve 0.1.64 trailer brake runaway safety
+        run: python Scripts/verify_v0_1_64_trailer_brake_runaway_safety.py
       - name: Preserve 0.1.63 trailer brake thermal control
         run: python Scripts/verify_v0_1_63_trailer_brake_thermal_control.py
       - name: Preserve 0.1.62 hill-haul control
@@ -45,5 +65,7 @@ jobs:
         run: python Scripts/verify_v0_1_59_heavy_haul_driving_quality.py
       - name: Preserve final drivetrain authority
         run: python Scripts/verify_native_drivetrain_authority.py
+      - name: Preserve SWIR SVG progress presentation
+        run: python Scripts/verify_progress_presentation.py
       - name: Preserve project sanity
         run: python Scripts/verify_project.py
