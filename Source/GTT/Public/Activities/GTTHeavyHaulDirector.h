@@ -69,6 +69,5 @@ private:
     UPROPERTY(EditDefaultsOnly, Category="GTT|HeavyHaul") float ContractTimeLimit = 330.0f;
     UPROPERTY(EditDefaultsOnly, Category="GTT|HeavyHaul") int32 BaseReward = 900;
     UPROPERTY(EditDefaultsOnly, Category="GTT|HeavyHaul") int32 FastBonus = 250;
-    UPROPERTY(EditDefaultsOnly, Category="GTT|HeavyHaul|Recovery") int32 RoadsideRepairBaseCost = 140;
-    UPROPERTY(EditDefaultsOnly, Category="GTT|HeavyHaul|Recovery") int32 RoadsideRepairEscalation = 90;
+    UPROPERTY(EditDefaultsOnly, Category="GTT|HeavyHaul|Recovery") float RoadsideRepairTimePenalty = 22.0f;
 };

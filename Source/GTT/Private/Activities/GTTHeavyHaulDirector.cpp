@@ -29,6 +29,15 @@ void AGTTHeavyHaulDirector::Tick(float DeltaSeconds)
     if (!IsActive()) return;
 
     TimeRemaining = FMath::Max(0.0f, TimeRemaining - DeltaSeconds);
+    if (Trailer && Trailer->GetRoadsideRepairCount() > RoadsideRepairCount)
+    {
+        const int32 CompletedRepairs = Trailer->GetRoadsideRepairCount() - RoadsideRepairCount;
+        RoadsideRepairCount = Trailer->GetRoadsideRepairCount();
+        const float PenaltySeconds = RoadsideRepairTimePenalty * CompletedRepairs;
+        TimeRemaining = FMath::Max(0.0f, TimeRemaining - PenaltySeconds);
+        PushMessage(UGameplayStatics::GetPlayerPawn(this, 0), FString::Printf(TEXT("HEAVY HAUL FIELD REPAIR: contract clock -%.0fs | repairs %d."), PenaltySeconds, RoadsideRepairCount), 5.0f);
+    }
+
     if (TimeRemaining <= 0.0f)
     {
         APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
@@ -167,36 +176,12 @@ bool AGTTHeavyHaulDirector::TryLoadTimber(APawn* PlayerPawn)
 bool AGTTHeavyHaulDirector::TryRoadsideRepair(APawn* PlayerPawn)
 {
     if (!PlayerPawn || !Trailer || !IsActive()) return false;
-    if (FVector::Dist2D(PlayerPawn->GetActorLocation(), Trailer->GetActorLocation()) > 650.0f)
+    if (Trailer->IsRoadsideRepairPending())
     {
-        PushMessage(PlayerPawn, TEXT("ROADSIDE REPAIR: move closer to the damaged trailer."));
-        return false;
+        PushMessage(PlayerPawn, FString::Printf(TEXT("FIELD REPAIR IN PROGRESS: %.0fs remaining | locked $%d."), Trailer->GetRoadsideRepairTimeRemaining(), Trailer->GetRoadsideRepairQuote()), 4.0f);
+        return true;
     }
-    if (Trailer->GetTrailerIntegrity() >= 0.98f && Trailer->HasIntactAxle())
-    {
-        PushMessage(PlayerPawn, TEXT("ROADSIDE REPAIR: trailer does not need service."));
-        return false;
-    }
-
-    UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn);
-    if (!Economy) return false;
-    const int32 RepairCost = RoadsideRepairBaseCost + RoadsideRepairCount * RoadsideRepairEscalation + Trailer->GetLostWheelCount() * 80;
-    if (!Economy->SpendCash(RepairCost, FString::Printf(TEXT("Heavy-haul roadside repair: -$%d"), RepairCost)))
-    {
-        Economy->PushMessage(FString::Printf(TEXT("ROADSIDE REPAIR requires $%d."), RepairCost), 4.0f);
-        return false;
-    }
-
-    if (!Trailer->PerformRoadsideRepair())
-    {
-        Economy->AddCash(RepairCost, TEXT("Roadside repair refund"));
-        return false;
-    }
-
-    ++RoadsideRepairCount;
-    TimeRemaining = FMath::Max(0.0f, TimeRemaining - 22.0f);
-    Economy->PushMessage(FString::Printf(TEXT("ROADSIDE REPAIR COMPLETE | $%d | contract time -22s | trailer %.0f%%"), RepairCost, Trailer->GetTrailerIntegrity() * 100.0f), 6.0f);
-    return true;
+    return Trailer->TryBeginRoadsideRepair(PlayerPawn);
 }
 
 bool AGTTHeavyHaulDirector::TryDeliverTimber(APawn* PlayerPawn)
@@ -241,7 +226,12 @@ void AGTTHeavyHaulDirector::PushMessage(APawn* Pawn, const FString& Message, flo
 FString AGTTHeavyHaulDirector::GetObjectiveText() const
 {
     if (!Trailer) return TEXT("HEAVY HAUL | trailer unavailable");
-    const FString RepairState = (!Trailer->HasIntactAxle() || Trailer->GetTrailerIntegrity() < 0.55f) ? TEXT(" | ROADSIDE REPAIR AVAILABLE") : TEXT("");
+    FString RepairState;
+    if (Trailer->IsRoadsideRepairPending())
+        RepairState = FString::Printf(TEXT(" | FIELD REPAIR %.0fs / $%d"), Trailer->GetRoadsideRepairTimeRemaining(), Trailer->GetRoadsideRepairQuote());
+    else if (Trailer->NeedsRoadsideRepair())
+        RepairState = FString::Printf(TEXT(" | FIELD REPAIR $%d"), Trailer->GetRoadsideRepairQuote());
+
     switch (Stage)
     {
         case EGTTHeavyHaulStage::Idle: return TEXT("HEAVY HAUL | available at Player Farm");

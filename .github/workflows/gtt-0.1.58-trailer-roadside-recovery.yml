@@ -1,0 +1,56 @@
+name: GTT 0.1.58 trailer roadside recovery sanity
+
+on:
+  push:
+    branches:
+      - main
+      - "milestone/**"
+    paths:
+      - "Source/GTT/Public/Vehicles/GTTFarmTrailer.h"
+      - "Source/GTT/Private/Vehicles/GTTFarmTrailer.cpp"
+      - "Source/GTT/Public/Activities/GTTHeavyHaulDirector.h"
+      - "Source/GTT/Private/Activities/GTTHeavyHaulDirector.cpp"
+      - "Scripts/verify_trailer_roadside_recovery.py"
+      - "Docs/PLAYTEST-0.1.58-TRAILER-ROADSIDE-RECOVERY.md"
+      - "Docs/ROADMAP.md"
+      - "README.md"
+      - "CHANGELOG.d/0.1.58.md"
+      - ".github/workflows/gtt-0.1.58-trailer-roadside-recovery.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "Source/GTT/Public/Vehicles/GTTFarmTrailer.h"
+      - "Source/GTT/Private/Vehicles/GTTFarmTrailer.cpp"
+      - "Source/GTT/Public/Activities/GTTHeavyHaulDirector.h"
+      - "Source/GTT/Private/Activities/GTTHeavyHaulDirector.cpp"
+      - "Scripts/verify_trailer_roadside_recovery.py"
+      - "Docs/PLAYTEST-0.1.58-TRAILER-ROADSIDE-RECOVERY.md"
+      - "Docs/ROADMAP.md"
+      - "README.md"
+      - "CHANGELOG.d/0.1.58.md"
+      - ".github/workflows/gtt-0.1.58-trailer-roadside-recovery.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-trailer-roadside-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify trailer roadside recovery and suspension contract
+        run: python Scripts/verify_trailer_roadside_recovery.py
+
+      - name: Preserve SWIR progress presentation contract
+        run: |
+          python Scripts/generate_progress_svg.py --check
+          python Scripts/verify_progress_presentation.py
