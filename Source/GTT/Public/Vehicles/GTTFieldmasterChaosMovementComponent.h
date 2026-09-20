@@ -4,6 +4,15 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "GTTFieldmasterChaosMovementComponent.generated.h"
 
+UENUM(BlueprintType)
+enum class EGTTTrailerBrakeThermalState : uint8
+{
+    Normal UMETA(DisplayName="Normal"),
+    Hot UMETA(DisplayName="Hot"),
+    Fading UMETA(DisplayName="Fading"),
+    Critical UMETA(DisplayName="Critical")
+};
+
 /**
  * Dedicated native Chaos movement authority for the Rusty Fieldmaster 60.
  *
@@ -76,6 +85,15 @@ public:
     bool IsTrailerBrakeCoolingActive() const { return bTrailerBrakeCoolingActive; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    EGTTTrailerBrakeThermalState GetTrailerBrakeThermalState() const { return TrailerBrakeThermalState; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    bool IsTrailerRunawayMitigationActive() const { return bTrailerRunawayMitigationActive; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float GetTrailerRunawaySafetyBrake() const { return TrailerRunawaySafetyBrake; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
     float GetTowLoadFactor() const { return TowLoadFactor; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
@@ -92,6 +110,7 @@ public:
 
 private:
     static float NormalizeCondition(float ConditionPercent);
+    void UpdateTrailerBrakeThermalState();
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster")
     bool bFieldmasterConfigurationValid = false;
@@ -137,6 +156,15 @@ private:
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
     bool bTrailerBrakeCoolingActive = false;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    EGTTTrailerBrakeThermalState TrailerBrakeThermalState = EGTTTrailerBrakeThermalState::Normal;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    bool bTrailerRunawayMitigationActive = false;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float TrailerRunawaySafetyBrake = 0.0f;
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
     float TowLoadFactor = 0.0f;
