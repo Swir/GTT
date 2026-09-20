@@ -186,10 +186,11 @@ def main() -> int:
         "gtt.farm-trailer-source-rig.v2",
         "Project-owned original source art",
         "required_sockets",
-        "SOCKET_socket_hitch",
-        "SOCKET_socket_cargo",
-        "SOCKET_socket_axle_l",
-        "SOCKET_socket_axle_r",
+        "SOCKET_NODE_NAMES",
+        "socket_hitch",
+        "socket_cargo",
+        "socket_axle_l",
+        "socket_axle_r",
     ):
         require(token in source_rig, f"authored source rig contract missing: {token}")
     require("source-rig candidate only" in source_rig, "source rig must remain labelled as candidate-only")
