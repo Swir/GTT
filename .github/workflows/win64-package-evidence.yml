@@ -5,6 +5,7 @@ on:
       version:
         description: 'Exact GTT candidate version; must match Config/DefaultGame.ini ProjectVersion'
         required: true
+        default: '0.1.61'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -160,7 +161,7 @@ jobs:
           $zip="$env:GTT_PACKAGE_DIR.zip"
           if(Test-Path $zip){Remove-Item -Force $zip}
           Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal
-          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
+          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip.FullName).Hash.ToLowerInvariant()
           Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
       - name: Upload verified Win64 evidence
         uses: actions/upload-artifact@v4
