@@ -27,7 +27,10 @@ roadmap = ROADMAP.read_text(encoding="utf-8")
 config = CONFIG.read_text(encoding="utf-8")
 compact = re.sub(r"\s+", "", cpp)
 
-require("ProjectVersion=0.1.66" in config, "project version must be 0.1.66")
+version_match = re.search(r"(?m)^ProjectVersion=(\d+)\.(\d+)\.(\d+)$", config)
+require(version_match is not None, "ProjectVersion must be a semantic x.y.z version")
+current_version = tuple(int(part) for part in version_match.groups())
+require(current_version >= (0, 1, 66), f"ProjectVersion {'.'.join(version_match.groups())} predates the 0.1.66 HUD milestone")
 require("class AGTTFieldmasterNativePawn;" in header, "HUD must forward-declare native Fieldmaster pawn")
 for symbol in (
     "BuildNativeFieldmasterStatus",

@@ -71,6 +71,13 @@ if ([int]$hillHaul.loaded_trailer_samples -lt 2) { throw "FIELDMASTER_HILL_HAUL_
 if ([int]$hillHaul.assist_samples -lt 1) { throw "FIELDMASTER_HILL_HAUL_RUNTIME.json lacks hill-assist evidence." }
 if ([int]$hillHaul.thermal_samples -lt 1) { throw "FIELDMASTER_HILL_HAUL_RUNTIME.json lacks thermal behavior evidence." }
 
+$hud = Read-JsonRequired "FIELDMASTER_HUD_RUNTIME.json"
+Assert-ExactIdentity $hud "FIELDMASTER_HUD_RUNTIME.json"
+if ([string]$hud.schema -ne "gtt.fieldmaster-hud-runtime.v1" -or [string]$hud.result -ne "PASS") { throw "FIELDMASTER_HUD_RUNTIME.json is not PASS schema v1." }
+if ([int]$hud.telemetry_samples -lt 2) { throw "FIELDMASTER_HUD_RUNTIME.json lacks telemetry coverage." }
+if ([int]$hud.visible_alert_samples -lt 1) { throw "FIELDMASTER_HUD_RUNTIME.json lacks driver-visible safety alert coverage." }
+if (([int]$hud.assist_alert_samples + [int]$hud.thermal_alert_samples + [int]$hud.cooling_alert_samples) -lt 1) { throw "FIELDMASTER_HUD_RUNTIME.json lacks hill-haul/thermal/cooling alert coverage." }
+
 $trailer = Read-JsonRequired "NATIVE_TRAILER_RUNTIME.json"
 Assert-ExactIdentity $trailer "NATIVE_TRAILER_RUNTIME.json"
 if ([string]$trailer.result -ne "PASS") { throw "NATIVE_TRAILER_RUNTIME.json is not PASS." }
@@ -89,6 +96,8 @@ if ([string]$summary.result -ne "PASS") { throw "WIN64_ACCEPTANCE_SUMMARY.json i
 if ([string]$summary.configuration -ne $Configuration) { throw "WIN64_ACCEPTANCE_SUMMARY.json configuration does not match '$Configuration'." }
 if ([string]$summary.native_authority_runtime -ne "PASS") { throw "WIN64_ACCEPTANCE_SUMMARY.json native authority runtime is not PASS." }
 if ([string]$summary.fieldmaster_hill_haul_runtime -ne "PASS") { throw "WIN64_ACCEPTANCE_SUMMARY.json hill-haul runtime is not PASS." }
+if ([string]$summary.fieldmaster_hud_runtime -ne "PASS") { throw "WIN64_ACCEPTANCE_SUMMARY.json Fieldmaster HUD runtime is not PASS." }
+if ([int]$summary.fieldmaster_hud_visible_alert_samples -lt 1) { throw "WIN64_ACCEPTANCE_SUMMARY.json lacks Fieldmaster HUD visible-alert coverage." }
 if ([string]$summary.human_visual_review -ne "REQUIRED") { throw "Human visual review boundary must remain REQUIRED." }
 if ([bool]$summary.demo_release_authorized) { throw "Technical attestation must never authorize a Demo Release." }
 
@@ -111,6 +120,7 @@ $criticalNames = @(
     "NATIVE_CHAOS_RUNTIME.json",
     "NATIVE_AUTHORITY_RUNTIME.json",
     "FIELDMASTER_HILL_HAUL_RUNTIME.json",
+    "FIELDMASTER_HUD_RUNTIME.json",
     "NATIVE_DRIVETRAIN_SCENARIO.json",
     "NATIVE_TRAILER_RUNTIME.json",
     "FARM_CARGO_RUNTIME.json",
@@ -164,6 +174,12 @@ $attestation = [ordered]@{
     hill_haul_loaded_samples = [int]$hillHaul.loaded_trailer_samples
     hill_haul_assist_samples = [int]$hillHaul.assist_samples
     hill_haul_thermal_samples = [int]$hillHaul.thermal_samples
+    fieldmaster_hud_runtime = "PASS"
+    fieldmaster_hud_telemetry_samples = [int]$hud.telemetry_samples
+    fieldmaster_hud_visible_alert_samples = [int]$hud.visible_alert_samples
+    fieldmaster_hud_assist_alert_samples = [int]$hud.assist_alert_samples
+    fieldmaster_hud_thermal_alert_samples = [int]$hud.thermal_alert_samples
+    fieldmaster_hud_cooling_alert_samples = [int]$hud.cooling_alert_samples
     technical_gate_schema = 17
     technical_gate = "PASS"
     rendered_visual_evidence = "PASS"
@@ -181,8 +197,6 @@ $attestation = [ordered]@{
 $attestationPath = Join-Path $PackageDirectory "WIN64_CANDIDATE_ATTESTATION.json"
 $attestation | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $attestationPath
 
-# Final integrity manifest intentionally runs after all runtime/rendered evidence and attestation exist.
-# It excludes only itself so a verifier can reproduce every listed digest without self-reference.
 $finalManifestPath = Join-Path $PackageDirectory "FINAL_SHA256SUMS.txt"
 $finalFiles = Get-ChildItem -Path $PackageDirectory -Recurse -File |
     Where-Object { $_.FullName -ne $finalManifestPath } |
@@ -194,7 +208,6 @@ $manifestLines = foreach ($file in $finalFiles) {
 }
 $manifestLines | Set-Content -Encoding ASCII $finalManifestPath
 
-# Rebuild the archive only after attestation + final hashes exist, so the uploaded ZIP is the sealed candidate.
 $zipPath = "$PackageDirectory.zip"
 if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
 Compress-Archive -Path (Join-Path $PackageDirectory "*") -DestinationPath $zipPath -CompressionLevel Optimal
@@ -207,8 +220,9 @@ if ($roundTrip.schema -ne "gtt.win64-candidate-attestation.v1" -or $roundTrip.re
     $roundTrip.configuration -ne $Configuration -or $roundTrip.native_authority_runtime -ne "PASS" -or
     [int]$roundTrip.native_authority_faults -ne 0 -or $roundTrip.fieldmaster_hill_haul_runtime -ne "PASS" -or
     [int]$roundTrip.hill_haul_loaded_samples -lt 2 -or [int]$roundTrip.hill_haul_assist_samples -lt 1 -or
-    [int]$roundTrip.hill_haul_thermal_samples -lt 1 -or $roundTrip.human_visual_review -ne "REQUIRED" -or
-    [bool]$roundTrip.demo_release_authorized) {
+    [int]$roundTrip.hill_haul_thermal_samples -lt 1 -or $roundTrip.fieldmaster_hud_runtime -ne "PASS" -or
+    [int]$roundTrip.fieldmaster_hud_telemetry_samples -lt 2 -or [int]$roundTrip.fieldmaster_hud_visible_alert_samples -lt 1 -or
+    $roundTrip.human_visual_review -ne "REQUIRED" -or [bool]$roundTrip.demo_release_authorized) {
     throw "WIN64_CANDIDATE_ATTESTATION.json failed round-trip identity/boundary validation."
 }
 

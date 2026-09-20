@@ -1,0 +1,51 @@
+name: GTT 0.1.67 Fieldmaster HUD runtime evidence sanity
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Config/DefaultGame.ini'
+      - 'Scripts/evaluate_fieldmaster_hud_runtime.ps1'
+      - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_v0_1_66_native_fieldmaster_hud.py'
+      - 'Scripts/verify_v0_1_67_fieldmaster_hud_runtime_evidence.py'
+      - 'Docs/PLAYTEST_0.1.67.md'
+      - 'CHANGELOG.d/0.1.67-fieldmaster-hud-runtime-evidence.md'
+      - '.github/workflows/v0-1-67-fieldmaster-hud-runtime-evidence-sanity.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Config/DefaultGame.ini'
+      - 'Scripts/evaluate_fieldmaster_hud_runtime.ps1'
+      - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_v0_1_66_native_fieldmaster_hud.py'
+      - 'Scripts/verify_v0_1_67_fieldmaster_hud_runtime_evidence.py'
+      - 'Docs/PLAYTEST_0.1.67.md'
+      - 'CHANGELOG.d/0.1.67-fieldmaster-hud-runtime-evidence.md'
+      - '.github/workflows/v0-1-67-fieldmaster-hud-runtime-evidence-sanity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fieldmaster-hud-runtime-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify 0.1.67 packaged Fieldmaster HUD evidence contract
+        run: python Scripts/verify_v0_1_67_fieldmaster_hud_runtime_evidence.py
+      - name: Regress 0.1.66 native Fieldmaster HUD source integration
+        run: python Scripts/verify_v0_1_66_native_fieldmaster_hud.py
+      - name: Regress 0.1.65 packaged hill-haul evidence
+        run: python Scripts/verify_v0_1_65_hill_haul_runtime_evidence.py
+      - name: Regress Native Authority watchdog
+        run: python Scripts/verify_v0_1_64_native_authority_watchdog.py
+      - name: Verify SWIR progress presentation
+        run: python Scripts/verify_progress_presentation.py
+      - name: Verify project sanity
+        run: python Scripts/verify_project.py
