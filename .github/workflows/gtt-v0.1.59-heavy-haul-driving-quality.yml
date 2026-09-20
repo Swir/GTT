@@ -5,15 +5,21 @@ on:
     paths:
       - "Source/GTT/Private/Activities/GTTHeavyHaulDirector.cpp"
       - "Source/GTT/Public/Activities/GTTHeavyHaulDirector.h"
+      - "Source/GTT/Private/Vehicles/GTTFarmTrailerDynamicsSubsystem.cpp"
+      - "Source/GTT/Public/Vehicles/GTTFarmTrailerDynamicsSubsystem.h"
       - "Scripts/verify_v0_1_59_heavy_haul_driving_quality.py"
       - "Docs/PLAYTEST_0.1.59_HEAVY_HAUL_DRIVING_QUALITY.md"
+      - "CHANGELOG.d/0.1.59-heavy-haul-driving-quality.md"
       - ".github/workflows/gtt-v0.1.59-heavy-haul-driving-quality.yml"
   pull_request:
     paths:
       - "Source/GTT/Private/Activities/GTTHeavyHaulDirector.cpp"
       - "Source/GTT/Public/Activities/GTTHeavyHaulDirector.h"
+      - "Source/GTT/Private/Vehicles/GTTFarmTrailerDynamicsSubsystem.cpp"
+      - "Source/GTT/Public/Vehicles/GTTFarmTrailerDynamicsSubsystem.h"
       - "Scripts/verify_v0_1_59_heavy_haul_driving_quality.py"
       - "Docs/PLAYTEST_0.1.59_HEAVY_HAUL_DRIVING_QUALITY.md"
+      - "CHANGELOG.d/0.1.59-heavy-haul-driving-quality.md"
       - ".github/workflows/gtt-v0.1.59-heavy-haul-driving-quality.yml"
   workflow_dispatch:
 

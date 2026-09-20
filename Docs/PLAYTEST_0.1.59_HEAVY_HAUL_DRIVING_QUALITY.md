@@ -2,7 +2,7 @@
 
 ## Scope
 
-This milestone makes the loaded timber leg reward deliberate heavy-trailer driving instead of treating every successful arrival the same. It does **not** claim authored trailer assets, Native Chaos runtime acceptance, a Win64 packaged build, or demo readiness.
+This milestone makes the loaded timber leg reward deliberate heavy-trailer driving instead of treating every successful arrival the same. It also connects loaded speed/attitude to the existing breakable-hitch physics so rough hauling has a bounded physical consequence. It does **not** claim authored trailer assets, Native Chaos runtime acceptance, a Win64 packaged build, or demo readiness.
 
 ## Setup
 
@@ -33,6 +33,13 @@ Use the Heavy Haul contract from Player Farm. Hitch an eligible owned Fieldmaste
 - [ ] A pending roadside repair objective uses the locked quote rather than a recomputed future quote.
 - [ ] Completion log includes reward, fast status, smooth bonus status, smooth seconds, rough seconds, cargo and trailer condition.
 - [ ] Contract reset clears all driving-quality state.
+- [ ] Runtime suspension travel remains 24 cm after the dynamics subsystem refreshes the axle constraints.
+- [ ] Empty-trailer speed/attitude does not add artificial dynamic hitch stress beyond measured hitch load.
+- [ ] Loaded-trailer dynamic hitch stress starts rising above 52 km/h and reaches the bounded full stress input at 78 km/h.
+- [ ] Loaded roll and pitch progressively add dynamic hitch stress, reaching full attitude stress at 28° roll or 20° pitch.
+- [ ] The strongest of hitch load, loaded speed stress and loaded attitude stress drives the existing bounded hitch weakening.
+- [ ] Full dynamic stress weakens break thresholds by at most 28%; integrity/load multipliers remain independently active.
+- [ ] `TRAILER_NATIVE_DYNAMICS` evidence reports dynamic stress, speed, roll and pitch from the same runtime snapshot.
 
 ## Source verification
 
@@ -42,7 +49,7 @@ Run:
 python Scripts/verify_v0_1_59_heavy_haul_driving_quality.py
 ```
 
-The verifier checks source integration plus deterministic threshold math. It is not a substitute for an Unreal Editor/Win64 runtime playtest.
+The verifier checks source integration plus deterministic driving-quality and trailer-dynamics threshold math. It is not a substitute for an Unreal Editor/Win64 runtime playtest.
 
 ## Demo gate
 
