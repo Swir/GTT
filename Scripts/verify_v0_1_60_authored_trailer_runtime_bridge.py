@@ -180,12 +180,23 @@ def main() -> int:
     require(stability_authority(20.0, 1.0, 1.0, 0.0, 1.0, evidence_constants) == 0.0,
             "stability evidence must be zero below start speed")
 
-    # Source art remains original/deterministic and the runtime bridge does not pretend to be the imported UE asset.
-    for token in ("gtt.farm-trailer-source-rig.v1", "Project-owned original source art", "required_sockets"):
+    # Source art remains original/deterministic; v2 adds Interchange-ready SOCKET_ source anchors
+    # while the runtime bridge continues to require the same lowercase final UE mesh socket names.
+    for token in (
+        "gtt.farm-trailer-source-rig.v2",
+        "Project-owned original source art",
+        "required_sockets",
+        "SOCKET_socket_hitch",
+        "SOCKET_socket_cargo",
+        "SOCKET_socket_axle_l",
+        "SOCKET_socket_axle_r",
+    ):
         require(token in source_rig, f"authored source rig contract missing: {token}")
     require("source-rig candidate only" in source_rig, "source rig must remain labelled as candidate-only")
-    require("gtt.farm-trailer-source-rig.v1" in source_verify,
-            "source-rig verifier must still validate the canonical asset contract")
+    require("gtt.farm-trailer-source-rig.v2" in source_verify,
+            "source-rig verifier must validate the current Interchange-ready canonical asset contract")
+    require("SOCKET_NODE_NAMES" in source_verify,
+            "source-rig verifier must retain Interchange socket-name validation")
 
     open_gate = "- [ ] Authored skeletal trailer wheel assets and final hitch sockets"
     require(open_gate in roadmap, "authored trailer roadmap gate was closed without packaged UE acceptance")
