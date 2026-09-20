@@ -1,0 +1,96 @@
+name: GTT 0.1.61 Win64 attested candidate acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Exact candidate version; must match Config/DefaultGame.ini'
+        required: true
+        default: '0.1.61'
+      configuration:
+        description: 'Unreal build configuration'
+        required: true
+        type: choice
+        options: [Shipping, Development]
+        default: Shipping
+      engine_root:
+        description: 'UE 5.8 installation root on the qualifying self-hosted runner'
+        required: true
+        default: 'C:\Program Files\Epic Games\UE_5.8'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gtt-win64-attested-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  exact-candidate:
+    name: Exact UE 5.8 Win64 package, runtime, visual evidence and attestation
+    runs-on: [self-hosted, windows, x64, unreal-5.8]
+    timeout-minutes: 120
+    env:
+      GTT_VERSION: ${{ inputs.version }}
+      GTT_CONFIGURATION: ${{ inputs.configuration }}
+      GTT_ENGINE_ROOT: ${{ inputs.engine_root }}
+      GTT_PACKAGE_DIR: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}
+    steps:
+      - name: Checkout exact source and LFS assets
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Qualify exact Win64 candidate
+        shell: pwsh
+        run: >-
+          ./Scripts/run_win64_attested_candidate_acceptance.ps1
+          -EngineRoot "$env:GTT_ENGINE_ROOT"
+          -Configuration "$env:GTT_CONFIGURATION"
+          -Version "$env:GTT_VERSION"
+          -PackageDirectory "$env:GTT_PACKAGE_DIR"
+
+      - name: Verify attestation boundary before artifact upload
+        shell: pwsh
+        run: |
+          $summaryPath = Join-Path $env:GTT_PACKAGE_DIR 'WIN64_ACCEPTANCE_SUMMARY.json'
+          $attestationPath = Join-Path $env:GTT_PACKAGE_DIR 'WIN64_CANDIDATE_ATTESTATION.json'
+          $manifestPath = Join-Path $env:GTT_PACKAGE_DIR 'FINAL_SHA256SUMS.txt'
+          $zipPath = "$env:GTT_PACKAGE_DIR.zip"
+          $zipHashPath = "$zipPath.sha256"
+          foreach ($path in @($summaryPath,$attestationPath,$manifestPath,$zipPath,$zipHashPath)) {
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Required candidate artifact missing: $path" }
+          }
+          $summary = Get-Content -Raw $summaryPath | ConvertFrom-Json
+          $attestation = Get-Content -Raw $attestationPath | ConvertFrom-Json
+          foreach ($doc in @($summary,$attestation)) {
+            if ($doc.result -ne 'PASS' -or $doc.git_sha -ne '${{ github.sha }}' -or $doc.version -ne $env:GTT_VERSION -or $doc.configuration -ne $env:GTT_CONFIGURATION) {
+              throw 'Candidate identity mismatch between checkout and attested evidence.'
+            }
+            if ($doc.human_visual_review -ne 'REQUIRED' -or [bool]$doc.demo_release_authorized) {
+              throw 'Technical candidate must keep human visual review REQUIRED and Demo Release unauthorized.'
+            }
+          }
+          if ($attestation.schema -ne 'gtt.win64-candidate-attestation.v1' -or [int]$attestation.technical_gate_schema -ne 17) {
+            throw 'Unexpected candidate attestation schema or technical gate schema.'
+          }
+          $expectedLine = (Get-Content -Raw $zipHashPath).Trim()
+          $actualHash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLowerInvariant()
+          if (-not $expectedLine.StartsWith($actualHash + '  ')) { throw 'Candidate ZIP hash sidecar does not match the produced archive.' }
+
+      - name: Upload exact attested technical candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: GTT-${{ inputs.version }}-Win64-attested-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            ${{ env.GTT_PACKAGE_DIR }}.zip
+            ${{ env.GTT_PACKAGE_DIR }}.zip.sha256
+            ${{ env.GTT_PACKAGE_DIR }}\WIN64_ACCEPTANCE_SUMMARY.json
+            ${{ env.GTT_PACKAGE_DIR }}\WIN64_CANDIDATE_ATTESTATION.json
+            ${{ env.GTT_PACKAGE_DIR }}\FINAL_SHA256SUMS.txt
+            ${{ env.GTT_PACKAGE_DIR }}\DEMO_TECHNICAL_GATE.json
+            ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json
+            ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\GTT_visual_*.png
