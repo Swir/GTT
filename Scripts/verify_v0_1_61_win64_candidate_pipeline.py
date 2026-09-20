@@ -54,6 +54,14 @@ def input_block(text: str, key: str) -> str:
     return text[start:end]
 
 
+def require_current_default(block: str, scope: str) -> None:
+    match = re.search(r"(?m)^\s+default:\s*['\"]([^'\"]+)['\"]\s*$", block)
+    if not match:
+        fail(f"{scope}: current-version default missing")
+    if match.group(1) != EXPECTED_VERSION:
+        fail(f"{scope}: default {match.group(1)!r} does not match ProjectVersion {EXPECTED_VERSION}")
+
+
 def main() -> int:
     package = PACKAGE.read_text(encoding="utf-8")
     release = RELEASE.read_text(encoding="utf-8")
@@ -70,10 +78,8 @@ def main() -> int:
     release_version = input_block(release, "version")
     require(package_version, "required: true", "package version input")
     require(release_version, "required: true", "release version input")
-    if re.search(r"(?m)^\s+default:", package_version):
-        fail("package version input must not carry a default")
-    if re.search(r"(?m)^\s+default:", release_version):
-        fail("release version input must not carry a default")
+    require_current_default(package_version, "package version input")
+    require_current_default(release_version, "release version input")
 
     require(package, "runs-on: [self-hosted, windows, x64, unreal-5.8]", "package workflow")
     require(package, "ProjectVersion", "package workflow")
@@ -134,7 +140,7 @@ def main() -> int:
 
     print(
         "GTT 0.1.61 Win64 candidate pipeline sanity: PASS "
-        "(explicit version, UE 5.8 preflight, authored trailer import, package/runtime/visual evidence, exact-SHA release gate)"
+        "(current version, UE 5.8 preflight, authored trailer import, package/runtime/visual evidence, exact-SHA release gate)"
     )
     return 0
 
