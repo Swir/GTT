@@ -35,9 +35,14 @@ for token in required_preflight:
 
 required_workflow = [
     "workflow_dispatch:",
-    "default: '0.1.52'",
+    "required: true",
+    "ProjectVersion",
     "runs-on: [self-hosted, windows, x64, unreal-5.8]",
     "preflight_win64_unreal.ps1",
+    "import_gtt_farm_trailer_unreal.ps1",
+    "SK_GTT_FarmTrailer.uasset",
+    "AUTHORED_TRAILER_IMPORT.json",
+    "gtt.authored-trailer-import.v1",
     "package_windows.ps1",
     "smoke_test_windows.ps1",
     "validate_windows_package.ps1",
@@ -62,11 +67,16 @@ required_workflow = [
 ]
 for token in required_workflow:
     assert token in workflow, f"missing Win64 evidence workflow token: {token}"
+assert "default: '0.1.52'" not in workflow, "package candidate version must not silently default to a stale milestone"
+assert workflow.index("import_gtt_farm_trailer_unreal.ps1") < workflow.index("package_windows.ps1"), "authored trailer import must happen before packaging"
 
 required_release = [
     "candidate_run_id",
     "expected_sha",
     "visual_review_passed",
+    "ProjectVersion",
+    "AUTHORED_TRAILER_IMPORT.json",
+    "gtt.authored-trailer-import.v1",
     "actions/download-artifact@v4",
     "run-id:",
     "DEMO_VISUAL_ACCEPTANCE.json",
@@ -76,6 +86,8 @@ required_release = [
 ]
 for token in required_release:
     assert token in release_workflow, f"missing exact-candidate release token: {token}"
+assert "default: '0.1.20'" not in release_workflow, "reviewed release version must not carry a stale default"
+assert "33-step gameplay route" not in release_workflow, "release notes must not hard-code a stale route length"
 assert "preflight_win64_unreal.ps1" not in release_workflow, "publication stage must not rerun build preflight"
 assert "package_windows.ps1" not in release_workflow, "publication stage must not rebuild the reviewed candidate"
 assert "BuildCookRun" not in release_workflow, "publication stage must not invoke UAT build/cook/package"
@@ -145,4 +157,4 @@ for required_doc_token in [
 
 assert "candidate_run_id" in release_doc
 assert "does not rebuild" in release_doc.lower() or "never" in release_doc.lower()
-print("Win64 runtime acceptance/evidence gate: OK (two-stage exact-candidate release architecture; schema-17 workshop priority/pickup wired)")
+print("Win64 runtime acceptance/evidence gate: OK (exact-version authored import + two-stage exact-candidate release; schema-17 workshop priority/pickup wired)")
