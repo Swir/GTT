@@ -1,16 +1,20 @@
 #include "Vehicles/GTTNativeRuntimeTelemetrySubsystem.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Vehicles/GTTFarmTrailer.h"
+#include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTNativeAxleTractionSubsystem.h"
+#include "Vehicles/GTTVehicleBase.h"
 #include "GTT.h"
 
 namespace
 {
     constexpr float EvidenceIntervalSeconds = 3.0f;
+    const FName FieldmasterVehicleId(TEXT("RustyFieldmaster60"));
 
     AGTTFarmTrailer* FindAttachedTrailer(UWorld* World, AGTTFieldmasterNativePawn* Vehicle)
     {
@@ -23,6 +27,80 @@ namespace
             }
         }
         return nullptr;
+    }
+
+    AGTTVehicleBase* FindLegacyFieldmasterMirror(UWorld* World)
+    {
+        if (!World) return nullptr;
+        for (TActorIterator<AGTTVehicleBase> It(World); It; ++It)
+        {
+            if (It->GetPersistentVehicleId() == FieldmasterVehicleId)
+            {
+                return *It;
+            }
+        }
+        return nullptr;
+    }
+
+    bool ValidateNativeAuthority(
+        AGTTFieldmasterNativePawn* Vehicle,
+        UChaosWheeledVehicleMovementComponent* Movement,
+        AGTTVehicleBase* LegacyMirror,
+        FString& OutReason)
+    {
+        if (!Vehicle || !Movement)
+        {
+            OutReason = TEXT("MISSING_NATIVE_VEHICLE_OR_MOVEMENT");
+            return false;
+        }
+        if (!Cast<UGTTFieldmasterChaosMovementComponent>(Movement))
+        {
+            OutReason = TEXT("WRONG_MOVEMENT_CLASS");
+            return false;
+        }
+        if (!Movement->IsActive())
+        {
+            OutReason = TEXT("MOVEMENT_INACTIVE");
+            return false;
+        }
+        if (!Vehicle->GetMesh() || !Vehicle->GetMesh()->GetPhysicsAsset())
+        {
+            OutReason = TEXT("PHYSICS_ASSET_MISSING");
+            return false;
+        }
+        if (!LegacyMirror)
+        {
+            OutReason = TEXT("LEGACY_MIRROR_MISSING");
+            return false;
+        }
+        if (!LegacyMirror->IsHidden())
+        {
+            OutReason = TEXT("LEGACY_MIRROR_VISIBLE");
+            return false;
+        }
+        if (LegacyMirror->GetActorEnableCollision())
+        {
+            OutReason = TEXT("LEGACY_MIRROR_COLLISION_ENABLED");
+            return false;
+        }
+        if (LegacyMirror->IsActorTickEnabled())
+        {
+            OutReason = TEXT("LEGACY_MIRROR_TICK_ENABLED");
+            return false;
+        }
+        if (Vehicle->IsHidden())
+        {
+            OutReason = TEXT("NATIVE_VEHICLE_HIDDEN");
+            return false;
+        }
+        if (!Vehicle->GetActorEnableCollision())
+        {
+            OutReason = TEXT("NATIVE_COLLISION_DISABLED");
+            return false;
+        }
+
+        OutReason = TEXT("PASS");
+        return true;
     }
 }
 
@@ -66,7 +144,17 @@ void UGTTNativeRuntimeTelemetrySubsystem::SampleFieldmaster(AGTTFieldmasterNativ
 
     UChaosWheeledVehicleMovementComponent* Movement =
         Cast<UChaosWheeledVehicleMovementComponent>(Vehicle->GetVehicleMovementComponent());
-    if (!Movement || !Movement->IsActive()) return;
+    AGTTVehicleBase* LegacyMirror = FindLegacyFieldmasterMirror(GetWorld());
+    FString AuthorityReason;
+    if (!ValidateNativeAuthority(Vehicle, Movement, LegacyMirror, AuthorityReason))
+    {
+        UE_LOG(LogGTT, Error,
+            TEXT("NATIVE_FIELDMASTER_AUTHORITY_FAULT vehicle=RustyFieldmaster60 reason=%s action=RESTORE_LEGACY"),
+            *AuthorityReason);
+        Vehicle->DeactivateLegacyTakeover();
+        EvidenceSecondsByVehicle.Remove(Key);
+        return;
+    }
 
     float& EvidenceSeconds = EvidenceSecondsByVehicle.FindOrAdd(Key);
     EvidenceSeconds += DeltaSeconds;
@@ -99,7 +187,8 @@ void UGTTNativeRuntimeTelemetrySubsystem::SampleFieldmaster(AGTTFieldmasterNativ
     const int32 ForwardGearCount = Movement->TransmissionSetup.ForwardGearRatios.Num();
 
     UE_LOG(LogGTT, Log,
-        TEXT("NATIVE_FIELDMASTER_RUNTIME_TELEMETRY vehicle=RustyFieldmaster60 movement=ACTIVE speed_kmh=%.2f signed_speed_kmh=%.2f current_gear=%d automatic_gears=%s forward_gears=%d throttle=%.2f brake=%.2f steer=%.2f valid_wheels=%d contacts=%d front_contacts=%d rear_contacts=%d suspension_ready=%s suspension_samples=%d suspension_min=%.3f suspension_max=%.3f front_slip_risk=%.3f rear_slip_risk=%.3f max_slip_magnitude=%.2f max_slip_angle=%.2f left_load=%.3f right_load=%.3f axle_imbalance=%.3f traction_authority=%.3f driver=%s trailer=%s tow_load=%.3f"),
+        TEXT("NATIVE_FIELDMASTER_RUNTIME_TELEMETRY vehicle=RustyFieldmaster60 authority=NATIVE_CHAOS takeover_integrity=PASS movement_class=%s legacy_mirror=QUIESCENT legacy_collision=NO legacy_tick=NO native_collision=YES physics_asset=YES movement=ACTIVE speed_kmh=%.2f signed_speed_kmh=%.2f current_gear=%d automatic_gears=%s forward_gears=%d throttle=%.2f brake=%.2f steer=%.2f valid_wheels=%d contacts=%d front_contacts=%d rear_contacts=%d suspension_ready=%s suspension_samples=%d suspension_min=%.3f suspension_max=%.3f front_slip_risk=%.3f rear_slip_risk=%.3f max_slip_magnitude=%.2f max_slip_angle=%.2f left_load=%.3f right_load=%.3f axle_imbalance=%.3f traction_authority=%.3f driver=%s trailer=%s tow_load=%.3f"),
+        *Movement->GetClass()->GetName(),
         SpeedKmh,
         SignedSpeedKmh,
         Movement->GetCurrentGear(),

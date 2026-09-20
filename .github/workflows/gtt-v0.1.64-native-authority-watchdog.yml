@@ -1,0 +1,49 @@
+name: GTT 0.1.64 Native Chaos authority watchdog sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/0.1.64-native-authority-watchdog' ]
+    paths:
+      - 'Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp'
+      - 'Scripts/evaluate_native_authority_runtime.ps1'
+      - 'Scripts/verify_v0_1_64_native_authority_watchdog.py'
+      - 'Docs/PLAYTEST-0.1.64-NATIVE-AUTHORITY-WATCHDOG.md'
+      - 'CHANGELOG.d/0.1.64-native-authority-watchdog.md'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/gtt-v0.1.64-native-authority-watchdog.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp'
+      - 'Scripts/evaluate_native_authority_runtime.ps1'
+      - 'Scripts/verify_v0_1_64_native_authority_watchdog.py'
+      - 'Docs/PLAYTEST-0.1.64-NATIVE-AUTHORITY-WATCHDOG.md'
+      - 'CHANGELOG.d/0.1.64-native-authority-watchdog.md'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/gtt-v0.1.64-native-authority-watchdog.yml'
+  workflow_dispatch:
+
+jobs:
+  native-authority-watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify 0.1.64 Native Chaos authority watchdog
+        run: python Scripts/verify_v0_1_64_native_authority_watchdog.py
+      - name: Preserve packaged Native Chaos telemetry contract
+        run: python Scripts/verify_native_runtime_telemetry.py
+      - name: Preserve dedicated Fieldmaster Chaos movement
+        run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
+      - name: Preserve 0.1.63 trailer brake thermal control
+        run: python Scripts/verify_v0_1_63_trailer_brake_thermal_control.py
+      - name: Preserve 0.1.62 hill-haul control
+        run: python Scripts/verify_v0_1_62_fieldmaster_hill_haul_control.py
+      - name: Preserve 0.1.59 heavy-haul authority
+        run: python Scripts/verify_v0_1_59_heavy_haul_driving_quality.py
+      - name: Preserve final drivetrain authority
+        run: python Scripts/verify_native_drivetrain_authority.py
+      - name: Preserve project sanity
+        run: python Scripts/verify_project.py
