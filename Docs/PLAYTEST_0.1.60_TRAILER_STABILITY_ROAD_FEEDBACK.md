@@ -10,10 +10,10 @@ This milestone turns the physical farm trailer into a clearer road-going gamepla
 - [ ] Attached trailers show low-intensity red rear lighting.
 - [ ] Measured deceleration of at least 6 km/h/s raises rear lighting to brake intensity.
 - [ ] Reverse motion at or below -2 km/h activates white reverse lights.
-- [ ] Lost wheel, hitch integrity below 45%, trailer integrity below 45%, or an active roadside repair activates pulsing amber hazards.
+- [ ] Lost wheel, hitch load above 55%, trailer integrity below 45%, or an active roadside repair activates pulsing amber hazards.
 - [ ] Anti-sway is disabled for detached trailers, empty trailers and any trailer with a lost wheel.
 - [ ] Loaded-trailer anti-sway begins at 25 km/h, reaches its configured speed authority at 70 km/h and is capped at 45% authority.
-- [ ] Damage reduces stability assistance instead of concealing a failing trailer.
+- [ ] Trailer damage and high live hitch load reduce stability assistance instead of concealing a failing or overstressed trailer.
 - [ ] Lateral correction force is capped at 650000 and yaw correction torque at 5000000.
 - [ ] Existing 0.1.59 heavy-haul dynamic hitch stress remains authoritative; stability does not remove its speed/attitude damage path.
 
@@ -25,7 +25,7 @@ This milestone turns the physical farm trailer into a clearer road-going gamepla
 4. Repeat above 65 km/h and verify 0.1.59 still records rough driving/dynamic hitch stress while 0.1.60 only damps the trailer response.
 5. Brake from road speed and verify both rear red lights visibly brighten during measured deceleration.
 6. Reverse below -2 km/h and verify both white reverse lights illuminate.
-7. Damage the hitch below 45% and verify amber hazards pulse; repair the hitch and verify hazards clear when no other critical state remains.
+7. Stretch/load the hitch past 55% of its normalized stress envelope and verify amber hazards pulse and anti-sway authority drops; relieve the hitch load and verify hazards clear when no other critical state remains.
 8. Lose a trailer wheel and verify hazards pulse and anti-sway assistance is disabled.
 9. Begin roadside trailer repair and verify hazards pulse during the repair window.
 10. Detach the trailer and verify normal tail/brake/reverse road lighting turns off.
