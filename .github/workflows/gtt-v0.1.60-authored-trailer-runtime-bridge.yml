@@ -1,0 +1,43 @@
+name: GTT 0.1.60 authored trailer runtime bridge sanity
+
+on:
+  push:
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTAuthoredTrailerPresentationSubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTAuthoredTrailerPresentationSubsystem.cpp'
+      - 'Scripts/verify_v0_1_60_authored_trailer_runtime_bridge.py'
+      - 'Scripts/generate_gtt_farm_trailer_gltf.py'
+      - 'Scripts/verify_v0_1_60_authored_trailer_source_rig.py'
+      - 'Docs/PLAYTEST_0.1.60_AUTHORED_TRAILER_RUNTIME_BRIDGE.md'
+      - 'CHANGELOG.d/0.1.60-authored-trailer-runtime-bridge.md'
+      - '.github/workflows/gtt-v0.1.60-authored-trailer-runtime-bridge.yml'
+  pull_request:
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTAuthoredTrailerPresentationSubsystem.h'
+      - 'Source/GTT/Private/Vehicles/GTTAuthoredTrailerPresentationSubsystem.cpp'
+      - 'Scripts/verify_v0_1_60_authored_trailer_runtime_bridge.py'
+      - 'Scripts/generate_gtt_farm_trailer_gltf.py'
+      - 'Scripts/verify_v0_1_60_authored_trailer_source_rig.py'
+      - 'Docs/PLAYTEST_0.1.60_AUTHORED_TRAILER_RUNTIME_BRIDGE.md'
+      - 'CHANGELOG.d/0.1.60-authored-trailer-runtime-bridge.md'
+      - '.github/workflows/gtt-v0.1.60-authored-trailer-runtime-bridge.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  authored-trailer-runtime-bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify source rig and runtime presentation bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/GTT_FarmTrailer_Rig.gltf"
+          python Scripts/generate_gtt_farm_trailer_gltf.py --output "$OUT"
+          python Scripts/verify_v0_1_60_authored_trailer_source_rig.py --asset "$OUT"
+          python Scripts/verify_v0_1_60_authored_trailer_runtime_bridge.py
