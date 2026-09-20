@@ -96,7 +96,7 @@ assert roadmap.count("../assets/readme/progress-mini.svg") == 1
 assert not re.search(r"^[\s>*`-]*[█▓▒░▰▱■□▪▫▮▯]{5,}", roadmap, re.MULTILINE)
 
 for token in [
-    "split authority",
+    "exactly one live driving authority",
     "RESTORE_LEGACY",
     "NATIVE_AUTHORITY_RUNTIME.json",
     "packaged Win64",
