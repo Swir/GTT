@@ -46,7 +46,8 @@ for token in required_header:
     assert token in header, f"missing 0.1.62 telemetry contract: {token}"
 
 # Preserve the automatic gearbox ownership rule established before 0.1.62.
-assert "SetTargetGear" not in cpp, "Fieldmaster movement must not steal shared drivetrain direction authority"
+# Comments deliberately document SetTargetGear ownership, so reject only a call.
+assert "SetTargetGear(" not in cpp, "Fieldmaster movement must not steal shared drivetrain direction authority"
 
 MIN_TERRAIN = 0.52
 MAX_TOW_THROTTLE_PENALTY = 0.30
@@ -122,12 +123,9 @@ downhill = model(tire=1.0, terrain=1.0, tow=1.0, throttle=0.0, grade=-12.0, spee
 assert downhill[6] and not downhill[5]
 assert math.isclose(downhill[4], DOWNHILL_BRAKE_MAX, abs_tol=1e-9)
 
-# Driver throttle must immediately release the automatic tow brakes; the feature
-# is assistance, not an invisible speed controller fighting deliberate input.
 driver_override = model(tire=1.0, terrain=1.0, tow=1.0, throttle=0.25, grade=-12.0, speed=28.0)
 assert not driver_override[5] and not driver_override[6] and math.isclose(driver_override[4], 0.0, abs_tol=1e-9)
 
-# A trailer below the documented load threshold must not activate hill assistance.
 light_tow = model(tire=1.0, terrain=1.0, tow=0.10, throttle=0.0, grade=-12.0, speed=28.0)
 assert not light_tow[5] and not light_tow[6]
 
