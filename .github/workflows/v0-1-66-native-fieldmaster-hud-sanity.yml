@@ -1,0 +1,45 @@
+name: GTT 0.1.66 Native Fieldmaster HUD sanity
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/UI/GTTGameHUD.h'
+      - 'Source/GTT/Private/UI/GTTGameHUD.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComponent.h'
+      - 'Config/DefaultGame.ini'
+      - 'Docs/PLAYTEST_0.1.66.md'
+      - 'Scripts/verify_v0_1_66_native_fieldmaster_hud.py'
+      - '.github/workflows/v0-1-66-native-fieldmaster-hud-sanity.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/UI/GTTGameHUD.h'
+      - 'Source/GTT/Private/UI/GTTGameHUD.cpp'
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComponent.h'
+      - 'Config/DefaultGame.ini'
+      - 'Docs/PLAYTEST_0.1.66.md'
+      - 'Scripts/verify_v0_1_66_native_fieldmaster_hud.py'
+      - '.github/workflows/v0-1-66-native-fieldmaster-hud-sanity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  native-fieldmaster-hud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify 0.1.66 native Fieldmaster HUD integration
+        run: python Scripts/verify_v0_1_66_native_fieldmaster_hud.py
+      - name: Regress demo HUD presentation
+        run: python Scripts/verify_demo_hud.py
+      - name: Regress native Fieldmaster pawn acceptance
+        run: python Scripts/verify_fieldmaster_native_pawn.py
+      - name: Regress trailer brake thermal control
+        run: python Scripts/verify_v0_1_63_trailer_brake_thermal_control.py
+      - name: Regress trailer runaway safety
+        run: python Scripts/verify_v0_1_64_trailer_brake_runaway_safety.py

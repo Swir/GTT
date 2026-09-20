@@ -22,6 +22,8 @@
 #include "Radio/GTTRadioComponent.h"
 #include "Ranger/GTTRangerRoadStopSubsystem.h"
 #include "Vehicles/GTTBreakdownDecisionSubsystem.h"
+#include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
+#include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTRoadsideRecoverySubsystem.h"
 #include "Vehicles/GTTVehicleBase.h"
@@ -39,6 +41,7 @@ void AGTTGameHUD::DrawHUD()
     APawn* ControlledPawn = PlayerOwner->GetPawn();
     AGTTVehicleBase* Vehicle = Cast<AGTTVehicleBase>(ControlledPawn);
     AGTTRoadVehicleNativePawn* NativeRoad = Cast<AGTTRoadVehicleNativePawn>(ControlledPawn);
+    AGTTFieldmasterNativePawn* NativeFieldmaster = Cast<AGTTFieldmasterNativePawn>(ControlledPawn);
     UGTTWantedComponent* Wanted = UGTTGameplayStatics::FindWantedComponentForPawn(ControlledPawn);
     UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(ControlledPawn);
     UGTTRadioComponent* Radio = UGTTGameplayStatics::FindRadioComponentForPawn(ControlledPawn);
@@ -101,12 +104,35 @@ void AGTTGameHUD::DrawHUD()
         if (!RecoveryLine.IsEmpty()) DrawHudText(RecoveryLine, FLinearColor(1.0f,0.46f,0.14f,1.0f), LeftX, BottomY+1.0f, 0.84f);
         if (Radio && Radio->IsRadioOn()) DrawHudText(Radio->GetDisplayLine(), FLinearColor(0.48f,0.88f,1.0f,1.0f), LeftX, BottomY+(RecoveryLine.IsEmpty()?1.0f:25.0f), 0.82f);
     }
+    else if (NativeFieldmaster)
+    {
+        DrawHudText(TEXT("VEHICLE"), FLinearColor(0.52f,0.72f,0.95f,1.0f), LeftX, BottomY-46.0f, 0.78f);
+        DrawHudText(BuildNativeFieldmasterStatus(NativeFieldmaster), FLinearColor::White, LeftX, BottomY-25.0f, 0.94f);
+        const FString SafetyLine = BuildNativeFieldmasterAlert(NativeFieldmaster);
+        if (!SafetyLine.IsEmpty())
+        {
+            FLinearColor SafetyColor(0.95f,0.72f,0.22f,1.0f);
+            if (const UGTTFieldmasterChaosMovementComponent* Movement = NativeFieldmaster->FindComponentByClass<UGTTFieldmasterChaosMovementComponent>())
+            {
+                if (Movement->IsTrailerRunawayMitigationActive() || Movement->GetTrailerBrakeThermalState() == EGTTTrailerBrakeThermalState::Critical)
+                {
+                    SafetyColor = FLinearColor(1.0f,0.22f,0.12f,1.0f);
+                }
+                else if (Movement->IsTrailerBrakeCoolingActive())
+                {
+                    SafetyColor = FLinearColor(0.32f,0.84f,1.0f,1.0f);
+                }
+            }
+            DrawHudText(SafetyLine, SafetyColor, LeftX, BottomY+1.0f, 0.84f);
+        }
+        if (Radio && Radio->IsRadioOn()) DrawHudText(Radio->GetDisplayLine(), FLinearColor(0.48f,0.88f,1.0f,1.0f), LeftX, BottomY+(SafetyLine.IsEmpty()?1.0f:25.0f), 0.82f);
+    }
     else if (Combat)
     {
         const FLinearColor CombatColor = Combat->GetHealthPercent()<0.3f ? FLinearColor(1.0f,0.20f,0.10f,1.0f) : FLinearColor(1.0f,0.68f,0.22f,1.0f);
         DrawHudText(Combat->GetCombatStatusText(), CombatColor, LeftX, BottomY+8.0f, 0.90f);
     }
-    const FString ContextHint = BuildContextHint(ControlledPawn, Vehicle, NativeRoad);
+    const FString ContextHint = BuildContextHint(ControlledPawn, Vehicle, NativeRoad, NativeFieldmaster);
     if (!ContextHint.IsEmpty()) DrawHudText(ContextHint, FLinearColor(0.68f,0.78f,0.90f,1.0f), FMath::Max(LeftX,Canvas->ClipX-740.0f), Canvas->ClipY-42.0f, 0.76f);
 }
 
@@ -156,7 +182,7 @@ void AGTTGameHUD::DrawFarmCargoRecoveryPanel(const AGTTRoadVehicleNativePawn* Na
     {
         case EGTTFarmCargoRecoveryState::Degraded: Instruction = TEXT("Drive gently to finish the route or workshop; cargo clock and integrity remain live."); break;
         case EGTTFarmCargoRecoveryState::TowRecommended:
-            Instruction = Assessment.bEmergencyPatchPossible ? FString::Printf(TEXT("Y / D-Pad Left PATCH $%d  |  T / D-Pad Up TOW $%d  |  contract clock running"), Assessment.EmergencyPatchEstimate, Assessment.TowEstimate) : FString::Printf(TEXT("T / D-Pad Up TOW $%d  |  structural/body damage blocks patch  |  clock running"), Assessment.TowEstimate);
+            Instruction = Assessment.bEmergencyPatchPossible ? FString::Printf(TEXT("Y / D-Pad Left PATCH $%d  |  T / D-Pad Up TOW $%d  |  contract clock running"), Assessment.EmergencyPatchEstimate, Assessment.TowEstimate) : FString::Printf(TEXT("T / D-Pad Up TOW $%d  |  structural/body damage blocks patch  |  contract clock running"), Assessment.TowEstimate);
             break;
         case EGTTFarmCargoRecoveryState::PatchPending:
         case EGTTFarmCargoRecoveryState::TowPending:
@@ -218,10 +244,11 @@ FString AGTTGameHUD::BuildPrimaryObjective() const
     return FString();
 }
 
-FString AGTTGameHUD::BuildContextHint(const APawn* ControlledPawn,const AGTTVehicleBase* Vehicle,const AGTTRoadVehicleNativePawn* NativeRoad) const
+FString AGTTGameHUD::BuildContextHint(const APawn* ControlledPawn,const AGTTVehicleBase* Vehicle,const AGTTRoadVehicleNativePawn* NativeRoad,const AGTTFieldmasterNativePawn* NativeFieldmaster) const
 {
     if (Vehicle) return TEXT("E interact  |  F exit vehicle  |  R radio  |  F5 save  F9 load");
     if (NativeRoad) return TEXT("F exit  |  R radio  |  Y / D-Pad Left patch  |  T / D-Pad Up tow  |  F5 save  F9 load");
+    if (NativeFieldmaster) return TEXT("F exit  |  R radio  |  F5 save  F9 load");
     if (ControlledPawn) return TEXT("E interact  |  LMB attack  |  Q next weapon  |  G drop");
     return FString();
 }
@@ -285,6 +312,64 @@ FString AGTTGameHUD::BuildNativeRoadRecovery(const AGTTRoadVehicleNativePawn* Ve
         return FString::Printf(TEXT("RECOVERY  |  %s  |  DAMAGE %.0f%%  |  PATCH $%d [Y]  |  TOW $%d [T]  |  REPAIR ~$%d"), Recommendation, Assessment.Severity*100.0f, Assessment.EmergencyPatchEstimate, Assessment.TowEstimate, Assessment.RepairEstimate);
     }
     return FString::Printf(TEXT("RECOVERY  |  %s  |  DAMAGE %.0f%%  |  TOW $%d [T]  |  REPAIR ~$%d  |  PATCH UNAVAILABLE"), Recommendation, Assessment.Severity*100.0f, Assessment.TowEstimate, Assessment.RepairEstimate);
+}
+
+FString AGTTGameHUD::BuildNativeFieldmasterStatus(const AGTTFieldmasterNativePawn* Vehicle) const
+{
+    if (!Vehicle) return FString();
+    const FGTTVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
+    const UGTTFieldmasterChaosMovementComponent* Movement = Vehicle->FindComponentByClass<UGTTFieldmasterChaosMovementComponent>();
+    const float SpeedKmh = Vehicle->GetVelocity().Size() * 0.036f;
+    const float TowLoadPercent = Movement ? Movement->GetTowLoadFactor() * 100.0f : 0.0f;
+    return FString::Printf(
+        TEXT("%s  |  %.0f km/h  |  FUEL %.0f L  |  CONDITION %.0f%%  |  TIRES %.0f%%  |  TOW %.0f%%"),
+        *Vehicle->GetVehicleDisplayName().ToString(),
+        SpeedKmh,
+        State.FuelLiters,
+        State.ConditionPercent * 100.0f,
+        State.TireIntegrity * 100.0f,
+        TowLoadPercent);
+}
+
+FString AGTTGameHUD::BuildNativeFieldmasterAlert(const AGTTFieldmasterNativePawn* Vehicle) const
+{
+    if (!Vehicle) return FString();
+    const UGTTFieldmasterChaosMovementComponent* Movement = Vehicle->FindComponentByClass<UGTTFieldmasterChaosMovementComponent>();
+    if (!Movement) return FString();
+
+    const float HeatPercent = Movement->GetTrailerBrakeHeat01() * 100.0f;
+    const float AuthorityPercent = Movement->GetTrailerBrakeAuthority() * 100.0f;
+
+    if (Movement->IsTrailerRunawayMitigationActive())
+    {
+        return FString::Printf(TEXT("TRAILER RUNAWAY ASSIST  |  BRAKE HEAT %.0f%%  |  SLOW DOWN"), HeatPercent);
+    }
+
+    switch (Movement->GetTrailerBrakeThermalState())
+    {
+        case EGTTTrailerBrakeThermalState::Critical:
+            return FString::Printf(TEXT("TRAILER BRAKES CRITICAL  |  HEAT %.0f%%  |  AUTHORITY %.0f%%"), HeatPercent, AuthorityPercent);
+        case EGTTTrailerBrakeThermalState::Fading:
+            return FString::Printf(TEXT("TRAILER BRAKE FADE  |  HEAT %.0f%%  |  AUTHORITY %.0f%%"), HeatPercent, AuthorityPercent);
+        case EGTTTrailerBrakeThermalState::Hot:
+            return FString::Printf(TEXT("TRAILER BRAKES HOT  |  HEAT %.0f%%  |  LET THEM COOL"), HeatPercent);
+        default:
+            break;
+    }
+
+    if (Movement->IsTrailerBrakeCoolingActive() && HeatPercent >= 20.0f)
+    {
+        return FString::Printf(TEXT("TRAILER BRAKES COOLING  |  HEAT %.0f%%"), HeatPercent);
+    }
+    if (Movement->IsDownhillTowBrakeActive())
+    {
+        return FString::Printf(TEXT("DESCENT ASSIST  |  BRAKE HEAT %.0f%%"), HeatPercent);
+    }
+    if (Movement->IsHillHoldActive())
+    {
+        return TEXT("HILL HOLD ACTIVE");
+    }
+    return FString();
 }
 
 FString AGTTGameHUD::BuildMissionText() const
