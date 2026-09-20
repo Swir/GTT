@@ -1,0 +1,43 @@
+name: GTT 0.1.64 Trailer brake runaway safety sanity
+
+on:
+  push:
+    branches: [ main, 'milestone/0.1.64-trailer-brake-runaway-safety' ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComponent.h'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp'
+      - 'Scripts/verify_v0_1_64_trailer_brake_runaway_safety.py'
+      - 'Docs/PLAYTEST-0.1.64-TRAILER-BRAKE-RUNAWAY-SAFETY.md'
+      - 'CHANGELOG.d/0.1.64-trailer-brake-runaway-safety.md'
+      - '.github/workflows/trailer-brake-runaway-safety-sanity.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComponent.h'
+      - 'Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp'
+      - 'Scripts/verify_v0_1_64_trailer_brake_runaway_safety.py'
+      - 'Docs/PLAYTEST-0.1.64-TRAILER-BRAKE-RUNAWAY-SAFETY.md'
+      - 'CHANGELOG.d/0.1.64-trailer-brake-runaway-safety.md'
+      - '.github/workflows/trailer-brake-runaway-safety-sanity.yml'
+  workflow_dispatch:
+
+jobs:
+  trailer-brake-runaway-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify 0.1.64 runaway-safety source and math
+        run: python Scripts/verify_v0_1_64_trailer_brake_runaway_safety.py
+      - name: Preserve 0.1.63 trailer thermal contract
+        run: python Scripts/verify_v0_1_63_trailer_brake_thermal_control.py
+      - name: Preserve 0.1.62 hill-haul contract
+        run: python Scripts/verify_v0_1_62_fieldmaster_hill_haul_control.py
+      - name: Preserve 0.1.59 heavy-haul authority contract
+        run: python Scripts/verify_v0_1_59_heavy_haul_driving_quality.py
+      - name: Preserve final drivetrain authority contract
+        run: python Scripts/verify_native_drivetrain_authority.py
+      - name: Preserve project sanity
+        run: python Scripts/verify_project.py
