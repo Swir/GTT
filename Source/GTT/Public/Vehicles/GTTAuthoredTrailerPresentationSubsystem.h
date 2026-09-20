@@ -10,7 +10,7 @@ class UStaticMeshComponent;
 class USkeletalMesh;
 
 /**
- * Runtime presentation bridge for the authored farm-trailer rig.
+ * Runtime presentation and evidence bridge for the authored farm-trailer rig.
  *
  * The physical AGTTFarmTrailer remains authoritative for collision, hitch load,
  * suspension, wheel loss, cargo integrity and roadside repair. When the accepted
@@ -18,6 +18,10 @@ class USkeletalMesh;
  * the required bones/sockets/PhysicsAsset, this subsystem replaces only the
  * placeholder BasicShapes presentation and drives the authored wheel bones from
  * the existing physical wheel bodies.
+ *
+ * The subsystem also emits passive packaged-runtime evidence consumed by
+ * Scripts/evaluate_authored_trailer_runtime.ps1. Evidence observes the existing
+ * physics/presentation state only; it never applies gameplay forces or mutations.
  */
 UCLASS()
 class GTT_API UGTTAuthoredTrailerPresentationSubsystem : public UTickableWorldSubsystem
@@ -35,15 +39,29 @@ private:
         TWeakObjectPtr<UPoseableMeshComponent> AuthoredVisual;
         TWeakObjectPtr<UStaticMeshComponent> LeftWheel;
         TWeakObjectPtr<UStaticMeshComponent> RightWheel;
+        TWeakObjectPtr<UStaticMeshComponent> HitchCoupler;
         FTransform LeftPhysicalReference = FTransform::Identity;
         FTransform RightPhysicalReference = FTransform::Identity;
         FTransform LeftBoneReference = FTransform::Identity;
         FTransform RightBoneReference = FTransform::Identity;
+
+        float EvidenceAccumulatorSeconds = 0.0f;
+        bool bScenarioTracking = false;
+        bool bScenarioCompleteEmitted = false;
+        FVector LastScenarioLocation = FVector::ZeroVector;
+        float ScenarioDistanceCm = 0.0f;
+        float ScenarioMaxSpeedKmh = 0.0f;
+        float ScenarioMaxHitchErrorCm = 0.0f;
+        float ScenarioMaxArticulationDeg = 0.0f;
+        float ScenarioMinCargoIntegrity = 1.0f;
+        int32 ScenarioDualContactSamples = 0;
+        int32 ScenarioSafeSamples = 0;
     };
 
     void ScanForEligibleTrailers();
     bool TryActivateAuthoredPresentation(AGTTFarmTrailer* Trailer);
     void UpdateWheelPose(FRuntimeTrailerVisual& Runtime) const;
+    void EmitRuntimeEvidence(FRuntimeTrailerVisual& Runtime, float DeltaTime);
     static bool ValidateAuthoredAsset(USkeletalMesh* Mesh, FString& OutReason);
     static UStaticMeshComponent* FindStaticMeshComponent(AGTTFarmTrailer* Trailer, FName ComponentName);
     static void HidePlaceholderPresentation(AGTTFarmTrailer* Trailer);
