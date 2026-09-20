@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the exact-source Win64 candidate and release qualification contract."""
+"""Validate the rolling exact-source Win64 candidate and reviewed-release qualification contract."""
 
 from __future__ import annotations
 
@@ -15,8 +15,10 @@ IMPORT_WRAPPER = ROOT / "Scripts" / "import_gtt_farm_trailer_unreal.ps1"
 IMPORT_SCRIPT = ROOT / "Scripts" / "Unreal" / "import_gtt_farm_trailer.py"
 PACKAGE_HELPER = ROOT / "Scripts" / "package_windows.ps1"
 ACCEPTANCE_RUNNER = ROOT / "Scripts" / "run_win64_candidate_acceptance.ps1"
+ATTESTED_RUNNER = ROOT / "Scripts" / "run_win64_attested_candidate_acceptance.ps1"
+ATTESTOR = ROOT / "Scripts" / "write_win64_candidate_attestation.ps1"
 
-EXPECTED_VERSION = "0.1.61"
+MINIMUM_CANDIDATE_VERSION = (0, 1, 61)
 FINAL_ASSET = "Content/GTT/Vehicles/Trailer/SK_GTT_FarmTrailer.uasset"
 
 
@@ -31,7 +33,7 @@ def require(text: str, token: str, scope: str) -> None:
 
 def forbid(text: str, token: str, scope: str) -> None:
     if token in text:
-        fail(f"{scope}: forbidden stale token present: {token}")
+        fail(f"{scope}: forbidden token present: {token}")
 
 
 def require_order(text: str, tokens: list[str], scope: str) -> None:
@@ -56,12 +58,17 @@ def input_block(text: str, key: str) -> str:
     return text[start:end]
 
 
-def require_current_default(block: str, scope: str) -> None:
-    match = re.search(r"(?m)^\s+default:\s*['\"]([^'\"]+)['\"]\s*$", block)
+def current_project_version(config: str) -> str:
+    match = re.search(r"(?m)^ProjectVersion=(\d+)\.(\d+)\.(\d+)\s*$", config)
     if not match:
-        fail(f"{scope}: current-version default missing")
-    if match.group(1) != EXPECTED_VERSION:
-        fail(f"{scope}: default {match.group(1)!r} does not match ProjectVersion {EXPECTED_VERSION}")
+        fail("DefaultGame.ini: ProjectVersion must be a semantic x.y.z version")
+    version_tuple = tuple(int(part) for part in match.groups())
+    if version_tuple < MINIMUM_CANDIDATE_VERSION:
+        fail(
+            "DefaultGame.ini: candidate version regressed below the 0.1.61 qualification baseline: "
+            + ".".join(str(part) for part in version_tuple)
+        )
+    return ".".join(match.groups())
 
 
 def main() -> int:
@@ -72,52 +79,67 @@ def main() -> int:
     importer = IMPORT_SCRIPT.read_text(encoding="utf-8")
     package_helper = PACKAGE_HELPER.read_text(encoding="utf-8")
     acceptance_runner = ACCEPTANCE_RUNNER.read_text(encoding="utf-8")
+    attested_runner = ATTESTED_RUNNER.read_text(encoding="utf-8")
+    attestor = ATTESTOR.read_text(encoding="utf-8")
 
-    require(config, f"ProjectVersion={EXPECTED_VERSION}", "DefaultGame.ini")
-
-    for stale in ("default: '0.1.52'", 'default: "0.1.52"', "default: '0.1.20'", 'default: "0.1.20"'):
-        forbid(package + release, stale, "candidate workflows")
+    candidate_version = current_project_version(config)
 
     package_version = input_block(package, "version")
     release_version = input_block(release, "version")
     require(package_version, "required: true", "package version input")
     require(release_version, "required: true", "release version input")
-    require_current_default(package_version, "package version input")
-    require_current_default(release_version, "release version input")
+    require(package, "does not match ProjectVersion", "package workflow")
+    require(release, "does not match exact-candidate ProjectVersion", "release workflow")
 
-    require(package, "runs-on: [self-hosted, windows, x64, unreal-5.8]", "package workflow")
-    require(package, "ProjectVersion", "package workflow")
-    require(package, "import_gtt_farm_trailer_unreal.ps1", "package workflow")
-    require(package, FINAL_ASSET.replace("/", "\\"), "package workflow")
-    require(package, "AUTHORED_TRAILER_IMPORT.json", "package workflow")
-    require(package, "gtt.authored-trailer-import.v1", "package workflow")
-    require(package, 'ExpectedGitSha "$env:GITHUB_SHA"', "package workflow")
-    require(package, "capture_demo_visual_evidence.ps1", "package workflow")
-    require(package, "evaluate_demo_visual_evidence.ps1", "package workflow")
-    require(package, "GTT-${{ inputs.version }}-Win64-technical-candidate", "package workflow")
+    for stale in ("default: '0.1.52'", 'default: "0.1.52"', "default: '0.1.20'", 'default: "0.1.20"'):
+        forbid(package + release, stale, "candidate workflows")
+
+    for token in (
+        "runs-on: [self-hosted, windows, x64, unreal-5.8]",
+        "actions/checkout@v4",
+        "lfs: true",
+        "fetch-depth: 0",
+        "run_win64_attested_candidate_acceptance.ps1",
+        "WIN64_ACCEPTANCE_SUMMARY.json",
+        "WIN64_CANDIDATE_ATTESTATION.json",
+        "FIELDMASTER_HILL_HAUL_RUNTIME.json",
+        "NATIVE_AUTHORITY_RUNTIME.json",
+        "FINAL_SHA256SUMS.txt",
+        "gtt.win64-candidate-attestation.v1",
+        "fieldmaster_hill_haul_runtime",
+        "human_visual_review",
+        "demo_release_authorized",
+        "Get-FileHash -Algorithm SHA256",
+        "GTT-${{ inputs.version }}-Win64-technical-candidate",
+        "actions/upload-artifact@v4",
+    ):
+        require(package, token, "package workflow")
     require_order(
         package,
         [
             "Validate explicit candidate version against project metadata",
-            "Win64 runner and Unreal 5.8 preflight",
-            "Import and validate authored trailer in UE 5.8",
-            "Bind authored trailer import evidence to exact candidate",
-            "Package Win64",
-            "Runtime smoke test packaged EXE with deterministic scenarios",
-            "Run rendered visual evidence route without NullRHI",
-            "Upload verified Win64 evidence",
+            "Run sealed exact-candidate acceptance",
+            "Verify sealed candidate evidence",
+            "Upload sealed Win64 evidence",
         ],
         "package workflow",
     )
+    forbid(package, "Compress-Archive", "package workflow")
 
-    require(release, "ProjectVersion", "release workflow")
-    require(release, "AUTHORED_TRAILER_IMPORT.json", "release workflow")
-    require(release, "gtt.authored-trailer-import.v1", "release workflow")
-    require(release, "Candidate run must originate from main", "release workflow")
-    require(release, "Candidate run SHA", "release workflow")
-    require(release, "visual_review_passed", "release workflow")
-    require(release, "deterministic end-to-end gameplay/runtime route", "release notes")
-    forbid(release, "33-step gameplay route", "release notes")
+    for token in (
+        "ProjectVersion",
+        "Candidate run must originate from main",
+        "Candidate run SHA",
+        "GTT-${{ inputs.version }}-Win64-technical-candidate",
+        "WIN64_CANDIDATE_ATTESTATION.json",
+        "FINAL_SHA256SUMS.txt",
+        "FIELDMASTER_HILL_HAUL_RUNTIME.json",
+        "gtt.win64-candidate-attestation.v1",
+        "visual_review_passed",
+        "write_demo_visual_acceptance.ps1",
+        "Publish reviewed Demo prerelease",
+    ):
+        require(release, token, "release workflow")
     require_order(
         release,
         [
@@ -125,9 +147,12 @@ def main() -> int:
             "Checkout the exact candidate source contract",
             "Verify release version against exact candidate project metadata",
             "Download exact candidate artifact",
+            "Verify candidate archive integrity and expand evidence",
+            "Verify sealed exact-candidate attestation and integrity manifest",
             "Verify authored trailer import evidence is from exact candidate",
             "Verify rendered evidence is from exact candidate",
             "Bind human visual acceptance to reviewed screenshots",
+            "Re-evaluate full exact-candidate gate with visual acceptance",
             "Publish reviewed Demo prerelease",
         ],
         "release workflow",
@@ -145,7 +170,6 @@ def main() -> int:
     require(package_helper, '[string]$Version = ""', "package helper")
     require(package_helper, "ProjectVersion", "package helper")
     require(package_helper, "does not match ProjectVersion", "package helper")
-    forbid(package_helper, '[string]$Version = "0.1.14"', "package helper")
 
     for token in (
         "40-character git SHA",
@@ -155,6 +179,7 @@ def main() -> int:
         "package_windows.ps1",
         "smoke_test_windows.ps1",
         "evaluate_native_chaos_runtime.ps1",
+        "evaluate_native_authority_runtime.ps1",
         "evaluate_authored_trailer_runtime.ps1",
         "DEMO_TECHNICAL_GATE.json",
         "capture_demo_visual_evidence.ps1",
@@ -163,12 +188,34 @@ def main() -> int:
         'human_visual_review = "REQUIRED"',
         "demo_release_authorized = $false",
     ):
-        require(acceptance_runner, token, "one-command acceptance runner")
+        require(acceptance_runner, token, "base acceptance runner")
+
+    for token in (
+        "run_win64_candidate_acceptance.ps1",
+        "evaluate_fieldmaster_hill_haul_runtime.ps1",
+        "write_win64_candidate_attestation.ps1",
+        "fieldmaster_hill_haul_runtime",
+    ):
+        require(attested_runner, token, "attested acceptance runner")
+    require_order(
+        attested_runner,
+        ["& $BaseRunner", "& $HillHaulEvaluator", "& $Attestor"],
+        "attested acceptance runner",
+    )
+
+    for token in (
+        'Read-JsonRequired "FIELDMASTER_HILL_HAUL_RUNTIME.json"',
+        'Read-JsonRequired "NATIVE_AUTHORITY_RUNTIME.json"',
+        "FINAL_SHA256SUMS.txt",
+        "WIN64_CANDIDATE_ATTESTATION.json",
+        "Get-FileHash -Algorithm SHA256",
+        "Compress-Archive",
+    ):
+        require(attestor, token, "candidate attestor")
 
     print(
-        "GTT 0.1.61 Win64 candidate pipeline sanity: PASS "
-        "(current version, UE 5.8 preflight, authored trailer import, package/runtime/visual evidence, "
-        "local exact-candidate runner, exact-SHA release gate)"
+        f"GTT {candidate_version} Win64 candidate pipeline sanity: PASS "
+        "(single attested runner, exact-SHA sealed evidence, reviewed release provenance)"
     )
     return 0
 

@@ -17,6 +17,8 @@ package = read("Scripts/package_windows.ps1")
 validator = read("Scripts/validate_windows_package.ps1")
 release_workflow = read(".github/workflows/release-windows.yml")
 candidate_workflow = read(".github/workflows/win64-package-evidence.yml")
+base_runner = read("Scripts/run_win64_candidate_acceptance.ps1")
+attested_runner = read("Scripts/run_win64_attested_candidate_acceptance.ps1")
 sanity_workflow = read(".github/workflows/project-sanity.yml")
 roadmap = read("Docs/ROADMAP.md")
 changelog = read("CHANGELOG.md")
@@ -51,22 +53,40 @@ for token in (
 ):
     assert token in validator, f"validate_windows_package.ps1 missing {token}"
 
+# The public package workflow is deliberately thin. It must delegate to the
+# single sealed exact-candidate runner rather than duplicate build/runtime
+# steps that can drift away from local acceptance.
 for token in (
     "workflow_dispatch:",
-    "self-hosted",
-    "windows",
-    "x64",
-    "unreal-5.8",
+    "runs-on: [self-hosted, windows, x64, unreal-5.8]",
     "lfs: true",
+    "run_win64_attested_candidate_acceptance.ps1",
+    "WIN64_ACCEPTANCE_SUMMARY.json",
+    "WIN64_CANDIDATE_ATTESTATION.json",
+    "FINAL_SHA256SUMS.txt",
+    "actions/upload-artifact@v4",
+    "if-no-files-found: error",
+):
+    assert token in candidate_workflow, f"candidate workflow missing sealed delegate token: {token}"
+assert "Compress-Archive" not in candidate_workflow, "candidate workflow must not rebuild the archive after attestation"
+
+# The delegated base runner owns the real Unreal/package/runtime route.
+for token in (
+    "preflight_win64_unreal.ps1",
+    "import_gtt_farm_trailer_unreal.ps1",
     "package_windows.ps1",
     "smoke_test_windows.ps1",
     "evaluate_demo_candidate.ps1",
     "capture_demo_visual_evidence.ps1",
     "evaluate_demo_visual_evidence.ps1",
-    "actions/upload-artifact@v4",
-    "if-no-files-found: error",
 ):
-    assert token in candidate_workflow, f"candidate workflow missing {token}"
+    assert token in base_runner, f"base exact-candidate runner missing {token}"
+for token in (
+    "run_win64_candidate_acceptance.ps1",
+    "evaluate_fieldmaster_hill_haul_runtime.ps1",
+    "write_win64_candidate_attestation.ps1",
+):
+    assert token in attested_runner, f"attested exact-candidate runner missing {token}"
 
 for token in (
     "candidate_run_id",
@@ -75,6 +95,8 @@ for token in (
     "visual_review_notes",
     "actions/download-artifact@v4",
     "run-id:",
+    "WIN64_CANDIDATE_ATTESTATION.json",
+    "FINAL_SHA256SUMS.txt",
     "write_demo_visual_acceptance.ps1",
     "evaluate_demo_candidate.ps1",
     "-RequireVisual",
@@ -92,9 +114,6 @@ assert "Win64" in playtest and "SHA256" in playtest
 assert "self-hosted" in release_doc and "Unreal Engine 5.8" in release_doc
 assert "candidate_run_id" in release_doc and "exact packaged candidate" in release_doc.lower()
 
-# Preserve the protected roadmap data contract while enforcing the current
-# SWIR Visual Report v3 SVG-only presentation. The old 20-cell text bar is
-# deliberately retired; ordinary numeric table data remains authoritative.
 assert "<!-- SWIR-ROADMAP-STANDARD:v1 -->" in roadmap
 assert "<!-- ROADMAP-PROGRESS:START -->" in roadmap and "<!-- ROADMAP-PROGRESS:END -->" in roadmap
 assert "## 📊 Overall progress" in roadmap
@@ -125,5 +144,5 @@ runpy.run_path(str(ROOT / "Scripts/verify_visual_release_gate.py"), run_name="__
 
 print(
     f"Release pipeline sanity OK: roadmap {checked}/{total} ({percent:.1f}%), "
-    "SVG-only progress presentation verified"
+    "sealed delegated Win64 route + reviewed release gate verified"
 )

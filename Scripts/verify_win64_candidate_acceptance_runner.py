@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,7 +12,7 @@ RUNNER = ROOT / "Scripts" / "run_win64_candidate_acceptance.ps1"
 PACKAGE = ROOT / "Scripts" / "package_windows.ps1"
 CONFIG = ROOT / "Config" / "DefaultGame.ini"
 
-EXPECTED_VERSION = "0.1.61"
+MINIMUM_CANDIDATE_VERSION = (0, 1, 61)
 
 
 def fail(message: str) -> None:
@@ -39,12 +40,25 @@ def require_order(text: str, tokens: list[str], scope: str) -> None:
         fail(f"{scope}: fail-closed stage order changed: {tokens}")
 
 
+def current_project_version(config: str) -> tuple[str, tuple[int, int, int]]:
+    match = re.search(r"(?m)^ProjectVersion=(\d+)\.(\d+)\.(\d+)\s*$", config)
+    if not match:
+        fail("project metadata: ProjectVersion must be a semantic x.y.z version")
+    version_tuple = tuple(int(part) for part in match.groups())
+    if version_tuple < MINIMUM_CANDIDATE_VERSION:
+        fail(
+            "project metadata: candidate version regressed below the 0.1.61 exact-candidate baseline: "
+            + ".".join(str(part) for part in version_tuple)
+        )
+    return match.group(0).split("=", 1)[1].strip(), version_tuple
+
+
 def main() -> int:
     runner = RUNNER.read_text(encoding="utf-8")
     package = PACKAGE.read_text(encoding="utf-8")
     config = CONFIG.read_text(encoding="utf-8")
 
-    require(config, f"ProjectVersion={EXPECTED_VERSION}", "project metadata")
+    candidate_version, _ = current_project_version(config)
 
     require(package, '[string]$Version = ""', "package helper")
     require(package, "Config\\DefaultGame.ini", "package helper")
@@ -114,8 +128,8 @@ def main() -> int:
     forbid(runner, "visual_review_passed=true", "acceptance runner")
 
     print(
-        "GTT 0.1.61 Win64 candidate acceptance runner sanity: PASS "
-        "(canonical version + exact SHA + UE import/package/runtime/native-authority/rendered evidence + human-review boundary)"
+        f"GTT {candidate_version} Win64 candidate acceptance runner sanity: PASS "
+        "(rolling canonical version + exact SHA + UE import/package/runtime/native-authority/rendered evidence + human-review boundary)"
     )
     return 0
 

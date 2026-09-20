@@ -16,6 +16,22 @@ namespace
     constexpr float EvidenceIntervalSeconds = 3.0f;
     const FName FieldmasterVehicleId(TEXT("RustyFieldmaster60"));
 
+    const TCHAR* TrailerBrakeThermalStateToken(EGTTTrailerBrakeThermalState State)
+    {
+        switch (State)
+        {
+            case EGTTTrailerBrakeThermalState::Hot:
+                return TEXT("HOT");
+            case EGTTTrailerBrakeThermalState::Fading:
+                return TEXT("FADING");
+            case EGTTTrailerBrakeThermalState::Critical:
+                return TEXT("CRITICAL");
+            case EGTTTrailerBrakeThermalState::Normal:
+            default:
+                return TEXT("NORMAL");
+        }
+    }
+
     AGTTFarmTrailer* FindAttachedTrailer(UWorld* World, AGTTFieldmasterNativePawn* Vehicle)
     {
         if (!World || !Vehicle) return nullptr;
@@ -156,6 +172,17 @@ void UGTTNativeRuntimeTelemetrySubsystem::SampleFieldmaster(AGTTFieldmasterNativ
         return;
     }
 
+    UGTTFieldmasterChaosMovementComponent* FieldmasterMovement =
+        Cast<UGTTFieldmasterChaosMovementComponent>(Movement);
+    if (!FieldmasterMovement)
+    {
+        UE_LOG(LogGTT, Error,
+            TEXT("NATIVE_FIELDMASTER_AUTHORITY_FAULT vehicle=RustyFieldmaster60 reason=FIELDMASTER_MOVEMENT_CAST_FAILED action=RESTORE_LEGACY"));
+        Vehicle->DeactivateLegacyTakeover();
+        EvidenceSecondsByVehicle.Remove(Key);
+        return;
+    }
+
     float& EvidenceSeconds = EvidenceSecondsByVehicle.FindOrAdd(Key);
     EvidenceSeconds += DeltaSeconds;
     if (EvidenceSeconds < EvidenceIntervalSeconds) return;
@@ -187,7 +214,7 @@ void UGTTNativeRuntimeTelemetrySubsystem::SampleFieldmaster(AGTTFieldmasterNativ
     const int32 ForwardGearCount = Movement->TransmissionSetup.ForwardGearRatios.Num();
 
     UE_LOG(LogGTT, Log,
-        TEXT("NATIVE_FIELDMASTER_RUNTIME_TELEMETRY vehicle=RustyFieldmaster60 authority=NATIVE_CHAOS takeover_integrity=PASS movement_class=%s legacy_mirror=QUIESCENT legacy_collision=NO legacy_tick=NO native_collision=YES physics_asset=YES movement=ACTIVE speed_kmh=%.2f signed_speed_kmh=%.2f current_gear=%d automatic_gears=%s forward_gears=%d throttle=%.2f brake=%.2f steer=%.2f valid_wheels=%d contacts=%d front_contacts=%d rear_contacts=%d suspension_ready=%s suspension_samples=%d suspension_min=%.3f suspension_max=%.3f front_slip_risk=%.3f rear_slip_risk=%.3f max_slip_magnitude=%.2f max_slip_angle=%.2f left_load=%.3f right_load=%.3f axle_imbalance=%.3f traction_authority=%.3f driver=%s trailer=%s tow_load=%.3f"),
+        TEXT("NATIVE_FIELDMASTER_RUNTIME_TELEMETRY vehicle=RustyFieldmaster60 authority=NATIVE_CHAOS takeover_integrity=PASS movement_class=%s legacy_mirror=QUIESCENT legacy_collision=NO legacy_tick=NO native_collision=YES physics_asset=YES movement=ACTIVE speed_kmh=%.2f signed_speed_kmh=%.2f current_gear=%d automatic_gears=%s forward_gears=%d throttle=%.2f brake=%.2f steer=%.2f valid_wheels=%d contacts=%d front_contacts=%d rear_contacts=%d suspension_ready=%s suspension_samples=%d suspension_min=%.3f suspension_max=%.3f front_slip_risk=%.3f rear_slip_risk=%.3f max_slip_magnitude=%.2f max_slip_angle=%.2f left_load=%.3f right_load=%.3f axle_imbalance=%.3f traction_authority=%.3f driver=%s trailer=%s tow_load=%.3f terrain_throttle_authority=%.3f travel_grade_deg=%.2f hill_haul_brake=%.3f hill_hold=%s downhill_tow_brake=%s trailer_brake_heat=%.3f trailer_brake_authority=%.3f trailer_brake_state=%s trailer_brake_fade=%s trailer_brake_cooling=%s runaway_mitigation=%s runaway_brake=%.3f"),
         *Movement->GetClass()->GetName(),
         SpeedKmh,
         SignedSpeedKmh,
@@ -215,5 +242,17 @@ void UGTTNativeRuntimeTelemetrySubsystem::SampleFieldmaster(AGTTFieldmasterNativ
         AxleSnapshot.TractionAuthority,
         Vehicle->IsOccupied() ? TEXT("YES") : TEXT("NO"),
         Trailer ? TEXT("ATTACHED") : TEXT("NONE"),
-        TowLoad);
+        TowLoad,
+        FieldmasterMovement->GetTerrainThrottleAuthority(),
+        FieldmasterMovement->GetTravelGradeDegrees(),
+        FieldmasterMovement->GetHillHaulBrake(),
+        FieldmasterMovement->IsHillHoldActive() ? TEXT("YES") : TEXT("NO"),
+        FieldmasterMovement->IsDownhillTowBrakeActive() ? TEXT("YES") : TEXT("NO"),
+        FieldmasterMovement->GetTrailerBrakeHeat01(),
+        FieldmasterMovement->GetTrailerBrakeAuthority(),
+        TrailerBrakeThermalStateToken(FieldmasterMovement->GetTrailerBrakeThermalState()),
+        FieldmasterMovement->IsTrailerBrakeFadeActive() ? TEXT("YES") : TEXT("NO"),
+        FieldmasterMovement->IsTrailerBrakeCoolingActive() ? TEXT("YES") : TEXT("NO"),
+        FieldmasterMovement->IsTrailerRunawayMitigationActive() ? TEXT("YES") : TEXT("NO"),
+        FieldmasterMovement->GetTrailerRunawaySafetyBrake());
 }

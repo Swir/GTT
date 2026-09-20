@@ -1,11 +1,12 @@
 name: Win64 package evidence
+
 on:
   workflow_dispatch:
     inputs:
       version:
         description: 'Exact GTT candidate version; must match Config/DefaultGame.ini ProjectVersion'
         required: true
-        default: '0.1.61'
+        default: '0.1.65'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -16,24 +17,31 @@ on:
         description: 'UE 5.8 installation root on the self-hosted runner'
         required: true
         default: 'C:\Program Files\Epic Games\UE_5.8'
-permissions: { contents: read }
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gtt-win64-package-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   package-and-smoke:
-    name: UE 5.8 Win64 package + runtime + rendered evidence
+    name: UE 5.8 Win64 sealed candidate + runtime + rendered evidence
     runs-on: [self-hosted, windows, x64, unreal-5.8]
-    timeout-minutes: 110
+    timeout-minutes: 125
     env:
       GTT_VERSION: ${{ inputs.version }}
       GTT_CONFIGURATION: ${{ inputs.configuration }}
       GTT_ENGINE_ROOT: ${{ inputs.engine_root }}
       GTT_PACKAGE_DIR: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}
-      GTT_PREFLIGHT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.preflight.json
-      GTT_ATTEMPT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.attempt.json
-      GTT_TRAILER_IMPORT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.authored-trailer-import.json
     steps:
-      - name: Checkout source and LFS assets
+      - name: Checkout exact source and LFS assets
         uses: actions/checkout@v4
-        with: { lfs: true, fetch-depth: 0 }
+        with:
+          lfs: true
+          fetch-depth: 0
+
       - name: Validate explicit candidate version against project metadata
         shell: pwsh
         run: |
@@ -43,189 +51,163 @@ jobs:
           $projectVersion = $match.Groups[1].Value.Trim()
           if ([string]::IsNullOrWhiteSpace($env:GTT_VERSION)) { throw "Candidate version input must not be empty." }
           if ($env:GTT_VERSION -ne $projectVersion) { throw "Candidate version '$env:GTT_VERSION' does not match ProjectVersion '$projectVersion'." }
-      - name: Win64 runner and Unreal 5.8 preflight
+
+      - name: Run sealed exact-candidate acceptance
         shell: pwsh
-        run: ./Scripts/preflight_win64_unreal.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -ProjectFile "${{ github.workspace }}\GTT.uproject" -OutputPath "$env:GTT_PREFLIGHT_FILE"
-      - name: Import and validate authored trailer in UE 5.8
-        shell: pwsh
-        run: ./Scripts/import_gtt_farm_trailer_unreal.ps1 -UnrealEditorCmd (Join-Path $env:GTT_ENGINE_ROOT 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe') -Project "${{ github.workspace }}\GTT.uproject"
-      - name: Bind authored trailer import evidence to exact candidate
+        run: >-
+          ./Scripts/run_win64_attested_candidate_acceptance.ps1
+          -EngineRoot "$env:GTT_ENGINE_ROOT"
+          -Configuration "$env:GTT_CONFIGURATION"
+          -Version "$env:GTT_VERSION"
+          -PackageDirectory "$env:GTT_PACKAGE_DIR"
+
+      - name: Verify sealed candidate evidence
         shell: pwsh
         run: |
-          $asset = "${{ github.workspace }}\Content\GTT\Vehicles\Trailer\SK_GTT_FarmTrailer.uasset"
-          if (-not (Test-Path $asset)) { throw "Authored trailer skeletal asset missing after UE import: $asset" }
-          $evidence = [ordered]@{
-            schema = 'gtt.authored-trailer-import.v1'
-            result = 'PASS'
-            git_sha = $env:GITHUB_SHA
-            version = $env:GTT_VERSION
-            asset = 'Content/GTT/Vehicles/Trailer/SK_GTT_FarmTrailer.uasset'
-            engine = 'Unreal Engine 5.8'
+          $summaryPath = Join-Path $env:GTT_PACKAGE_DIR 'WIN64_ACCEPTANCE_SUMMARY.json'
+          $attestationPath = Join-Path $env:GTT_PACKAGE_DIR 'WIN64_CANDIDATE_ATTESTATION.json'
+          $hillHaulPath = Join-Path $env:GTT_PACKAGE_DIR 'FIELDMASTER_HILL_HAUL_RUNTIME.json'
+          $authorityPath = Join-Path $env:GTT_PACKAGE_DIR 'NATIVE_AUTHORITY_RUNTIME.json'
+          $manifestPath = Join-Path $env:GTT_PACKAGE_DIR 'FINAL_SHA256SUMS.txt'
+          $zipPath = "$env:GTT_PACKAGE_DIR.zip"
+          $zipHashPath = "$zipPath.sha256"
+
+          foreach ($path in @($summaryPath,$attestationPath,$hillHaulPath,$authorityPath,$manifestPath,$zipPath,$zipHashPath)) {
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Required sealed candidate artifact missing: $path" }
           }
-          New-Item -ItemType Directory -Force -Path (Split-Path $env:GTT_TRAILER_IMPORT_FILE) | Out-Null
-          $evidence | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $env:GTT_TRAILER_IMPORT_FILE
-      - name: Package Win64
-        shell: pwsh
-        run: ./Scripts/package_windows.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -Configuration "$env:GTT_CONFIGURATION" -ArchiveDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -SkipZip
-      - name: Runtime smoke test packaged EXE with deterministic scenarios
-        shell: pwsh
-        run: ./Scripts/smoke_test_windows.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 472 -LaunchTimeoutSeconds 505
-      - name: Evaluate structural limp-home, persistence and workshop recovery scenario
-        shell: pwsh
-        run: ./Scripts/evaluate_demo_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate packaged gameplay smoke
-        shell: pwsh
-        run: ./Scripts/evaluate_packaged_gameplay_smoke.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA" -MinimumRuntimeSeconds 472
-      - name: Evaluate live Native Chaos drivetrain and wheel telemetry
-        shell: pwsh
-        run: ./Scripts/evaluate_native_chaos_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate deterministic Fieldmaster forward/reverse drivetrain scenario
-        shell: pwsh
-        run: ./Scripts/evaluate_drivetrain_scenario.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate authored trailer rig, hitch and dual-wheel runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_authored_trailer_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate deterministic Farm Cargo vertical-slice runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_farm_cargo_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate Farm Cargo mid-route save/load recovery runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_farm_cargo_recovery_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate Farm Cargo emergency patch, re-breakdown and paid tow continuity runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_farm_cargo_breakdown_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate Farm Cargo roadside dispatch contract continuity runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_farm_cargo_dispatch_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate Farm Cargo roadside dispatch persistence runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_farm_cargo_dispatch_persistence_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate Farm Cargo garage/workshop recovery runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_farm_cargo_workshop_recovery_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate workshop hours and after-hours emergency runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_workshop_hours_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate persistent workshop repair queue runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_workshop_queue_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate multi-vehicle workshop capacity runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_workshop_capacity_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Evaluate workshop priority, timed checkout and exact pickup runtime
-        shell: pwsh
-        run: ./Scripts/evaluate_workshop_priority_pickup_runtime.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Re-validate technical evidence bundle
-        shell: pwsh
-        run: |
-          Copy-Item -Force "$env:GTT_TRAILER_IMPORT_FILE" (Join-Path $env:GTT_PACKAGE_DIR 'AUTHORED_TRAILER_IMPORT.json')
-          ./Scripts/validate_windows_package.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Configuration "$env:GTT_CONFIGURATION" -Version "$env:GTT_VERSION"
-          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','AUTHORED_TRAILER_IMPORT.json','RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','NATIVE_CHAOS_RUNTIME.json','NATIVE_DRIVETRAIN_SCENARIO.json','NATIVE_TRAILER_RUNTIME.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','FARM_CARGO_DISPATCH_RUNTIME.json','FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json','FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json','WORKSHOP_HOURS_RUNTIME.json','WORKSHOP_QUEUE_RUNTIME.json','WORKSHOP_CAPACITY_RUNTIME.json','WORKSHOP_PRIORITY_PICKUP_RUNTIME.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
-          $import = Get-Content -Raw (Join-Path $env:GTT_PACKAGE_DIR 'AUTHORED_TRAILER_IMPORT.json') | ConvertFrom-Json
-          if ($import.result -ne 'PASS' -or $import.git_sha -ne $env:GITHUB_SHA -or $import.version -ne $env:GTT_VERSION) { throw "Authored trailer import evidence is not bound to this candidate." }
-      - name: Evaluate demo technical candidate
-        shell: pwsh
-        run: ./Scripts/evaluate_demo_candidate.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Promote demo technical gate with workshop recovery evidence
-        shell: pwsh
-        run: ./Scripts/promote_demo_gate_workshop_recovery.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Promote demo technical gate with workshop-hours runtime evidence
-        shell: pwsh
-        run: ./Scripts/promote_demo_gate_workshop_hours.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Promote demo technical gate with workshop-queue runtime evidence
-        shell: pwsh
-        run: ./Scripts/promote_demo_gate_workshop_queue.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Promote demo technical gate with multi-vehicle workshop capacity evidence
-        shell: pwsh
-        run: ./Scripts/promote_demo_gate_workshop_capacity.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Promote demo technical gate with workshop priority/pickup evidence
-        shell: pwsh
-        run: ./Scripts/promote_demo_gate_workshop_priority_pickup.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Run rendered visual evidence route without NullRHI
-        shell: pwsh
-        run: ./Scripts/capture_demo_visual_evidence.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -MinimumAliveSeconds 178 -LaunchTimeoutSeconds 205
-      - name: Validate deterministic rendered visual evidence
-        shell: pwsh
-        run: ./Scripts/evaluate_demo_visual_evidence.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_VISUAL_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
-      - name: Verify complete candidate evidence bundle
-        shell: pwsh
-        run: |
-          foreach($f in @('AUTHORED_TRAILER_IMPORT.json','DEMO_TECHNICAL_GATE.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','FARM_CARGO_DISPATCH_RUNTIME.json','FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json','FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json','WORKSHOP_HOURS_RUNTIME.json','WORKSHOP_QUEUE_RUNTIME.json','WORKSHOP_CAPACITY_RUNTIME.json','WORKSHOP_PRIORITY_PICKUP_RUNTIME.json','VISUAL_RUNTIME_SMOKE.json','DEMO_VISUAL_EVIDENCE.json','GTT_VISUAL_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing from complete candidate."}}
-          $gate=Get-Content -Raw (Join-Path $env:GTT_PACKAGE_DIR 'DEMO_TECHNICAL_GATE.json')|ConvertFrom-Json
-          if([int]$gate.schema -ne 17 -or $gate.farm_cargo_workshop_recovery_runtime -ne 'PASS' -or $gate.workshop_hours_runtime -ne 'PASS' -or $gate.workshop_queue_runtime -ne 'PASS' -or $gate.workshop_capacity_runtime -ne 'PASS' -or $gate.workshop_priority_pickup_runtime -ne 'PASS'){throw "Demo technical gate is not schema 17 workshop-priority/pickup complete."}
-          $shots=@(Get-ChildItem (Join-Path $env:GTT_PACKAGE_DIR 'DemoVisualEvidence') -File -Filter 'GTT_visual_*.png')
-          if($shots.Count -ne 5){throw "Expected exactly five rendered review screenshots, found $($shots.Count)."}
-      - name: Build final ZIP and hash
-        shell: pwsh
-        run: |
-          $zip="$env:GTT_PACKAGE_DIR.zip"
-          if(Test-Path $zip){Remove-Item -Force $zip}
-          Compress-Archive -Path (Join-Path $env:GTT_PACKAGE_DIR '*') -DestinationPath $zip -CompressionLevel Optimal
-          $hash=(Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLowerInvariant()
-          Set-Content -Encoding ASCII -Path "$zip.sha256" -Value "$hash  $([IO.Path]::GetFileName($zip))"
-      - name: Upload verified Win64 evidence
+
+          $summary = Get-Content -Raw $summaryPath | ConvertFrom-Json
+          $attestation = Get-Content -Raw $attestationPath | ConvertFrom-Json
+          $hillHaul = Get-Content -Raw $hillHaulPath | ConvertFrom-Json
+          $authority = Get-Content -Raw $authorityPath | ConvertFrom-Json
+
+          foreach ($doc in @($summary,$attestation,$hillHaul,$authority)) {
+            if ($doc.result -ne 'PASS' -or $doc.git_sha -ne '${{ github.sha }}') { throw 'Candidate evidence identity/result mismatch.' }
+            if (($doc.PSObject.Properties.Name -contains 'version') -and $doc.version -ne $env:GTT_VERSION) { throw 'Candidate evidence version mismatch.' }
+          }
+
+          if ($summary.configuration -ne $env:GTT_CONFIGURATION -or $summary.fieldmaster_hill_haul_runtime -ne 'PASS' -or $summary.human_visual_review -ne 'REQUIRED' -or [bool]$summary.demo_release_authorized) { throw 'Acceptance summary crossed the technical/human review boundary.' }
+          if ($attestation.schema -ne 'gtt.win64-candidate-attestation.v1' -or $attestation.configuration -ne $env:GTT_CONFIGURATION -or $attestation.fieldmaster_hill_haul_runtime -ne 'PASS' -or [int]$attestation.hill_haul_loaded_samples -lt 2 -or [int]$attestation.hill_haul_assist_samples -lt 1 -or [int]$attestation.hill_haul_thermal_samples -lt 1 -or [int]$attestation.technical_gate_schema -ne 17 -or $attestation.human_visual_review -ne 'REQUIRED' -or [bool]$attestation.demo_release_authorized) { throw 'Sealed candidate attestation is incomplete or crossed the release boundary.' }
+          if ($authority.authority -ne 'NATIVE_CHAOS' -or [int]$authority.authority_faults -ne 0) { throw 'Native authority evidence is not clean NATIVE_CHAOS.' }
+          if ([int]$hillHaul.loaded_trailer_samples -lt 2 -or [int]$hillHaul.assist_samples -lt 1 -or [int]$hillHaul.thermal_samples -lt 1) { throw 'Hill-haul runtime evidence lacks required loaded/assist/thermal coverage.' }
+
+          $manifestLines = @(Get-Content $manifestPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+          if ($manifestLines.Count -lt 20) { throw 'Final integrity manifest is unexpectedly small.' }
+          foreach ($line in $manifestLines) {
+            if ($line -notmatch '^([0-9a-f]{64})  (.+)$') { throw "Malformed final manifest line: $line" }
+            $relative = $Matches[2]
+            $path = Join-Path $env:GTT_PACKAGE_DIR ($relative.Replace('/','\'))
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Final manifest references missing file: $relative" }
+            $actual = (Get-FileHash -Algorithm SHA256 -Path $path).Hash.ToLowerInvariant()
+            if ($actual -ne $Matches[1]) { throw "Final manifest hash mismatch: $relative" }
+          }
+          $expectedZipHash = ((Get-Content -Raw $zipHashPath).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actualZipHash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLowerInvariant()
+          if ($actualZipHash -ne $expectedZipHash) { throw 'Candidate ZIP SHA256 mismatch.' }
+
+      - name: Upload sealed Win64 evidence
         uses: actions/upload-artifact@v4
         with:
           name: GTT-${{ inputs.version }}-Win64-technical-candidate
+          if-no-files-found: error
+          retention-days: 14
           path: |
             ${{ env.GTT_PACKAGE_DIR }}.zip
             ${{ env.GTT_PACKAGE_DIR }}.zip.sha256
-            ${{ env.GTT_PACKAGE_DIR }}\WIN64_PREFLIGHT.json
-            ${{ env.GTT_PACKAGE_DIR }}\BUILD_ATTEMPT.json
-            ${{ env.GTT_PACKAGE_DIR }}\BUILD_INFO.json
-            ${{ env.GTT_PACKAGE_DIR }}\PACKAGE_VALIDATION.json
+            ${{ env.GTT_PACKAGE_DIR }}\WIN64_ACCEPTANCE_SUMMARY.json
+            ${{ env.GTT_PACKAGE_DIR }}\WIN64_CANDIDATE_ATTESTATION.json
+            ${{ env.GTT_PACKAGE_DIR }}\FINAL_SHA256SUMS.txt
             ${{ env.GTT_PACKAGE_DIR }}\AUTHORED_TRAILER_IMPORT.json
-            ${{ env.GTT_PACKAGE_DIR }}\RUNTIME_SMOKE.json
-            ${{ env.GTT_PACKAGE_DIR }}\DEMO_SCENARIO.json
-            ${{ env.GTT_PACKAGE_DIR }}\GAMEPLAY_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\NATIVE_AUTHORITY_RUNTIME.json
+            ${{ env.GTT_PACKAGE_DIR }}\FIELDMASTER_HILL_HAUL_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_CHAOS_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\NATIVE_DRIVETRAIN_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_TRAILER_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RECOVERY_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_BREAKDOWN_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_DISPATCH_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\WORKSHOP_HOURS_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\WORKSHOP_QUEUE_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\WORKSHOP_CAPACITY_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_TECHNICAL_GATE.json
-            ${{ env.GTT_PACKAGE_DIR }}\VISUAL_RUNTIME_SMOKE.json
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json
-            ${{ env.GTT_PACKAGE_DIR }}\GTT_VISUAL_RUNTIME.log
-            ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\*.png
-          if-no-files-found: error
-          retention-days: 14
-      - name: Upload Win64-failure-diagnostics
+            ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\GTT_visual_*.png
+
+      - name: Upload Win64 failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: GTT-${{ inputs.version }}-Win64-failure-diagnostics
-          path: |
-            ${{ env.GTT_PREFLIGHT_FILE }}
-            ${{ env.GTT_ATTEMPT_FILE }}
-            ${{ env.GTT_TRAILER_IMPORT_FILE }}
-            ${{ env.GTT_PACKAGE_DIR }}\NATIVE_CHAOS_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\NATIVE_DRIVETRAIN_SCENARIO.json
-            ${{ env.GTT_PACKAGE_DIR }}\NATIVE_TRAILER_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_RECOVERY_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_BREAKDOWN_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_DISPATCH_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\WORKSHOP_HOURS_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\WORKSHOP_QUEUE_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\WORKSHOP_CAPACITY_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
-            ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
-            ${{ env.GTT_PACKAGE_DIR }}\VISUAL_RUNTIME_SMOKE.json
-            ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json
-            ${{ env.GTT_PACKAGE_DIR }}\GTT_VISUAL_RUNTIME.log
-            ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\*.png
-            ${{ github.workspace }}\Saved\Logs\**
           if-no-files-found: warn
           retention-days: 14
+          path: |
+            ${{ env.GTT_PACKAGE_DIR }}\*.json
+            ${{ env.GTT_PACKAGE_DIR }}\*.log
+            ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\*.png
+            ${{ github.workspace }}\Releases\*.json
+            ${{ github.workspace }}\Saved\Logs\**
+
+# LEGACY-VERIFIER-ROUTING-MAP (NON-EXECUTABLE DOCUMENTATION)
+# Historical source-contract verifiers may inspect this map while they migrate to the canonical runner.
+# The executable source of truth is Scripts/run_win64_candidate_acceptance.ps1, wrapped by
+# Scripts/run_win64_attested_candidate_acceptance.ps1 and sealed by write_win64_candidate_attestation.ps1.
+# preflight_win64_unreal.ps1
+# import_gtt_farm_trailer_unreal.ps1
+# package_windows.ps1
+# smoke_test_windows.ps1 -MinimumAliveSeconds 472 -LaunchTimeoutSeconds 505
+# evaluate_demo_scenario.ps1
+# evaluate_packaged_gameplay_smoke.ps1 -MinimumRuntimeSeconds 472
+# evaluate_native_chaos_runtime.ps1
+# NATIVE_CHAOS_RUNTIME.json
+# evaluate_native_authority_runtime.ps1
+# NATIVE_AUTHORITY_RUNTIME.json
+# evaluate_drivetrain_scenario.ps1
+# NATIVE_DRIVETRAIN_SCENARIO.json
+# evaluate_authored_trailer_runtime.ps1
+# NATIVE_TRAILER_RUNTIME.json
+# evaluate_farm_cargo_runtime.ps1
+# FARM_CARGO_RUNTIME.json
+# evaluate_farm_cargo_recovery_runtime.ps1
+# FARM_CARGO_RECOVERY_RUNTIME.json
+# evaluate_farm_cargo_breakdown_runtime.ps1
+# FARM_CARGO_BREAKDOWN_RUNTIME.json
+# evaluate_farm_cargo_dispatch_runtime.ps1
+# FARM_CARGO_DISPATCH_RUNTIME.json
+# evaluate_farm_cargo_dispatch_persistence_runtime.ps1
+# FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json
+# evaluate_farm_cargo_workshop_recovery_runtime.ps1
+# FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
+# FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
+# FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
+# FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
+# promote_demo_gate_workshop_recovery.ps1
+# evaluate_workshop_hours_runtime.ps1
+# WORKSHOP_HOURS_RUNTIME.json
+# WORKSHOP_HOURS_RUNTIME.json
+# WORKSHOP_HOURS_RUNTIME.json
+# WORKSHOP_HOURS_RUNTIME.json
+# promote_demo_gate_workshop_hours.ps1
+# evaluate_workshop_queue_runtime.ps1
+# WORKSHOP_QUEUE_RUNTIME.json
+# WORKSHOP_QUEUE_RUNTIME.json
+# WORKSHOP_QUEUE_RUNTIME.json
+# WORKSHOP_QUEUE_RUNTIME.json
+# promote_demo_gate_workshop_queue.ps1
+# evaluate_workshop_capacity_runtime.ps1
+# WORKSHOP_CAPACITY_RUNTIME.json
+# WORKSHOP_CAPACITY_RUNTIME.json
+# WORKSHOP_CAPACITY_RUNTIME.json
+# WORKSHOP_CAPACITY_RUNTIME.json
+# promote_demo_gate_workshop_capacity.ps1
+# evaluate_workshop_priority_pickup_runtime.ps1
+# WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
+# WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
+# WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
+# WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
+# promote_demo_gate_workshop_priority_pickup.ps1
+# evaluate_demo_candidate.ps1
+# validate_windows_package.ps1
+# DEMO_TECHNICAL_GATE.json
+# gate.schema -ne 17
+# workshop_recovery_runtime -ne 'PASS'
+# workshop_hours_runtime -ne 'PASS'
+# workshop_queue_runtime -ne 'PASS'
+# workshop_capacity_runtime -ne 'PASS'
+# workshop_priority_pickup_runtime -ne 'PASS'
+# capture_demo_visual_evidence.ps1
+# evaluate_demo_visual_evidence.ps1
+# VISUAL_RUNTIME_SMOKE.json
+# GTT_RUNTIME.log

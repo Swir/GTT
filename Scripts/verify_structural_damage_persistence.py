@@ -15,14 +15,17 @@ unified = (root / 'Source/GTT/Private/Save/GTTUnifiedSaveSubsystem.cpp').read_te
 engine_ini = (root / 'Config/DefaultEngine.ini').read_text(encoding='utf-8')
 evaluator = (root / 'Scripts/evaluate_demo_scenario.ps1').read_text(encoding='utf-8')
 workflow = (root / '.github/workflows/win64-package-evidence.yml').read_text(encoding='utf-8')
+runner = (root / 'Scripts/run_win64_candidate_acceptance.ps1').read_text(encoding='utf-8')
+attestor = (root / 'Scripts/write_win64_candidate_attestation.ps1').read_text(encoding='utf-8')
 sanity = (root / '.github/workflows/project-sanity.yml').read_text(encoding='utf-8')
 playtest = (root / 'Docs/PLAYTEST_0.0.93.md').read_text(encoding='utf-8')
 changelog = (root / 'CHANGELOG.d/0.0.93.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
-runtime = re.search(r'-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)', workflow)
-gameplay_runtime = re.search(r'-MinimumRuntimeSeconds\s+(\d+)', workflow)
+runtime = re.search(r'"-MinimumAliveSeconds",\s*(\d+).*?"-LaunchTimeoutSeconds",\s*(\d+)', runner, flags=re.S)
+gameplay_runtime = re.search(r'"-MinimumRuntimeSeconds",\s*(\d+)', runner)
 runtime_window_ok = bool(runtime and gameplay_runtime)
+minimum_alive = launch_timeout = gameplay_minimum = 0
 if runtime_window_ok:
     minimum_alive = int(runtime.group(1))
     launch_timeout = int(runtime.group(2))
@@ -32,6 +35,15 @@ if runtime_window_ok:
 version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
 candidate_version = tuple(int(part) for part in version_match.groups()) if version_match else None
 candidate_version_ok = candidate_version is not None and candidate_version >= (0, 1, 14)
+sealed_route_ok = (
+    'run_win64_attested_candidate_acceptance.ps1' in workflow
+    and 'DEMO_SCENARIO.json' in attestor
+    and 'RUNTIME_SMOKE.json' in attestor
+    and 'DEMO_TECHNICAL_GATE.json' in attestor
+    and 'WIN64_PREFLIGHT.json' in attestor
+    and 'BUILD_ATTEMPT.json' in attestor
+    and 'evaluate_demo_scenario.ps1' in runner
+)
 
 checks = {
     'save schema retains structural v5 data under v8+': 'SaveVersion = 8' in save_h and 'FGTTStoredRoadStructuralDamageData' in save_h and 'RoadStructuralDamage' in save_h,
@@ -56,8 +68,9 @@ checks = {
     'runtime PASS evidence': all(x in evidence_cpp for x in ['DEMO_SCENARIO_STRUCTURAL_PERSISTENCE', 'DEMO_SCENARIO_STRUCTURAL_REPAIR', 'DEMO_SCENARIO_STRUCTURAL_RECOVERY result=PASS']),
     'evaluator retains structural gates': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator and "step='STRUCTURAL_PERSISTENCE'" in evaluator and "step='STRUCTURAL_REPAIR'" in evaluator,
     'evaluator structural hard gates': 'structural_persistence_passed' in evaluator and 'structural_repair_passed' in evaluator and 'structural_recovery_complete' in evaluator,
-    'candidate version not regressed below 0.1.14': candidate_version_ok and all(x in workflow for x in ['WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_TECHNICAL_GATE.json']),
+    'candidate version not regressed below 0.1.14': candidate_version_ok and sealed_route_ok,
     'extended packaged runtime': runtime_window_ok,
+    'scenario sealed in exact candidate': 'DEMO_SCENARIO.json' in attestor and 'Get-FileHash -Algorithm SHA256' in attestor,
     'sanity wired': 'Verify persistent Native structural damage' in sanity and 'verify_structural_damage_persistence.py' in sanity,
     'origin docs retained': '0.0.93' in playtest and 'STRUCTURAL_PERSISTENCE' in playtest and 'STRUCTURAL_REPAIR' in playtest and '0.0.93' in changelog,
 }
@@ -83,4 +96,4 @@ if re.search(r'[█▓▒░]{3,}',progress_block):
     raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
 label = '.'.join(str(part) for part in candidate_version)
-print(f'[OK] Persistent Native structural damage + workshop recovery retained under save v8 ({len(checks)} checks; candidate {label}; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')
+print(f'[OK] Persistent Native structural damage + workshop recovery retained under save v8 ({len(checks)} checks; candidate {label}; sealed runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')

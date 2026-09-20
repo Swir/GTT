@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from pathlib import Path
 import re
 
@@ -14,6 +15,8 @@ smoke = (root / 'Scripts/smoke_test_windows.ps1').read_text(encoding='utf-8')
 eval_ps = (root / 'Scripts/evaluate_demo_scenario.ps1').read_text(encoding='utf-8')
 demo = (root / 'Scripts/evaluate_demo_candidate.ps1').read_text(encoding='utf-8')
 workflow = (root / '.github/workflows/win64-package-evidence.yml').read_text(encoding='utf-8')
+runner = (root / 'Scripts/run_win64_candidate_acceptance.ps1').read_text(encoding='utf-8')
+attestor = (root / 'Scripts/write_win64_candidate_attestation.ps1').read_text(encoding='utf-8')
 
 core_steps = [
     'WORLD', 'HUD', 'TRAFFIC', 'NPC', 'MISSION', 'COMBAT',
@@ -25,12 +28,15 @@ core_steps = [
     'INTERCEPTION_ACTIVE', 'ROADBLOCK_PHYSICAL_CROSSING',
     'HANDLING_CONSEQUENCE', 'POST_SPIKE_ESCAPE', 'SAVE'
 ]
-scenario_step = 'Evaluate structural limp-home, persistence and workshop recovery scenario'
-packaged_step = 'Evaluate packaged gameplay smoke'
-workflow_order_ok = scenario_step in workflow and packaged_step in workflow and workflow.index(scenario_step) < workflow.index(packaged_step)
 
-runtime_match = re.search(r'-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)', workflow)
-gameplay_runtime_match = re.search(r'-MinimumRuntimeSeconds\s+(\d+)', workflow)
+# The Win64 workflow now delegates the executable sequence to the canonical runner.
+# Historical verifiers must inspect that runner rather than requiring duplicated YAML steps.
+scenario_eval = 'evaluate_demo_scenario.ps1'
+gameplay_eval = 'evaluate_packaged_gameplay_smoke.ps1'
+workflow_order_ok = scenario_eval in runner and gameplay_eval in runner and runner.index(scenario_eval) < runner.index(gameplay_eval)
+
+runtime_match = re.search(r'"-MinimumAliveSeconds",\s*(\d+).*?"-LaunchTimeoutSeconds",\s*(\d+)', runner, flags=re.S)
+gameplay_runtime_match = re.search(r'"-MinimumRuntimeSeconds",\s*(\d+)', runner)
 runtime_window_ok = False
 minimum_alive = launch_timeout = gameplay_minimum = 0
 if runtime_match and gameplay_runtime_match:
@@ -39,14 +45,21 @@ if runtime_match and gameplay_runtime_match:
     gameplay_minimum = int(gameplay_runtime_match.group(1))
     runtime_window_ok = minimum_alive >= 125 and gameplay_minimum >= minimum_alive and launch_timeout > minimum_alive
 
-# 0.1.14 established this acceptance contract. Later milestones are additive and
-# must be allowed to advance the truthful workflow label without weakening it.
 version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
 candidate_version = None
 candidate_version_ok = False
 if version_match:
     candidate_version = tuple(int(part) for part in version_match.groups())
     candidate_version_ok = candidate_version >= (0, 1, 14)
+
+sealed_demo_evidence = (
+    'DEMO_SCENARIO.json' in attestor
+    and 'FINAL_SHA256SUMS.txt' in workflow
+    and 'run_win64_attested_candidate_acceptance.ps1' in workflow
+)
+current_build_evidence = all(x in attestor for x in [
+    'WIN64_PREFLIGHT.json', 'BUILD_ATTEMPT.json', 'RUNTIME_SMOKE.json', 'DEMO_TECHNICAL_GATE.json'
+])
 
 checks = {
     'core world subsystem': 'UTickableWorldSubsystem' in h,
@@ -74,11 +87,11 @@ checks = {
     'evaluator retains core': all(s in eval_ps for s in core_steps) and 'DEMO_SCENARIO_COMPLETE result=PASS steps=26' in eval_ps,
     'evaluator recovery gates': all(x in eval_ps for x in ['damage_persistence_passed', 'workshop_recovery_passed', 'damage_recovery_complete', 'structural_persistence_passed', 'structural_repair_passed', 'structural_recovery_complete', 'structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
     'demo gate consumes scenario': "scenario.result -ne 'PASS'" in demo,
-    'workflow order': workflow_order_ok,
+    'canonical runner order': workflow_order_ok,
     'extended packaged runtime': runtime_window_ok,
-    'artifact retained': '\\DEMO_SCENARIO.json' in workflow,
+    'scenario sealed in candidate': sealed_demo_evidence,
     'candidate version not regressed below 0.1.14': candidate_version_ok,
-    'current build evidence': all(x in workflow for x in ['WIN64_PREFLIGHT.json', 'BUILD_ATTEMPT.json', 'RUNTIME_SMOKE.json', 'DEMO_TECHNICAL_GATE.json']),
+    'current build evidence sealed': current_build_evidence,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:

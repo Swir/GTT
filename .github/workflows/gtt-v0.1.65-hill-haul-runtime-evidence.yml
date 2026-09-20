@@ -1,0 +1,75 @@
+name: GTT 0.1.65 Packaged Hill-Haul Runtime Evidence
+
+on:
+  push:
+    branches: [ main, 'milestone/0.1.65-hill-haul-runtime-evidence' ]
+    paths:
+      - 'Config/DefaultGame.ini'
+      - 'Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp'
+      - 'Scripts/evaluate_fieldmaster_hill_haul_runtime.ps1'
+      - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
+      - 'Scripts/verify_v0_1_65_hill_haul_runtime_evidence.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/release-windows.yml'
+      - 'Docs/PLAYTEST-0.1.65-HILL-HAUL-RUNTIME-EVIDENCE.md'
+      - 'CHANGELOG.d/0.1.65-hill-haul-runtime-evidence.md'
+      - 'Docs/ROADMAP.md'
+      - 'assets/readme/progress-card.svg'
+      - 'assets/readme/progress-mini.svg'
+      - 'assets/readme/progress-template.svg'
+      - '.github/workflows/gtt-v0.1.65-hill-haul-runtime-evidence.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Config/DefaultGame.ini'
+      - 'Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp'
+      - 'Scripts/evaluate_fieldmaster_hill_haul_runtime.ps1'
+      - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
+      - 'Scripts/verify_v0_1_65_hill_haul_runtime_evidence.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/release-windows.yml'
+      - 'Docs/PLAYTEST-0.1.65-HILL-HAUL-RUNTIME-EVIDENCE.md'
+      - 'CHANGELOG.d/0.1.65-hill-haul-runtime-evidence.md'
+      - 'Docs/ROADMAP.md'
+      - 'assets/readme/progress-card.svg'
+      - 'assets/readme/progress-mini.svg'
+      - 'assets/readme/progress-template.svg'
+      - '.github/workflows/gtt-v0.1.65-hill-haul-runtime-evidence.yml'
+  workflow_dispatch:
+
+jobs:
+  hill-haul-runtime-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Verify 0.1.65 packaged hill-haul evidence contract
+        run: python Scripts/verify_v0_1_65_hill_haul_runtime_evidence.py
+      - name: Preserve rolling exact Win64 candidate pipeline
+        run: python Scripts/verify_v0_1_61_win64_candidate_pipeline.py
+      - name: Preserve 0.1.64 Native Chaos authority watchdog
+        run: python Scripts/verify_v0_1_64_native_authority_watchdog.py
+      - name: Preserve 0.1.64 trailer brake runaway safety
+        run: python Scripts/verify_v0_1_64_trailer_brake_runaway_safety.py
+      - name: Preserve 0.1.63 trailer brake thermal control
+        run: python Scripts/verify_v0_1_63_trailer_brake_thermal_control.py
+      - name: Preserve 0.1.62 hill-haul control
+        run: python Scripts/verify_v0_1_62_fieldmaster_hill_haul_control.py
+      - name: Preserve exact Win64 candidate acceptance runner
+        run: python Scripts/verify_win64_candidate_acceptance_runner.py
+      - name: Preserve sealed candidate attestation chain
+        run: python Scripts/verify_v0_1_61_candidate_attestation.py
+      - name: Preserve native runtime telemetry
+        run: python Scripts/verify_native_runtime_telemetry.py
+      - name: Preserve dedicated Fieldmaster Chaos movement
+        run: python Scripts/verify_fieldmaster_dedicated_chaos_movement.py
+      - name: Preserve SWIR SVG progress presentation
+        run: python Scripts/verify_progress_presentation.py
+      - name: Preserve project sanity
+        run: python Scripts/verify_project.py
