@@ -152,8 +152,9 @@ void UGTTTrailerRoadFeedbackSubsystem::UpdateRoadLights(
     const bool bMoving = FMath::Abs(LongitudinalSpeedKmh) > 3.0f;
     const bool bBraking = bAttached && bMoving && DecelerationKmhPerSecond >= BrakeDecelerationThresholdKmhPerSecond;
     const bool bReversing = bAttached && LongitudinalSpeedKmh <= ReverseLightThresholdKmh;
+    const float HitchStress = FMath::Clamp(Trailer->GetHitchLoad(), 0.0f, 1.0f);
     const bool bCriticalTrailerState = Trailer->GetLostWheelCount() > 0
-        || Trailer->GetHitchIntegrity() < CriticalIntegrityThreshold
+        || HitchStress > (1.0f - CriticalIntegrityThreshold)
         || Trailer->GetTrailerIntegrity() < CriticalIntegrityThreshold
         || Trailer->IsRoadsideRepairPending();
 
@@ -200,7 +201,8 @@ void UGTTTrailerRoadFeedbackSubsystem::ApplyLoadedTrailerStability(
     }
 
     const float LoadAuthority = FMath::Clamp(Trailer->GetTowLoadFactor(), 0.0f, 1.0f);
-    const float Integrity = FMath::Min(Trailer->GetTrailerIntegrity(), Trailer->GetHitchIntegrity());
+    const float HitchReserve = 1.0f - FMath::Clamp(Trailer->GetHitchLoad(), 0.0f, 1.0f);
+    const float Integrity = FMath::Min(Trailer->GetTrailerIntegrity(), HitchReserve);
     const float IntegrityAuthority = FMath::Clamp((Integrity - 0.20f) / 0.80f, 0.15f, 1.0f);
     const float Authority = SpeedAuthority * LoadAuthority * IntegrityAuthority * MaximumStabilityAuthority;
     if (Authority <= KINDA_SMALL_NUMBER)
