@@ -114,7 +114,12 @@ for token in [
 ]:
     assert token in release_workflow, f"0.1.65 reviewed release gate missing sealed evidence check: {token}"
 
-assert re.search(r"(?m)^ProjectVersion=0\.1\.65$", config), "ProjectVersion must identify the exact 0.1.65 candidate"
+# Historical milestone verifiers are regression guards, not exact-version locks.
+# Future source milestones must keep the 0.1.65 hill-haul evidence contract intact.
+version_match = re.search(r"(?m)^ProjectVersion=(\d+)\.(\d+)\.(\d+)$", config)
+assert version_match, "ProjectVersion must be a semantic x.y.z version"
+current_version = tuple(int(part) for part in version_match.groups())
+assert current_version >= (0, 1, 65), f"ProjectVersion {'.'.join(version_match.groups())} predates the 0.1.65 hill-haul evidence milestone"
 
 open_blockers = [
     "- [ ] Dedicated native Chaos wheeled tractor movement",
