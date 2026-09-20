@@ -9,9 +9,9 @@
  *
  * This component owns the tractor's canonical Chaos wheel/powertrain setup and
  * translates shared sandbox state (fuel, condition, tire integrity, terrain
- * grip, live trailer load and hill grade) into the inputs consumed by Chaos
- * Vehicles. The legacy vehicle remains the persistence mirror/fallback until
- * packaged runtime acceptance is proven.
+ * grip, live trailer load, hill grade and trailer-brake thermal state) into
+ * the inputs consumed by Chaos Vehicles. The legacy vehicle remains the
+ * persistence mirror/fallback until packaged runtime acceptance is proven.
  */
 UCLASS(ClassGroup=(Physics), meta=(BlueprintSpawnableComponent))
 class GTT_API UGTTFieldmasterChaosMovementComponent : public UChaosWheeledVehicleMovementComponent
@@ -64,6 +64,18 @@ public:
     bool IsDownhillTowBrakeActive() const { return bDownhillTowBrakeActive; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float GetTrailerBrakeHeat01() const { return TrailerBrakeHeat01; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float GetTrailerBrakeAuthority() const { return TrailerBrakeAuthority; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    bool IsTrailerBrakeFadeActive() const { return bTrailerBrakeFadeActive; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    bool IsTrailerBrakeCoolingActive() const { return bTrailerBrakeCoolingActive; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
     float GetTowLoadFactor() const { return TowLoadFactor; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
@@ -113,6 +125,18 @@ private:
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Terrain")
     bool bDownhillTowBrakeActive = false;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float TrailerBrakeHeat01 = 0.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float TrailerBrakeAuthority = 1.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    bool bTrailerBrakeFadeActive = false;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    bool bTrailerBrakeCoolingActive = false;
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
     float TowLoadFactor = 0.0f;
