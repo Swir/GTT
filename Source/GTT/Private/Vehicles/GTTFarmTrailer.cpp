@@ -203,8 +203,16 @@ void AGTTFarmTrailer::RefreshPresentation()
     if (LeftFender) LeftFender->SetVisibility(!bLeftWheelLost, true);
     if (RightFender) RightFender->SetVisibility(!bRightWheelLost, true);
     const float Damage01 = 1.0f - FMath::Clamp(TrailerIntegrity, 0.0f, 1.0f);
-    if (Tailgate) Tailgate->SetRelativeRotation(FRotator(0.0f, FMath::Lerp(0.0f, -13.0f, FMath::Clamp(Damage01 * 1.35f, 0.0f, 1.0f)), 0.0f));
-    if (RearReflectorBar) RearReflectorBar->SetRelativeRotation(FRotator(FMath::Lerp(0.0f, 8.0f, FMath::Clamp(Damage01 * 1.6f, 0.0f, 1.0f)), 0.0f, 0.0f));
+    if (Tailgate)
+    {
+        const float TailgateSag = FMath::Lerp(0.0f, -13.0f, FMath::Clamp(Damage01 * 1.35f, 0.0f, 1.0f));
+        Tailgate->SetRelativeRotation(FRotator(0.0f, TailgateSag, 0.0f));
+    }
+    if (RearReflectorBar)
+    {
+        const float ReflectorSag = FMath::Lerp(0.0f, 8.0f, FMath::Clamp(Damage01 * 1.6f, 0.0f, 1.0f));
+        RearReflectorBar->SetRelativeRotation(FRotator(ReflectorSag, 0.0f, 0.0f));
+    }
     SetCargoVisualsVisible(bCargoLoaded);
     if (CargoLogD)
     {
@@ -491,7 +499,8 @@ bool AGTTFarmTrailer::PerformRoadsideRepair(float IntegrityRestore)
     if (bRightWheelLost) RestoreWheel(RightWheel, RightWheelConstraint, RightWheelHome);
     bLeftWheelLost = false;
     bRightWheelLost = false;
-    TrailerIntegrity = FMath::Clamp(TrailerIntegrity + FMath::Max(0.05f, IntegrityRestore), 0.0f, 0.92f);
+    const float ImprovedIntegrity = FMath::Min(0.92f, TrailerIntegrity + FMath::Max(0.05f, IntegrityRestore));
+    TrailerIntegrity = FMath::Max(TrailerIntegrity, ImprovedIntegrity);
     ConfigureHitchConstraint();
     LastImpactDamageTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : -100.0f;
     if (bWasAttached && PreviousTowActor)
