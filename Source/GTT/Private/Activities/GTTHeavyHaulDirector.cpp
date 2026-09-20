@@ -11,6 +11,15 @@
 #include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 #include "World/GTTGarageFleetSubsystem.h"
+#include "GTT.h"
+
+namespace
+{
+    constexpr float SmoothMaxRollDegrees = 10.0f;
+    constexpr float SmoothMaxPitchDegrees = 8.0f;
+    constexpr float RoughRollDegrees = 22.0f;
+    constexpr float RoughPitchDegrees = 17.0f;
+}
 
 AGTTHeavyHaulDirector::AGTTHeavyHaulDirector()
 {
@@ -21,6 +30,84 @@ void AGTTHeavyHaulDirector::BeginPlay()
 {
     Super::BeginPlay();
     if (GetWorld()) Trailer = GetWorld()->SpawnActor<AGTTFarmTrailer>(TrailerYardLocation, FRotator(0.0f, 90.0f, 0.0f));
+}
+
+void AGTTHeavyHaulDirector::ResetDrivingQuality()
+{
+    SmoothHaulSeconds = 0.0f;
+    RoughHaulSeconds = 0.0f;
+    bSmoothHaulBonusAnnounced = false;
+    bRoughDrivingWarningIssued = false;
+}
+
+bool AGTTHeavyHaulDirector::IsSmoothHaulBonusArmed() const
+{
+    return Trailer
+        && Stage == EGTTHeavyHaulStage::DeliverHillFarm
+        && Trailer->HasCargo()
+        && SmoothHaulSeconds >= SmoothHaulTargetSeconds
+        && RoughHaulSeconds <= RoughHaulAllowanceSeconds
+        && Trailer->GetCargoIntegrity() >= 0.90f
+        && Trailer->GetTrailerIntegrity() >= 0.70f;
+}
+
+void AGTTHeavyHaulDirector::UpdateDrivingQuality(float DeltaSeconds)
+{
+    if (!Trailer || Stage != EGTTHeavyHaulStage::DeliverHillFarm || !Trailer->HasCargo() || !Trailer->IsAttached() || DeltaSeconds <= 0.0f) return;
+
+    const float SpeedKmh = Trailer->GetVelocity().Size() * 0.036f;
+    const FRotator Rotation = Trailer->GetActorRotation();
+    const float RollDegrees = FMath::Abs(Rotation.Roll);
+    const float PitchDegrees = FMath::Abs(Rotation.Pitch);
+    const float HitchLoad = Trailer->GetHitchLoad();
+    const bool bAxleIntact = Trailer->HasIntactAxle();
+
+    const bool bSmooth =
+        SpeedKmh >= SmoothMinSpeedKmh
+        && SpeedKmh <= SmoothMaxSpeedKmh
+        && HitchLoad <= SmoothMaxHitchLoad
+        && RollDegrees <= SmoothMaxRollDegrees
+        && PitchDegrees <= SmoothMaxPitchDegrees
+        && bAxleIntact
+        && Trailer->GetTrailerIntegrity() >= 0.75f
+        && Trailer->GetCargoIntegrity() >= 0.88f;
+
+    const bool bRough =
+        SpeedKmh > RoughSpeedKmh
+        || HitchLoad > RoughHitchLoad
+        || RollDegrees > RoughRollDegrees
+        || PitchDegrees > RoughPitchDegrees
+        || !bAxleIntact;
+
+    if (bSmooth)
+    {
+        SmoothHaulSeconds = FMath::Min(SmoothHaulTargetSeconds, SmoothHaulSeconds + DeltaSeconds);
+    }
+    if (bRough)
+    {
+        RoughHaulSeconds += DeltaSeconds;
+    }
+
+    APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
+    if (!bSmoothHaulBonusAnnounced && SmoothHaulSeconds >= SmoothHaulTargetSeconds && RoughHaulSeconds <= RoughHaulAllowanceSeconds)
+    {
+        bSmoothHaulBonusAnnounced = true;
+        PushMessage(PlayerPawn, FString::Printf(
+            TEXT("SMOOTH HAUL READY: +$%d handling bonus is armed. Keep rough-driving exposure under %.0fs and protect the cargo."),
+            SmoothHaulBonus, RoughHaulAllowanceSeconds), 6.5f);
+        UE_LOG(LogGTT, Display,
+            TEXT("HEAVY_HAUL_DRIVING_QUALITY event=BONUS_ARMED smooth=%.2f rough=%.2f cargo=%.3f trailer=%.3f"),
+            SmoothHaulSeconds, RoughHaulSeconds, Trailer->GetCargoIntegrity(), Trailer->GetTrailerIntegrity());
+    }
+
+    if (!bRoughDrivingWarningIssued && RoughHaulSeconds > RoughHaulAllowanceSeconds)
+    {
+        bRoughDrivingWarningIssued = true;
+        PushMessage(PlayerPawn, TEXT("HEAVY HAUL WARNING: rough-driving allowance exceeded. Smooth-haul bonus lost; protect the remaining cargo."), 6.0f);
+        UE_LOG(LogGTT, Warning,
+            TEXT("HEAVY_HAUL_DRIVING_QUALITY event=ROUGH_LIMIT_EXCEEDED smooth=%.2f rough=%.2f speed_kmh=%.2f hitch=%.3f roll=%.2f pitch=%.2f"),
+            SmoothHaulSeconds, RoughHaulSeconds, SpeedKmh, HitchLoad, RollDegrees, PitchDegrees);
+    }
 }
 
 void AGTTHeavyHaulDirector::Tick(float DeltaSeconds)
@@ -47,6 +134,8 @@ void AGTTHeavyHaulDirector::Tick(float DeltaSeconds)
     }
 
     if (!Trailer) return;
+    UpdateDrivingQuality(DeltaSeconds);
+
     if ((Stage == EGTTHeavyHaulStage::ReachWoodYard || Stage == EGTTHeavyHaulStage::LoadTimber || Stage == EGTTHeavyHaulStage::DeliverHillFarm) && !Trailer->IsAttached())
     {
         Stage = EGTTHeavyHaulStage::HitchTrailer;
@@ -134,6 +223,7 @@ bool AGTTHeavyHaulDirector::TryStartContract(APawn* PlayerPawn)
     ContractTowVehicle = nullptr;
     ContractNativeTowVehicle = nullptr;
     RoadsideRepairCount = 0;
+    ResetDrivingQuality();
     TimeRemaining = ContractTimeLimit;
     Stage = EGTTHeavyHaulStage::HitchTrailer;
     PushMessage(PlayerPawn, TEXT("HEAVY TIMBER HAUL: hitch the farm trailer, drive to NORTH WOOD YARD, load timber and deliver to HILL FARM."), 7.0f);
@@ -168,8 +258,11 @@ bool AGTTHeavyHaulDirector::TryLoadTimber(APawn* PlayerPawn)
     if (!PlayerPawn || !Trailer || Stage != EGTTHeavyHaulStage::LoadTimber || !Trailer->IsAttached()) return false;
     if (FVector::Dist2D(Trailer->GetActorLocation(), WoodYardLoadLocation) > 900.0f) { PushMessage(PlayerPawn, TEXT("Bring the trailer into the NORTH WOOD YARD loading area.")); return false; }
     Trailer->SetCargoLoaded(true);
+    ResetDrivingQuality();
     Stage = EGTTHeavyHaulStage::DeliverHillFarm;
-    PushMessage(PlayerPawn, TEXT("HEAVY LOGS LOADED: deliver to HILL FARM. Speed, rollover angle and rough driving can damage the load."), 7.0f);
+    PushMessage(PlayerPawn, FString::Printf(
+        TEXT("HEAVY LOGS LOADED: deliver to HILL FARM. Hold %.0f-%.0f km/h, keep the hitch calm and the trailer level for %.0fs to arm a +$%d smooth-haul bonus."),
+        SmoothMinSpeedKmh, SmoothMaxSpeedKmh, SmoothHaulTargetSeconds, SmoothHaulBonus), 8.0f);
     return true;
 }
 
@@ -178,7 +271,7 @@ bool AGTTHeavyHaulDirector::TryRoadsideRepair(APawn* PlayerPawn)
     if (!PlayerPawn || !Trailer || !IsActive()) return false;
     if (Trailer->IsRoadsideRepairPending())
     {
-        PushMessage(PlayerPawn, FString::Printf(TEXT("FIELD REPAIR IN PROGRESS: %.0fs remaining | locked $%d."), Trailer->GetRoadsideRepairTimeRemaining(), Trailer->GetRoadsideRepairQuote()), 4.0f);
+        PushMessage(PlayerPawn, FString::Printf(TEXT("FIELD REPAIR IN PROGRESS: %.0fs remaining | locked $%d."), Trailer->GetRoadsideRepairTimeRemaining(), Trailer->GetLockedRoadsideRepairQuote()), 4.0f);
         return true;
     }
     return Trailer->TryBeginRoadsideRepair(PlayerPawn);
@@ -194,13 +287,27 @@ bool AGTTHeavyHaulDirector::TryDeliverTimber(APawn* PlayerPawn)
     const float VehicleFactor = GetContractTowConditionFactor();
     const int32 ConditionPay = FMath::RoundToInt(BaseReward * CargoFactor * (0.55f + 0.25f * TrailerFactor + 0.20f * VehicleFactor));
     const bool bFast = TimeRemaining >= ContractTimeLimit * 0.38f;
-    const int32 Reward = FMath::Max(180, ConditionPay + (bFast ? FastBonus : 0));
+    const bool bSmoothHaul = IsSmoothHaulBonusArmed();
+    const int32 Reward = FMath::Max(180, ConditionPay + (bFast ? FastBonus : 0) + (bSmoothHaul ? SmoothHaulBonus : 0));
 
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(PlayerPawn))
     {
         Economy->AddCash(Reward, FString::Printf(TEXT("Heavy timber haul: +$%d"), Reward));
-        Economy->PushMessage(FString::Printf(TEXT("HEAVY HAUL COMPLETE | $%d | cargo %.0f%% | trailer %.0f%%%s"), Reward, Trailer->GetCargoIntegrity()*100.0f, Trailer->GetTrailerIntegrity()*100.0f, bFast ? TEXT(" | FAST BONUS") : TEXT("")), 7.0f);
+        Economy->PushMessage(FString::Printf(
+            TEXT("HEAVY HAUL COMPLETE | $%d | cargo %.0f%% | trailer %.0f%% | smooth %.0fs | rough %.0fs%s%s"),
+            Reward,
+            Trailer->GetCargoIntegrity() * 100.0f,
+            Trailer->GetTrailerIntegrity() * 100.0f,
+            SmoothHaulSeconds,
+            RoughHaulSeconds,
+            bFast ? TEXT(" | FAST BONUS") : TEXT(""),
+            bSmoothHaul ? TEXT(" | SMOOTH HAUL BONUS") : TEXT("")), 8.0f);
     }
+
+    UE_LOG(LogGTT, Display,
+        TEXT("HEAVY_HAUL_DRIVING_QUALITY event=DELIVER reward=%d fast=%s smooth_bonus=%s smooth=%.2f rough=%.2f cargo=%.3f trailer=%.3f"),
+        Reward, bFast ? TEXT("YES") : TEXT("NO"), bSmoothHaul ? TEXT("YES") : TEXT("NO"),
+        SmoothHaulSeconds, RoughHaulSeconds, Trailer->GetCargoIntegrity(), Trailer->GetTrailerIntegrity());
 
     Trailer->SetCargoLoaded(false);
     Stage = EGTTHeavyHaulStage::Completed;
@@ -215,6 +322,7 @@ void AGTTHeavyHaulDirector::ResetContract(bool bResetTrailer)
     RoadsideRepairCount = 0;
     ContractTowVehicle = nullptr;
     ContractNativeTowVehicle = nullptr;
+    ResetDrivingQuality();
     if (bResetTrailer && Trailer) Trailer->ResetTrailer(FTransform(FRotator(0.0f, 90.0f, 0.0f), TrailerYardLocation));
 }
 
@@ -228,17 +336,24 @@ FString AGTTHeavyHaulDirector::GetObjectiveText() const
     if (!Trailer) return TEXT("HEAVY HAUL | trailer unavailable");
     FString RepairState;
     if (Trailer->IsRoadsideRepairPending())
-        RepairState = FString::Printf(TEXT(" | FIELD REPAIR %.0fs / $%d"), Trailer->GetRoadsideRepairTimeRemaining(), Trailer->GetRoadsideRepairQuote());
+        RepairState = FString::Printf(TEXT(" | FIELD REPAIR %.0fs / $%d"), Trailer->GetRoadsideRepairTimeRemaining(), Trailer->GetLockedRoadsideRepairQuote());
     else if (Trailer->NeedsRoadsideRepair())
         RepairState = FString::Printf(TEXT(" | FIELD REPAIR $%d"), Trailer->GetRoadsideRepairQuote());
+
+    const FString DrivingQualityState = Trailer->HasCargo()
+        ? FString::Printf(TEXT(" | smooth %.0f/%.0fs | rough %.0f/%.0fs%s"),
+            SmoothHaulSeconds, SmoothHaulTargetSeconds,
+            RoughHaulSeconds, RoughHaulAllowanceSeconds,
+            IsSmoothHaulBonusArmed() ? TEXT(" | BONUS ARMED") : TEXT(""))
+        : FString();
 
     switch (Stage)
     {
         case EGTTHeavyHaulStage::Idle: return TEXT("HEAVY HAUL | available at Player Farm");
-        case EGTTHeavyHaulStage::HitchTrailer: return FString::Printf(TEXT("HEAVY HAUL | hitch Fieldmaster to trailer | %.0fs%s"), TimeRemaining, *RepairState);
+        case EGTTHeavyHaulStage::HitchTrailer: return FString::Printf(TEXT("HEAVY HAUL | hitch Fieldmaster to trailer | %.0fs%s%s"), TimeRemaining, *DrivingQualityState, *RepairState);
         case EGTTHeavyHaulStage::ReachWoodYard: return FString::Printf(TEXT("HEAVY HAUL | tow EMPTY trailer to NORTH WOOD | %.0fs | hitch %.0f%%%s"), TimeRemaining, Trailer->GetHitchLoad()*100.0f, *RepairState);
         case EGTTHeavyHaulStage::LoadTimber: return FString::Printf(TEXT("HEAVY HAUL | load logs at NORTH WOOD | %.0fs%s"), TimeRemaining, *RepairState);
-        case EGTTHeavyHaulStage::DeliverHillFarm: return FString::Printf(TEXT("HEAVY HAUL | HILL FARM | %.0fs | cargo %.0f%% | trailer %.0f%% | hitch %.0f%%%s"), TimeRemaining, Trailer->GetCargoIntegrity()*100.0f, Trailer->GetTrailerIntegrity()*100.0f, Trailer->GetHitchLoad()*100.0f, *RepairState);
+        case EGTTHeavyHaulStage::DeliverHillFarm: return FString::Printf(TEXT("HEAVY HAUL | HILL FARM | %.0fs | cargo %.0f%% | trailer %.0f%% | hitch %.0f%%%s%s"), TimeRemaining, Trailer->GetCargoIntegrity()*100.0f, Trailer->GetTrailerIntegrity()*100.0f, Trailer->GetHitchLoad()*100.0f, *DrivingQualityState, *RepairState);
         case EGTTHeavyHaulStage::Completed: return TEXT("HEAVY HAUL | completed - new contract available");
         default: return TEXT("HEAVY HAUL");
     }
