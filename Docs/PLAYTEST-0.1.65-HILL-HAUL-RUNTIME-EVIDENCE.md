@@ -6,6 +6,12 @@ This milestone turns the existing 0.1.62 hill-haul, 0.1.63 trailer-brake thermal
 
 The exact candidate must produce `FIELDMASTER_HILL_HAUL_RUNTIME.json` from the same packaged `GTT_RUNTIME.log` already used by the Native Chaos acceptance chain.
 
+## Canonical execution path
+
+For a real qualifying build use the `Win64 package evidence` workflow on a `[self-hosted, windows, x64, unreal-5.8]` runner. That workflow delegates to `Scripts/run_win64_attested_candidate_acceptance.ps1`; it must not maintain a second hand-written package/runtime sequence or rebuild the ZIP after attestation.
+
+A successful technical artifact must contain the exact-candidate `WIN64_ACCEPTANCE_SUMMARY.json`, `WIN64_CANDIDATE_ATTESTATION.json`, `FIELDMASTER_HILL_HAUL_RUNTIME.json`, `NATIVE_AUTHORITY_RUNTIME.json`, `FINAL_SHA256SUMS.txt`, the packaged ZIP/hash sidecar and the five rendered review screenshots. The reviewed-release workflow independently re-hashes the sealed manifest before any human visual acceptance is recorded.
+
 ## Required environment
 
 - Windows x64
@@ -59,7 +65,10 @@ The exact candidate must fail qualification when:
 - no trailer-brake thermal behavior is observed;
 - telemetry is missing required fields or exceeds bounded production ranges;
 - fade is reported below the production threshold tolerance;
-- runaway mitigation appears outside the required critical/load/grade/speed envelope.
+- runaway mitigation appears outside the required critical/load/grade/speed envelope;
+- the package lane does not use the sealed attested runner;
+- the sealed integrity manifest does not reproduce every listed SHA-256 digest;
+- the reviewed-release workflow cannot prove the same exact SHA/version/attestation before human approval.
 
 ## Release boundary
 

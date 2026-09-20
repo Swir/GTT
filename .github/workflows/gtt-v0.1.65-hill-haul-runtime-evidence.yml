@@ -9,7 +9,10 @@ on:
       - 'Scripts/evaluate_fieldmaster_hill_haul_runtime.ps1'
       - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
       - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
       - 'Scripts/verify_v0_1_65_hill_haul_runtime_evidence.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/release-windows.yml'
       - 'Docs/PLAYTEST-0.1.65-HILL-HAUL-RUNTIME-EVIDENCE.md'
       - 'CHANGELOG.d/0.1.65-hill-haul-runtime-evidence.md'
       - 'Docs/ROADMAP.md'
@@ -25,7 +28,10 @@ on:
       - 'Scripts/evaluate_fieldmaster_hill_haul_runtime.ps1'
       - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
       - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
       - 'Scripts/verify_v0_1_65_hill_haul_runtime_evidence.py'
+      - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/release-windows.yml'
       - 'Docs/PLAYTEST-0.1.65-HILL-HAUL-RUNTIME-EVIDENCE.md'
       - 'CHANGELOG.d/0.1.65-hill-haul-runtime-evidence.md'
       - 'Docs/ROADMAP.md'
@@ -45,6 +51,8 @@ jobs:
         with: { python-version: '3.12' }
       - name: Verify 0.1.65 packaged hill-haul evidence contract
         run: python Scripts/verify_v0_1_65_hill_haul_runtime_evidence.py
+      - name: Preserve rolling exact Win64 candidate pipeline
+        run: python Scripts/verify_v0_1_61_win64_candidate_pipeline.py
       - name: Preserve 0.1.64 Native Chaos authority watchdog
         run: python Scripts/verify_v0_1_64_native_authority_watchdog.py
       - name: Preserve 0.1.64 trailer brake runaway safety

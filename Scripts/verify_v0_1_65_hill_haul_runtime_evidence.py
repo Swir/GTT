@@ -11,6 +11,8 @@ movement = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementCompo
 evaluator = (ROOT / "Scripts/evaluate_fieldmaster_hill_haul_runtime.ps1").read_text(encoding="utf-8")
 acceptance = (ROOT / "Scripts/run_win64_attested_candidate_acceptance.ps1").read_text(encoding="utf-8")
 attestation = (ROOT / "Scripts/write_win64_candidate_attestation.ps1").read_text(encoding="utf-8")
+package_workflow = (ROOT / ".github/workflows/win64-package-evidence.yml").read_text(encoding="utf-8")
+release_workflow = (ROOT / ".github/workflows/release-windows.yml").read_text(encoding="utf-8")
 config = (ROOT / "Config/DefaultGame.ini").read_text(encoding="utf-8")
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
 playtest = (ROOT / "Docs/PLAYTEST-0.1.65-HILL-HAUL-RUNTIME-EVIDENCE.md").read_text(encoding="utf-8")
@@ -74,8 +76,8 @@ for token in [
     assert token in evaluator, f"0.1.65 packaged evaluator missing: {token}"
 
 assert '"evaluate_fieldmaster_hill_haul_runtime.ps1"' in acceptance
-assert acceptance.index('"evaluate_native_authority_runtime.ps1"') < acceptance.index('"evaluate_fieldmaster_hill_haul_runtime.ps1"') if '"evaluate_native_authority_runtime.ps1"' in acceptance else True
 assert 'fieldmaster_hill_haul_runtime -NotePropertyValue "PASS"' in acceptance
+assert acceptance.index("& $BaseRunner") < acceptance.index("& $HillHaulEvaluator") < acceptance.index("& $Attestor")
 
 for token in [
     'Read-JsonRequired "FIELDMASTER_HILL_HAUL_RUNTIME.json"',
@@ -88,6 +90,29 @@ for token in [
     "FINAL_SHA256SUMS.txt",
 ]:
     assert token in attestation, f"0.1.65 attestation wiring missing: {token}"
+
+for token in [
+    "run_win64_attested_candidate_acceptance.ps1",
+    "WIN64_CANDIDATE_ATTESTATION.json",
+    "FIELDMASTER_HILL_HAUL_RUNTIME.json",
+    "NATIVE_AUTHORITY_RUNTIME.json",
+    "FINAL_SHA256SUMS.txt",
+    "Upload sealed Win64 evidence",
+]:
+    assert token in package_workflow, f"0.1.65 package workflow is not sealed end-to-end: {token}"
+assert "Compress-Archive" not in package_workflow, "Package workflow must not rebuild an archive outside the attestor"
+
+for token in [
+    "Verify sealed exact-candidate attestation and integrity manifest",
+    "WIN64_CANDIDATE_ATTESTATION.json",
+    "FIELDMASTER_HILL_HAUL_RUNTIME.json",
+    "FINAL_SHA256SUMS.txt",
+    "gtt.win64-candidate-attestation.v1",
+    "hill_haul_loaded_samples",
+    "hill_haul_assist_samples",
+    "hill_haul_thermal_samples",
+]:
+    assert token in release_workflow, f"0.1.65 reviewed release gate missing sealed evidence check: {token}"
 
 assert re.search(r"(?m)^ProjectVersion=0\.1\.65$", config), "ProjectVersion must identify the exact 0.1.65 candidate"
 
@@ -127,7 +152,7 @@ for token in [
     "verify_v0_1_64_trailer_brake_runaway_safety.py",
     "verify_v0_1_63_trailer_brake_thermal_control.py",
     "verify_v0_1_62_fieldmaster_hill_haul_control.py",
-    "verify_win64_candidate_acceptance_runner.py",
+    "verify_v0_1_61_win64_candidate_pipeline.py",
     "verify_v0_1_61_candidate_attestation.py",
     "verify_progress_presentation.py",
     "verify_project.py",
@@ -135,5 +160,5 @@ for token in [
     assert token in workflow, f"0.1.65 workflow regression coverage missing: {token}"
 
 print("GTT 0.1.65 packaged hill-haul runtime evidence: source/integration contract OK")
-print("Exact candidate must prove loaded trailer + hill assist + thermal behavior before attestation")
+print("Package lane now delegates to the sealed exact-candidate runner and release rechecks attestation")
 print("Roadmap truth preserved: 125/130 = 96.2%; five runtime/art gates remain open")
