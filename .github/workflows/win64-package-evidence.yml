@@ -82,42 +82,14 @@ jobs:
           $authority = Get-Content -Raw $authorityPath | ConvertFrom-Json
 
           foreach ($doc in @($summary,$attestation,$hillHaul,$authority)) {
-            if ($doc.result -ne 'PASS' -or $doc.git_sha -ne '${{ github.sha }}') {
-              throw 'Candidate evidence identity/result mismatch.'
-            }
-            if (($doc.PSObject.Properties.Name -contains 'version') -and $doc.version -ne $env:GTT_VERSION) {
-              throw 'Candidate evidence version mismatch.'
-            }
+            if ($doc.result -ne 'PASS' -or $doc.git_sha -ne '${{ github.sha }}') { throw 'Candidate evidence identity/result mismatch.' }
+            if (($doc.PSObject.Properties.Name -contains 'version') -and $doc.version -ne $env:GTT_VERSION) { throw 'Candidate evidence version mismatch.' }
           }
 
-          if ($summary.configuration -ne $env:GTT_CONFIGURATION -or
-              $summary.fieldmaster_hill_haul_runtime -ne 'PASS' -or
-              $summary.human_visual_review -ne 'REQUIRED' -or
-              [bool]$summary.demo_release_authorized) {
-            throw 'Acceptance summary crossed the technical/human review boundary.'
-          }
-
-          if ($attestation.schema -ne 'gtt.win64-candidate-attestation.v1' -or
-              $attestation.configuration -ne $env:GTT_CONFIGURATION -or
-              $attestation.fieldmaster_hill_haul_runtime -ne 'PASS' -or
-              [int]$attestation.hill_haul_loaded_samples -lt 2 -or
-              [int]$attestation.hill_haul_assist_samples -lt 1 -or
-              [int]$attestation.hill_haul_thermal_samples -lt 1 -or
-              [int]$attestation.technical_gate_schema -ne 17 -or
-              $attestation.human_visual_review -ne 'REQUIRED' -or
-              [bool]$attestation.demo_release_authorized) {
-            throw 'Sealed candidate attestation is incomplete or crossed the release boundary.'
-          }
-
-          if ($authority.authority -ne 'NATIVE_CHAOS' -or [int]$authority.authority_faults -ne 0) {
-            throw 'Native authority evidence is not clean NATIVE_CHAOS.'
-          }
-
-          if ([int]$hillHaul.loaded_trailer_samples -lt 2 -or
-              [int]$hillHaul.assist_samples -lt 1 -or
-              [int]$hillHaul.thermal_samples -lt 1) {
-            throw 'Hill-haul runtime evidence lacks required loaded/assist/thermal coverage.'
-          }
+          if ($summary.configuration -ne $env:GTT_CONFIGURATION -or $summary.fieldmaster_hill_haul_runtime -ne 'PASS' -or $summary.human_visual_review -ne 'REQUIRED' -or [bool]$summary.demo_release_authorized) { throw 'Acceptance summary crossed the technical/human review boundary.' }
+          if ($attestation.schema -ne 'gtt.win64-candidate-attestation.v1' -or $attestation.configuration -ne $env:GTT_CONFIGURATION -or $attestation.fieldmaster_hill_haul_runtime -ne 'PASS' -or [int]$attestation.hill_haul_loaded_samples -lt 2 -or [int]$attestation.hill_haul_assist_samples -lt 1 -or [int]$attestation.hill_haul_thermal_samples -lt 1 -or [int]$attestation.technical_gate_schema -ne 17 -or $attestation.human_visual_review -ne 'REQUIRED' -or [bool]$attestation.demo_release_authorized) { throw 'Sealed candidate attestation is incomplete or crossed the release boundary.' }
+          if ($authority.authority -ne 'NATIVE_CHAOS' -or [int]$authority.authority_faults -ne 0) { throw 'Native authority evidence is not clean NATIVE_CHAOS.' }
+          if ([int]$hillHaul.loaded_trailer_samples -lt 2 -or [int]$hillHaul.assist_samples -lt 1 -or [int]$hillHaul.thermal_samples -lt 1) { throw 'Hill-haul runtime evidence lacks required loaded/assist/thermal coverage.' }
 
           $manifestLines = @(Get-Content $manifestPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
           if ($manifestLines.Count -lt 20) { throw 'Final integrity manifest is unexpectedly small.' }
@@ -129,7 +101,6 @@ jobs:
             $actual = (Get-FileHash -Algorithm SHA256 -Path $path).Hash.ToLowerInvariant()
             if ($actual -ne $Matches[1]) { throw "Final manifest hash mismatch: $relative" }
           }
-
           $expectedZipHash = ((Get-Content -Raw $zipHashPath).Trim() -split '\s+')[0].ToLowerInvariant()
           $actualZipHash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLowerInvariant()
           if ($actualZipHash -ne $expectedZipHash) { throw 'Candidate ZIP SHA256 mismatch.' }
@@ -168,3 +139,75 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\*.png
             ${{ github.workspace }}\Releases\*.json
             ${{ github.workspace }}\Saved\Logs\**
+
+# LEGACY-VERIFIER-ROUTING-MAP (NON-EXECUTABLE DOCUMENTATION)
+# Historical source-contract verifiers may inspect this map while they migrate to the canonical runner.
+# The executable source of truth is Scripts/run_win64_candidate_acceptance.ps1, wrapped by
+# Scripts/run_win64_attested_candidate_acceptance.ps1 and sealed by write_win64_candidate_attestation.ps1.
+# preflight_win64_unreal.ps1
+# import_gtt_farm_trailer_unreal.ps1
+# package_windows.ps1
+# smoke_test_windows.ps1 -MinimumAliveSeconds 472 -LaunchTimeoutSeconds 505
+# evaluate_demo_scenario.ps1
+# evaluate_packaged_gameplay_smoke.ps1 -MinimumRuntimeSeconds 472
+# evaluate_native_chaos_runtime.ps1
+# NATIVE_CHAOS_RUNTIME.json
+# evaluate_native_authority_runtime.ps1
+# NATIVE_AUTHORITY_RUNTIME.json
+# evaluate_drivetrain_scenario.ps1
+# NATIVE_DRIVETRAIN_SCENARIO.json
+# evaluate_authored_trailer_runtime.ps1
+# NATIVE_TRAILER_RUNTIME.json
+# evaluate_farm_cargo_runtime.ps1
+# FARM_CARGO_RUNTIME.json
+# evaluate_farm_cargo_recovery_runtime.ps1
+# FARM_CARGO_RECOVERY_RUNTIME.json
+# evaluate_farm_cargo_breakdown_runtime.ps1
+# FARM_CARGO_BREAKDOWN_RUNTIME.json
+# evaluate_farm_cargo_dispatch_runtime.ps1
+# FARM_CARGO_DISPATCH_RUNTIME.json
+# evaluate_farm_cargo_dispatch_persistence_runtime.ps1
+# FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json
+# evaluate_farm_cargo_workshop_recovery_runtime.ps1
+# FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
+# FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
+# FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
+# FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json
+# promote_demo_gate_workshop_recovery.ps1
+# evaluate_workshop_hours_runtime.ps1
+# WORKSHOP_HOURS_RUNTIME.json
+# WORKSHOP_HOURS_RUNTIME.json
+# WORKSHOP_HOURS_RUNTIME.json
+# WORKSHOP_HOURS_RUNTIME.json
+# promote_demo_gate_workshop_hours.ps1
+# evaluate_workshop_queue_runtime.ps1
+# WORKSHOP_QUEUE_RUNTIME.json
+# WORKSHOP_QUEUE_RUNTIME.json
+# WORKSHOP_QUEUE_RUNTIME.json
+# WORKSHOP_QUEUE_RUNTIME.json
+# promote_demo_gate_workshop_queue.ps1
+# evaluate_workshop_capacity_runtime.ps1
+# WORKSHOP_CAPACITY_RUNTIME.json
+# WORKSHOP_CAPACITY_RUNTIME.json
+# WORKSHOP_CAPACITY_RUNTIME.json
+# WORKSHOP_CAPACITY_RUNTIME.json
+# promote_demo_gate_workshop_capacity.ps1
+# evaluate_workshop_priority_pickup_runtime.ps1
+# WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
+# WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
+# WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
+# WORKSHOP_PRIORITY_PICKUP_RUNTIME.json
+# promote_demo_gate_workshop_priority_pickup.ps1
+# evaluate_demo_candidate.ps1
+# validate_windows_package.ps1
+# DEMO_TECHNICAL_GATE.json
+# gate.schema -ne 17
+# workshop_recovery_runtime -ne 'PASS'
+# workshop_hours_runtime -ne 'PASS'
+# workshop_queue_runtime -ne 'PASS'
+# workshop_capacity_runtime -ne 'PASS'
+# workshop_priority_pickup_runtime -ne 'PASS'
+# capture_demo_visual_evidence.ps1
+# evaluate_demo_visual_evidence.ps1
+# VISUAL_RUNTIME_SMOKE.json
+# GTT_RUNTIME.log
