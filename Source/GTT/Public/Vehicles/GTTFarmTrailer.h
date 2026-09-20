@@ -32,6 +32,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer") void DetachTrailer();
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer") void SetCargoLoaded(bool bLoaded);
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer|Recovery") bool PerformRoadsideRepair(float IntegrityRestore = 0.35f);
+    UFUNCTION(BlueprintCallable, Category="GTT|Trailer|Recovery") bool TryBeginRoadsideRepair(APawn* RepairPawn);
 
     UFUNCTION(BlueprintPure, Category="GTT|Trailer") bool IsAttached() const { return bAttached; }
     UFUNCTION(BlueprintPure, Category="GTT|Trailer") bool IsAttachedToNativeFieldmaster() const { return NativeTowVehicle != nullptr; }
@@ -50,6 +51,7 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") int32 GetRoadsideRepairQuote() const;
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") float GetRoadsideRepairDuration() const;
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") float GetRoadsideRepairTimeRemaining() const { return RoadsideRepairTimeRemaining; }
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") int32 GetRoadsideRepairCount() const { return RoadsideRepairCount; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Dynamics")
     float GetTowLoadFactor() const
@@ -112,6 +114,7 @@ private:
     float RoadsideRepairTimeRemaining = 0.0f;
     float LockedRoadsideRepairDuration = 0.0f;
     int32 LockedRoadsideRepairQuote = 0;
+    int32 RoadsideRepairCount = 0;
     TWeakObjectPtr<APawn> RoadsideRepairPlayer;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer") float SafeHitchDistance = 360.0f;
