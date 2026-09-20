@@ -9,6 +9,8 @@ telemetry = (ROOT / "Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsys
 pawn = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp").read_text(encoding="utf-8")
 runtime_gate = (ROOT / "Scripts/evaluate_native_authority_runtime.ps1").read_text(encoding="utf-8")
 native_gate = (ROOT / "Scripts/evaluate_native_chaos_runtime.ps1").read_text(encoding="utf-8")
+acceptance = (ROOT / "Scripts/run_win64_candidate_acceptance.ps1").read_text(encoding="utf-8")
+attestation = (ROOT / "Scripts/write_win64_candidate_attestation.ps1").read_text(encoding="utf-8")
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
 playtest = (ROOT / "Docs/PLAYTEST-0.1.64-NATIVE-AUTHORITY-WATCHDOG.md").read_text(encoding="utf-8")
 changelog = (ROOT / "CHANGELOG.d/0.1.64-native-authority-watchdog.md").read_text(encoding="utf-8")
@@ -39,7 +41,6 @@ for token in [
 ]:
     assert token in telemetry, f"missing 0.1.64 authority-watchdog source contract: {token}"
 
-# The existing production takeover must still quiesce the legacy actor before native authority starts.
 for token in [
     "LegacyVehicle->SetActorHiddenInGame(true)",
     "LegacyVehicle->SetActorEnableCollision(false)",
@@ -65,7 +66,28 @@ for token in [
 ]:
     assert token in runtime_gate, f"runtime authority evaluator missing: {token}"
 
-# Preserve the already-strong packaged Native Chaos gate instead of replacing it with the new watchdog.
+for token in [
+    '"evaluate_native_chaos_runtime.ps1"',
+    '"evaluate_native_authority_runtime.ps1"',
+    'native_authority_runtime = "PASS"',
+    'WIN64_ACCEPTANCE_SUMMARY.json',
+]:
+    assert token in acceptance, f"exact Win64 acceptance chain missing authority evidence: {token}"
+assert acceptance.index('"evaluate_native_chaos_runtime.ps1"') < acceptance.index('"evaluate_native_authority_runtime.ps1"')
+assert acceptance.index('"evaluate_native_authority_runtime.ps1"') < acceptance.index('"evaluate_authored_trailer_runtime.ps1"')
+
+for token in [
+    'Read-JsonRequired "NATIVE_AUTHORITY_RUNTIME.json"',
+    'Assert-ExactIdentity $authority "NATIVE_AUTHORITY_RUNTIME.json"',
+    'authority must be NATIVE_CHAOS',
+    'contains split-authority faults',
+    '"NATIVE_AUTHORITY_RUNTIME.json"',
+    'native_authority_runtime = "PASS"',
+    'native_authority_faults = 0',
+    'FINAL_SHA256SUMS.txt',
+]:
+    assert token in attestation, f"candidate attestation does not seal authority evidence: {token}"
+
 for token in [
     "max_valid_wheels",
     "max_contacts",
@@ -99,6 +121,8 @@ for token in [
     "exactly one live driving authority",
     "RESTORE_LEGACY",
     "NATIVE_AUTHORITY_RUNTIME.json",
+    "exact-candidate acceptance",
+    "candidate attestation",
     "packaged Win64",
     "not close",
 ]:
@@ -108,6 +132,8 @@ for token in [
     "Native Chaos authority watchdog",
     "NATIVE_FIELDMASTER_AUTHORITY_FAULT",
     "NATIVE_AUTHORITY_RUNTIME.json",
+    "exact Win64 acceptance",
+    "attestation",
     "not close",
 ]:
     assert token.lower() in changelog.lower(), f"0.1.64 changelog missing {token}"
@@ -116,11 +142,15 @@ for token in [
     "Verify 0.1.64 Native Chaos authority watchdog",
     "verify_native_runtime_telemetry.py",
     "verify_fieldmaster_dedicated_chaos_movement.py",
+    "verify_win64_candidate_acceptance_runner.py",
+    "verify_v0_1_61_candidate_attestation.py",
+    "verify_progress_presentation.py",
+    "verify_v0_1_64_trailer_brake_runaway_safety.py",
     "verify_v0_1_63_trailer_brake_thermal_control.py",
     "verify_v0_1_62_fieldmaster_hill_haul_control.py",
 ]:
     assert token in workflow, f"0.1.64 CI regression coverage missing {token}"
 
 print("GTT 0.1.64 Native Chaos authority watchdog: source/integration contract OK")
-print("Fail-closed split-authority recovery and packaged runtime evidence evaluator are wired")
+print("Fail-closed split-authority recovery is wired into exact Win64 acceptance + sealed attestation")
 print("Roadmap truth preserved: 125/130 = 96.2%; five runtime/art gates remain open")
