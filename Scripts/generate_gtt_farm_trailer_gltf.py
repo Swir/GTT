@@ -8,9 +8,10 @@ from __future__ import annotations
 import argparse, base64, hashlib, json, math, struct
 from pathlib import Path
 
-ASSET_VERSION="gtt.farm-trailer-source-rig.v1"
+ASSET_VERSION="gtt.farm-trailer-source-rig.v2"
 REQUIRED_JOINTS=["body","wheel_l","wheel_r"]
 REQUIRED_SOCKETS=["socket_hitch","socket_cargo","socket_axle_l","socket_axle_r"]
+SOCKET_NODE_NAMES={name:f"SOCKET_{name}" for name in REQUIRED_SOCKETS}
 
 class B:
     def __init__(self): self.buf=bytearray(); self.views=[]; self.acc=[]
@@ -74,6 +75,13 @@ def primitive(builder, parts, material):
 
 def inv_t(x,y,z): return [1,0,0,0,0,1,0,0,0,0,1,0,-x,-y,-z,1]
 
+def socket_node(logical_name, translation):
+    return {
+        "name": SOCKET_NODE_NAMES[logical_name],
+        "translation": translation,
+        "extras": {"gtt_socket": True, "gtt_socket_name": logical_name},
+    }
+
 def generate():
     b=B()
     body=[]
@@ -96,23 +104,25 @@ def generate():
                "extras":{"license":"Project-owned original source art","gtt_asset_contract":ASSET_VERSION}},
       "scene":0,"scenes":[{"nodes":[0]}],
       "nodes":[
-        {"name":"GTT_FarmTrailer_Rig","children":[1,2,3,4,5,6,7],"mesh":0,"skin":0},
-        {"name":"body"},{"name":"wheel_l","translation":[.72,-1.42,-.42]},
+        {"name":"GTT_FarmTrailer_Rig","children":[1],"mesh":0,"skin":0},
+        {"name":"body","children":[2,3,4,5,6,7]},{"name":"wheel_l","translation":[.72,-1.42,-.42]},
         {"name":"wheel_r","translation":[.72,1.42,-.42]},
-        {"name":"socket_hitch","translation":[-4.90,0,.12],"extras":{"gtt_socket":True}},
-        {"name":"socket_cargo","translation":[0,0,1.05],"extras":{"gtt_socket":True}},
-        {"name":"socket_axle_l","translation":[.72,-1.42,-.42],"extras":{"gtt_socket":True}},
-        {"name":"socket_axle_r","translation":[.72,1.42,-.42],"extras":{"gtt_socket":True}}],
+        socket_node("socket_hitch",[-4.90,0,.12]),
+        socket_node("socket_cargo",[0,0,1.05]),
+        socket_node("socket_axle_l",[.72,-1.42,-.42]),
+        socket_node("socket_axle_r",[.72,1.42,-.42])],
       "skins":[{"name":"GTT_FarmTrailer_Skin","joints":[1,2,3],"skeleton":1,"inverseBindMatrices":ibma,
-                "extras":{"required_joints":REQUIRED_JOINTS,"required_sockets":REQUIRED_SOCKETS}}],
+                "extras":{"required_joints":REQUIRED_JOINTS,"required_sockets":REQUIRED_SOCKETS,
+                          "interchange_socket_nodes":SOCKET_NODE_NAMES}}],
       "meshes":[{"name":"GTT_FarmTrailer","primitives":prims}],
       "materials":[
         {"name":"GTT_TrailerPaint","pbrMetallicRoughness":{"baseColorFactor":[.10,.22,.11,1],"metallicFactor":.55,"roughnessFactor":.62}},
         {"name":"GTT_Tire","pbrMetallicRoughness":{"baseColorFactor":[.025,.025,.03,1],"metallicFactor":0,"roughnessFactor":.92}}],
       "buffers":[{"byteLength":len(b.buf),"uri":uri}],"bufferViews":b.views,"accessors":b.acc,
       "extras":{"gtt_asset_contract":ASSET_VERSION,"required_joints":REQUIRED_JOINTS,"required_sockets":REQUIRED_SOCKETS,
+                "interchange_socket_nodes":SOCKET_NODE_NAMES,
                 "units":"meters","source":"procedurally authored for Swir/GTT; no third-party protected game assets",
-                "acceptance":"source-rig candidate only; Unreal import + packaged Win64 runtime/visual evidence required"}}
+                "acceptance":"source-rig candidate only; Unreal import + PhysicsAsset + packaged Win64 runtime/visual evidence required"}}
 
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--output",default="SourceArt/Trailer/GTT_FarmTrailer_Rig.gltf"); ap.add_argument("--check",action="store_true")

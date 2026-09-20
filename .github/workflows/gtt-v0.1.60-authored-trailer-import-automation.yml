@@ -1,0 +1,47 @@
+name: GTT 0.1.60 authored trailer UE import automation sanity
+
+on:
+  push:
+    paths:
+      - 'GTT.uproject'
+      - 'Scripts/Unreal/import_gtt_farm_trailer.py'
+      - 'Scripts/import_gtt_farm_trailer_unreal.ps1'
+      - 'Scripts/generate_gtt_farm_trailer_gltf.py'
+      - 'Scripts/verify_v0_1_60_authored_trailer_source_rig.py'
+      - 'Scripts/verify_v0_1_60_authored_trailer_import_automation.py'
+      - 'Docs/PLAYTEST_0.1.60_AUTHORED_TRAILER_IMPORT_AUTOMATION.md'
+      - 'CHANGELOG.d/0.1.60-authored-trailer-import-automation.md'
+      - '.github/workflows/gtt-v0.1.60-authored-trailer-import-automation.yml'
+  pull_request:
+    paths:
+      - 'GTT.uproject'
+      - 'Scripts/Unreal/import_gtt_farm_trailer.py'
+      - 'Scripts/import_gtt_farm_trailer_unreal.ps1'
+      - 'Scripts/generate_gtt_farm_trailer_gltf.py'
+      - 'Scripts/verify_v0_1_60_authored_trailer_source_rig.py'
+      - 'Scripts/verify_v0_1_60_authored_trailer_import_automation.py'
+      - 'Docs/PLAYTEST_0.1.60_AUTHORED_TRAILER_IMPORT_AUTOMATION.md'
+      - 'CHANGELOG.d/0.1.60-authored-trailer-import-automation.md'
+      - '.github/workflows/gtt-v0.1.60-authored-trailer-import-automation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  authored-trailer-import-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify UE 5.8 authored-trailer import automation contract
+        run: python Scripts/verify_v0_1_60_authored_trailer_import_automation.py
+      - name: Regenerate and verify Interchange-ready source rig
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/GTT_FarmTrailer_Rig.gltf"
+          python Scripts/generate_gtt_farm_trailer_gltf.py --output "$OUT"
+          python Scripts/verify_v0_1_60_authored_trailer_source_rig.py --asset "$OUT"
