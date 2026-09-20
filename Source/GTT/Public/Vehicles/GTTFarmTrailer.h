@@ -49,6 +49,7 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") bool NeedsRoadsideRepair() const;
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") bool IsRoadsideRepairPending() const { return bRoadsideRepairPending; }
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") int32 GetRoadsideRepairQuote() const;
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") int32 GetLockedRoadsideRepairQuote() const { return bRoadsideRepairPending ? LockedRoadsideRepairQuote : GetRoadsideRepairQuote(); }
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") float GetRoadsideRepairDuration() const;
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") float GetRoadsideRepairTimeRemaining() const { return RoadsideRepairTimeRemaining; }
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") int32 GetRoadsideRepairCount() const { return RoadsideRepairCount; }
