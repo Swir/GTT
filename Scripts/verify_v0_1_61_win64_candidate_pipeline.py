@@ -16,7 +16,7 @@ IMPORT_SCRIPT = ROOT / "Scripts" / "Unreal" / "import_gtt_farm_trailer.py"
 PACKAGE_HELPER = ROOT / "Scripts" / "package_windows.ps1"
 ACCEPTANCE_RUNNER = ROOT / "Scripts" / "run_win64_candidate_acceptance.ps1"
 
-EXPECTED_VERSION = "0.1.61"
+MINIMUM_CANDIDATE_VERSION = (0, 1, 61)
 FINAL_ASSET = "Content/GTT/Vehicles/Trailer/SK_GTT_FarmTrailer.uasset"
 
 
@@ -56,12 +56,17 @@ def input_block(text: str, key: str) -> str:
     return text[start:end]
 
 
-def require_current_default(block: str, scope: str) -> None:
-    match = re.search(r"(?m)^\s+default:\s*['\"]([^'\"]+)['\"]\s*$", block)
+def current_project_version(config: str) -> str:
+    match = re.search(r"(?m)^ProjectVersion=(\d+)\.(\d+)\.(\d+)\s*$", config)
     if not match:
-        fail(f"{scope}: current-version default missing")
-    if match.group(1) != EXPECTED_VERSION:
-        fail(f"{scope}: default {match.group(1)!r} does not match ProjectVersion {EXPECTED_VERSION}")
+        fail("DefaultGame.ini: ProjectVersion must be a semantic x.y.z version")
+    version_tuple = tuple(int(part) for part in match.groups())
+    if version_tuple < MINIMUM_CANDIDATE_VERSION:
+        fail(
+            "DefaultGame.ini: candidate version regressed below the 0.1.61 qualification baseline: "
+            + ".".join(str(part) for part in version_tuple)
+        )
+    return ".".join(match.groups())
 
 
 def main() -> int:
@@ -73,7 +78,7 @@ def main() -> int:
     package_helper = PACKAGE_HELPER.read_text(encoding="utf-8")
     acceptance_runner = ACCEPTANCE_RUNNER.read_text(encoding="utf-8")
 
-    require(config, f"ProjectVersion={EXPECTED_VERSION}", "DefaultGame.ini")
+    candidate_version = current_project_version(config)
 
     for stale in ("default: '0.1.52'", 'default: "0.1.52"', "default: '0.1.20'", 'default: "0.1.20"'):
         forbid(package + release, stale, "candidate workflows")
@@ -82,8 +87,11 @@ def main() -> int:
     release_version = input_block(release, "version")
     require(package_version, "required: true", "package version input")
     require(release_version, "required: true", "release version input")
-    require_current_default(package_version, "package version input")
-    require_current_default(release_version, "release version input")
+    # Version defaults are UX hints only. Both workflows must reject any explicit
+    # version that does not match Config/DefaultGame.ini, so historical workflow
+    # names/defaults cannot silently mislabel a newer exact candidate.
+    require(package, "does not match ProjectVersion", "package workflow")
+    require(release, "does not match", "release workflow")
 
     require(package, "runs-on: [self-hosted, windows, x64, unreal-5.8]", "package workflow")
     require(package, "ProjectVersion", "package workflow")
@@ -166,8 +174,8 @@ def main() -> int:
         require(acceptance_runner, token, "one-command acceptance runner")
 
     print(
-        "GTT 0.1.61 Win64 candidate pipeline sanity: PASS "
-        "(current version, UE 5.8 preflight, authored trailer import, package/runtime/visual evidence, "
+        f"GTT {candidate_version} Win64 candidate pipeline sanity: PASS "
+        "(rolling current version, UE 5.8 preflight, authored trailer import, package/runtime/visual evidence, "
         "local exact-candidate runner, exact-SHA release gate)"
     )
     return 0
