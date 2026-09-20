@@ -93,7 +93,10 @@ assert "package_windows.ps1" not in release_workflow, "publication stage must no
 assert "BuildCookRun" not in release_workflow, "publication stage must not invoke UAT build/cook/package"
 
 required_package = [
-    'string]$Version = "0.1.14"',
+    '[string]$Version = ""',
+    "Config\\DefaultGame.ini",
+    "ProjectVersion",
+    "does not match ProjectVersion",
     "preflight_win64_unreal.ps1",
     "WIN64_PREFLIGHT.json",
     "BUILD_ATTEMPT.json",
@@ -106,6 +109,7 @@ required_package = [
 ]
 for token in required_package:
     assert token in package, f"missing package helper token: {token}"
+assert '[string]$Version = "0.1.14"' not in package, "package helper must not silently label a current build as 0.1.14"
 
 required_validator = [
     "WIN64_PREFLIGHT.json",
@@ -157,4 +161,4 @@ for required_doc_token in [
 
 assert "candidate_run_id" in release_doc
 assert "does not rebuild" in release_doc.lower() or "never" in release_doc.lower()
-print("Win64 runtime acceptance/evidence gate: OK (exact-version authored import + two-stage exact-candidate release; schema-17 workshop priority/pickup wired)")
+print("Win64 runtime acceptance/evidence gate: OK (canonical package version + exact-version authored import + two-stage exact-candidate release; schema-17 workshop priority/pickup wired)")

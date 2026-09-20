@@ -13,6 +13,8 @@ RELEASE = ROOT / ".github" / "workflows" / "release-windows.yml"
 CONFIG = ROOT / "Config" / "DefaultGame.ini"
 IMPORT_WRAPPER = ROOT / "Scripts" / "import_gtt_farm_trailer_unreal.ps1"
 IMPORT_SCRIPT = ROOT / "Scripts" / "Unreal" / "import_gtt_farm_trailer.py"
+PACKAGE_HELPER = ROOT / "Scripts" / "package_windows.ps1"
+ACCEPTANCE_RUNNER = ROOT / "Scripts" / "run_win64_candidate_acceptance.ps1"
 
 EXPECTED_VERSION = "0.1.61"
 FINAL_ASSET = "Content/GTT/Vehicles/Trailer/SK_GTT_FarmTrailer.uasset"
@@ -68,6 +70,8 @@ def main() -> int:
     config = CONFIG.read_text(encoding="utf-8")
     wrapper = IMPORT_WRAPPER.read_text(encoding="utf-8")
     importer = IMPORT_SCRIPT.read_text(encoding="utf-8")
+    package_helper = PACKAGE_HELPER.read_text(encoding="utf-8")
+    acceptance_runner = ACCEPTANCE_RUNNER.read_text(encoding="utf-8")
 
     require(config, f"ProjectVersion={EXPECTED_VERSION}", "DefaultGame.ini")
 
@@ -87,7 +91,7 @@ def main() -> int:
     require(package, FINAL_ASSET.replace("/", "\\"), "package workflow")
     require(package, "AUTHORED_TRAILER_IMPORT.json", "package workflow")
     require(package, "gtt.authored-trailer-import.v1", "package workflow")
-    require(package, "ExpectedGitSha \"$env:GITHUB_SHA\"", "package workflow")
+    require(package, 'ExpectedGitSha "$env:GITHUB_SHA"', "package workflow")
     require(package, "capture_demo_visual_evidence.ps1", "package workflow")
     require(package, "evaluate_demo_visual_evidence.ps1", "package workflow")
     require(package, "GTT-${{ inputs.version }}-Win64-technical-candidate", "package workflow")
@@ -138,9 +142,33 @@ def main() -> int:
     for socket in ("socket_hitch", "socket_cargo", "socket_axle_l", "socket_axle_r"):
         require(importer, socket, "authored trailer importer")
 
+    require(package_helper, '[string]$Version = ""', "package helper")
+    require(package_helper, "ProjectVersion", "package helper")
+    require(package_helper, "does not match ProjectVersion", "package helper")
+    forbid(package_helper, '[string]$Version = "0.1.14"', "package helper")
+
+    for token in (
+        "40-character git SHA",
+        "clean tracked working tree",
+        "preflight_win64_unreal.ps1",
+        "import_gtt_farm_trailer_unreal.ps1",
+        "package_windows.ps1",
+        "smoke_test_windows.ps1",
+        "evaluate_native_chaos_runtime.ps1",
+        "evaluate_authored_trailer_runtime.ps1",
+        "DEMO_TECHNICAL_GATE.json",
+        "capture_demo_visual_evidence.ps1",
+        "evaluate_demo_visual_evidence.ps1",
+        "gtt.win64-candidate-acceptance.v1",
+        'human_visual_review = "REQUIRED"',
+        "demo_release_authorized = $false",
+    ):
+        require(acceptance_runner, token, "one-command acceptance runner")
+
     print(
         "GTT 0.1.61 Win64 candidate pipeline sanity: PASS "
-        "(current version, UE 5.8 preflight, authored trailer import, package/runtime/visual evidence, exact-SHA release gate)"
+        "(current version, UE 5.8 preflight, authored trailer import, package/runtime/visual evidence, "
+        "local exact-candidate runner, exact-SHA release gate)"
     )
     return 0
 

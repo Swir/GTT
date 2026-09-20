@@ -7,10 +7,15 @@ on:
       - '.github/workflows/win64-package-evidence.yml'
       - '.github/workflows/release-windows.yml'
       - '.github/workflows/gtt-v0.1.61-win64-candidate-qualification.yml'
+      - 'Scripts/package_windows.ps1'
+      - 'Scripts/run_win64_candidate_acceptance.ps1'
+      - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
+      - 'Scripts/verify_win64_evidence_pipeline.py'
       - 'Scripts/import_gtt_farm_trailer_unreal.ps1'
       - 'Scripts/Unreal/import_gtt_farm_trailer.py'
       - 'Docs/PLAYTEST_0.1.61_WIN64_CANDIDATE_QUALIFICATION.md'
+      - 'Docs/ROADMAP.md'
       - 'CHANGELOG.d/0.1.61-win64-candidate-qualification.md'
   pull_request:
     paths:
@@ -18,10 +23,15 @@ on:
       - '.github/workflows/win64-package-evidence.yml'
       - '.github/workflows/release-windows.yml'
       - '.github/workflows/gtt-v0.1.61-win64-candidate-qualification.yml'
+      - 'Scripts/package_windows.ps1'
+      - 'Scripts/run_win64_candidate_acceptance.ps1'
+      - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
+      - 'Scripts/verify_win64_evidence_pipeline.py'
       - 'Scripts/import_gtt_farm_trailer_unreal.ps1'
       - 'Scripts/Unreal/import_gtt_farm_trailer.py'
       - 'Docs/PLAYTEST_0.1.61_WIN64_CANDIDATE_QUALIFICATION.md'
+      - 'Docs/ROADMAP.md'
       - 'CHANGELOG.d/0.1.61-win64-candidate-qualification.md'
   workflow_dispatch:
 
@@ -39,3 +49,7 @@ jobs:
           python-version: '3.12'
       - name: Verify fail-closed Win64 candidate and release lane
         run: python Scripts/verify_v0_1_61_win64_candidate_pipeline.py
+      - name: Verify one-command Windows candidate acceptance runner
+        run: python Scripts/verify_win64_candidate_acceptance_runner.py
+      - name: Preserve full Win64 evidence and release regression contract
+        run: python Scripts/verify_win64_evidence_pipeline.py
