@@ -152,6 +152,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.58 trailer roadside recovery + suspension:** the physical farm trailer now exposes a timed in-world field-repair interaction with a request-time locked quote, 7–20 second service window and fail-safe cancellation on movement, distance, hitch stress or collision. Successful service debits exactly once, restores wheel/structure authority without erasing damaged cargo, and Heavy Haul applies its existing 22-second penalty only after the physical repair completes. Authored skeletal trailer wheels/final hitch sockets and real UE 5.8 Win64 packaged/runtime/visual acceptance remain open, so roadmap truth stays 125/130 (96.2%).
 
+> **0.1.59 Heavy Haul driving quality + native tow-load coupling:** loaded Heavy Haul now rewards deliberate control rather than arrival alone: 60 qualified smooth seconds with no more than 12 seconds of rough exposure can arm a one-shot $180 handling bonus, while overspeed, excessive hitch load, severe roll/pitch and lost wheels count as rough driving. Loaded speed/attitude feed the same bounded breakable-hitch stress envelope, and the native Fieldmaster consumes the attached physical trailer's normalized tow load to reduce throttle authority by at most 30% and steering authority by at most 12%. This materially advances Native Chaos/trailer integration but does not close authored trailer assets or real UE 5.8 Win64 packaged/runtime/visual acceptance, so roadmap truth remains 125/130 (96.2%).
+
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
 - [x] Traffic obstacle avoidance / horn / stuck recovery
