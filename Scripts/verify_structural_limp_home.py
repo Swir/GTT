@@ -10,14 +10,17 @@ native_cpp = (root / 'Source/GTT/Private/Vehicles/GTTRoadVehicleNativePawn.cpp')
 persist_cpp = (root / 'Source/GTT/Private/Vehicles/GTTRoadVehicleStructuralPersistence.cpp').read_text(encoding='utf-8')
 evaluator = (root / 'Scripts/evaluate_demo_scenario.ps1').read_text(encoding='utf-8')
 workflow = (root / '.github/workflows/win64-package-evidence.yml').read_text(encoding='utf-8')
+runner = (root / 'Scripts/run_win64_candidate_acceptance.ps1').read_text(encoding='utf-8')
+attestor = (root / 'Scripts/write_win64_candidate_attestation.ps1').read_text(encoding='utf-8')
 sanity = (root / '.github/workflows/project-sanity.yml').read_text(encoding='utf-8')
 playtest = (root / 'Docs/PLAYTEST_0.0.94.md').read_text(encoding='utf-8')
 changelog = (root / 'CHANGELOG.d/0.0.94.md').read_text(encoding='utf-8')
 roadmap = (root / 'Docs/ROADMAP.md').read_text(encoding='utf-8')
 
-runtime = re.search(r'-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)', workflow)
-gameplay_runtime = re.search(r'-MinimumRuntimeSeconds\s+(\d+)', workflow)
+runtime = re.search(r'"-MinimumAliveSeconds",\s*(\d+).*?"-LaunchTimeoutSeconds",\s*(\d+)', runner, flags=re.S)
+gameplay_runtime = re.search(r'"-MinimumRuntimeSeconds",\s*(\d+)', runner)
 runtime_window_ok = bool(runtime and gameplay_runtime)
+minimum_alive = launch_timeout = gameplay_minimum = 0
 if runtime_window_ok:
     minimum_alive = int(runtime.group(1))
     launch_timeout = int(runtime.group(2))
@@ -27,6 +30,13 @@ if runtime_window_ok:
 version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
 candidate_version = tuple(int(part) for part in version_match.groups()) if version_match else None
 candidate_version_ok = candidate_version is not None and candidate_version >= (0, 1, 14)
+sealed_route_ok = (
+    'run_win64_attested_candidate_acceptance.ps1' in workflow
+    and 'evaluate_demo_scenario.ps1' in runner
+    and 'DEMO_SCENARIO.json' in attestor
+    and 'RUNTIME_SMOKE.json' in attestor
+    and 'DEMO_TECHNICAL_GATE.json' in attestor
+)
 
 checks = {
     'runtime world subsystem': 'UGTTStructuralDriveConsequenceSubsystem : public UTickableWorldSubsystem' in sub_h,
@@ -50,8 +60,9 @@ checks = {
     'evaluator schema v11': 'gtt.demo-scenario.v11' in evaluator and 'required_step_count=33' in evaluator,
     'evaluator new hard steps': all(x in evaluator for x in ["step='STRUCTURAL_HANDLING'", "step='STRUCTURAL_RELOAD_HANDLING'", "step='STRUCTURAL_DRIVE_RECOVERY'"]),
     'evaluator new hard gates': all(x in evaluator for x in ['structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
-    'candidate version not regressed below 0.1.14': candidate_version_ok and 'RUNTIME_SMOKE.json' in workflow and 'DEMO_TECHNICAL_GATE.json' in workflow,
+    'candidate version not regressed below 0.1.14': candidate_version_ok and sealed_route_ok,
     'extended packaged runtime': runtime_window_ok,
+    'scenario sealed in exact candidate': 'DEMO_SCENARIO.json' in attestor and 'Get-FileHash -Algorithm SHA256' in attestor,
     'sanity wired': 'Verify persistent structural limp-home dynamics' in sanity and 'verify_structural_limp_home.py' in sanity,
     'docs': '0.0.94' in playtest and 'STRUCTURAL_HANDLING' in playtest and '0.0.94' in changelog and 'limp-home' in changelog.lower(),
 }
@@ -81,4 +92,4 @@ if re.search(r'[█▓▒░]{3,}',progress_block):
     raise SystemExit('Legacy text/Unicode progress meter must not return to the active Roadmap dashboard.')
 
 label = '.'.join(str(part) for part in candidate_version)
-print(f'[OK] Persistent structural limp-home dynamics verified ({len(checks)} checks; candidate {label}; runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')
+print(f'[OK] Persistent structural limp-home dynamics verified ({len(checks)} checks; candidate {label}; sealed runtime {minimum_alive}s); roadmap {done}/{total} = {percent:.1f}% with SVG-only progress.')
