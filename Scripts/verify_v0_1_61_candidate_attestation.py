@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed source contract for GTT 0.1.61 exact-candidate attestation."""
+"""Fail-closed source contract for GTT exact-candidate attestation."""
 
 from __future__ import annotations
 
@@ -46,14 +46,14 @@ def digest(path: Path) -> str:
 def exercise_hash_failure_boundary() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        evidence = root / "DEMO_TECHNICAL_GATE.json"
-        evidence.write_text('{"schema":17,"result":"PASS"}', encoding="utf-8")
+        evidence = root / "NATIVE_AUTHORITY_RUNTIME.json"
+        evidence.write_text('{"result":"PASS","authority_faults":0}', encoding="utf-8")
         sealed = digest(evidence)
         if not re.fullmatch(r"[0-9a-f]{64}", sealed):
             fail("hash fixture did not produce canonical lowercase SHA256")
-        evidence.write_text('{"schema":17,"result":"FAIL"}', encoding="utf-8")
+        evidence.write_text('{"result":"FAIL","authority_faults":1}', encoding="utf-8")
         if digest(evidence) == sealed:
-            fail("mutated evidence unexpectedly retained sealed digest")
+            fail("mutated authority evidence unexpectedly retained sealed digest")
 
 
 def main() -> int:
@@ -68,16 +68,22 @@ def main() -> int:
         "AUTHORED_TRAILER_IMPORT.json",
         "RUNTIME_SMOKE.json",
         "NATIVE_CHAOS_RUNTIME.json",
+        "NATIVE_AUTHORITY_RUNTIME.json",
+        'authority must be NATIVE_CHAOS',
+        'contains split-authority faults',
         "NATIVE_TRAILER_RUNTIME.json",
         "DEMO_TECHNICAL_GATE.json",
         "schema -ne 17",
         "DEMO_VISUAL_EVIDENCE.json",
         "WIN64_ACCEPTANCE_SUMMARY.json",
+        'native authority runtime is not PASS',
         "human_visual_review",
         "demo_release_authorized",
         'Get-ChildItem -Path $PackageDirectory -Recurse -File -Filter "GTT.exe"',
         'Get-ChildItem -Path (Join-Path $PackageDirectory "DemoVisualEvidence")',
         "gtt.win64-candidate-attestation.v1",
+        'native_authority_runtime = "PASS"',
+        "native_authority_faults = 0",
         "WIN64_CANDIDATE_ATTESTATION.json",
         "FINAL_SHA256SUMS.txt",
         "Get-FileHash -Algorithm SHA256",
@@ -127,8 +133,8 @@ def main() -> int:
 
     exercise_hash_failure_boundary()
     print(
-        "GTT 0.1.61 candidate attestation sanity: PASS "
-        "(exact SHA/version/config + packaged EXE/evidence hashes + final manifest + self-hosted lane)"
+        "GTT candidate attestation sanity: PASS "
+        "(exact SHA/version/config + native authority + packaged EXE/evidence hashes + final manifest + self-hosted lane)"
     )
     return 0
 
