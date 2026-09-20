@@ -3,9 +3,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'GTT version label for the package'
+        description: 'Exact GTT candidate version; must match Config/DefaultGame.ini ProjectVersion'
         required: true
-        default: '0.1.52'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -21,7 +20,7 @@ jobs:
   package-and-smoke:
     name: UE 5.8 Win64 package + runtime + rendered evidence
     runs-on: [self-hosted, windows, x64, unreal-5.8]
-    timeout-minutes: 100
+    timeout-minutes: 110
     env:
       GTT_VERSION: ${{ inputs.version }}
       GTT_CONFIGURATION: ${{ inputs.configuration }}
@@ -29,13 +28,41 @@ jobs:
       GTT_PACKAGE_DIR: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}
       GTT_PREFLIGHT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.preflight.json
       GTT_ATTEMPT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.attempt.json
+      GTT_TRAILER_IMPORT_FILE: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}.authored-trailer-import.json
     steps:
       - name: Checkout source and LFS assets
         uses: actions/checkout@v4
         with: { lfs: true, fetch-depth: 0 }
+      - name: Validate explicit candidate version against project metadata
+        shell: pwsh
+        run: |
+          $ini = Get-Content -Raw "${{ github.workspace }}\Config\DefaultGame.ini"
+          $match = [regex]::Match($ini, '(?m)^ProjectVersion=(.+)$')
+          if (-not $match.Success) { throw "ProjectVersion is missing from Config/DefaultGame.ini." }
+          $projectVersion = $match.Groups[1].Value.Trim()
+          if ([string]::IsNullOrWhiteSpace($env:GTT_VERSION)) { throw "Candidate version input must not be empty." }
+          if ($env:GTT_VERSION -ne $projectVersion) { throw "Candidate version '$env:GTT_VERSION' does not match ProjectVersion '$projectVersion'." }
       - name: Win64 runner and Unreal 5.8 preflight
         shell: pwsh
         run: ./Scripts/preflight_win64_unreal.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -ProjectFile "${{ github.workspace }}\GTT.uproject" -OutputPath "$env:GTT_PREFLIGHT_FILE"
+      - name: Import and validate authored trailer in UE 5.8
+        shell: pwsh
+        run: ./Scripts/import_gtt_farm_trailer_unreal.ps1 -UnrealEditorCmd (Join-Path $env:GTT_ENGINE_ROOT 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe') -Project "${{ github.workspace }}\GTT.uproject"
+      - name: Bind authored trailer import evidence to exact candidate
+        shell: pwsh
+        run: |
+          $asset = "${{ github.workspace }}\Content\GTT\Vehicles\Trailer\SK_GTT_FarmTrailer.uasset"
+          if (-not (Test-Path $asset)) { throw "Authored trailer skeletal asset missing after UE import: $asset" }
+          $evidence = [ordered]@{
+            schema = 'gtt.authored-trailer-import.v1'
+            result = 'PASS'
+            git_sha = $env:GITHUB_SHA
+            version = $env:GTT_VERSION
+            asset = 'Content/GTT/Vehicles/Trailer/SK_GTT_FarmTrailer.uasset'
+            engine = 'Unreal Engine 5.8'
+          }
+          New-Item -ItemType Directory -Force -Path (Split-Path $env:GTT_TRAILER_IMPORT_FILE) | Out-Null
+          $evidence | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $env:GTT_TRAILER_IMPORT_FILE
       - name: Package Win64
         shell: pwsh
         run: ./Scripts/package_windows.ps1 -EngineRoot "$env:GTT_ENGINE_ROOT" -Configuration "$env:GTT_CONFIGURATION" -ArchiveDirectory "$env:GTT_PACKAGE_DIR" -Version "$env:GTT_VERSION" -SkipZip
@@ -90,8 +117,11 @@ jobs:
       - name: Re-validate technical evidence bundle
         shell: pwsh
         run: |
+          Copy-Item -Force "$env:GTT_TRAILER_IMPORT_FILE" (Join-Path $env:GTT_PACKAGE_DIR 'AUTHORED_TRAILER_IMPORT.json')
           ./Scripts/validate_windows_package.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -Configuration "$env:GTT_CONFIGURATION" -Version "$env:GTT_VERSION"
-          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','NATIVE_CHAOS_RUNTIME.json','NATIVE_DRIVETRAIN_SCENARIO.json','NATIVE_TRAILER_RUNTIME.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','FARM_CARGO_DISPATCH_RUNTIME.json','FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json','FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json','WORKSHOP_HOURS_RUNTIME.json','WORKSHOP_QUEUE_RUNTIME.json','WORKSHOP_CAPACITY_RUNTIME.json','WORKSHOP_PRIORITY_PICKUP_RUNTIME.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
+          foreach($f in @('WIN64_PREFLIGHT.json','BUILD_ATTEMPT.json','AUTHORED_TRAILER_IMPORT.json','RUNTIME_SMOKE.json','DEMO_SCENARIO.json','GAMEPLAY_SMOKE.json','NATIVE_CHAOS_RUNTIME.json','NATIVE_DRIVETRAIN_SCENARIO.json','NATIVE_TRAILER_RUNTIME.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','FARM_CARGO_DISPATCH_RUNTIME.json','FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json','FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json','WORKSHOP_HOURS_RUNTIME.json','WORKSHOP_QUEUE_RUNTIME.json','WORKSHOP_CAPACITY_RUNTIME.json','WORKSHOP_PRIORITY_PICKUP_RUNTIME.json','GTT_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing after smoke test."}}
+          $import = Get-Content -Raw (Join-Path $env:GTT_PACKAGE_DIR 'AUTHORED_TRAILER_IMPORT.json') | ConvertFrom-Json
+          if ($import.result -ne 'PASS' -or $import.git_sha -ne $env:GITHUB_SHA -or $import.version -ne $env:GTT_VERSION) { throw "Authored trailer import evidence is not bound to this candidate." }
       - name: Evaluate demo technical candidate
         shell: pwsh
         run: ./Scripts/evaluate_demo_candidate.ps1 -PackageDirectory "$env:GTT_PACKAGE_DIR" -RuntimeLog (Join-Path $env:GTT_PACKAGE_DIR 'GTT_RUNTIME.log') -ExpectedGitSha "$env:GITHUB_SHA"
@@ -119,7 +149,7 @@ jobs:
       - name: Verify complete candidate evidence bundle
         shell: pwsh
         run: |
-          foreach($f in @('DEMO_TECHNICAL_GATE.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','FARM_CARGO_DISPATCH_RUNTIME.json','FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json','FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json','WORKSHOP_HOURS_RUNTIME.json','WORKSHOP_QUEUE_RUNTIME.json','WORKSHOP_CAPACITY_RUNTIME.json','WORKSHOP_PRIORITY_PICKUP_RUNTIME.json','VISUAL_RUNTIME_SMOKE.json','DEMO_VISUAL_EVIDENCE.json','GTT_VISUAL_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing from complete candidate."}}
+          foreach($f in @('AUTHORED_TRAILER_IMPORT.json','DEMO_TECHNICAL_GATE.json','FARM_CARGO_RUNTIME.json','FARM_CARGO_RECOVERY_RUNTIME.json','FARM_CARGO_BREAKDOWN_RUNTIME.json','FARM_CARGO_DISPATCH_RUNTIME.json','FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json','FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME.json','WORKSHOP_HOURS_RUNTIME.json','WORKSHOP_QUEUE_RUNTIME.json','WORKSHOP_CAPACITY_RUNTIME.json','WORKSHOP_PRIORITY_PICKUP_RUNTIME.json','VISUAL_RUNTIME_SMOKE.json','DEMO_VISUAL_EVIDENCE.json','GTT_VISUAL_RUNTIME.log')){if(-not(Test-Path (Join-Path $env:GTT_PACKAGE_DIR $f))){throw "$f missing from complete candidate."}}
           $gate=Get-Content -Raw (Join-Path $env:GTT_PACKAGE_DIR 'DEMO_TECHNICAL_GATE.json')|ConvertFrom-Json
           if([int]$gate.schema -ne 17 -or $gate.farm_cargo_workshop_recovery_runtime -ne 'PASS' -or $gate.workshop_hours_runtime -ne 'PASS' -or $gate.workshop_queue_runtime -ne 'PASS' -or $gate.workshop_capacity_runtime -ne 'PASS' -or $gate.workshop_priority_pickup_runtime -ne 'PASS'){throw "Demo technical gate is not schema 17 workshop-priority/pickup complete."}
           $shots=@(Get-ChildItem (Join-Path $env:GTT_PACKAGE_DIR 'DemoVisualEvidence') -File -Filter 'GTT_visual_*.png')
@@ -143,6 +173,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\BUILD_ATTEMPT.json
             ${{ env.GTT_PACKAGE_DIR }}\BUILD_INFO.json
             ${{ env.GTT_PACKAGE_DIR }}\PACKAGE_VALIDATION.json
+            ${{ env.GTT_PACKAGE_DIR }}\AUTHORED_TRAILER_IMPORT.json
             ${{ env.GTT_PACKAGE_DIR }}\RUNTIME_SMOKE.json
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\GAMEPLAY_SMOKE.json
@@ -175,6 +206,7 @@ jobs:
           path: |
             ${{ env.GTT_PREFLIGHT_FILE }}
             ${{ env.GTT_ATTEMPT_FILE }}
+            ${{ env.GTT_TRAILER_IMPORT_FILE }}
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_CHAOS_RUNTIME.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_DRIVETRAIN_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\NATIVE_TRAILER_RUNTIME.json

@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Validate the exact-source Win64 candidate and release qualification contract."""
+
+from __future__ import annotations
+
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+PACKAGE = ROOT / ".github" / "workflows" / "win64-package-evidence.yml"
+RELEASE = ROOT / ".github" / "workflows" / "release-windows.yml"
+CONFIG = ROOT / "Config" / "DefaultGame.ini"
+IMPORT_WRAPPER = ROOT / "Scripts" / "import_gtt_farm_trailer_unreal.ps1"
+IMPORT_SCRIPT = ROOT / "Scripts" / "Unreal" / "import_gtt_farm_trailer.py"
+
+EXPECTED_VERSION = "0.1.61"
+FINAL_ASSET = "Content/GTT/Vehicles/Trailer/SK_GTT_FarmTrailer.uasset"
+
+
+def fail(message: str) -> None:
+    raise AssertionError(message)
+
+
+def require(text: str, token: str, scope: str) -> None:
+    if token not in text:
+        fail(f"{scope}: missing required token: {token}")
+
+
+def forbid(text: str, token: str, scope: str) -> None:
+    if token in text:
+        fail(f"{scope}: forbidden stale token present: {token}")
+
+
+def require_order(text: str, tokens: list[str], scope: str) -> None:
+    positions = []
+    for token in tokens:
+        pos = text.find(token)
+        if pos < 0:
+            fail(f"{scope}: order token missing: {token}")
+        positions.append(pos)
+    if positions != sorted(positions):
+        fail(f"{scope}: gate order is not fail-closed: {tokens}")
+
+
+def input_block(text: str, key: str) -> str:
+    marker = f"      {key}:"
+    start = text.find(marker)
+    if start < 0:
+        fail(f"workflow input {key!r} missing")
+    tail = text[start + len(marker):]
+    match = re.search(r"(?m)^      [A-Za-z0-9_-]+:\s*$", tail)
+    end = start + len(marker) + (match.start() if match else len(tail))
+    return text[start:end]
+
+
+def main() -> int:
+    package = PACKAGE.read_text(encoding="utf-8")
+    release = RELEASE.read_text(encoding="utf-8")
+    config = CONFIG.read_text(encoding="utf-8")
+    wrapper = IMPORT_WRAPPER.read_text(encoding="utf-8")
+    importer = IMPORT_SCRIPT.read_text(encoding="utf-8")
+
+    require(config, f"ProjectVersion={EXPECTED_VERSION}", "DefaultGame.ini")
+
+    for stale in ("default: '0.1.52'", 'default: "0.1.52"', "default: '0.1.20'", 'default: "0.1.20"'):
+        forbid(package + release, stale, "candidate workflows")
+
+    package_version = input_block(package, "version")
+    release_version = input_block(release, "version")
+    require(package_version, "required: true", "package version input")
+    require(release_version, "required: true", "release version input")
+    if re.search(r"(?m)^\s+default:", package_version):
+        fail("package version input must not carry a default")
+    if re.search(r"(?m)^\s+default:", release_version):
+        fail("release version input must not carry a default")
+
+    require(package, "runs-on: [self-hosted, windows, x64, unreal-5.8]", "package workflow")
+    require(package, "ProjectVersion", "package workflow")
+    require(package, "import_gtt_farm_trailer_unreal.ps1", "package workflow")
+    require(package, FINAL_ASSET.replace("/", "\\"), "package workflow")
+    require(package, "AUTHORED_TRAILER_IMPORT.json", "package workflow")
+    require(package, "gtt.authored-trailer-import.v1", "package workflow")
+    require(package, "ExpectedGitSha \"$env:GITHUB_SHA\"", "package workflow")
+    require(package, "capture_demo_visual_evidence.ps1", "package workflow")
+    require(package, "evaluate_demo_visual_evidence.ps1", "package workflow")
+    require(package, "GTT-${{ inputs.version }}-Win64-technical-candidate", "package workflow")
+    require_order(
+        package,
+        [
+            "Validate explicit candidate version against project metadata",
+            "Win64 runner and Unreal 5.8 preflight",
+            "Import and validate authored trailer in UE 5.8",
+            "Bind authored trailer import evidence to exact candidate",
+            "Package Win64",
+            "Runtime smoke test packaged EXE with deterministic scenarios",
+            "Run rendered visual evidence route without NullRHI",
+            "Upload verified Win64 evidence",
+        ],
+        "package workflow",
+    )
+
+    require(release, "ProjectVersion", "release workflow")
+    require(release, "AUTHORED_TRAILER_IMPORT.json", "release workflow")
+    require(release, "gtt.authored-trailer-import.v1", "release workflow")
+    require(release, "Candidate run must originate from main", "release workflow")
+    require(release, "Candidate run SHA", "release workflow")
+    require(release, "visual_review_passed", "release workflow")
+    require(release, "deterministic end-to-end gameplay/runtime route", "release notes")
+    forbid(release, "33-step gameplay route", "release notes")
+    require_order(
+        release,
+        [
+            "Verify candidate workflow provenance",
+            "Checkout the exact candidate source contract",
+            "Verify release version against exact candidate project metadata",
+            "Download exact candidate artifact",
+            "Verify authored trailer import evidence is from exact candidate",
+            "Verify rendered evidence is from exact candidate",
+            "Bind human visual acceptance to reviewed screenshots",
+            "Publish reviewed Demo prerelease",
+        ],
+        "release workflow",
+    )
+
+    require(wrapper, "[string]$UnrealEditorCmd", "authored trailer import wrapper")
+    require(wrapper, "AUTHORED_TRAILER_IMPORT result=PASS", "authored trailer import wrapper")
+    require(importer, 'DESTINATION = "/Game/GTT/Vehicles/Trailer"', "authored trailer importer")
+    require(importer, 'ASSET_NAME = "SK_GTT_FarmTrailer"', "authored trailer importer")
+    require(importer, "create_physics_asset", "authored trailer importer")
+    require(importer, "PHYSICS_ASSET_UNASSIGNED", "authored trailer importer")
+    for socket in ("socket_hitch", "socket_cargo", "socket_axle_l", "socket_axle_r"):
+        require(importer, socket, "authored trailer importer")
+
+    print(
+        "GTT 0.1.61 Win64 candidate pipeline sanity: PASS "
+        "(explicit version, UE 5.8 preflight, authored trailer import, package/runtime/visual evidence, exact-SHA release gate)"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except AssertionError as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        raise SystemExit(1)

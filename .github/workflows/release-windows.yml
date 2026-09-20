@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact candidate version label
+        description: Exact candidate version label; must match Config/DefaultGame.ini ProjectVersion
         required: true
-        default: '0.1.20'
       candidate_run_id:
         description: Successful Win64 package evidence workflow run ID whose screenshots were reviewed
         required: true
@@ -52,6 +51,7 @@ jobs:
           if ("${{ inputs.visual_review_passed }}" -ne "true") { throw "Demo publication requires explicit visual_review_passed=true after reviewing the exact candidate screenshots." }
           if ($env:EXPECTED_SHA -notmatch '^[0-9a-fA-F]{40}$') { throw "expected_sha must be a full 40-character commit SHA." }
           if ($env:VISUAL_REVIEW_NOTES.Trim().Length -lt 20) { throw "visual_review_notes must contain at least 20 characters." }
+          if ([string]::IsNullOrWhiteSpace($env:GTT_VERSION)) { throw "version must not be empty." }
       - name: Verify candidate workflow provenance
         shell: pwsh
         env:
@@ -68,6 +68,14 @@ jobs:
         with:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 1
+      - name: Verify release version against exact candidate project metadata
+        shell: pwsh
+        run: |
+          $ini = Get-Content -Raw "${{ github.workspace }}\Config\DefaultGame.ini"
+          $match = [regex]::Match($ini, '(?m)^ProjectVersion=(.+)$')
+          if (-not $match.Success) { throw "ProjectVersion is missing from Config/DefaultGame.ini." }
+          $projectVersion = $match.Groups[1].Value.Trim()
+          if ($env:GTT_VERSION -ne $projectVersion) { throw "Release version '$env:GTT_VERSION' does not match exact-candidate ProjectVersion '$projectVersion'." }
       - name: Download exact candidate artifact
         uses: actions/download-artifact@v4
         with:
@@ -90,6 +98,15 @@ jobs:
           Expand-Archive -Path $zip.FullName -DestinationPath $env:CANDIDATE_PACKAGE -Force
           "candidate_zip=$($zip.FullName)" | Add-Content -Encoding UTF8 "${{ github.workspace }}\candidate-provenance.txt"
           "candidate_zip_sha256=$actualHash" | Add-Content -Encoding UTF8 "${{ github.workspace }}\candidate-provenance.txt"
+      - name: Verify authored trailer import evidence is from exact candidate
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:CANDIDATE_PACKAGE 'AUTHORED_TRAILER_IMPORT.json'
+          if (-not (Test-Path $path)) { throw "AUTHORED_TRAILER_IMPORT.json missing from candidate ZIP." }
+          $manifest = Get-Content -Raw $path | ConvertFrom-Json
+          if ($manifest.schema -ne 'gtt.authored-trailer-import.v1' -or $manifest.result -ne 'PASS') { throw "Authored trailer import evidence did not PASS." }
+          if ($manifest.git_sha -ne $env:EXPECTED_SHA) { throw "Authored trailer import evidence SHA mismatch." }
+          if ($manifest.version -ne $env:GTT_VERSION) { throw "Authored trailer import evidence version mismatch." }
       - name: Verify rendered evidence is from exact candidate
         shell: pwsh
         run: |
@@ -132,7 +149,7 @@ jobs:
           **Visual reviewer:** ``${{ github.actor }}``
           **Visual review UTC:** ``$($acceptance.reviewed_utc)``
 
-          This prerelease is published only after the exact packaged candidate passed Win64/UE 5.8 preflight and package evidence, packaged runtime smoke, the deterministic 33-step gameplay route, Native Chaos telemetry, forward/reverse drivetrain exercise, loaded authored-trailer runtime exercise, five-scene rendered evidence validation, and explicit review of those exact screenshots.
+          This prerelease is published only after the exact packaged candidate passed Win64/UE 5.8 preflight, authored-trailer import and PhysicsAsset/socket validation, packaging evidence, packaged runtime smoke, the deterministic end-to-end gameplay/runtime route, Native Chaos telemetry, forward/reverse drivetrain exercise, loaded authored-trailer runtime exercise, five-scene rendered evidence validation, and explicit review of those exact screenshots.
 
           ## Visual review notes
 
@@ -152,6 +169,7 @@ jobs:
         with:
           name: GTT-${{ inputs.version }}-reviewed-demo-release-gate
           path: |
+            ${{ env.CANDIDATE_PACKAGE }}\AUTHORED_TRAILER_IMPORT.json
             ${{ env.CANDIDATE_PACKAGE }}\DEMO_VISUAL_ACCEPTANCE.json
             ${{ env.CANDIDATE_PACKAGE }}\DEMO_TECHNICAL_GATE.json
             ${{ env.CANDIDATE_PACKAGE }}\DEMO_VISUAL_EVIDENCE.json
@@ -180,6 +198,7 @@ jobs:
           files: |
             ${{ env.RELEASE_ZIP }}
             ${{ env.RELEASE_SHA }}
+            ${{ env.CANDIDATE_PACKAGE }}\AUTHORED_TRAILER_IMPORT.json
             ${{ env.CANDIDATE_PACKAGE }}\DEMO_VISUAL_ACCEPTANCE.json
             ${{ env.CANDIDATE_PACKAGE }}\DEMO_TECHNICAL_GATE.json
             ${{ env.CANDIDATE_PACKAGE }}\DemoVisualEvidence\*.png
