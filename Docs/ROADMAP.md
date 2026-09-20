@@ -21,7 +21,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 |---:|---:|---:|---:|
 | **125** | **5** | **130** | **96.2%** |
 
-> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and deterministic `progress-mini.svg` from the same checklist truth. Never estimate progress from version numbers or commit count, and do not restore a text/Unicode progress meter.
+> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + `[ ]`)`. When scope or task state changes, update the badges, numbers, percentage and deterministic `progress-mini.svg` from the same checklist truth. Never estimate progress from version numbers or commit count, and do not restore a text/Unicode progress meter.
 <!-- ROADMAP-PROGRESS:END -->
 
 ## 0.1 — Tractor Theft Prototype
@@ -149,6 +149,8 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 > **0.1.56 responder safety corridor:** an on-scene ROAD SERVICE responder now deploys four visible engine-local safety cones and creates a bounded 1,800 cm traffic-yield corridor with a 320 cm recovery pocket and per-car 4.5 second cooldown. Cooldown history is scoped to the physical responder scene and is reset on replacement/teardown; disabled vehicles, player roadside assistance, responder scene authority and ranger/warden traffic remain excluded. The 52-case source/playtest contract adds no economy, repair, Wanted or release authority, so roadmap completion remains 125/130 until real UE 5.8 Win64/runtime/visual blockers close.
 
 > **0.1.57 scene clearance + physical trailer dynamics:** county ROAD SERVICE now keeps a deterministic post-recovery lane-reopening phase instead of disappearing immediately, while the physical farm trailer gains bounded vertical wheel suspension with load-sensitive spring/damping and a cargo/integrity/stress-sensitive breakable hitch that routes physical failure through the existing authoritative detach path. Source CI and playtest contracts verify the wiring, but authored skeletal trailer wheels/final hitch sockets and real UE 5.8 Win64 packaged/runtime/visual acceptance remain open. Roadmap truth stays 125/130 (96.2%).
+
+> **0.1.58 trailer roadside recovery + suspension:** the physical farm trailer now exposes a timed in-world field-repair interaction with a request-time locked quote, 7–20 second service window and fail-safe cancellation on movement, distance, hitch stress or collision. Successful service debits exactly once, restores wheel/structure authority without erasing damaged cargo, and Heavy Haul applies its existing 22-second penalty only after the physical repair completes. Authored skeletal trailer wheels/final hitch sockets and real UE 5.8 Win64 packaged/runtime/visual acceptance remain open, so roadmap truth stays 125/130 (96.2%).
 
 ## 0.6 — Roads, Rangers & Vehicle Life
 - [x] Civilian road-driving AI prototype
