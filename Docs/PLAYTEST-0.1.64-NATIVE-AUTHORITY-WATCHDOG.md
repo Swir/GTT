@@ -22,7 +22,7 @@ Validate that the Rusty Fieldmaster 60 has exactly one live driving authority af
 6. **Native collision fault injection:** disable native actor collision during takeover. The watchdog must report `NATIVE_COLLISION_DISABLED` and restore legacy authority.
 7. **Movement/asset guard:** force an inactive/wrong movement path or remove the PhysicsAsset in a development-only test. Takeover evidence must not claim PASS; the watchdog must restore legacy authority.
 8. **Recovery:** after correcting the injected fault, allow the existing retry path to re-run. Native takeover may reactivate only after the ordinary native readiness checks pass again.
-9. **Driving regression:** after healthy takeover, repeat forward/reverse steering, braking, 0.1.59 loaded authority caps, 0.1.62 hill-haul control and 0.1.63 trailer-brake heat/fade/recovery. The watchdog must not alter healthy driving behavior.
+9. **Driving regression:** after healthy takeover, repeat forward/reverse steering, braking, 0.1.59 loaded authority caps, 0.1.62 hill-haul control, 0.1.63 trailer-brake heat/fade/recovery and 0.1.64 runaway safety. The watchdog must not alter healthy driving behavior.
 10. **Save/garage regression:** save, load, exit, re-enter and recall the Fieldmaster. Persistent condition/fuel/tuning state must continue mirroring through the existing legacy persistence bridge.
 
 ## Packaged evidence
@@ -38,6 +38,8 @@ Run `Scripts/evaluate_native_authority_runtime.ps1` against the exact candidate 
 
 The evaluator writes `NATIVE_AUTHORITY_RUNTIME.json`. This is additive evidence: the existing Native Chaos runtime gate still owns wheel contacts, suspension, movement, drivetrain and fallback rejection.
 
+The exact-candidate acceptance runner now invokes this evaluator alongside the existing Native Chaos runtime gate. `WIN64_ACCEPTANCE_SUMMARY.json` may report `native_authority_runtime=PASS` only after the evaluator succeeds for the same candidate SHA. The candidate attestation then requires `NATIVE_AUTHORITY_RUNTIME.json`, checks the exact identity, requires `authority=NATIVE_CHAOS` with zero authority faults, hashes the file into the sealed evidence set and keeps `human_visual_review=REQUIRED` / `demo_release_authorized=false`.
+
 ## Demo / roadmap truth
 
-The roadmap remains **125 / 130 (96.2%)** after source acceptance. Demo stays **NOT READY** until the same candidate completes the real UE 5.8 Win64 package, packaged EXE smoke, Native Chaos/trailer runtime gates and human visual acceptance.
+The roadmap remains **125 / 130 (96.2%)** after source acceptance. Demo stays **NOT READY** until the same candidate completes the real UE 5.8 Win64 package, packaged EXE smoke, Native Chaos/trailer runtime gates and human visual acceptance. Source CI and candidate-attestation wiring do **not close** those runtime/art gates by themselves.
