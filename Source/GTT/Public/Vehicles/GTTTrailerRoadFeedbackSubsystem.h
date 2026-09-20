@@ -16,6 +16,7 @@ struct FGTTTrailerRoadFeedbackRuntime
     TWeakObjectPtr<UPointLightComponent> HazardLeft;
     TWeakObjectPtr<UPointLightComponent> HazardRight;
     float LastLongitudinalSpeedKmh = 0.0f;
+    float SmoothedJackknifeRisk = 0.0f;
     bool bHasVelocitySample = false;
 };
 
@@ -38,8 +39,14 @@ public:
 
 private:
     void EnsureRoadLights(AGTTFarmTrailer* Trailer, FGTTTrailerRoadFeedbackRuntime& Runtime);
-    void UpdateRoadLights(AGTTFarmTrailer* Trailer, FGTTTrailerRoadFeedbackRuntime& Runtime, float LongitudinalSpeedKmh, float DecelerationKmhPerSecond) const;
-    void ApplyLoadedTrailerStability(AGTTFarmTrailer* Trailer, float DeltaTime) const;
+    void UpdateRoadLights(
+        AGTTFarmTrailer* Trailer,
+        FGTTTrailerRoadFeedbackRuntime& Runtime,
+        float LongitudinalSpeedKmh,
+        float DecelerationKmhPerSecond,
+        float JackknifeRisk) const;
+    void ApplyLoadedTrailerStability(AGTTFarmTrailer* Trailer, float JackknifeRisk) const;
+    float ComputeJackknifeRisk(const AGTTFarmTrailer* Trailer, float SpeedKmh) const;
 
     TMap<TWeakObjectPtr<AGTTFarmTrailer>, FGTTTrailerRoadFeedbackRuntime> RuntimeByTrailer;
 
@@ -51,4 +58,12 @@ private:
     static constexpr float BrakeDecelerationThresholdKmhPerSecond = 6.0f;
     static constexpr float ReverseLightThresholdKmh = -2.0f;
     static constexpr float CriticalIntegrityThreshold = 0.45f;
+
+    static constexpr float JackknifeWarningAngleDegrees = 32.0f;
+    static constexpr float JackknifeCriticalAngleDegrees = 62.0f;
+    static constexpr float JackknifeStartSpeedKmh = 28.0f;
+    static constexpr float JackknifeFullSpeedKmh = 58.0f;
+    static constexpr float JackknifeWarningRiskThreshold = 0.35f;
+    static constexpr float JackknifeRiskInterpSpeed = 4.5f;
+    static constexpr float MaximumJackknifeAssistMultiplier = 1.35f;
 };

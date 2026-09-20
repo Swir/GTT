@@ -92,8 +92,18 @@ void UGTTTrailerRoadFeedbackSubsystem::Tick(const float DeltaTime)
             ? FMath::Max(0.0f, (PreviousAbsSpeed - CurrentAbsSpeed) / SafeDeltaTime)
             : 0.0f;
 
-        UpdateRoadLights(Trailer, Runtime, LongitudinalSpeedKmh, DecelerationKmhPerSecond);
-        ApplyLoadedTrailerStability(Trailer, SafeDeltaTime);
+        const float RawJackknifeRisk = ComputeJackknifeRisk(Trailer, CurrentAbsSpeed);
+        Runtime.SmoothedJackknifeRisk = Trailer->IsAttached()
+            ? FMath::FInterpTo(Runtime.SmoothedJackknifeRisk, RawJackknifeRisk, SafeDeltaTime, JackknifeRiskInterpSpeed)
+            : 0.0f;
+
+        UpdateRoadLights(
+            Trailer,
+            Runtime,
+            LongitudinalSpeedKmh,
+            DecelerationKmhPerSecond,
+            Runtime.SmoothedJackknifeRisk);
+        ApplyLoadedTrailerStability(Trailer, Runtime.SmoothedJackknifeRisk);
 
         Runtime.LastLongitudinalSpeedKmh = LongitudinalSpeedKmh;
         Runtime.bHasVelocitySample = true;
@@ -140,11 +150,50 @@ void UGTTTrailerRoadFeedbackSubsystem::EnsureRoadLights(
     }
 }
 
+float UGTTTrailerRoadFeedbackSubsystem::ComputeJackknifeRisk(
+    const AGTTFarmTrailer* Trailer,
+    const float SpeedKmh) const
+{
+    if (!Trailer || !Trailer->IsAttached() || !Trailer->HasCargo() || Trailer->GetLostWheelCount() > 0)
+    {
+        return 0.0f;
+    }
+
+    const AActor* TowActor = Trailer->GetTowActor();
+    if (!TowActor)
+    {
+        return 0.0f;
+    }
+
+    const FVector TowForward = TowActor->GetActorForwardVector().GetSafeNormal2D();
+    const FVector TrailerForward = Trailer->GetActorForwardVector().GetSafeNormal2D();
+    if (TowForward.IsNearlyZero() || TrailerForward.IsNearlyZero())
+    {
+        return 0.0f;
+    }
+
+    const float Alignment = FMath::Clamp(FVector::DotProduct(TowForward, TrailerForward), -1.0f, 1.0f);
+    const float ArticulationAngleDegrees = FMath::RadiansToDegrees(FMath::Acos(Alignment));
+    const float AngleRisk = FMath::Clamp(
+        (ArticulationAngleDegrees - JackknifeWarningAngleDegrees) /
+            (JackknifeCriticalAngleDegrees - JackknifeWarningAngleDegrees),
+        0.0f,
+        1.0f);
+    const float SpeedRisk = FMath::Clamp(
+        (SpeedKmh - JackknifeStartSpeedKmh) /
+            (JackknifeFullSpeedKmh - JackknifeStartSpeedKmh),
+        0.0f,
+        1.0f);
+    const float LoadRisk = FMath::Clamp(Trailer->GetTowLoadFactor(), 0.35f, 1.0f);
+    return FMath::Clamp(AngleRisk * SpeedRisk * LoadRisk, 0.0f, 1.0f);
+}
+
 void UGTTTrailerRoadFeedbackSubsystem::UpdateRoadLights(
     AGTTFarmTrailer* Trailer,
     FGTTTrailerRoadFeedbackRuntime& Runtime,
     const float LongitudinalSpeedKmh,
-    const float DecelerationKmhPerSecond) const
+    const float DecelerationKmhPerSecond,
+    const float JackknifeRisk) const
 {
     using namespace GTTTrailerRoadFeedback;
 
@@ -153,10 +202,12 @@ void UGTTTrailerRoadFeedbackSubsystem::UpdateRoadLights(
     const bool bBraking = bAttached && bMoving && DecelerationKmhPerSecond >= BrakeDecelerationThresholdKmhPerSecond;
     const bool bReversing = bAttached && LongitudinalSpeedKmh <= ReverseLightThresholdKmh;
     const float HitchStress = FMath::Clamp(Trailer->GetHitchLoad(), 0.0f, 1.0f);
+    const bool bJackknifeWarning = bAttached && JackknifeRisk >= JackknifeWarningRiskThreshold;
     const bool bCriticalTrailerState = Trailer->GetLostWheelCount() > 0
         || HitchStress > (1.0f - CriticalIntegrityThreshold)
         || Trailer->GetTrailerIntegrity() < CriticalIntegrityThreshold
-        || Trailer->IsRoadsideRepairPending();
+        || Trailer->IsRoadsideRepairPending()
+        || bJackknifeWarning;
 
     const float TailIntensity = bAttached ? (bBraking ? 2600.0f : 480.0f) : 0.0f;
     SetLampIntensity(Runtime.TailLeft, TailIntensity);
@@ -176,7 +227,7 @@ void UGTTTrailerRoadFeedbackSubsystem::UpdateRoadLights(
 
 void UGTTTrailerRoadFeedbackSubsystem::ApplyLoadedTrailerStability(
     AGTTFarmTrailer* Trailer,
-    const float DeltaTime) const
+    const float JackknifeRisk) const
 {
     if (!Trailer->IsAttached() || !Trailer->HasCargo() || Trailer->GetLostWheelCount() > 0)
     {
@@ -204,7 +255,13 @@ void UGTTTrailerRoadFeedbackSubsystem::ApplyLoadedTrailerStability(
     const float HitchReserve = 1.0f - FMath::Clamp(Trailer->GetHitchLoad(), 0.0f, 1.0f);
     const float Integrity = FMath::Min(Trailer->GetTrailerIntegrity(), HitchReserve);
     const float IntegrityAuthority = FMath::Clamp((Integrity - 0.20f) / 0.80f, 0.15f, 1.0f);
-    const float Authority = SpeedAuthority * LoadAuthority * IntegrityAuthority * MaximumStabilityAuthority;
+    const float JackknifeBoost = FMath::Lerp(
+        1.0f,
+        MaximumJackknifeAssistMultiplier,
+        FMath::Clamp(JackknifeRisk, 0.0f, 1.0f));
+    const float Authority = FMath::Min(
+        SpeedAuthority * LoadAuthority * IntegrityAuthority * MaximumStabilityAuthority * JackknifeBoost,
+        MaximumStabilityAuthority);
     if (Authority <= KINDA_SMALL_NUMBER)
     {
         return;
@@ -225,6 +282,4 @@ void UGTTTrailerRoadFeedbackSubsystem::ApplyLoadedTrailerStability(
         -MaximumYawStabilityTorque,
         MaximumYawStabilityTorque);
     Body->AddTorqueInRadians(FVector(0.0f, 0.0f, YawTorque));
-
-    (void)DeltaTime;
 }
