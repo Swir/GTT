@@ -30,6 +30,7 @@ class B:
 def pf(v): return struct.pack("<%sf"%len(v),*v)
 def pu8(v): return bytes(v)
 def pu16(v): return struct.pack("<%sH"%len(v),*v)
+def q6(x): return round(float(x), 6)
 
 def box(v,j,idx,c,s,joint):
     cx,cy,cz=c; hx,hy,hz=(q/2 for q in s)
@@ -45,14 +46,14 @@ def wheel(v,j,idx,c,r,w,joint,segments=10):
     for y in (y0,y1):
         for i in range(segments):
             a=2*math.pi*i/segments
-            v.append((cx+r*math.cos(a),y,cz+r*math.sin(a))); j.append(joint)
+            v.append((q6(cx+r*math.cos(a)),q6(y),q6(cz+r*math.sin(a)))); j.append(joint)
     for i in range(segments):
         ni=(i+1)%segments
         a=base+i; b=base+ni; c1=base+segments+ni; d=base+segments+i
         idx += [a,b,c1,a,c1,d]
     # fan caps
     for y,off,rev in ((y0,0,True),(y1,segments,False)):
-        center=len(v); v.append((cx,y,cz)); j.append(joint)
+        center=len(v); v.append((q6(cx),q6(y),q6(cz))); j.append(joint)
         for i in range(segments):
             a=base+off+i; b=base+off+((i+1)%segments)
             idx += ([center,b,a] if rev else [center,a,b])
