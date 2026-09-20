@@ -2,7 +2,7 @@
 
 ## Scope
 
-This milestone makes the loaded timber leg reward deliberate heavy-trailer driving instead of treating every successful arrival the same. It also connects loaded speed/attitude to the existing breakable-hitch physics so rough hauling has a bounded physical consequence. It does **not** claim authored trailer assets, Native Chaos runtime acceptance, a Win64 packaged build, or demo readiness.
+This milestone makes the loaded timber leg reward deliberate heavy-trailer driving instead of treating every successful arrival the same. It also connects loaded speed/attitude to the existing breakable-hitch physics and feeds the live trailer load into the native Fieldmaster Chaos movement authority so a heavy trailer is felt in throttle and steering response. It does **not** claim authored trailer assets, Native Chaos runtime acceptance, a Win64 packaged build, or demo readiness.
 
 ## Setup
 
@@ -40,6 +40,11 @@ Use the Heavy Haul contract from Player Farm. Hitch an eligible owned Fieldmaste
 - [ ] The strongest of hitch load, loaded speed stress and loaded attitude stress drives the existing bounded hitch weakening.
 - [ ] Full dynamic stress weakens break thresholds by at most 28%; integrity/load multipliers remain independently active.
 - [ ] `TRAILER_NATIVE_DYNAMICS` evidence reports dynamic stress, speed, roll and pitch from the same runtime snapshot.
+- [ ] Native Fieldmaster driving with no attached trailer keeps 100% tow throttle and steering authority.
+- [ ] Attaching an empty trailer produces a smaller but noticeable native Fieldmaster load response without changing the base wheel/powertrain configuration.
+- [ ] Loading timber increases the live tow-load factor and makes the native Fieldmaster accelerate more deliberately while retaining steering control.
+- [ ] A full normalized tow load bottoms out at 70% throttle authority and 88% steering authority; values above 1.0 are clamped rather than stacking extra penalty.
+- [ ] Detaching the trailer immediately returns native Fieldmaster tow authority to 100% on the next drive command.
 
 ## Source verification
 
@@ -49,7 +54,7 @@ Run:
 python Scripts/verify_v0_1_59_heavy_haul_driving_quality.py
 ```
 
-The verifier checks source integration plus deterministic driving-quality and trailer-dynamics threshold math. It is not a substitute for an Unreal Editor/Win64 runtime playtest.
+The verifier checks source integration plus deterministic driving-quality, trailer-dynamics and native tow-load threshold math. It is not a substitute for an Unreal Editor/Win64 runtime playtest.
 
 ## Demo gate
 

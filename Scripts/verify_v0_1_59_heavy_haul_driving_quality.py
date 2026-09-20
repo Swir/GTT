@@ -8,11 +8,15 @@ CPP = ROOT / "Source/GTT/Private/Activities/GTTHeavyHaulDirector.cpp"
 HDR = ROOT / "Source/GTT/Public/Activities/GTTHeavyHaulDirector.h"
 DYN_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTFarmTrailerDynamicsSubsystem.cpp"
 DYN_HDR = ROOT / "Source/GTT/Public/Vehicles/GTTFarmTrailerDynamicsSubsystem.h"
+MOVE_CPP = ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp"
+MOVE_HDR = ROOT / "Source/GTT/Public/Vehicles/GTTFieldmasterChaosMovementComponent.h"
 
 cpp = CPP.read_text(encoding="utf-8")
 hdr = HDR.read_text(encoding="utf-8")
 dyn_cpp = DYN_CPP.read_text(encoding="utf-8")
 dyn_hdr = DYN_HDR.read_text(encoding="utf-8")
+move_cpp = MOVE_CPP.read_text(encoding="utf-8")
+move_hdr = MOVE_HDR.read_text(encoding="utf-8")
 
 required_header = [
     "GetSmoothHaulSeconds",
@@ -72,11 +76,32 @@ required_dyn_cpp = [
     "roll=%.1f",
     "pitch=%.1f",
 ]
+required_move_header = [
+    "GetTowLoadFactor",
+    "GetTowThrottleAuthority",
+    "GetTowSteeringAuthority",
+    "float TowLoadFactor = 0.0f",
+    "float TowThrottleAuthority = 1.0f",
+    "float TowSteeringAuthority = 1.0f",
+]
+required_move_cpp = [
+    "MaximumTowThrottlePenalty = 0.30f",
+    "MaximumTowSteeringPenalty = 0.12f",
+    "ResolveAttachedTrailerLoad",
+    "Trailer->GetTowActor() != Owner",
+    "Trailer->GetTowLoadFactor()",
+    "TowThrottleAuthority = 1.0f - TowLoadFactor * MaximumTowThrottlePenalty",
+    "TowSteeringAuthority = 1.0f - TowLoadFactor * MaximumTowSteeringPenalty",
+    "EffectiveThrottle = FMath::Abs(RequestedThrottle) * DriveHealthFactor * TowThrottleAuthority",
+    "EffectiveSteering = RequestedSteering * SteeringGripFactor * TowSteeringAuthority",
+]
 
 missing = [token for token in required_header if token not in hdr]
 missing += [token for token in required_cpp if token not in cpp]
 missing += [token for token in required_dyn_header if token not in dyn_hdr]
 missing += [token for token in required_dyn_cpp if token not in dyn_cpp]
+missing += [token for token in required_move_header if token not in move_hdr]
+missing += [token for token in required_move_cpp if token not in move_cpp]
 if missing:
     raise SystemExit("0.1.59 source contract missing: " + ", ".join(missing))
 
@@ -114,6 +139,11 @@ def dynamic_stress(loaded, speed, hitch, roll, pitch):
     return clamp01(max(clamp01(hitch), speed_stress, attitude_stress))
 
 
+def tow_authority(load):
+    load01 = clamp01(load)
+    return (1.0 - load01 * 0.30, 1.0 - load01 * 0.12)
+
+
 quality_cases = [
     ("cruise", smooth(32, 0.10, 2, 1), True),
     ("minimum-speed", smooth(16, 0.32, 10, 8), True),
@@ -146,6 +176,16 @@ for name, actual, expected in stress_cases:
     if abs(actual - expected) > 1e-6:
         raise SystemExit(f"0.1.59 dynamics math failed: {name}: {actual:.6f} != {expected:.6f}")
 
+tow_cases = [
+    ("no-trailer", tow_authority(0.0), (1.0, 1.0)),
+    ("half-load", tow_authority(0.5), (0.85, 0.94)),
+    ("full-load", tow_authority(1.0), (0.70, 0.88)),
+    ("clamped-overload", tow_authority(1.5), (0.70, 0.88)),
+]
+for name, actual, expected in tow_cases:
+    if any(abs(a - e) > 1e-6 for a, e in zip(actual, expected)):
+        raise SystemExit(f"0.1.59 tow-load math failed: {name}: {actual} != {expected}")
+
 if "SmoothHaulSeconds >= SmoothHaulTargetSeconds" not in cpp:
     raise SystemExit("bonus missing smooth-time gate")
 if "RoughHaulSeconds <= RoughHaulAllowanceSeconds" not in cpp:
@@ -159,5 +199,5 @@ if abs(full_stress_strength - 0.72) > 1e-6:
 
 print(
     "GTT 0.1.59 heavy-haul driving-quality source contract: PASS "
-    f"({len(quality_cases)} quality + {len(stress_cases)} dynamics math cases)"
+    f"({len(quality_cases)} quality + {len(stress_cases)} dynamics + {len(tow_cases)} tow-load math cases)"
 )

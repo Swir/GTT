@@ -8,9 +8,10 @@
  * Dedicated native Chaos movement authority for the Rusty Fieldmaster 60.
  *
  * This component owns the tractor's canonical Chaos wheel/powertrain setup and
- * translates shared sandbox state (fuel, condition, tire integrity and terrain
- * grip) into the inputs consumed by Chaos Vehicles. The legacy vehicle remains
- * the persistence mirror/fallback until packaged runtime acceptance is proven.
+ * translates shared sandbox state (fuel, condition, tire integrity, terrain
+ * grip and live trailer load) into the inputs consumed by Chaos Vehicles. The
+ * legacy vehicle remains the persistence mirror/fallback until packaged runtime
+ * acceptance is proven.
  */
 UCLASS(ClassGroup=(Physics), meta=(BlueprintSpawnableComponent))
 class GTT_API UGTTFieldmasterChaosMovementComponent : public UChaosWheeledVehicleMovementComponent
@@ -47,6 +48,15 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster")
     float GetSteeringGripFactor() const { return SteeringGripFactor; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float GetTowLoadFactor() const { return TowLoadFactor; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float GetTowThrottleAuthority() const { return TowThrottleAuthority; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float GetTowSteeringAuthority() const { return TowSteeringAuthority; }
+
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster")
     bool IsFieldmasterConfigurationValid() const { return bFieldmasterConfigurationValid; }
 
@@ -73,4 +83,13 @@ private:
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster")
     float SteeringGripFactor = 1.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float TowLoadFactor = 0.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float TowThrottleAuthority = 1.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
+    float TowSteeringAuthority = 1.0f;
 };
