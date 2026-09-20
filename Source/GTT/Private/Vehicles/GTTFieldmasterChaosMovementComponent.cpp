@@ -211,7 +211,7 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     EffectiveThrottle *= TerrainThrottleAuthority;
     EffectiveSteering = RequestedSteering * SteeringGripFactor * TowSteeringAuthority;
 
-    SetThrottleInput(FMath::Clamp(EffectiveThrottle, 0.0f, 1.0f));
+    SetThrottleInput(EffectiveThrottle);
     SetSteeringInput(EffectiveSteering);
     const float BaseBrake = FMath::IsNearlyZero(RequestedThrottle, DirectionDeadZone) ? IdleBrakeInput : 0.0f;
     SetBrakeInput(FMath::Clamp(FMath::Max(BaseBrake, HillHaulBrake), 0.0f, 1.0f));
