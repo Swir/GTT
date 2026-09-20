@@ -31,6 +31,8 @@ smoke = read("Scripts/smoke_test_windows.ps1")
 evaluator = read("Scripts/evaluate_farm_cargo_dispatch_runtime.ps1")
 demo_gate = read("Scripts/evaluate_demo_candidate.ps1")
 workflow = read(".github/workflows/win64-package-evidence.yml")
+runner = read("Scripts/run_win64_candidate_acceptance.ps1")
+attestor = read("Scripts/write_win64_candidate_attestation.ps1")
 roadmap = read("Docs/ROADMAP.md")
 readme = read("README.md")
 
@@ -115,15 +117,21 @@ assert gate_schema_match and int(gate_schema_match.group(1)) >= 11, "demo techni
 require(demo_gate, "$farmCargoDispatch", "demo technical gate exact-SHA chain")
 assert "$farmCargoDispatch" in re.search(r"foreach\(\$e in @\((.*?)\)\)", demo_gate, flags=re.S).group(1), "dispatch manifest must participate in exact-SHA evidence checks"
 
-for token in ("evaluate_farm_cargo_dispatch_runtime.ps1", "FARM_CARGO_DISPATCH_RUNTIME.json"):
-    require(workflow, token, "Win64 package evidence workflow")
+# 0.1.65 centralizes executable Win64 ordering in the canonical runner and seals
+# each manifest in the final attestation. Verify the real path instead of counting
+# repeated compatibility tokens in workflow YAML.
+require(workflow, "run_win64_attested_candidate_acceptance.ps1", "Win64 package evidence workflow")
+require(workflow, "FINAL_SHA256SUMS.txt", "Win64 package evidence workflow")
+require(runner, "evaluate_farm_cargo_dispatch_runtime.ps1", "canonical Win64 runner")
+require(runner, "evaluate_demo_candidate.ps1", "canonical Win64 runner")
+assert runner.index("evaluate_farm_cargo_dispatch_runtime.ps1") < runner.index("evaluate_demo_candidate.ps1"), "dispatch runtime evaluator must precede demo technical gate"
+require(attestor, "FARM_CARGO_DISPATCH_RUNTIME.json", "candidate attestor")
 workflow_version = re.search(r"(?m)^\s*default:\s*'([0-9]+\.[0-9]+\.[0-9]+)'\s*$", workflow)
 assert workflow_version and version_tuple(workflow_version.group(1)) >= (0, 1, 38), "Win64 workflow must target 0.1.38 or later"
-alive = re.search(r"MinimumAliveSeconds\s+(\d+)", workflow)
-timeout = re.search(r"LaunchTimeoutSeconds\s+(\d+)", workflow)
+alive = re.search(r'"-MinimumAliveSeconds",\s*(\d+)', runner)
+timeout = re.search(r'"-LaunchTimeoutSeconds",\s*(\d+)', runner)
 assert alive and int(alive.group(1)) >= 324, "Win64 runtime evidence window must stay at least 324 seconds"
 assert timeout and int(timeout.group(1)) >= 350, "Win64 smoke timeout must stay at least 350 seconds"
-assert workflow.count("FARM_CARGO_DISPATCH_RUNTIME.json") >= 4, "dispatch manifest must be validated and retained in candidate/diagnostics"
 
 require(readme, "<!-- SWIR-README-STANDARD:v2 -->", "README")
 require(readme, "## 🔎 Search Keywords", "README")

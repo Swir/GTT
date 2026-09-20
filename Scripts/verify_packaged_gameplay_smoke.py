@@ -5,10 +5,12 @@ root = Path(__file__).resolve().parents[1]
 eval_ps = (root / 'Scripts/evaluate_packaged_gameplay_smoke.ps1').read_text(encoding='utf-8')
 demo = (root / 'Scripts/evaluate_demo_candidate.ps1').read_text(encoding='utf-8')
 workflow = (root / '.github/workflows/win64-package-evidence.yml').read_text(encoding='utf-8')
+runner = (root / 'Scripts/run_win64_candidate_acceptance.ps1').read_text(encoding='utf-8')
+attestor = (root / 'Scripts/write_win64_candidate_attestation.ps1').read_text(encoding='utf-8')
 scenario = (root / 'Scripts/evaluate_demo_scenario.ps1').read_text(encoding='utf-8')
 
-runtime_match = re.search(r'-MinimumAliveSeconds\s+(\d+)\s+-LaunchTimeoutSeconds\s+(\d+)', workflow)
-gameplay_match = re.search(r'-MinimumRuntimeSeconds\s+(\d+)', workflow)
+runtime_match = re.search(r'"-MinimumAliveSeconds",\s*(\d+).*?"-LaunchTimeoutSeconds",\s*(\d+)', runner, flags=re.S)
+gameplay_match = re.search(r'"-MinimumRuntimeSeconds",\s*(\d+)', runner)
 runtime_ok = False
 minimum_alive = launch_timeout = minimum_gameplay = 0
 if runtime_match and gameplay_match:
@@ -17,14 +19,24 @@ if runtime_match and gameplay_match:
     minimum_gameplay = int(gameplay_match.group(1))
     runtime_ok = minimum_alive >= 178 and minimum_gameplay >= minimum_alive and launch_timeout > minimum_alive and launch_timeout >= 205
 
-# This verifier was introduced for candidate 0.1.14. Later additive milestones must
-# not fail merely because the workflow's truthful default label advances.
 version_match = re.search(r"default:\s*'([0-9]+)\.([0-9]+)\.([0-9]+)'", workflow)
 candidate_version = None
 candidate_version_ok = False
 if version_match:
     candidate_version = tuple(int(part) for part in version_match.groups())
     candidate_version_ok = candidate_version >= (0, 1, 14)
+
+scenario_eval = 'evaluate_demo_scenario.ps1'
+gameplay_eval = 'evaluate_packaged_gameplay_smoke.ps1'
+canonical_order_ok = (
+    scenario_eval in runner and gameplay_eval in runner
+    and runner.index(scenario_eval) < runner.index(gameplay_eval)
+)
+sealed_manifest_ok = (
+    'GAMEPLAY_SMOKE.json' in attestor
+    and 'FINAL_SHA256SUMS.txt' in workflow
+    and 'run_win64_attested_candidate_acceptance.ps1' in workflow
+)
 
 checks = {
     'gameplay schema': 'gtt.packaged-gameplay-smoke.v1' in eval_ps,
@@ -33,11 +45,11 @@ checks = {
     'sha binding': 'runtime evidence SHA mismatch' in eval_ps,
     'manifest': 'GAMEPLAY_SMOKE.json' in eval_ps and 'GAMEPLAY_SMOKE.json' in demo,
     'demo gate requires pass': "gameplay.result -ne 'PASS'" in demo,
-    'workflow runs evaluator': 'evaluate_packaged_gameplay_smoke.ps1' in workflow,
-    'workflow uploads manifest': '\\GAMEPLAY_SMOKE.json' in workflow,
+    'canonical runner executes evaluator': gameplay_eval in runner,
+    'manifest sealed in final candidate': sealed_manifest_ok,
     'candidate version not regressed below 0.1.14': candidate_version_ok,
     'extended runtime': runtime_ok,
-    'structural scenario before gameplay smoke': 'Evaluate structural limp-home, persistence and workshop recovery scenario' in workflow and workflow.index('Evaluate structural limp-home, persistence and workshop recovery scenario') < workflow.index('Evaluate packaged gameplay smoke'),
+    'structural scenario before gameplay smoke': canonical_order_ok,
     'scenario structural gate': 'gtt.demo-scenario.v11' in scenario and 'workshop_recovery_passed' in scenario and 'structural_persistence_passed' in scenario and 'structural_repair_passed' in scenario and 'structural_handling_passed' in scenario and 'structural_reload_handling_passed' in scenario and 'structural_drive_recovery_passed' in scenario,
 }
 failed = [k for k, v in checks.items() if not v]

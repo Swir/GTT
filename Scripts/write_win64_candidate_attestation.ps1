@@ -50,6 +50,10 @@ $runtime = Read-JsonRequired "RUNTIME_SMOKE.json"
 Assert-ExactIdentity $runtime "RUNTIME_SMOKE.json"
 if ([string]$runtime.result -ne "PASS") { throw "RUNTIME_SMOKE.json is not PASS." }
 
+$scenario = Read-JsonRequired "DEMO_SCENARIO.json"
+Assert-ExactIdentity $scenario "DEMO_SCENARIO.json"
+if ([string]$scenario.result -ne "PASS") { throw "DEMO_SCENARIO.json is not PASS." }
+
 $chaos = Read-JsonRequired "NATIVE_CHAOS_RUNTIME.json"
 Assert-ExactIdentity $chaos "NATIVE_CHAOS_RUNTIME.json"
 if ([string]$chaos.result -ne "PASS") { throw "NATIVE_CHAOS_RUNTIME.json is not PASS." }
@@ -102,6 +106,7 @@ $criticalNames = @(
     "PACKAGE_VALIDATION.json",
     "AUTHORED_TRAILER_IMPORT.json",
     "RUNTIME_SMOKE.json",
+    "DEMO_SCENARIO.json",
     "GAMEPLAY_SMOKE.json",
     "NATIVE_CHAOS_RUNTIME.json",
     "NATIVE_AUTHORITY_RUNTIME.json",
