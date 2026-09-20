@@ -29,7 +29,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify deterministic original trailer source rig
+      - name: Generate and verify original trailer source rig
+        shell: bash
         run: |
-          python Scripts/generate_gtt_farm_trailer_gltf.py --check
-          python Scripts/verify_v0_1_60_authored_trailer_source_rig.py
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/GTT_FarmTrailer_Rig.gltf"
+          python Scripts/generate_gtt_farm_trailer_gltf.py --output "$OUT"
+          python Scripts/verify_v0_1_60_authored_trailer_source_rig.py --asset "$OUT"

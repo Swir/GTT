@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Source-contract verifier for GTT 0.1.60 authored trailer source rig."""
+"""Source-contract verifier for a generated GTT 0.1.60 authored trailer rig."""
 from __future__ import annotations
+import argparse
 import base64
 import hashlib
 import json
-import math
 import subprocess
 import sys
 import tempfile
@@ -12,7 +12,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "Scripts" / "generate_gtt_farm_trailer_gltf.py"
-ASSET = ROOT / "SourceArt" / "Trailer" / "GTT_FarmTrailer_Rig.gltf"
 CONTRACT = "gtt.farm-trailer-source-rig.v1"
 REQUIRED_JOINTS = ("body", "wheel_l", "wheel_r")
 REQUIRED_SOCKETS = ("socket_hitch", "socket_cargo", "socket_axle_l", "socket_axle_r")
@@ -25,10 +24,10 @@ def accessor_bounds(doc, index):
     a=doc["accessors"][index]
     return a.get("min"), a.get("max")
 
-def main() -> int:
+def verify(asset: Path) -> None:
     require(GENERATOR.is_file(), f"missing generator: {GENERATOR}")
-    require(ASSET.is_file(), f"missing authored source rig: {ASSET}")
-    text=ASSET.read_text(encoding="utf-8")
+    require(asset.is_file(), f"missing generated authored rig: {asset}")
+    text=asset.read_text(encoding="utf-8")
     doc=json.loads(text)
     require(doc["asset"]["version"]=="2.0","asset must be glTF 2.0")
     require(doc["asset"]["extras"]["gtt_asset_contract"]==CONTRACT,"wrong asset contract")
@@ -48,12 +47,9 @@ def main() -> int:
     require(tuple(skin["extras"]["required_sockets"])==REQUIRED_SOCKETS,"skin socket contract drift")
 
     expected_locations={
-        "wheel_l": (0.72,-1.42,-0.42),
-        "wheel_r": (0.72,1.42,-0.42),
-        "socket_hitch": (-4.90,0.0,0.12),
-        "socket_cargo": (0.0,0.0,1.05),
-        "socket_axle_l": (0.72,-1.42,-0.42),
-        "socket_axle_r": (0.72,1.42,-0.42),
+        "wheel_l": (0.72,-1.42,-0.42), "wheel_r": (0.72,1.42,-0.42),
+        "socket_hitch": (-4.90,0.0,0.12), "socket_cargo": (0.0,0.0,1.05),
+        "socket_axle_l": (0.72,-1.42,-0.42), "socket_axle_r": (0.72,1.42,-0.42),
     }
     for name, expected in expected_locations.items():
         actual=tuple(nodes[name_to_index[name]].get("translation",(0,0,0)))
@@ -78,14 +74,20 @@ def main() -> int:
     require(body_min[1] <= -1.25 and body_max[1] >= 1.25,"body width envelope regressed")
     require(body_max[2] >= 1.5,"rail height envelope regressed")
 
-    # Source generation must be byte-for-byte deterministic.
+    # A second process must reproduce the generated candidate byte-for-byte.
     with tempfile.TemporaryDirectory() as td:
-        generated=Path(td)/"rig.gltf"
-        subprocess.run([sys.executable,str(GENERATOR),"--output",str(generated)],check=True,cwd=ROOT)
-        require(generated.read_bytes()==ASSET.read_bytes(),"generated source rig is stale/non-deterministic")
-    digest=hashlib.sha256(ASSET.read_bytes()).hexdigest()
-    print(f"GTT 0.1.60 authored trailer source rig: PASS sha256={digest} bytes={ASSET.stat().st_size}")
-    print("Source asset is validated only; Unreal import + PhysicsAsset + packaged Win64 runtime/visual acceptance remain open.")
+        regenerated=Path(td)/"rig.gltf"
+        subprocess.run([sys.executable,str(GENERATOR),"--output",str(regenerated)],check=True,cwd=ROOT)
+        require(regenerated.read_bytes()==asset.read_bytes(),"generated rig is non-deterministic on this runner")
+    digest=hashlib.sha256(asset.read_bytes()).hexdigest()
+    print(f"GTT 0.1.60 authored trailer source rig: PASS sha256={digest} bytes={asset.stat().st_size}")
+    print("Generated source asset is validated only; UE import + PhysicsAsset + packaged Win64 runtime/visual acceptance remain open.")
+
+def main() -> int:
+    ap=argparse.ArgumentParser()
+    ap.add_argument("--asset", required=True, help="Generated glTF candidate to validate")
+    args=ap.parse_args()
+    verify(Path(args.asset))
     return 0
 
 if __name__=="__main__":
