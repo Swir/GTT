@@ -54,6 +54,12 @@ $chaos = Read-JsonRequired "NATIVE_CHAOS_RUNTIME.json"
 Assert-ExactIdentity $chaos "NATIVE_CHAOS_RUNTIME.json"
 if ([string]$chaos.result -ne "PASS") { throw "NATIVE_CHAOS_RUNTIME.json is not PASS." }
 
+$authority = Read-JsonRequired "NATIVE_AUTHORITY_RUNTIME.json"
+Assert-ExactIdentity $authority "NATIVE_AUTHORITY_RUNTIME.json"
+if ([string]$authority.result -ne "PASS") { throw "NATIVE_AUTHORITY_RUNTIME.json is not PASS." }
+if ([string]$authority.authority -ne "NATIVE_CHAOS") { throw "NATIVE_AUTHORITY_RUNTIME.json authority must be NATIVE_CHAOS." }
+if ([int]$authority.authority_faults -ne 0) { throw "NATIVE_AUTHORITY_RUNTIME.json contains split-authority faults." }
+
 $trailer = Read-JsonRequired "NATIVE_TRAILER_RUNTIME.json"
 Assert-ExactIdentity $trailer "NATIVE_TRAILER_RUNTIME.json"
 if ([string]$trailer.result -ne "PASS") { throw "NATIVE_TRAILER_RUNTIME.json is not PASS." }
@@ -70,6 +76,7 @@ $summary = Read-JsonRequired "WIN64_ACCEPTANCE_SUMMARY.json"
 Assert-ExactIdentity $summary "WIN64_ACCEPTANCE_SUMMARY.json"
 if ([string]$summary.result -ne "PASS") { throw "WIN64_ACCEPTANCE_SUMMARY.json is not PASS." }
 if ([string]$summary.configuration -ne $Configuration) { throw "WIN64_ACCEPTANCE_SUMMARY.json configuration does not match '$Configuration'." }
+if ([string]$summary.native_authority_runtime -ne "PASS") { throw "WIN64_ACCEPTANCE_SUMMARY.json native authority runtime is not PASS." }
 if ([string]$summary.human_visual_review -ne "REQUIRED") { throw "Human visual review boundary must remain REQUIRED." }
 if ([bool]$summary.demo_release_authorized) { throw "Technical attestation must never authorize a Demo Release." }
 
@@ -89,6 +96,7 @@ $criticalNames = @(
     "RUNTIME_SMOKE.json",
     "GAMEPLAY_SMOKE.json",
     "NATIVE_CHAOS_RUNTIME.json",
+    "NATIVE_AUTHORITY_RUNTIME.json",
     "NATIVE_DRIVETRAIN_SCENARIO.json",
     "NATIVE_TRAILER_RUNTIME.json",
     "FARM_CARGO_RUNTIME.json",
@@ -136,6 +144,8 @@ $attestation = [ordered]@{
     configuration = $Configuration
     platform = "Win64"
     engine = "Unreal Engine 5.8"
+    native_authority_runtime = "PASS"
+    native_authority_faults = 0
     technical_gate_schema = 17
     technical_gate = "PASS"
     rendered_visual_evidence = "PASS"
@@ -176,7 +186,8 @@ Set-Content -Encoding ASCII -Path "$zipPath.sha256" -Value "$zipHash  $([IO.Path
 $roundTrip = Get-Content -Raw $attestationPath | ConvertFrom-Json
 if ($roundTrip.schema -ne "gtt.win64-candidate-attestation.v1" -or $roundTrip.result -ne "PASS" -or
     $roundTrip.git_sha -ne $ExpectedGitSha -or $roundTrip.version -ne $Version -or
-    $roundTrip.configuration -ne $Configuration -or $roundTrip.human_visual_review -ne "REQUIRED" -or
+    $roundTrip.configuration -ne $Configuration -or $roundTrip.native_authority_runtime -ne "PASS" -or
+    [int]$roundTrip.native_authority_faults -ne 0 -or $roundTrip.human_visual_review -ne "REQUIRED" -or
     [bool]$roundTrip.demo_release_authorized) {
     throw "WIN64_CANDIDATE_ATTESTATION.json failed round-trip identity/boundary validation."
 }
