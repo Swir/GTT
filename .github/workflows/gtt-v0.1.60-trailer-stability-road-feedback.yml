@@ -1,0 +1,39 @@
+name: GTT 0.1.60 trailer stability road feedback sanity
+
+on:
+  push:
+    paths:
+      - "Source/GTT/Private/Vehicles/GTTTrailerRoadFeedbackSubsystem.cpp"
+      - "Source/GTT/Public/Vehicles/GTTTrailerRoadFeedbackSubsystem.h"
+      - "Source/GTT/Private/Vehicles/GTTFarmTrailer.cpp"
+      - "Source/GTT/Public/Vehicles/GTTFarmTrailer.h"
+      - "Scripts/verify_v0_1_60_trailer_stability_road_feedback.py"
+      - "Docs/PLAYTEST_0.1.60_TRAILER_STABILITY_ROAD_FEEDBACK.md"
+      - "CHANGELOG.d/0.1.60-trailer-stability-road-feedback.md"
+      - ".github/workflows/gtt-v0.1.60-trailer-stability-road-feedback.yml"
+  pull_request:
+    paths:
+      - "Source/GTT/Private/Vehicles/GTTTrailerRoadFeedbackSubsystem.cpp"
+      - "Source/GTT/Public/Vehicles/GTTTrailerRoadFeedbackSubsystem.h"
+      - "Source/GTT/Private/Vehicles/GTTFarmTrailer.cpp"
+      - "Source/GTT/Public/Vehicles/GTTFarmTrailer.h"
+      - "Scripts/verify_v0_1_60_trailer_stability_road_feedback.py"
+      - "Docs/PLAYTEST_0.1.60_TRAILER_STABILITY_ROAD_FEEDBACK.md"
+      - "CHANGELOG.d/0.1.60-trailer-stability-road-feedback.md"
+      - ".github/workflows/gtt-v0.1.60-trailer-stability-road-feedback.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-trailer-stability-road-feedback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify 0.1.60 source and deterministic feedback math
+        run: python Scripts/verify_v0_1_60_trailer_stability_road_feedback.py
