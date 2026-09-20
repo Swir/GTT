@@ -27,6 +27,15 @@ def require(text: str, needles: list[str], label: str) -> None:
         raise AssertionError(f"{label}: missing {missing}")
 
 
+def require_min_candidate_default(text: str, minimum=(0, 1, 52)) -> None:
+    match = re.search(r"default:\s*['\"]([0-9]+)\.([0-9]+)\.([0-9]+)['\"]", text)
+    if not match:
+        raise AssertionError("Win64 candidate wiring: current candidate default is missing")
+    version = tuple(map(int, match.groups()))
+    if version < minimum:
+        raise AssertionError(f"Win64 candidate wiring regressed below {minimum}: {version}")
+
+
 def main() -> int:
     header = read("Source/GTT/Public/Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.h")
     cpp = read("Source/GTT/Private/Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.cpp")
@@ -107,9 +116,10 @@ def main() -> int:
         "GTTWorkshopCapacityRuntimeScenario", "workshop_capacity_runtime_scenario = $true",
     ], "packaged smoke launch")
     # 0.1.52 adds a later schema-17 gate. The historical capacity stage itself must remain schema 16
-    # and remain present before the new priority/pickup promotion.
+    # and remain present before the new priority/pickup promotion. Candidate labels may advance.
+    require_min_candidate_default(win64)
     require(win64, [
-        "default: '0.1.52'", "MinimumAliveSeconds 472", "LaunchTimeoutSeconds 505",
+        "MinimumAliveSeconds 472", "LaunchTimeoutSeconds 505",
         "evaluate_workshop_capacity_runtime.ps1", "promote_demo_gate_workshop_capacity.ps1",
         "WORKSHOP_CAPACITY_RUNTIME.json", "promote_demo_gate_workshop_priority_pickup.ps1",
         "WORKSHOP_PRIORITY_PICKUP_RUNTIME.json", "schema -ne 17",
@@ -147,7 +157,7 @@ def main() -> int:
 
     print("GTT 0.1.48 packaged multi-vehicle workshop capacity source contract: PASS")
     print("Runtime route: two exact-ID bookings -> disk -> cancel/rebook -> underfunded non-blocking execution")
-    print("0.1.52 compatibility: capacity still promotes schema 16 before the later schema-17 priority/pickup gate")
+    print("0.1.52+ compatibility: capacity still promotes schema 16 before the later schema-17 priority/pickup gate")
     print(f"Roadmap: {done}/{done + open_} = {done/(done+open_)*100:.1f}% (unchanged)")
     print("Runtime/Win64 verification: NOT CLAIMED")
     return 0

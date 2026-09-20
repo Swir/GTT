@@ -25,6 +25,15 @@ def require(text: str, needles: list[str], label: str) -> None:
         raise AssertionError(f"{label}: missing {missing}")
 
 
+def require_min_candidate_default(text: str, minimum=(0, 1, 52)) -> None:
+    match = re.search(r"default:\s*['\"]([0-9]+)\.([0-9]+)\.([0-9]+)['\"]", text)
+    if not match:
+        raise AssertionError("Win64 evidence integration: current candidate default is missing")
+    version = tuple(map(int, match.groups()))
+    if version < minimum:
+        raise AssertionError(f"Win64 evidence integration: candidate default regressed below {minimum}: {version}")
+
+
 def main() -> int:
     runtime_h = read("Source/GTT/Public/Core/GTTWorkshopPriorityPickupRuntimeEvidenceSubsystem.h")
     runtime_cpp = read("Source/GTT/Private/Core/GTTWorkshopPriorityPickupRuntimeEvidenceSubsystem.cpp")
@@ -92,8 +101,9 @@ def main() -> int:
         "schema -ne 16", "$gate.schema=17", "workshop_capacity_runtime",
         "workshop_priority_pickup_runtime='PASS'", "WORKSHOP_PRIORITY_PICKUP_RUNTIME.json",
     ], "schema-17 promoter")
+    require_min_candidate_default(win64)
     require(win64, [
-        "default: '0.1.52'", "evaluate_workshop_priority_pickup_runtime.ps1",
+        "evaluate_workshop_priority_pickup_runtime.ps1",
         "promote_demo_gate_workshop_priority_pickup.ps1", "WORKSHOP_PRIORITY_PICKUP_RUNTIME.json",
         "schema -ne 17", "workshop_priority_pickup_runtime -ne 'PASS'",
     ], "Win64 evidence integration")

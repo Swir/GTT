@@ -3,7 +3,7 @@ param(
     [ValidateSet("Development", "Shipping")]
     [string]$Configuration = "Shipping",
     [string]$ArchiveDirectory = "",
-    [string]$Version = "0.1.14",
+    [string]$Version = "",
     [switch]$SkipZip
 )
 
@@ -12,13 +12,27 @@ Set-StrictMode -Version Latest
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $ProjectFile = Join-Path $ProjectRoot "GTT.uproject"
+$GameConfig = Join-Path $ProjectRoot "Config\DefaultGame.ini"
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"
 $Validator = Join-Path $PSScriptRoot "validate_windows_package.ps1"
 $Preflight = Join-Path $PSScriptRoot "preflight_win64_unreal.ps1"
 
 if (-not (Test-Path $ProjectFile)) { throw "GTT.uproject was not found at $ProjectFile" }
+if (-not (Test-Path $GameConfig)) { throw "Config/DefaultGame.ini was not found at $GameConfig" }
 if (-not (Test-Path $Validator)) { throw "Package validator was not found at $Validator" }
 if (-not (Test-Path $Preflight)) { throw "Win64 Unreal preflight was not found at $Preflight" }
+
+$gameIni = Get-Content -Raw $GameConfig
+$versionMatch = [regex]::Match($gameIni, '(?m)^ProjectVersion=(.+)$')
+if (-not $versionMatch.Success) { throw "ProjectVersion is missing from Config/DefaultGame.ini." }
+$ProjectVersion = $versionMatch.Groups[1].Value.Trim()
+if ([string]::IsNullOrWhiteSpace($ProjectVersion)) { throw "ProjectVersion in Config/DefaultGame.ini must not be empty." }
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = $ProjectVersion
+} elseif ($Version -ne $ProjectVersion) {
+    throw "Version '$Version' does not match ProjectVersion '$ProjectVersion'."
+}
+
 if ([string]::IsNullOrWhiteSpace($ArchiveDirectory)) { $ArchiveDirectory = Join-Path $ProjectRoot "Releases\GTT-$Version-Windows-$Configuration" }
 
 $ArchiveDirectory = [System.IO.Path]::GetFullPath($ArchiveDirectory)
@@ -134,7 +148,7 @@ if (-not $SkipZip) {
     if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
     Compress-Archive -Path (Join-Path $ArchiveDirectory '*') -DestinationPath $zipPath -CompressionLevel Optimal
     $zipHash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLowerInvariant()
-    Set-Content -Encoding ASCII -Path "$zipPath.sha256" -Value "$zipHash  $([System.IO.Path]::GetFileName($zipPath))"
+    Set-Content -Encoding ASCII -Path "$zipPath.sha256" -Value "$zipHash  $([IO.Path]::GetFileName($zipPath))"
     Write-Host "[GTT] Release ZIP: $zipPath"
 }
 
