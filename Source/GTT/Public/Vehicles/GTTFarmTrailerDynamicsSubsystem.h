@@ -23,6 +23,10 @@ struct GTT_API FGTTFarmTrailerDynamicsSnapshot
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float DampingStrength = 0.0f;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float HitchBreakForce = 0.0f;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float HitchBreakTorque = 0.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float DynamicStress01 = 0.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float SpeedKmh = 0.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float RollDegrees = 0.0f;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) float PitchDegrees = 0.0f;
 };
 
 /**

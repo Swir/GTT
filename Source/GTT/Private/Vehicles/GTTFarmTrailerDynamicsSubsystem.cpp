@@ -14,7 +14,7 @@ namespace
 
     constexpr float DynamicsRefreshIntervalSeconds = 0.25f;
     constexpr float EvidenceIntervalSeconds = 4.0f;
-    constexpr float SuspensionTravelCm = 20.0f;
+    constexpr float SuspensionTravelCm = 24.0f;
     constexpr float EmptySpringStrength = 52000.0f;
     constexpr float LoadedSpringMultiplier = 1.45f;
     constexpr float EmptyDampingStrength = 6400.0f;
@@ -25,6 +25,10 @@ namespace
     constexpr float LoadedHitchStrengthMultiplier = 0.88f;
     constexpr float MinimumIntegrityStrengthFactor = 0.55f;
     constexpr float MaximumDynamicHitchWeakening = 0.28f;
+    constexpr float LoadedSpeedStressStartKmh = 52.0f;
+    constexpr float LoadedSpeedStressFullKmh = 78.0f;
+    constexpr float LoadedRollStressFullDegrees = 28.0f;
+    constexpr float LoadedPitchStressFullDegrees = 20.0f;
 }
 
 TStatId UGTTFarmTrailerDynamicsSubsystem::GetStatId() const
@@ -98,9 +102,9 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
     if (Trailer->IsAttached() && HitchConstraint && HitchConstraint->IsBroken())
     {
         UE_LOG(LogGTT, Warning,
-            TEXT("TRAILER_HITCH_PHYSICS_BREAK cargo=%s integrity=%.2f hitch_load=%.2f"),
+            TEXT("TRAILER_HITCH_PHYSICS_BREAK cargo=%s integrity=%.2f hitch_load=%.2f dynamic_stress=%.2f"),
             Trailer->HasCargo() ? TEXT("LOADED") : TEXT("EMPTY"),
-            Trailer->GetTrailerIntegrity(), Trailer->GetHitchLoad());
+            Trailer->GetTrailerIntegrity(), Trailer->GetHitchLoad(), State.Snapshot.DynamicStress01);
         Trailer->DetachTrailer();
     }
 
@@ -111,6 +115,18 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
         const bool bLoaded = Trailer->HasCargo();
         const float Integrity01 = FMath::Clamp(Trailer->GetTrailerIntegrity(), 0.0f, 1.0f);
         const float HitchLoad01 = FMath::Clamp(Trailer->GetHitchLoad(), 0.0f, 1.0f);
+        const float SpeedKmh = Trailer->GetVelocity().Size() * 0.036f;
+        const FRotator TrailerRotation = Trailer->GetActorRotation();
+        const float RollDegrees = FMath::Abs(TrailerRotation.Roll);
+        const float PitchDegrees = FMath::Abs(TrailerRotation.Pitch);
+        const float SpeedStress01 = bLoaded
+            ? FMath::Clamp((SpeedKmh - LoadedSpeedStressStartKmh) / FMath::Max(1.0f, LoadedSpeedStressFullKmh - LoadedSpeedStressStartKmh), 0.0f, 1.0f)
+            : 0.0f;
+        const float AttitudeStress01 = bLoaded
+            ? FMath::Clamp(FMath::Max(RollDegrees / LoadedRollStressFullDegrees, PitchDegrees / LoadedPitchStressFullDegrees), 0.0f, 1.0f)
+            : 0.0f;
+        const float DynamicStress01 = FMath::Clamp(FMath::Max(HitchLoad01, FMath::Max(SpeedStress01, AttitudeStress01)), 0.0f, 1.0f);
+
         const float SpringStrength = EmptySpringStrength * (bLoaded ? LoadedSpringMultiplier : 1.0f);
         const float DampingStrength = EmptyDampingStrength * (bLoaded ? LoadedDampingMultiplier : 1.0f);
 
@@ -121,7 +137,7 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
 
         const float IntegrityStrengthFactor = FMath::Lerp(MinimumIntegrityStrengthFactor, 1.0f, Integrity01);
         const float CargoStrengthFactor = bLoaded ? LoadedHitchStrengthMultiplier : 1.0f;
-        const float DynamicStressFactor = 1.0f - HitchLoad01 * MaximumDynamicHitchWeakening;
+        const float DynamicStressFactor = 1.0f - DynamicStress01 * MaximumDynamicHitchWeakening;
         const float HitchBreakForce = EmptyHitchBreakForce * IntegrityStrengthFactor * CargoStrengthFactor * DynamicStressFactor;
         const float HitchBreakTorque = EmptyHitchBreakTorque * IntegrityStrengthFactor * CargoStrengthFactor * DynamicStressFactor;
 
@@ -144,6 +160,10 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
         State.Snapshot.DampingStrength = DampingStrength;
         State.Snapshot.HitchBreakForce = HitchBreakForce;
         State.Snapshot.HitchBreakTorque = HitchBreakTorque;
+        State.Snapshot.DynamicStress01 = DynamicStress01;
+        State.Snapshot.SpeedKmh = SpeedKmh;
+        State.Snapshot.RollDegrees = RollDegrees;
+        State.Snapshot.PitchDegrees = PitchDegrees;
     }
 
     if (State.EvidenceSeconds >= EvidenceIntervalSeconds)
@@ -151,14 +171,15 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
         State.EvidenceSeconds = 0.0f;
         const FGTTFarmTrailerDynamicsSnapshot& Snapshot = State.Snapshot;
         UE_LOG(LogGTT, Log,
-            TEXT("TRAILER_NATIVE_DYNAMICS attached=%s cargo=%s suspension=%s/%s travel_cm=%.1f spring=%.0f damping=%.0f hitch_break_force=%.0f hitch_break_torque=%.0f integrity=%.2f hitch_load=%.2f"),
+            TEXT("TRAILER_NATIVE_DYNAMICS attached=%s cargo=%s suspension=%s/%s travel_cm=%.1f spring=%.0f damping=%.0f hitch_break_force=%.0f hitch_break_torque=%.0f integrity=%.2f hitch_load=%.2f dynamic_stress=%.2f speed_kmh=%.1f roll=%.1f pitch=%.1f"),
             Trailer->IsAttached() ? TEXT("YES") : TEXT("NO"),
             Trailer->HasCargo() ? TEXT("LOADED") : TEXT("EMPTY"),
             Snapshot.bLeftSuspensionActive ? TEXT("ACTIVE") : TEXT("OFF"),
             Snapshot.bRightSuspensionActive ? TEXT("ACTIVE") : TEXT("OFF"),
             Snapshot.SuspensionTravelCm, Snapshot.SpringStrength, Snapshot.DampingStrength,
             Snapshot.HitchBreakForce, Snapshot.HitchBreakTorque,
-            Trailer->GetTrailerIntegrity(), Trailer->GetHitchLoad());
+            Trailer->GetTrailerIntegrity(), Trailer->GetHitchLoad(),
+            Snapshot.DynamicStress01, Snapshot.SpeedKmh, Snapshot.RollDegrees, Snapshot.PitchDegrees);
     }
 }
 

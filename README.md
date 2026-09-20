@@ -31,7 +31,7 @@ GTT is in **pre-alpha active development**. The repository contains a large play
 
 Roadmap checklist: **125 / 130 tasks complete (96.2%)**. Release readiness: **NOT READY** — the remaining gates require real Win64/runtime/visual evidence and are not inferred from source CI.
 
-Current development milestone: **0.1.58 — trailer roadside recovery + suspension**.
+Current development milestone: **0.1.59 — Heavy Haul driving quality + native tow-load coupling**.
 
 ## What is GTT?
 
@@ -44,11 +44,11 @@ The tone is comedic and chaotic, but the gameplay systems are designed to connec
 | Feature | What it does |
 |---|---|
 | 🚜 Multi-vehicle sandbox | Tractor, old car and farm van roles with garage ownership, recall, fuel, condition and tuning; same-model legacy instances use collision-safe persistent IDs before ownership. |
-| 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates. |
+| 🛞 Chaos vehicle migration | Native Chaos drivetrain/wheel/suspension work is integrated behind explicit runtime acceptance gates; the native Fieldmaster now also consumes the attached physical trailer's normalized tow load so a full heavy-haul load reduces throttle/steering authority instead of behaving like an empty tractor. |
 | 💥 Vehicle damage | Tire wear, breakable panels, overheating, mechanical faults, collision damage and recovery/service loops. Eligible native road vehicles can authorize a paid temporary patch or tow with a request-time locked quote, exact target identity and same-key cancellation before arrival; a damage-preserving tow can place a TOW/IMMOBILE vehicle on workshop hold so garage recall cannot bypass required service. Regular workshop repair/refuel runs 06:30–20:00, while a hard hold keeps an after-hours emergency recovery path at a +35% surcharge. Ordinary damaged/mobile native road vehicles can hold one of four persistent exact-ID appointments with locked quotes, timed 30–90 minute service, no pre-charge, STANDARD/URGENT priority, a physical job board for lifecycle status/guarded cancellation, and explicit paid pickup before fleet redispatch. |
 | 🚓 Police escalation | Wanted heat, pursuit vehicles, roadblocks, spike strips, interception and arrest consequences. |
 | 🌲 Game-warden enforcement | Wildlife alerts, ranger pursuit, night reinforcement, police handoff, citations, seizure, lane-aware road stops, physical shoulder pull-over guidance, compact COMPLY/SEARCH/FLEE HUD, patrol-scene lighting and nearby civilian reactions. |
-| 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff; the physical farm trailer now has bounded wheel suspension, a load/damage/stress-sensitive breakable hitch and a timed in-world field-repair service with locked quote/cancellation safety while authored final wheel/hitch assets remain gated. |
+| 🌾 Legal rural work | Farm cargo, mowing, timber hauling, recovery and heavier trailer/logistics jobs tied to economy and vehicle condition. Farm Cargo locks the actual loaded vehicle to the contract so another vehicle cannot complete its handoff; Heavy Haul now scores smooth loaded driving against speed, hitch load, trailer attitude, axle and cargo condition for a one-shot handling bonus, while overspeed/roll/pitch feed the physical hitch-stress envelope. The farm trailer retains bounded wheel suspension and timed field repair while authored final wheel/hitch assets remain gated. |
 | 📦 Living logistics | ROAD/CARGO dispatch, depot stock, urgency, reservations, relationship favors, backlog and route-planning consequences. |
 | 🧑‍🌾 Living village | Civilian NPCs, schedules, traffic, day/night cycle, social venues and countryside activity. Damaged ambient traffic can create bounded crash scenes and legal roadside-assistance opportunities; unresolved severe incidents persist through dispatch, can escalate after a player-first grace period to a physical county ROAD SERVICE responder, gain a visible cone-marked safety corridor with bounded ambient-traffic yielding and now retain a short lane-reopening handoff after recovery while ranger/warden and player-payout authority remain protected. |
 | 🔫 Combat & factions | Rural arsenal, hostile archetypes, repeatable faction encounters and persistent campaign consequences. |
@@ -174,6 +174,8 @@ Milestone 0.1.57 moves two visible runtime systems forward in one source milesto
 
 Milestone 0.1.58 turns trailer recovery into an in-world service rather than an instant hidden fix. The farm trailer exposes a player-facing timed field repair with a request-time locked quote, 7–20 second service window, cancellation on movement/distance/hitch stress/collision and single authoritative debit on success; Heavy Haul delegates to the same repair authority and applies its existing 22-second contract penalty only after a completed physical repair. The same milestone keeps the newly bounded wheel suspension load-sensitive and repair-safe without claiming authored skeletal wheel/hitch assets or Win64 runtime acceptance.
 
+Milestone 0.1.59 makes Heavy Haul reward controlled driving and makes the native tractor feel the physical trailer load. Smooth loaded driving between 16–52 km/h with stable hitch/attitude, intact axle and healthy cargo/trailer can arm a one-shot $180 handling bonus after 60 qualified seconds with at most 12 seconds of rough exposure; overspeed, excessive hitch tension, severe roll/pitch or a lost wheel accumulate rough exposure. Loaded speed and attitude also feed the existing bounded breakable-hitch stress envelope, while the native Fieldmaster consumes the attached trailer's normalized tow load to reduce throttle/steering authority by at most 30%/12%. These systems materially advance the open Native Chaos/trailer integration gates but do not close authored skeletal assets or packaged UE 5.8 Win64 runtime/visual acceptance.
+
 ## Verification
 
 The repository contains a large set of Python source-contract sanity checks under `Scripts/`, plus dedicated GitHub Actions workflows for major milestones. Release-oriented automation also records Win64 preflight/build/runtime evidence when a qualifying Unreal Windows runner is available.
@@ -224,7 +226,7 @@ The current repository also contains prototype/source-built presentation and sys
 
 ## 🔎 Search Keywords
 
-`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `vehicle breakdown recovery` • `roadside assistance game` • `civilian traffic incidents` • `road service responder` • `traffic safety corridor` • `multi-vehicle workshop appointments` • `C++ Unreal game`
+`original sandbox game` • `tractor game` • `rural open world game` • `Unreal Engine tractor game` • `Unreal Engine 5.8 game` • `Windows vehicle sandbox` • `Chaos Vehicles game` • `farming action sandbox` • `countryside driving game` • `police chase sandbox` • `game warden gameplay` • `vehicle damage simulation` • `rural logistics game` • `heavy haul driving game` • `vehicle breakdown recovery` • `roadside assistance game` • `civilian traffic incidents` • `road service responder` • `traffic safety corridor` • `C++ Unreal game`
 
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="SWIR electric divider" />
 

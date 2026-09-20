@@ -1,7 +1,9 @@
 #include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
 
+#include "EngineUtils.h"
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
 #include "Vehicles/GTTChaosPowertrainSetupLibrary.h"
+#include "Vehicles/GTTFarmTrailer.h"
 
 namespace
 {
@@ -10,6 +12,30 @@ namespace
     constexpr float DirectionDeadZone = 0.05f;
     constexpr float MinimumDamagedDriveFactor = 0.28f;
     constexpr float MinimumSteeringAuthority = 0.35f;
+    constexpr float MaximumTowThrottlePenalty = 0.30f;
+    constexpr float MaximumTowSteeringPenalty = 0.12f;
+
+    float ResolveAttachedTrailerLoad(const UActorComponent* Component)
+    {
+        const AActor* Owner = Component ? Component->GetOwner() : nullptr;
+        UWorld* World = Owner ? Owner->GetWorld() : nullptr;
+        if (!Owner || !World)
+        {
+            return 0.0f;
+        }
+
+        float StrongestLoad = 0.0f;
+        for (TActorIterator<AGTTFarmTrailer> It(World); It; ++It)
+        {
+            const AGTTFarmTrailer* Trailer = *It;
+            if (!Trailer || !Trailer->IsAttached() || Trailer->GetTowActor() != Owner)
+            {
+                continue;
+            }
+            StrongestLoad = FMath::Max(StrongestLoad, Trailer->GetTowLoadFactor());
+        }
+        return FMath::Clamp(StrongestLoad, 0.0f, 1.0f);
+    }
 }
 
 UGTTFieldmasterChaosMovementComponent::UGTTFieldmasterChaosMovementComponent(const FObjectInitializer& ObjectInitializer)
@@ -73,6 +99,10 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     const float Tires01 = FMath::Clamp(TireIntegrity, 0.0f, 1.0f);
     const float Terrain01 = FMath::Clamp(TerrainGripFactor, 0.0f, 1.0f);
 
+    TowLoadFactor = ResolveAttachedTrailerLoad(this);
+    TowThrottleAuthority = 1.0f - TowLoadFactor * MaximumTowThrottlePenalty;
+    TowSteeringAuthority = 1.0f - TowLoadFactor * MaximumTowSteeringPenalty;
+
     DriveHealthFactor = bHasFuel
         ? FMath::Lerp(MinimumDamagedDriveFactor, 1.0f, Condition01)
         : 0.0f;
@@ -84,8 +114,8 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
         return;
     }
 
-    EffectiveThrottle = FMath::Abs(RequestedThrottle) * DriveHealthFactor;
-    EffectiveSteering = RequestedSteering * SteeringGripFactor;
+    EffectiveThrottle = FMath::Abs(RequestedThrottle) * DriveHealthFactor * TowThrottleAuthority;
+    EffectiveSteering = RequestedSteering * SteeringGripFactor * TowSteeringAuthority;
 
     SetThrottleInput(EffectiveThrottle);
     SetSteeringInput(EffectiveSteering);
