@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Interaction/GTTInteractable.h"
 #include "GTTFarmTrailer.generated.h"
 
+class APawn;
 class AGTTFieldmasterNativePawn;
 class AGTTVehicleBase;
 class UPhysicsConstraintComponent;
@@ -12,7 +14,7 @@ class UStaticMeshComponent;
 struct FHitResult;
 
 UCLASS()
-class GTT_API AGTTFarmTrailer : public AActor
+class GTT_API AGTTFarmTrailer : public AActor, public IGTTInteractable
 {
     GENERATED_BODY()
 
@@ -21,6 +23,9 @@ public:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
+
+    virtual void Interact_Implementation(AActor* Interactor) override;
+    virtual FText GetInteractionText_Implementation() const override;
 
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer") bool AttachToVehicle(AGTTVehicleBase* Vehicle);
     UFUNCTION(BlueprintCallable, Category="GTT|Trailer") bool AttachToNativeFieldmaster(AGTTFieldmasterNativePawn* Vehicle);
@@ -40,6 +45,12 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") int32 GetLostWheelCount() const { return (bLeftWheelLost ? 1 : 0) + (bRightWheelLost ? 1 : 0); }
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Presentation") bool IsPresentationDamaged() const { return TrailerIntegrity < 0.55f || !HasIntactAxle(); }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") bool NeedsRoadsideRepair() const;
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") bool IsRoadsideRepairPending() const { return bRoadsideRepairPending; }
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") int32 GetRoadsideRepairQuote() const;
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") float GetRoadsideRepairDuration() const;
+    UFUNCTION(BlueprintPure, Category="GTT|Trailer|Recovery") float GetRoadsideRepairTimeRemaining() const { return RoadsideRepairTimeRemaining; }
+
     UFUNCTION(BlueprintPure, Category="GTT|Trailer|Dynamics")
     float GetTowLoadFactor() const
     {
@@ -56,10 +67,15 @@ public:
 
 private:
     void ConfigureWheelAxle(UPhysicsConstraintComponent* Constraint, UStaticMeshComponent* Wheel);
+    void ConfigureHitchConstraint();
     void RefreshAxleState();
     void RefreshPresentation();
     void RestoreWheel(UStaticMeshComponent* Wheel, UPhysicsConstraintComponent* Constraint, const FVector& RelativeLocation);
     void SetCargoVisualsVisible(bool bVisible);
+    bool CanBeginRoadsideRepair(APawn* RepairPawn, FString& OutReason) const;
+    void BeginRoadsideRepair(APawn* RepairPawn);
+    void CancelRoadsideRepair(const FString& Reason);
+    void CompleteRoadsideRepair();
 
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> TrailerBody;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> LeftWheel;
@@ -88,13 +104,21 @@ private:
     bool bCargoLoaded = false;
     bool bLeftWheelLost = false;
     bool bRightWheelLost = false;
+    bool bRoadsideRepairPending = false;
     float CargoIntegrity = 1.0f;
     float TrailerIntegrity = 1.0f;
     float HitchLoad = 0.0f;
     float LastImpactDamageTimeSeconds = -100.0f;
+    float RoadsideRepairTimeRemaining = 0.0f;
+    float LockedRoadsideRepairDuration = 0.0f;
+    int32 LockedRoadsideRepairQuote = 0;
+    TWeakObjectPtr<APawn> RoadsideRepairPlayer;
 
     UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer") float SafeHitchDistance = 360.0f;
     UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer") float BreakHitchDistance = 760.0f;
     UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer|Axle") float WheelBreakForce = 420000.0f;
     UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer|Axle") float WheelBreakTorque = 260000.0f;
+    UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer|Recovery") float RoadsideRepairMaxDistance = 500.0f;
+    UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer|Recovery") float RoadsideRepairMaxSpeedKmh = 1.5f;
+    UPROPERTY(EditDefaultsOnly, Category="GTT|Trailer|Recovery") float RoadsideRepairMaxHitchLoad = 0.15f;
 };
