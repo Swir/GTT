@@ -204,7 +204,11 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
         return;
     }
 
-    EffectiveThrottle = FMath::Abs(RequestedThrottle) * DriveHealthFactor * TowThrottleAuthority * TerrainThrottleAuthority;
+    // Preserve the 0.1.59 heavy-haul authority as the baseline, then allow
+    // terrain to reduce it further. This keeps full-load firm-road authority
+    // exactly at the established 70% ceiling while mud/poor tires stay stricter.
+    EffectiveThrottle = FMath::Abs(RequestedThrottle) * DriveHealthFactor * TowThrottleAuthority;
+    EffectiveThrottle *= TerrainThrottleAuthority;
     EffectiveSteering = RequestedSteering * SteeringGripFactor * TowSteeringAuthority;
 
     SetThrottleInput(FMath::Clamp(EffectiveThrottle, 0.0f, 1.0f));
