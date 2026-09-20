@@ -6,6 +6,7 @@ on:
       version:
         description: Exact candidate version label; must match Config/DefaultGame.ini ProjectVersion
         required: true
+        default: '0.1.61'
       candidate_run_id:
         description: Successful Win64 package evidence workflow run ID whose screenshots were reviewed
         required: true
