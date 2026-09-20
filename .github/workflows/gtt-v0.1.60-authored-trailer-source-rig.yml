@@ -1,0 +1,35 @@
+name: GTT 0.1.60 authored trailer source rig sanity
+
+on:
+  push:
+    paths:
+      - 'SourceArt/Trailer/**'
+      - 'Scripts/generate_gtt_farm_trailer_gltf.py'
+      - 'Scripts/verify_v0_1_60_authored_trailer_source_rig.py'
+      - 'Docs/PLAYTEST_0.1.60_AUTHORED_TRAILER_SOURCE_RIG.md'
+      - 'CHANGELOG.d/0.1.60-authored-trailer-source-rig.md'
+      - '.github/workflows/gtt-v0.1.60-authored-trailer-source-rig.yml'
+  pull_request:
+    paths:
+      - 'SourceArt/Trailer/**'
+      - 'Scripts/generate_gtt_farm_trailer_gltf.py'
+      - 'Scripts/verify_v0_1_60_authored_trailer_source_rig.py'
+      - 'Docs/PLAYTEST_0.1.60_AUTHORED_TRAILER_SOURCE_RIG.md'
+      - 'CHANGELOG.d/0.1.60-authored-trailer-source-rig.md'
+      - '.github/workflows/gtt-v0.1.60-authored-trailer-source-rig.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  authored-trailer-source-rig:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify deterministic original trailer source rig
+        run: |
+          python Scripts/generate_gtt_farm_trailer_gltf.py --check
+          python Scripts/verify_v0_1_60_authored_trailer_source_rig.py
