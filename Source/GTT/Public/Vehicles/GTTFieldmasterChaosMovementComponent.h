@@ -9,9 +9,9 @@
  *
  * This component owns the tractor's canonical Chaos wheel/powertrain setup and
  * translates shared sandbox state (fuel, condition, tire integrity, terrain
- * grip and live trailer load) into the inputs consumed by Chaos Vehicles. The
- * legacy vehicle remains the persistence mirror/fallback until packaged runtime
- * acceptance is proven.
+ * grip, live trailer load and hill grade) into the inputs consumed by Chaos
+ * Vehicles. The legacy vehicle remains the persistence mirror/fallback until
+ * packaged runtime acceptance is proven.
  */
 UCLASS(ClassGroup=(Physics), meta=(BlueprintSpawnableComponent))
 class GTT_API UGTTFieldmasterChaosMovementComponent : public UChaosWheeledVehicleMovementComponent
@@ -48,6 +48,21 @@ public:
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster")
     float GetSteeringGripFactor() const { return SteeringGripFactor; }
 
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Terrain")
+    float GetTerrainThrottleAuthority() const { return TerrainThrottleAuthority; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Terrain")
+    float GetTravelGradeDegrees() const { return TravelGradeDegrees; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Terrain")
+    float GetHillHaulBrake() const { return HillHaulBrake; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Terrain")
+    bool IsHillHoldActive() const { return bHillHoldActive; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Terrain")
+    bool IsDownhillTowBrakeActive() const { return bDownhillTowBrakeActive; }
+
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Trailer")
     float GetTowLoadFactor() const { return TowLoadFactor; }
 
@@ -83,6 +98,21 @@ private:
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster")
     float SteeringGripFactor = 1.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Terrain")
+    float TerrainThrottleAuthority = 1.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Terrain")
+    float TravelGradeDegrees = 0.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Terrain")
+    float HillHaulBrake = 0.0f;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Terrain")
+    bool bHillHoldActive = false;
+
+    UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Terrain")
+    bool bDownhillTowBrakeActive = false;
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Trailer")
     float TowLoadFactor = 0.0f;
