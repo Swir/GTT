@@ -21,7 +21,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 |---:|---:|---:|---:|
 | **125** | **5** | **130** | **96.2%** |
 
-> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + `[ ]`)`. When scope or task state changes, update the badges, numbers, percentage and deterministic `progress-mini.svg` from the same checklist truth. Never estimate progress from version numbers or commit count, and do not restore a text/Unicode progress meter.
+> **Progress rule:** count only real roadmap tasks: `[x] / ([x] + [ ])`. When scope or task state changes, update the badges, numbers, percentage and deterministic `progress-mini.svg` from the same checklist truth. Never estimate progress from version numbers or commit count, and do not restore a text/Unicode progress meter.
 <!-- ROADMAP-PROGRESS:END -->
 
 ## 0.1 — Tractor Theft Prototype
@@ -114,7 +114,7 @@ The roadmap is ordered around playable slices. Every phase should leave somethin
 
 > **0.1.39 dispatch SaveGame persistence:** voluntary in-flight PATCH/TOW service now has a transactional sidecar that preserves exact target ID, locked quote and remaining ETA through save/load while keeping economy authority in the production completion path. It fails closed on stale/replayed charge evidence, Wanted/conflicting state or cargo-ID mismatch. This source work does not close any runtime/art blocker.
 
-> **0.1.40 packaged dispatch-persistence evidence:** the Win64 candidate contract now requires a later deterministic route that reads the real sidecar, performs primary SaveGame roundtrips, proves restored tow and patch quote/ETA/exact-ID continuity, proves no-charge Wanted rejection and restored patch single-charge behavior, then finishes the same Farm Cargo route. `FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json` and demo technical gate schema 12 remain future runtime evidence until the exact candidate executes on a qualifying UE 5.8 Win64 runner.
+> **0.1.40 packaged dispatch-persistence evidence:** the Win64 candidate contract now requires a later deterministic route that reads the real sidecar, performs primary SaveGame roundtrips, proves restored tow and patch quote/ETA/exact-ID continuity, proves no-charge Wanted rejection and restored patch single-charge behavior, then finishes the same Farm Cargo contract through wrong-vehicle rejection, Hill Farm and North Wood Yard. `FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME.json` and demo technical gate schema 12 remain future runtime evidence until the exact candidate executes on a qualifying UE 5.8 Win64 runner.
 
 > **0.1.41 garage/workshop recovery integration:** ordinary roadside tow remains damage-preserving and drops the exact native road vehicle at the workshop. Garage bays now treat authoritative `TOW`/`IMMOBILE` fleet states as a hard WORKSHOP HOLD, rejecting cheap recall before movement or payment; the workshop clears that hold only by applying the existing paid native repair/refuel service and saving the resulting vehicle state. `LIMP`/ordinary `SERVICE` remain advisory. This connected gameplay milestone does not close any Native Chaos, trailer or Win64 acceptance blocker.
 
