@@ -29,7 +29,8 @@ required_cpp = [
     "bHillHoldActive = true",
     "bDownhillTowBrakeActive = true",
     "FMath::Max(BaseBrake, HillHaulBrake)",
-    "TowThrottleAuthority * TerrainThrottleAuthority",
+    "EffectiveThrottle = FMath::Abs(RequestedThrottle) * DriveHealthFactor * TowThrottleAuthority",
+    "EffectiveThrottle *= TerrainThrottleAuthority",
 ]
 for token in required_cpp:
     assert token in cpp, f"missing 0.1.62 source contract: {token}"
@@ -75,7 +76,8 @@ def model(*, tire: float, terrain: float, tow: float, throttle: float, grade: fl
     terrain_authority = MIN_TERRAIN + (1.0 - MIN_TERRAIN) * combined_traction
     tow_throttle = 1.0 - tow * MAX_TOW_THROTTLE_PENALTY
     tow_steering = 1.0 - tow * MAX_TOW_STEERING_PENALTY
-    effective_throttle = abs(clamp(throttle, -1.0, 1.0)) * tow_throttle * terrain_authority
+    effective_throttle = abs(clamp(throttle, -1.0, 1.0)) * tow_throttle
+    effective_throttle *= terrain_authority
 
     grade_alpha = clamp((abs(grade) - GRADE_MIN) / (GRADE_FULL - GRADE_MIN))
     loaded = tow >= TOW_LOAD_MIN
