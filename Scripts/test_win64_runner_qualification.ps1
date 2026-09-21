@@ -4,6 +4,8 @@ Set-StrictMode -Version Latest
 $Root = Split-Path -Parent $PSScriptRoot
 $Qualifier = Join-Path $PSScriptRoot "qualify_win64_runner.ps1"
 $Config = Join-Path $Root "Config\DefaultGame.ini"
+$GeneratedIntermediate = Join-Path $Root "Intermediate"
+$IntermediateExistedBefore = Test-Path $GeneratedIntermediate -PathType Container
 
 if (-not (Test-Path $Qualifier -PathType Leaf)) { throw "Qualifier missing: $Qualifier" }
 if (-not (Test-Path $Config -PathType Leaf)) { throw "Config missing: $Config" }
@@ -91,6 +93,9 @@ try {
 }
 finally {
     if (Test-Path $TestRoot) { Remove-Item -Recurse -Force $TestRoot }
+    if (-not $IntermediateExistedBefore -and (Test-Path $GeneratedIntermediate -PathType Container)) {
+        Remove-Item -Recurse -Force $GeneratedIntermediate
+    }
 }
 
 # Expected negative fixtures intentionally leave LASTEXITCODE non-zero. Reset the
