@@ -11,7 +11,10 @@ rendered visual acceptance remain separate evidence.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import re
 from pathlib import Path
 
 import unreal
@@ -20,6 +23,9 @@ DESTINATION = "/Game/GTT/Vehicles/Trailer"
 ASSET_NAME = "SK_GTT_FarmTrailer"
 ASSET_PATH = f"{DESTINATION}/{ASSET_NAME}"
 SOURCE_RELATIVE = Path("Intermediate/GTT/AuthoredTrailer/GTT_FarmTrailer_Rig.gltf")
+EVIDENCE_RELATIVE = Path(
+    "Intermediate/GTT/AuthoredTrailer/AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json"
+)
 
 REQUIRED_BONES = ("body", "wheel_l", "wheel_r")
 REQUIRED_SOCKETS = ("socket_hitch", "socket_cargo", "socket_axle_l", "socket_axle_r")
@@ -31,9 +37,16 @@ def fail(reason: str) -> None:
     raise RuntimeError(reason)
 
 
+def project_root() -> Path:
+    return Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir())).resolve()
+
+
 def project_source() -> str:
-    root = Path(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()))
-    return os.fspath((root / SOURCE_RELATIVE).resolve())
+    return os.fspath((project_root() / SOURCE_RELATIVE).resolve())
+
+
+def evidence_path() -> Path:
+    return (project_root() / EVIDENCE_RELATIVE).resolve()
 
 
 def configure_pipelines(source_data):
@@ -91,27 +104,79 @@ def normalize_sockets(mesh) -> None:
         existing.add(desired)
 
 
-def validate_bones(mesh) -> None:
+def validate_bones(mesh) -> tuple[str, ...]:
     body_children = {str(name) for name in mesh.get_bone_children(unreal.Name("body"))}
+    verified = ["body"]
     for wheel in ("wheel_l", "wheel_r"):
         if wheel not in body_children:
             parent = str(mesh.get_bone_parent(unreal.Name(wheel)))
             if parent != "body":
                 fail(f"BONE_HIERARCHY_{wheel}_PARENT_{parent or 'NONE'}")
+        verified.append(wheel)
+    return tuple(verified)
 
 
-def ensure_physics_asset(mesh) -> None:
-    if mesh.get_editor_property("physics_asset") is not None:
-        return
+def ensure_physics_asset(mesh):
+    existing = mesh.get_editor_property("physics_asset")
+    if existing is not None:
+        return existing
     created = unreal.SkeletalMeshEditorSubsystem.create_physics_asset(mesh, True, 0)
-    if created is None or mesh.get_editor_property("physics_asset") is None:
+    physics_asset = mesh.get_editor_property("physics_asset")
+    if created is None or physics_asset is None:
         fail("PHYSICS_ASSET_CREATE_FAILED")
+    return physics_asset
+
+
+def candidate_git_sha() -> str | None:
+    value = os.environ.get("GITHUB_SHA", "").strip().lower()
+    if not value:
+        return None
+    if re.fullmatch(r"[0-9a-f]{40}", value) is None:
+        fail("GITHUB_SHA_INVALID")
+    return value
+
+
+def write_editor_acceptance(
+    source_path: str,
+    mesh,
+    skeleton,
+    physics_asset,
+    verified_bones: tuple[str, ...],
+    verified_sockets: set[str],
+) -> Path:
+    source_hash = hashlib.sha256(Path(source_path).read_bytes()).hexdigest()
+    output = evidence_path()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "git_sha": candidate_git_sha(),
+        "physics_asset_object_path": physics_asset.get_path_name(),
+        "required_bones": sorted(REQUIRED_BONES),
+        "required_sockets": sorted(REQUIRED_SOCKETS),
+        "result": "PASS",
+        "schema": "gtt.authored-trailer-editor-acceptance.v1",
+        "skeletal_mesh_object_path": mesh.get_path_name(),
+        "skeleton_object_path": skeleton.get_path_name(),
+        "source_gltf_sha256": source_hash,
+        "verified_bones": sorted(verified_bones),
+        "verified_sockets": sorted(verified_sockets),
+    }
+    temporary = output.with_suffix(output.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, separators=(",", ": ")) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(output)
+    return output
 
 
 def main() -> None:
     source_path = project_source()
     if not Path(source_path).is_file():
         fail("SOURCE_GLTF_MISSING")
+
+    output = evidence_path()
+    if output.exists():
+        output.unlink()
 
     manager = unreal.InterchangeManager.get_interchange_manager_scripted()
     source_data = unreal.InterchangeManager.create_source_data(source_path)
@@ -133,27 +198,39 @@ def main() -> None:
     if mesh is None or not isinstance(mesh, unreal.SkeletalMesh):
         fail("SKELETAL_MESH_NOT_CREATED")
 
-    validate_bones(mesh)
+    verified_bones = validate_bones(mesh)
     normalize_sockets(mesh)
-    ensure_physics_asset(mesh)
+    physics_asset = ensure_physics_asset(mesh)
+    skeleton = mesh.get_editor_property("skeleton")
+    if skeleton is None:
+        fail("SKELETON_UNASSIGNED")
 
     final_sockets = socket_names(mesh)
     missing = sorted(set(REQUIRED_SOCKETS) - final_sockets)
     if missing:
         fail("FINAL_SOCKET_SET_" + "_".join(missing))
-    if mesh.get_editor_property("physics_asset") is None:
+    if physics_asset is None:
         fail("PHYSICS_ASSET_UNASSIGNED")
 
     if not unreal.EditorAssetLibrary.save_loaded_asset(mesh, False):
         fail("SKELETAL_MESH_SAVE_FAILED")
-    physics_asset = mesh.get_editor_property("physics_asset")
-    if physics_asset is not None and not unreal.EditorAssetLibrary.save_loaded_asset(physics_asset, False):
+    if not unreal.EditorAssetLibrary.save_loaded_asset(physics_asset, False):
         fail("PHYSICS_ASSET_SAVE_FAILED")
+
+    evidence = write_editor_acceptance(
+        source_path,
+        mesh,
+        skeleton,
+        physics_asset,
+        verified_bones,
+        final_sockets,
+    )
 
     unreal.log(
         "AUTHORED_TRAILER_IMPORT result=PASS "
         f"asset={ASSET_PATH} bones={','.join(REQUIRED_BONES)} "
-        f"sockets={','.join(REQUIRED_SOCKETS)} physicsAsset=1"
+        f"sockets={','.join(REQUIRED_SOCKETS)} physicsAsset=1 "
+        f"evidence={evidence.as_posix()}"
     )
 
 

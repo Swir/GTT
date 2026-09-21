@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 UPROJECT = ROOT / "GTT.uproject"
 IMPORTER = ROOT / "Scripts/Unreal/import_gtt_farm_trailer.py"
 WRAPPER = ROOT / "Scripts/import_gtt_farm_trailer_unreal.ps1"
+CANDIDATE = ROOT / "Scripts/run_win64_candidate_acceptance.ps1"
 GENERATOR = ROOT / "Scripts/generate_gtt_farm_trailer_gltf.py"
 SOURCE_VERIFY = ROOT / "Scripts/verify_v0_1_60_authored_trailer_source_rig.py"
 ROADMAP = ROOT / "Docs/ROADMAP.md"
@@ -21,7 +22,7 @@ def require(value, message: str) -> None:
 
 
 def main() -> int:
-    for path in (UPROJECT, IMPORTER, WRAPPER, GENERATOR, SOURCE_VERIFY, ROADMAP):
+    for path in (UPROJECT, IMPORTER, WRAPPER, CANDIDATE, GENERATOR, SOURCE_VERIFY, ROADMAP):
         require(path.is_file(), f"missing required file: {path.relative_to(ROOT)}")
 
     py_compile.compile(str(IMPORTER), doraise=True)
@@ -33,6 +34,7 @@ def main() -> int:
 
     importer = IMPORTER.read_text(encoding="utf-8")
     wrapper = WRAPPER.read_text(encoding="utf-8")
+    candidate = CANDIDATE.read_text(encoding="utf-8")
     generator = GENERATOR.read_text(encoding="utf-8")
     source_verify = SOURCE_VERIFY.read_text(encoding="utf-8")
     roadmap = ROADMAP.read_text(encoding="utf-8")
@@ -56,6 +58,13 @@ def main() -> int:
         "mesh.rename_socket",
         "AUTHORED_TRAILER_IMPORT result=PASS",
         "AUTHORED_TRAILER_IMPORT result=FAIL",
+        "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json",
+        "gtt.authored-trailer-editor-acceptance.v1",
+        "source_gltf_sha256",
+        "verified_bones",
+        "verified_sockets",
+        "physics_asset_object_path",
+        "hashlib.sha256",
     )
     for token in required_importer:
         require(token in importer, f"UE import contract missing: {token}")
@@ -76,9 +85,28 @@ def main() -> int:
         "-unattended",
         "-NullRHI",
         "AUTHORED_TRAILER_IMPORT result=PASS",
+        "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json",
+        "gtt.authored-trailer-editor-acceptance.v1",
+        "Get-FileHash -Algorithm SHA256",
+        "required_bones",
+        "verified_bones",
+        "required_sockets",
+        "verified_sockets",
+        "GITHUB_SHA",
     )
     for token in required_wrapper:
         require(token in wrapper, f"PowerShell import wrapper contract missing: {token}")
+
+    required_candidate = (
+        "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json",
+        "gtt.authored-trailer-editor-acceptance.v1",
+        "editor_acceptance",
+        "source_gltf_sha256",
+        "physics_asset_object_path",
+        "Copy-Item -Force $EditorImportEvidenceFile",
+    )
+    for token in required_candidate:
+        require(token in candidate, f"exact-candidate authored trailer evidence contract missing: {token}")
 
     forbidden_importer = (
         "SetSimulatePhysics",
@@ -99,7 +127,7 @@ def main() -> int:
     require("Authored skeletal trailer wheel assets and final hitch sockets" in roadmap,
             "authored trailer acceptance checkbox disappeared")
     print("GTT 0.1.60 authored trailer UE import automation source contract: PASS")
-    print("Editor import automation is ready for a real UE 5.8 runner; packaged Win64/runtime/visual gates remain open.")
+    print("Editor evidence is fail-closed and exact-candidate-bound; packaged Win64/runtime/visual gates remain open.")
     return 0
 
 
