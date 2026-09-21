@@ -38,6 +38,40 @@ Use the same UE installation root that will be used by the final candidate workf
 
 A failure is intended to be actionable before the expensive package/runtime pass. Fix the failing machine/toolchain/content condition, then rerun qualification. A queued self-hosted stage is an external runner-availability blocker, not proof of qualification.
 
+## Provision a missing Windows UE 5.8 runner
+
+When the self-hosted job stays queued with labels `self-hosted`, `windows`, `x64`, `unreal-5.8`, the repository now includes `Scripts/provision_win64_ue58_runner.ps1` to make the host-side prerequisite explicit and fail closed. The helper **does not download a runner, does not mint credentials, and does not qualify a candidate**. Use the official GitHub Actions Windows x64 runner package shown by GitHub for this repository and a real UE 5.8 installation.
+
+First extract the official runner package to a dedicated directory and run the non-mutating readiness pass:
+
+```powershell
+pwsh ./Scripts/provision_win64_ue58_runner.ps1 `
+  -RunnerDirectory 'C:\actions-runner-gtt' `
+  -EngineRoot 'C:\Program Files\Epic Games\UE_5.8' `
+  -PlanOnly
+```
+
+`-PlanOnly` checks the Windows/x64 host, runner package layout, UE 5.8 identity and required Unreal executables plus Git/Git LFS. It emits `GTT_WIN64_RUNNER_PROVISIONING.json` with schema `gtt.win64-runner-provisioning.v1`. A PASS means only that the machine is ready to be registered; it deliberately reports `qualification_required=true`, `roadmap_gate_closed=false`, `human_visual_review=REQUIRED` and `demo_release_authorized=false`.
+
+To register the runner, create a **short-lived repository runner registration token** from GitHub's self-hosted-runner setup UI, place it only in the current process environment, and run the explicit mutation mode:
+
+```powershell
+$env:GTT_GITHUB_RUNNER_TOKEN = '<short-lived registration token>'
+pwsh ./Scripts/provision_win64_ue58_runner.ps1 `
+  -RunnerDirectory 'C:\actions-runner-gtt' `
+  -EngineRoot 'C:\Program Files\Epic Games\UE_5.8' `
+  -RunnerName 'gtt-ue58-win64' `
+  -Configure `
+  -InstallService
+Remove-Item Env:GTT_GITHUB_RUNNER_TOKEN
+```
+
+The helper passes only the custom label `unreal-5.8`; GitHub's normal self-hosted Windows x64 defaults provide `self-hosted`, `Windows` and `X64`. The workflow selector is case-insensitive and requires all four labels. Do not use `--no-default-labels`. The helper never writes the token into its JSON evidence or repository files.
+
+If service installation is not desired, omit `-InstallService` and start the already configured runner with the package's `run.cmd` in a durable operator session. The important completion signal is not the provisioning JSON: the queued repository job must actually be picked up and `qualify_win64_runner.ps1` must emit a PASS for the exact candidate.
+
+Provisioning does not qualify the runner and cannot close any ROADMAP gate. The real qualification workflow remains the authority because only it binds a live runner to the exact repository SHA/version and executes the Unreal preflight plus `UnrealEditor-Cmd -NullRHI` probe.
+
 ## Full candidate hand-off
 
 The existing **GTT Win64 attested candidate acceptance** workflow runs the same qualification first. Only a passing qualification proceeds to packaging, packaged EXE smoke, native Chaos/runtime checks, authored trailer runtime checks, rendered evidence, attestation and sealed ZIP verification.

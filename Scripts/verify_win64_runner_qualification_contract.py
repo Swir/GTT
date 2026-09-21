@@ -29,6 +29,8 @@ probe_branch = f"qualification/{version}-runner-probe"
 
 qualifier = read("Scripts/qualify_win64_runner.ps1")
 fixture = read("Scripts/test_win64_runner_qualification.ps1")
+provisioner = read("Scripts/provision_win64_ue58_runner.ps1")
+provision_fixture = read("Scripts/test_win64_runner_provisioning.ps1")
 manual_workflow = read(".github/workflows/win64-runner-qualification.yml")
 candidate_workflow = read(".github/workflows/gtt-v0.1.61-win64-attested-candidate.yml")
 package_workflow = read(".github/workflows/win64-package-evidence.yml")
@@ -56,6 +58,34 @@ require("preflight_win64_unreal.ps1" in qualifier, "qualifier must reuse canonic
 require("UnrealEditor-Cmd.exe" in qualifier and "-NullRHI" in qualifier, "qualifier must probe UnrealEditor-Cmd under NullRHI")
 require("EditorProbeTimeoutSeconds" in qualifier and "WaitForExit" in qualifier, "editor probe must be time bounded")
 require("git lfs fsck" in qualifier, "qualifier must fail closed on unresolved/corrupt LFS state")
+
+for token in (
+    '"gtt.win64-runner-provisioning.v1"',
+    '@("self-hosted", "windows", "x64", "unreal-5.8")',
+    '$CustomLabels = "unreal-5.8"',
+    "GTT_GITHUB_RUNNER_TOKEN",
+    "--labels $CustomLabels",
+    "qualification_required = $true",
+    'exact_candidate_binding = "NONE - provisioning/readiness only"',
+    "roadmap_gate_closed = $false",
+    "native_chaos_runtime_verified = $false",
+    "authored_trailer_runtime_verified = $false",
+    "packaged_exe_smoke_verified = $false",
+    'human_visual_review = "REQUIRED"',
+    "demo_release_authorized = $false",
+    "Build.version",
+    "RunUAT.bat",
+    "UnrealEditor-Cmd.exe",
+    "UnrealBuildTool",
+    "git lfs version",
+):
+    require(token in provisioner, f"runner provisioning contract missing {token!r}")
+require("--no-default-labels" not in provisioner,
+        "provisioner must preserve GitHub default self-hosted/windows/x64 labels")
+require("registration token" not in provisioner.lower() or "short-lived" in docs.lower(),
+        "registration credential boundary must be documented as short-lived")
+require("qualification workflow" in provisioner.lower(),
+        "provisioner must hand authority back to the real qualification workflow")
 
 for token in (
     'runs-on: [self-hosted, windows, x64, unreal-5.8]',
@@ -126,12 +156,16 @@ for token in (
 
 for token in (
     "test_win64_runner_qualification.ps1",
+    "provision_win64_ue58_runner.ps1",
+    "test_win64_runner_provisioning.ps1",
     "verify_win64_runner_qualification_contract.py",
     "verify_progress_presentation.py",
     "verify_project.py",
 ):
     require(token in sanity_workflow, f"runner qualification sanity workflow missing {token!r}")
 require("runs-on: windows-latest" in sanity_workflow, "fixture must execute in real PowerShell on windows-latest")
+require("Exercise runner provisioning readiness and fail-closed fixtures" in sanity_workflow,
+        "sanity workflow must exercise host provisioning fixtures")
 
 for token in (
     "positive qualification",
@@ -142,10 +176,24 @@ for token in (
 ):
     require(token in fixture, f"PowerShell fixture coverage missing {token!r}")
 
+for token in (
+    "PlanOnly",
+    "missing-editor",
+    "no-token",
+    "qualification_required",
+    "roadmap_gate_closed",
+    "human_visual_review",
+    "demo_release_authorized",
+):
+    require(token in provision_fixture, f"runner provisioning fixture coverage missing {token!r}")
+
 require(version in docs, "runner qualification docs must identify the current ProjectVersion candidate")
 require("self-hosted" in docs and "unreal-5.8" in docs, "runner docs must state qualifying labels")
 require("global concurrency lane" in docs.lower(), "runner docs must explain cross-branch stale-run supersession")
 require("legacy queued" in docs.lower(), "runner docs must explain one-time pre-migration stale-run cleanup")
+require("provision_win64_ue58_runner.ps1" in docs, "runner docs must include the host provisioning helper")
+require("GTT_GITHUB_RUNNER_TOKEN" in docs, "runner docs must document the short-lived registration-token handoff")
+require("provisioning does not qualify" in docs.lower(), "runner docs must preserve provisioning/qualification truth boundary")
 require("does not close" in docs.lower(), "runner docs must preserve roadmap gate boundary")
 require("human visual" in docs.lower(), "runner docs must preserve human visual review boundary")
 
