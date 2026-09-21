@@ -12,6 +12,7 @@ on:
       - 'Scripts/run_win64_candidate_acceptance.ps1'
       - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
       - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_win64_candidate_archive.ps1'
       - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
       - 'Scripts/verify_v0_1_61_candidate_attestation.py'
@@ -32,6 +33,7 @@ on:
       - 'Scripts/run_win64_candidate_acceptance.ps1'
       - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
       - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_win64_candidate_archive.ps1'
       - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
       - 'Scripts/verify_v0_1_61_candidate_attestation.py'
@@ -61,7 +63,8 @@ jobs:
           $targets = @(
             'Scripts/run_win64_candidate_acceptance.ps1',
             'Scripts/run_win64_attested_candidate_acceptance.ps1',
-            'Scripts/write_win64_candidate_attestation.ps1'
+            'Scripts/write_win64_candidate_attestation.ps1',
+            'Scripts/verify_win64_candidate_archive.ps1'
           )
           foreach ($target in $targets) {
             $tokens = $null
