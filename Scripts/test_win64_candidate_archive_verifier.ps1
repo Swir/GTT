@@ -55,8 +55,24 @@ function Write-Fixture {
         evidence_hash_algorithm = "SHA256"
         evidence_file_count = $evidence.Count
         evidence_files = $evidence
+        native_chaos_tractor_movement = "PASS"
+        native_chaos_movement_samples = 2
+        native_chaos_max_speed_kmh = 1.0
+        native_chaos_drivetrain_suspension_wheels = "PASS"
+        native_chaos_valid_wheels = 4
+        native_chaos_suspension_samples = 4
+        native_chaos_contact_samples = 2
+        native_drivetrain_scenario = "PASS"
+        native_drivetrain_max_forward_gear = 2
+        native_drivetrain_diagnostic_failures = 0
         native_authority_runtime = "PASS"
         native_authority_faults = 0
+        authored_trailer_runtime = "PASS"
+        authored_trailer_dual_contact_samples = 2
+        authored_trailer_safe_hitch_samples = 2
+        authored_trailer_safe_loaded_motion_samples = 8
+        authored_trailer_controlled_stop = $true
+        authored_trailer_invalid_rig_observations = 0
         fieldmaster_hill_haul_runtime = "PASS"
         fieldmaster_hud_runtime = "PASS"
         technical_gate_schema = 17
@@ -124,7 +140,6 @@ try {
     }
 
     $extraPackage = Write-Fixture -Name "unmanifested"
-    $extraManifest = Join-Path $extraPackage "FINAL_SHA256SUMS.txt"
     [void](Seal-Fixture -Package $extraPackage)
     # Add a file after the manifest was generated, then rebuild and re-hash the ZIP.
     Set-Content -Encoding ASCII -Path (Join-Path $extraPackage "UNSEALED.bin") -Value "unsealed"
@@ -135,6 +150,26 @@ try {
     Set-Content -Encoding ASCII -Path "$extraZip.sha256" -Value "$extraHash  $([IO.Path]::GetFileName($extraZip))"
     Invoke-ExpectedFailure -Needle "does not exactly match" -Action {
         & $Verifier -PackageDirectory $extraPackage -Version $Version -Configuration $Configuration -ExpectedGitSha $Sha
+    }
+
+    $chaosPackage = Write-Fixture -Name "bad-native-chaos"
+    $chaosAttPath = Join-Path $chaosPackage "WIN64_CANDIDATE_ATTESTATION.json"
+    $chaosAtt = Get-Content -Raw $chaosAttPath | ConvertFrom-Json
+    $chaosAtt.native_chaos_valid_wheels = 3
+    $chaosAtt | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $chaosAttPath
+    [void](Seal-Fixture -Package $chaosPackage)
+    Invoke-ExpectedFailure -Needle "drivetrain/suspension/wheel acceptance" -Action {
+        & $Verifier -PackageDirectory $chaosPackage -Version $Version -Configuration $Configuration -ExpectedGitSha $Sha
+    }
+
+    $trailerPackage = Write-Fixture -Name "bad-authored-trailer"
+    $trailerAttPath = Join-Path $trailerPackage "WIN64_CANDIDATE_ATTESTATION.json"
+    $trailerAtt = Get-Content -Raw $trailerAttPath | ConvertFrom-Json
+    $trailerAtt.authored_trailer_safe_hitch_samples = 1
+    $trailerAtt | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $trailerAttPath
+    [void](Seal-Fixture -Package $trailerPackage)
+    Invoke-ExpectedFailure -Needle "authored trailer runtime/hitch/wheel acceptance" -Action {
+        & $Verifier -PackageDirectory $trailerPackage -Version $Version -Configuration $Configuration -ExpectedGitSha $Sha
     }
 
     $boundaryPackage = Write-Fixture -Name "bad-boundary"
@@ -148,7 +183,7 @@ try {
         & $Verifier -PackageDirectory $boundaryPackage -Version $Version -Configuration $Configuration -ExpectedGitSha $Sha
     }
 
-    Write-Host "[GTT][ARCHIVE-TEST] PASS: positive round-trip plus sidecar/full-tree/human-boundary negative cases."
+    Write-Host "[GTT][ARCHIVE-TEST] PASS: positive round-trip plus sidecar/full-tree/current-gate/human-boundary negative cases."
 }
 finally {
     if (Test-Path $TestRoot) { Remove-Item -Recurse -Force $TestRoot }
