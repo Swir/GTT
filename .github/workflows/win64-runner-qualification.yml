@@ -15,6 +15,9 @@ on:
         description: 'Minimum free disk space required for the later full candidate run'
         required: true
         default: '25'
+  push:
+    branches:
+      - qualification/0.1.68-runner-probe
 
 permissions:
   contents: read
@@ -29,8 +32,9 @@ jobs:
     runs-on: [self-hosted, windows, x64, unreal-5.8]
     timeout-minutes: 12
     env:
-      GTT_ENGINE_ROOT: ${{ inputs.engine_root }}
-      GTT_EXPECTED_VERSION: ${{ inputs.version }}
+      GTT_ENGINE_ROOT: ${{ inputs.engine_root || 'C:\Program Files\Epic Games\UE_5.8' }}
+      GTT_EXPECTED_VERSION: ${{ inputs.version || '0.1.68' }}
+      GTT_MINIMUM_FREE_GIB: ${{ inputs.minimum_free_gib || '25' }}
       GTT_QUALIFICATION_DIR: ${{ github.workspace }}\Saved\Win64\RunnerQualification
     steps:
       - name: Checkout exact source and LFS assets
@@ -49,7 +53,7 @@ jobs:
             -OutputPath "$env:GTT_QUALIFICATION_DIR\WIN64_RUNNER_QUALIFICATION.json" `
             -ExpectedGitSha "${{ github.sha }}" `
             -ExpectedVersion "$env:GTT_EXPECTED_VERSION" `
-            -MinimumFreeGiB ${{ inputs.minimum_free_gib }}
+            -MinimumFreeGiB ([int]$env:GTT_MINIMUM_FREE_GIB)
 
       - name: Upload qualification-only evidence
         if: always()
