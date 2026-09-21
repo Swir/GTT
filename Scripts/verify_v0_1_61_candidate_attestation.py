@@ -61,6 +61,8 @@ def main() -> int:
     runner = RUNNER.read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
+    # AUDIT #16 FINISH-FIRST: the attestation must seal the concrete packaged-runtime
+    # observations for the existing five-gate target, not only generic PASS files.
     for token in (
         "ExpectedGitSha must be an exact 40-character Git SHA",
         "BUILD_INFO.json",
@@ -68,10 +70,39 @@ def main() -> int:
         "AUTHORED_TRAILER_IMPORT.json",
         "RUNTIME_SMOKE.json",
         "NATIVE_CHAOS_RUNTIME.json",
+        "gtt.native-chaos-runtime.v1",
+        "native_physics_accepted",
+        "wheel_setup_observed",
+        "deterministic_fieldmaster_motion",
+        "deterministic_fieldmaster_control",
+        "physics_fallback_observed",
+        "movement_active_samples",
+        "max_valid_wheels",
+        "max_suspension_samples",
+        "configured_forward_gears",
+        "unsafe_direction_shift_commits",
         "NATIVE_AUTHORITY_RUNTIME.json",
         'authority must be NATIVE_CHAOS',
         'contains split-authority faults',
+        "NATIVE_DRIVETRAIN_SCENARIO.json",
+        "gtt.native-drivetrain-scenario.v1",
+        "diagnostic_failure_count",
+        "max_forward_gear_observed",
+        "reverse_interlock_speed_kmh",
+        "reverse_commit_speed_kmh",
+        "reverse_motion_signed_speed_kmh",
+        "forward_commit_speed_kmh",
+        "forward_motion_signed_speed_kmh",
         "NATIVE_TRAILER_RUNTIME.json",
+        "gtt.native-trailer-runtime.v1",
+        "authored_active_samples",
+        "native_tow_samples",
+        "dual_contact_samples",
+        "safe_hitch_samples",
+        "deterministic_loaded_tow",
+        "safe_loaded_motion_samples",
+        "controlled_stop_proven",
+        "invalid_rig_observation_count",
         "DEMO_TECHNICAL_GATE.json",
         "schema -ne 17",
         "DEMO_VISUAL_EVIDENCE.json",
@@ -82,14 +113,38 @@ def main() -> int:
         'Get-ChildItem -Path $PackageDirectory -Recurse -File -Filter "GTT.exe"',
         'Get-ChildItem -Path (Join-Path $PackageDirectory "DemoVisualEvidence")',
         "gtt.win64-candidate-attestation.v1",
+        'native_chaos_tractor_movement = "PASS"',
+        'native_chaos_drivetrain_suspension_wheels = "PASS"',
+        'native_drivetrain_scenario = "PASS"',
         'native_authority_runtime = "PASS"',
         "native_authority_faults = 0",
+        'authored_trailer_runtime = "PASS"',
+        "authored_trailer_dual_contact_samples",
+        "authored_trailer_safe_loaded_motion_samples",
+        "authored_trailer_controlled_stop",
+        "authored_trailer_invalid_rig_observations",
         "WIN64_CANDIDATE_ATTESTATION.json",
         "FINAL_SHA256SUMS.txt",
         "Get-FileHash -Algorithm SHA256",
         "Compress-Archive",
+        "identity/current-gate/boundary validation",
     ):
         require(attest, token, "attestation writer")
+
+    require_order(
+        attest,
+        [
+            '$chaos = Read-JsonRequired "NATIVE_CHAOS_RUNTIME.json"',
+            '$authority = Read-JsonRequired "NATIVE_AUTHORITY_RUNTIME.json"',
+            '$drivetrain = Read-JsonRequired "NATIVE_DRIVETRAIN_SCENARIO.json"',
+            '$trailer = Read-JsonRequired "NATIVE_TRAILER_RUNTIME.json"',
+            '$gate = Read-JsonRequired "DEMO_TECHNICAL_GATE.json"',
+            '$visual = Read-JsonRequired "DEMO_VISUAL_EVIDENCE.json"',
+            '$attestation = [ordered]@{',
+            '$roundTrip = Get-Content -Raw $attestationPath | ConvertFrom-Json',
+        ],
+        "attestation writer",
+    )
 
     for token in (
         "run_win64_candidate_acceptance.ps1",
@@ -134,7 +189,8 @@ def main() -> int:
     exercise_hash_failure_boundary()
     print(
         "GTT candidate attestation sanity: PASS "
-        "(exact SHA/version/config + native authority + packaged EXE/evidence hashes + final manifest + self-hosted lane)"
+        "(exact SHA/version/config + concrete Native Chaos movement/drivetrain/suspension/wheels + "
+        "authored trailer runtime + packaged EXE/evidence hashes + human-review boundary)"
     )
     return 0
 
