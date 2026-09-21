@@ -1,0 +1,45 @@
+name: Adaptive traffic sanity
+
+on:
+  push:
+    branches: [ main, 'feature/**' ]
+    paths:
+      - 'Source/GTT/Public/Traffic/GTTTrafficDirector.h'
+      - 'Source/GTT/Private/Traffic/GTTTrafficDirector.cpp'
+      - 'Source/GTT/Public/World/GTTDayNightCycle.h'
+      - 'Scripts/verify_adaptive_traffic_population.py'
+      - 'Docs/PLAYTEST-0.1.69-ADAPTIVE-TRAFFIC.md'
+      - 'Config/DefaultGame.ini'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/adaptive-traffic-sanity.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/GTT/Public/Traffic/GTTTrafficDirector.h'
+      - 'Source/GTT/Private/Traffic/GTTTrafficDirector.cpp'
+      - 'Source/GTT/Public/World/GTTDayNightCycle.h'
+      - 'Scripts/verify_adaptive_traffic_population.py'
+      - 'Docs/PLAYTEST-0.1.69-ADAPTIVE-TRAFFIC.md'
+      - 'Config/DefaultGame.ini'
+      - 'Docs/ROADMAP.md'
+      - '.github/workflows/adaptive-traffic-sanity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adaptive-traffic-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify repository-wide source contract
+        run: python Scripts/verify_project.py
+      - name: Verify adaptive living-traffic contract
+        run: python Scripts/verify_adaptive_traffic_population.py
