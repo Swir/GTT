@@ -128,8 +128,8 @@ try {
         $EngineRoot = Resolve-FullPath $EngineRoot
     }
 
-    $isWindows = $env:OS -eq "Windows_NT"
-    Add-Check "windows-host" $isWindows "Host must be Windows."
+    $hostIsWindows = $env:OS -eq "Windows_NT"
+    Add-Check "windows-host" $hostIsWindows "Host must be Windows."
     Add-Check "x64-os" ([Environment]::Is64BitOperatingSystem) "Host OS must be 64-bit."
     Add-Check "x64-process" ([Environment]::Is64BitProcess) "Provisioning shell must be 64-bit."
 
