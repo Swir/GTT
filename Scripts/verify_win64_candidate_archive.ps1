@@ -99,6 +99,36 @@ try {
     if ([string]$attestation.platform -ne "Win64") { throw "Candidate attestation platform must be Win64." }
     if ([string]$attestation.engine -ne "Unreal Engine 5.8") { throw "Candidate attestation engine must be Unreal Engine 5.8." }
     if ([string]$attestation.evidence_hash_algorithm -ne "SHA256") { throw "Candidate attestation evidence hash algorithm must be SHA256." }
+
+    # FINISH-FIRST current-target boundary: the consumer-side round-trip must
+    # independently prove that the sealed archive still carries the concrete
+    # Native Chaos tractor, drivetrain/suspension/wheel and authored-trailer
+    # acceptance claims. Do not reduce this to a generic attestation PASS token.
+    if ([string]$attestation.native_chaos_tractor_movement -ne "PASS" -or
+        [int]$attestation.native_chaos_movement_samples -lt 2 -or
+        [double]$attestation.native_chaos_max_speed_kmh -lt 0.35) {
+        throw "Candidate archive does not preserve dedicated Native Chaos tractor movement acceptance."
+    }
+    if ([string]$attestation.native_chaos_drivetrain_suspension_wheels -ne "PASS" -or
+        [int]$attestation.native_chaos_valid_wheels -lt 4 -or
+        [int]$attestation.native_chaos_suspension_samples -lt 4 -or
+        [int]$attestation.native_chaos_contact_samples -lt 2) {
+        throw "Candidate archive does not preserve Native Chaos drivetrain/suspension/wheel acceptance."
+    }
+    if ([string]$attestation.native_drivetrain_scenario -ne "PASS" -or
+        [int]$attestation.native_drivetrain_max_forward_gear -lt 2 -or
+        [int]$attestation.native_drivetrain_diagnostic_failures -ne 0) {
+        throw "Candidate archive does not preserve the accepted native drivetrain scenario."
+    }
+    if ([string]$attestation.authored_trailer_runtime -ne "PASS" -or
+        [int]$attestation.authored_trailer_dual_contact_samples -lt 2 -or
+        [int]$attestation.authored_trailer_safe_hitch_samples -lt 2 -or
+        [int]$attestation.authored_trailer_safe_loaded_motion_samples -lt 8 -or
+        -not [bool]$attestation.authored_trailer_controlled_stop -or
+        [int]$attestation.authored_trailer_invalid_rig_observations -ne 0) {
+        throw "Candidate archive does not preserve authored trailer runtime/hitch/wheel acceptance."
+    }
+
     if ([string]$attestation.native_authority_runtime -ne "PASS" -or [int]$attestation.native_authority_faults -ne 0) {
         throw "Candidate attestation does not preserve clean Native Chaos authority."
     }
@@ -174,5 +204,5 @@ finally {
     if (Test-Path $tempRoot) { Remove-Item -Recurse -Force $tempRoot }
 }
 
-Write-Host "[GTT][ARCHIVE] PASS: ZIP round-trip, full manifest coverage, exact candidate identity and attested evidence integrity verified."
+Write-Host "[GTT][ARCHIVE] PASS: ZIP round-trip, full manifest coverage, exact candidate identity and attested current-target gate integrity verified."
 Write-Host "[GTT][ARCHIVE] Verification: $VerificationPath"
