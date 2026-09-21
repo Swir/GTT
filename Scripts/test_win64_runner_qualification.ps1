@@ -92,3 +92,7 @@ try {
 finally {
     if (Test-Path $TestRoot) { Remove-Item -Recurse -Force $TestRoot }
 }
+
+# Expected negative fixtures intentionally leave LASTEXITCODE non-zero. Reset the
+# script result explicitly so a successful fail-closed test does not poison CI.
+exit 0
