@@ -121,8 +121,8 @@ def main() -> int:
     require("UE 5.8" in playtest and "not" in playtest.lower(),
             "playtest must explicitly preserve the Unreal-runtime verification limitation")
 
-    checked = len(re.findall(r"^- \[x\]", roadmap, flags=re.MULTILINE | re.IGNORECASE))
-    open_items = len(re.findall(r"^- \[ \]", roadmap, flags=re.MULTILINE))
+    checked = len(re.findall(r"^\s*-\s+\[[xX]\]", roadmap, flags=re.MULTILINE))
+    open_items = len(re.findall(r"^\s*-\s+\[ \]", roadmap, flags=re.MULTILINE))
     require((checked, open_items) == (125, 5),
             f"roadmap checklist changed unexpectedly: checked={checked}, open={open_items}")
     require("96.2%" in roadmap, "roadmap percentage must remain 96.2% until a real gate closes")

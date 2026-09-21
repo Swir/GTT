@@ -2,7 +2,7 @@ name: Adaptive traffic sanity
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'feature/**' ]
     paths:
       - 'Source/GTT/Public/Traffic/GTTTrafficDirector.h'
       - 'Source/GTT/Private/Traffic/GTTTrafficDirector.cpp'
