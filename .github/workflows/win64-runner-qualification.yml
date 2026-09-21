@@ -6,7 +6,7 @@ on:
       version:
         description: 'Exact project version to qualify; must match Config/DefaultGame.ini'
         required: true
-        default: '0.1.68'
+        default: '0.1.69'
       engine_root:
         description: 'UE 5.8 installation root on the qualifying self-hosted runner'
         required: true
@@ -17,7 +17,7 @@ on:
         default: '25'
   push:
     branches:
-      - qualification/0.1.68-runner-probe
+      - qualification/0.1.69-runner-probe
 
 permissions:
   contents: read
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      GTT_EXPECTED_VERSION: ${{ inputs.version || '0.1.68' }}
+      GTT_EXPECTED_VERSION: ${{ inputs.version || '0.1.69' }}
       GTT_PROBE_DIR: ${{ github.workspace }}/Saved/Win64/RunnerQualificationProbe
     steps:
       - name: Checkout exact probe source
@@ -103,7 +103,7 @@ jobs:
     timeout-minutes: 12
     env:
       GTT_ENGINE_ROOT: ${{ inputs.engine_root || 'C:\Program Files\Epic Games\UE_5.8' }}
-      GTT_EXPECTED_VERSION: ${{ inputs.version || '0.1.68' }}
+      GTT_EXPECTED_VERSION: ${{ inputs.version || '0.1.69' }}
       GTT_MINIMUM_FREE_GIB: ${{ inputs.minimum_free_gib || '25' }}
       GTT_QUALIFICATION_DIR: ${{ github.workspace }}\Saved\Win64\RunnerQualification
     steps:
