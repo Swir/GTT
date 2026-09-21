@@ -35,6 +35,8 @@ jobs:
       GTT_CONFIGURATION: ${{ inputs.configuration }}
       GTT_ENGINE_ROOT: ${{ inputs.engine_root }}
       GTT_PACKAGE_DIR: ${{ github.workspace }}\Releases\GTT-${{ inputs.version }}-Windows-${{ inputs.configuration }}
+      GTT_RUNNER_QUALIFICATION_DIR: ${{ github.workspace }}\Saved\RunnerQualification
+      GTT_RUNNER_QUALIFICATION_PATH: ${{ github.workspace }}\Saved\RunnerQualification\WIN64_RUNNER_QUALIFICATION.json
     steps:
       - name: Checkout exact source and LFS assets
         uses: actions/checkout@v4
@@ -51,6 +53,33 @@ jobs:
           $projectVersion = $match.Groups[1].Value.Trim()
           if ([string]::IsNullOrWhiteSpace($env:GTT_VERSION)) { throw "Candidate version input must not be empty." }
           if ($env:GTT_VERSION -ne $projectVersion) { throw "Candidate version '$env:GTT_VERSION' does not match ProjectVersion '$projectVersion'." }
+
+      - name: Qualify exact UE 5.8 Win64 runner before candidate work
+        shell: pwsh
+        run: >-
+          ./Scripts/qualify_win64_runner.ps1
+          -EngineRoot "$env:GTT_ENGINE_ROOT"
+          -OutputPath "$env:GTT_RUNNER_QUALIFICATION_PATH"
+          -ExpectedGitSha "${{ github.sha }}"
+          -ExpectedVersion "$env:GTT_VERSION"
+
+      - name: Verify exact runner qualification evidence
+        shell: pwsh
+        run: |
+          if (-not (Test-Path $env:GTT_RUNNER_QUALIFICATION_PATH -PathType Leaf)) {
+            throw "Runner qualification evidence missing: $env:GTT_RUNNER_QUALIFICATION_PATH"
+          }
+          $qualification = Get-Content -Raw $env:GTT_RUNNER_QUALIFICATION_PATH | ConvertFrom-Json
+          if ($qualification.schema -ne 'gtt.win64-runner-qualification.v1') { throw 'Unexpected runner qualification schema.' }
+          if ($qualification.result -ne 'PASS') { throw 'UE 5.8 Win64 runner qualification did not PASS.' }
+          if ($qualification.git_sha -ne '${{ github.sha }}') { throw 'Runner qualification SHA does not match exact candidate.' }
+          if ($qualification.version -ne $env:GTT_VERSION) { throw 'Runner qualification version does not match exact candidate.' }
+          if ($qualification.engine -ne 'Unreal Engine 5.8') { throw 'Runner qualification engine identity mismatch.' }
+          if ($qualification.preflight -ne 'PASS') { throw 'Runner qualification UE/Win64 preflight did not PASS.' }
+          if ($qualification.editor_probe -ne 'PASS') { throw 'Runner qualification UnrealEditor-Cmd probe did not PASS.' }
+          if ($qualification.human_visual_review -ne 'REQUIRED' -or [bool]$qualification.demo_release_authorized) {
+            throw 'Runner qualification crossed the technical/human release boundary.'
+          }
 
       - name: Run sealed exact-candidate acceptance
         shell: pwsh
@@ -72,7 +101,7 @@ jobs:
           $zipPath = "$env:GTT_PACKAGE_DIR.zip"
           $zipHashPath = "$zipPath.sha256"
 
-          foreach ($path in @($summaryPath,$attestationPath,$hillHaulPath,$authorityPath,$manifestPath,$zipPath,$zipHashPath)) {
+          foreach ($path in @($summaryPath,$attestationPath,$hillHaulPath,$authorityPath,$manifestPath,$zipPath,$zipHashPath,$env:GTT_RUNNER_QUALIFICATION_PATH)) {
             if (-not (Test-Path $path -PathType Leaf)) { throw "Required sealed candidate artifact missing: $path" }
           }
 
@@ -80,12 +109,14 @@ jobs:
           $attestation = Get-Content -Raw $attestationPath | ConvertFrom-Json
           $hillHaul = Get-Content -Raw $hillHaulPath | ConvertFrom-Json
           $authority = Get-Content -Raw $authorityPath | ConvertFrom-Json
+          $qualification = Get-Content -Raw $env:GTT_RUNNER_QUALIFICATION_PATH | ConvertFrom-Json
 
-          foreach ($doc in @($summary,$attestation,$hillHaul,$authority)) {
+          foreach ($doc in @($summary,$attestation,$hillHaul,$authority,$qualification)) {
             if ($doc.result -ne 'PASS' -or $doc.git_sha -ne '${{ github.sha }}') { throw 'Candidate evidence identity/result mismatch.' }
             if (($doc.PSObject.Properties.Name -contains 'version') -and $doc.version -ne $env:GTT_VERSION) { throw 'Candidate evidence version mismatch.' }
           }
 
+          if ($qualification.preflight -ne 'PASS' -or $qualification.editor_probe -ne 'PASS' -or $qualification.human_visual_review -ne 'REQUIRED' -or [bool]$qualification.demo_release_authorized) { throw 'Runner qualification evidence is incomplete or crossed the release boundary.' }
           if ($summary.configuration -ne $env:GTT_CONFIGURATION -or $summary.fieldmaster_hill_haul_runtime -ne 'PASS' -or $summary.human_visual_review -ne 'REQUIRED' -or [bool]$summary.demo_release_authorized) { throw 'Acceptance summary crossed the technical/human review boundary.' }
           if ($attestation.schema -ne 'gtt.win64-candidate-attestation.v1' -or $attestation.configuration -ne $env:GTT_CONFIGURATION -or $attestation.fieldmaster_hill_haul_runtime -ne 'PASS' -or [int]$attestation.hill_haul_loaded_samples -lt 2 -or [int]$attestation.hill_haul_assist_samples -lt 1 -or [int]$attestation.hill_haul_thermal_samples -lt 1 -or [int]$attestation.technical_gate_schema -ne 17 -or $attestation.human_visual_review -ne 'REQUIRED' -or [bool]$attestation.demo_release_authorized) { throw 'Sealed candidate attestation is incomplete or crossed the release boundary.' }
           if ($authority.authority -ne 'NATIVE_CHAOS' -or [int]$authority.authority_faults -ne 0) { throw 'Native authority evidence is not clean NATIVE_CHAOS.' }
@@ -125,6 +156,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_TECHNICAL_GATE.json
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json
             ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\GTT_visual_*.png
+            ${{ env.GTT_RUNNER_QUALIFICATION_DIR }}\**
 
       - name: Upload Win64 failure diagnostics
         if: failure()
@@ -137,6 +169,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\*.json
             ${{ env.GTT_PACKAGE_DIR }}\*.log
             ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\*.png
+            ${{ env.GTT_RUNNER_QUALIFICATION_DIR }}\**
             ${{ github.workspace }}\Releases\*.json
             ${{ github.workspace }}\Saved\Logs\**
 

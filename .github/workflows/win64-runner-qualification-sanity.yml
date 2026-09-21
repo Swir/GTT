@@ -15,6 +15,7 @@ on:
       - '.github/workflows/win64-runner-qualification.yml'
       - '.github/workflows/win64-runner-qualification-sanity.yml'
       - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
+      - '.github/workflows/win64-package-evidence.yml'
   pull_request:
     branches: [ main ]
     paths:
@@ -30,6 +31,7 @@ on:
       - '.github/workflows/win64-runner-qualification.yml'
       - '.github/workflows/win64-runner-qualification-sanity.yml'
       - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
+      - '.github/workflows/win64-package-evidence.yml'
 
 permissions:
   contents: read

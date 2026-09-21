@@ -154,6 +154,24 @@ for token in (
 ):
     require(token in package_workflow, f"Win64 package evidence workflow missing {token!r}")
 
+package_qualifier_pos = package_workflow.find("qualify_win64_runner.ps1")
+package_acceptance_pos = package_workflow.find("run_win64_attested_candidate_acceptance.ps1")
+require(package_qualifier_pos >= 0, "Win64 package workflow must explicitly qualify the real UE 5.8 runner")
+require(package_acceptance_pos >= 0, "Win64 package workflow lost the sealed acceptance runner")
+require(package_qualifier_pos < package_acceptance_pos,
+        "Win64 package workflow must qualify the runner before sealed candidate acceptance")
+for token in (
+    "GTT_RUNNER_QUALIFICATION_PATH",
+    "WIN64_RUNNER_QUALIFICATION.json",
+    '-ExpectedGitSha "${{ github.sha }}"',
+    '-ExpectedVersion "$env:GTT_VERSION"',
+    "gtt.win64-runner-qualification.v1",
+    "$qualification.preflight -ne 'PASS'",
+    "$qualification.editor_probe -ne 'PASS'",
+    "GTT_RUNNER_QUALIFICATION_DIR }}\\**",
+):
+    require(token in package_workflow, f"sealed package runner-binding contract missing {token!r}")
+
 for token in (
     "test_win64_runner_qualification.ps1",
     "provision_win64_ue58_runner.ps1",
@@ -161,6 +179,7 @@ for token in (
     "verify_win64_runner_qualification_contract.py",
     "verify_progress_presentation.py",
     "verify_project.py",
+    ".github/workflows/win64-package-evidence.yml",
 ):
     require(token in sanity_workflow, f"runner qualification sanity workflow missing {token!r}")
 require("runs-on: windows-latest" in sanity_workflow, "fixture must execute in real PowerShell on windows-latest")
