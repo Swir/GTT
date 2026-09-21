@@ -54,15 +54,60 @@ $scenario = Read-JsonRequired "DEMO_SCENARIO.json"
 Assert-ExactIdentity $scenario "DEMO_SCENARIO.json"
 if ([string]$scenario.result -ne "PASS") { throw "DEMO_SCENARIO.json is not PASS." }
 
+# FINISH-FIRST current-target evidence: do not accept a generic PASS token for the
+# Native Chaos roadmap gates. Bind the final attestation to the concrete movement,
+# four-wheel/suspension and no-fallback observations produced by the packaged EXE.
 $chaos = Read-JsonRequired "NATIVE_CHAOS_RUNTIME.json"
 Assert-ExactIdentity $chaos "NATIVE_CHAOS_RUNTIME.json"
-if ([string]$chaos.result -ne "PASS") { throw "NATIVE_CHAOS_RUNTIME.json is not PASS." }
+if ([string]$chaos.schema -ne "gtt.native-chaos-runtime.v1" -or [string]$chaos.result -ne "PASS") {
+    throw "NATIVE_CHAOS_RUNTIME.json is not PASS schema v1."
+}
+if (-not [bool]$chaos.native_physics_accepted) { throw "Native Chaos physics was not accepted for the Fieldmaster." }
+if (-not [bool]$chaos.wheel_setup_observed) { throw "Native Chaos wheel setup evidence is missing." }
+if (-not [bool]$chaos.native_smoke_ready) { throw "Native Chaos smoke-ready evidence is missing." }
+if (-not [bool]$chaos.deterministic_fieldmaster_motion -or -not [bool]$chaos.deterministic_fieldmaster_control) {
+    throw "Native Chaos Fieldmaster movement/control was not deterministically proven."
+}
+if ([bool]$chaos.physics_fallback_observed) { throw "Native physics fallback was observed in the exact candidate." }
+if ([int]$chaos.movement_active_samples -lt 2) { throw "Native Chaos movement lacks two active packaged-runtime samples." }
+if ([int]$chaos.command_samples -lt 1) { throw "Native Chaos movement lacks a non-zero driver command sample." }
+if ([int]$chaos.max_valid_wheels -lt 4) { throw "Native Chaos did not expose all four valid Fieldmaster wheels." }
+if ([int]$chaos.max_contacts -lt 2) { throw "Native Chaos did not prove sufficient wheel contact." }
+if ([int]$chaos.max_suspension_samples -lt 4 -or [int]$chaos.suspension_ready_samples -lt 1) {
+    throw "Native Chaos did not prove complete four-wheel suspension telemetry."
+}
+if ([double]$chaos.max_speed_kmh -lt 0.35) { throw "Native Chaos Fieldmaster movement stayed below the acceptance speed floor." }
+if ([int]$chaos.configured_forward_gears -lt 2 -or [int]$chaos.unsafe_direction_shift_commits -ne 0) {
+    throw "Native Chaos drivetrain configuration/safe-shift evidence is insufficient."
+}
 
 $authority = Read-JsonRequired "NATIVE_AUTHORITY_RUNTIME.json"
 Assert-ExactIdentity $authority "NATIVE_AUTHORITY_RUNTIME.json"
 if ([string]$authority.result -ne "PASS") { throw "NATIVE_AUTHORITY_RUNTIME.json is not PASS." }
 if ([string]$authority.authority -ne "NATIVE_CHAOS") { throw "NATIVE_AUTHORITY_RUNTIME.json authority must be NATIVE_CHAOS." }
 if ([int]$authority.authority_faults -ne 0) { throw "NATIVE_AUTHORITY_RUNTIME.json contains split-authority faults." }
+
+# The drivetrain acceptance is a separate canonical roadmap gate. Seal the exact
+# packaged forward/automatic/reverse/forward scenario instead of merely hashing it.
+$drivetrain = Read-JsonRequired "NATIVE_DRIVETRAIN_SCENARIO.json"
+Assert-ExactIdentity $drivetrain "NATIVE_DRIVETRAIN_SCENARIO.json"
+if ([string]$drivetrain.schema -ne "gtt.native-drivetrain-scenario.v1" -or [string]$drivetrain.result -ne "PASS") {
+    throw "NATIVE_DRIVETRAIN_SCENARIO.json is not PASS schema v1."
+}
+if ([int]$drivetrain.diagnostic_failure_count -ne 0) { throw "Native drivetrain scenario contains diagnostic failures." }
+if ([int]$drivetrain.max_forward_gear_observed -lt 2 -or [int]$drivetrain.automatic_upshift_gear -lt 2) {
+    throw "Native drivetrain scenario did not prove a real automatic upshift."
+}
+if ([double]$drivetrain.reverse_interlock_speed_kmh -le 3.5) { throw "Native drivetrain reverse interlock was not exercised above release speed." }
+if ([double]$drivetrain.reverse_commit_speed_kmh -gt 3.75 -or [double]$drivetrain.forward_commit_speed_kmh -gt 3.75) {
+    throw "Native drivetrain direction change committed outside the safe release window."
+}
+if ([double]$drivetrain.reverse_motion_signed_speed_kmh -gt -4.5 -or [int]$drivetrain.reverse_motion_gear -ge 0) {
+    throw "Native drivetrain scenario did not prove measurable reverse motion in reverse gear."
+}
+if ([double]$drivetrain.forward_motion_signed_speed_kmh -lt 1.5 -or [int]$drivetrain.forward_motion_gear -le 0) {
+    throw "Native drivetrain scenario did not prove a safe return to forward motion."
+}
 
 $hillHaul = Read-JsonRequired "FIELDMASTER_HILL_HAUL_RUNTIME.json"
 Assert-ExactIdentity $hillHaul "FIELDMASTER_HILL_HAUL_RUNTIME.json"
@@ -80,7 +125,24 @@ if (([int]$hud.assist_alert_samples + [int]$hud.thermal_alert_samples + [int]$hu
 
 $trailer = Read-JsonRequired "NATIVE_TRAILER_RUNTIME.json"
 Assert-ExactIdentity $trailer "NATIVE_TRAILER_RUNTIME.json"
-if ([string]$trailer.result -ne "PASS") { throw "NATIVE_TRAILER_RUNTIME.json is not PASS." }
+if ([string]$trailer.schema -ne "gtt.native-trailer-runtime.v1" -or [string]$trailer.result -ne "PASS") {
+    throw "NATIVE_TRAILER_RUNTIME.json is not PASS schema v1."
+}
+if ([int]$trailer.authored_active_samples -lt 2 -or [int]$trailer.native_tow_samples -lt 2) {
+    throw "Authored trailer runtime lacks active Native tow coverage."
+}
+if ([int]$trailer.dual_contact_samples -lt 2 -or [int]$trailer.safe_hitch_samples -lt 2) {
+    throw "Authored trailer runtime lacks dual-wheel contact / safe hitch coverage."
+}
+if ([string]$trailer.deterministic_loaded_tow -ne "PASS" -or [int]$trailer.safe_loaded_motion_samples -lt 8) {
+    throw "Authored trailer runtime did not prove the deterministic loaded tow route."
+}
+if (-not [bool]$trailer.controlled_stop_proven -or [int]$trailer.trailer_scenario_diagnostic_failures -ne 0) {
+    throw "Authored trailer runtime did not prove a clean controlled stop."
+}
+if ([int]$trailer.invalid_rig_observation_count -ne 0) {
+    throw "Exact candidate observed an invalid authored trailer rig state."
+}
 
 $gate = Read-JsonRequired "DEMO_TECHNICAL_GATE.json"
 Assert-ExactIdentity $gate "DEMO_TECHNICAL_GATE.json"
@@ -168,8 +230,24 @@ $attestation = [ordered]@{
     configuration = $Configuration
     platform = "Win64"
     engine = "Unreal Engine 5.8"
+    native_chaos_tractor_movement = "PASS"
+    native_chaos_movement_samples = [int]$chaos.movement_active_samples
+    native_chaos_max_speed_kmh = [double]$chaos.max_speed_kmh
+    native_chaos_drivetrain_suspension_wheels = "PASS"
+    native_chaos_valid_wheels = [int]$chaos.max_valid_wheels
+    native_chaos_suspension_samples = [int]$chaos.max_suspension_samples
+    native_chaos_contact_samples = [int]$chaos.max_contacts
+    native_drivetrain_scenario = "PASS"
+    native_drivetrain_max_forward_gear = [int]$drivetrain.max_forward_gear_observed
+    native_drivetrain_diagnostic_failures = [int]$drivetrain.diagnostic_failure_count
     native_authority_runtime = "PASS"
     native_authority_faults = 0
+    authored_trailer_runtime = "PASS"
+    authored_trailer_dual_contact_samples = [int]$trailer.dual_contact_samples
+    authored_trailer_safe_hitch_samples = [int]$trailer.safe_hitch_samples
+    authored_trailer_safe_loaded_motion_samples = [int]$trailer.safe_loaded_motion_samples
+    authored_trailer_controlled_stop = [bool]$trailer.controlled_stop_proven
+    authored_trailer_invalid_rig_observations = [int]$trailer.invalid_rig_observation_count
     fieldmaster_hill_haul_runtime = "PASS"
     hill_haul_loaded_samples = [int]$hillHaul.loaded_trailer_samples
     hill_haul_assist_samples = [int]$hillHaul.assist_samples
@@ -217,15 +295,22 @@ Set-Content -Encoding ASCII -Path "$zipPath.sha256" -Value "$zipHash  $([IO.Path
 $roundTrip = Get-Content -Raw $attestationPath | ConvertFrom-Json
 if ($roundTrip.schema -ne "gtt.win64-candidate-attestation.v1" -or $roundTrip.result -ne "PASS" -or
     $roundTrip.git_sha -ne $ExpectedGitSha -or $roundTrip.version -ne $Version -or
-    $roundTrip.configuration -ne $Configuration -or $roundTrip.native_authority_runtime -ne "PASS" -or
-    [int]$roundTrip.native_authority_faults -ne 0 -or $roundTrip.fieldmaster_hill_haul_runtime -ne "PASS" -or
+    $roundTrip.configuration -ne $Configuration -or $roundTrip.native_chaos_tractor_movement -ne "PASS" -or
+    [int]$roundTrip.native_chaos_movement_samples -lt 2 -or [double]$roundTrip.native_chaos_max_speed_kmh -lt 0.35 -or
+    $roundTrip.native_chaos_drivetrain_suspension_wheels -ne "PASS" -or [int]$roundTrip.native_chaos_valid_wheels -lt 4 -or
+    [int]$roundTrip.native_chaos_suspension_samples -lt 4 -or $roundTrip.native_drivetrain_scenario -ne "PASS" -or
+    [int]$roundTrip.native_drivetrain_max_forward_gear -lt 2 -or [int]$roundTrip.native_drivetrain_diagnostic_failures -ne 0 -or
+    $roundTrip.native_authority_runtime -ne "PASS" -or [int]$roundTrip.native_authority_faults -ne 0 -or
+    $roundTrip.authored_trailer_runtime -ne "PASS" -or [int]$roundTrip.authored_trailer_dual_contact_samples -lt 2 -or
+    [int]$roundTrip.authored_trailer_safe_loaded_motion_samples -lt 8 -or -not [bool]$roundTrip.authored_trailer_controlled_stop -or
+    [int]$roundTrip.authored_trailer_invalid_rig_observations -ne 0 -or $roundTrip.fieldmaster_hill_haul_runtime -ne "PASS" -or
     [int]$roundTrip.hill_haul_loaded_samples -lt 2 -or [int]$roundTrip.hill_haul_assist_samples -lt 1 -or
     [int]$roundTrip.hill_haul_thermal_samples -lt 1 -or $roundTrip.fieldmaster_hud_runtime -ne "PASS" -or
     [int]$roundTrip.fieldmaster_hud_telemetry_samples -lt 2 -or [int]$roundTrip.fieldmaster_hud_visible_alert_samples -lt 1 -or
     $roundTrip.human_visual_review -ne "REQUIRED" -or [bool]$roundTrip.demo_release_authorized) {
-    throw "WIN64_CANDIDATE_ATTESTATION.json failed round-trip identity/boundary validation."
+    throw "WIN64_CANDIDATE_ATTESTATION.json failed round-trip identity/current-gate/boundary validation."
 }
 
-Write-Host "[GTT][ATTEST] PASS: exact candidate identity and final evidence hashes are sealed."
+Write-Host "[GTT][ATTEST] PASS: exact candidate identity, current-target Native Chaos/trailer gates and final evidence hashes are sealed."
 Write-Host "[GTT][ATTEST] Attestation: $attestationPath"
 Write-Host "[GTT][ATTEST] Final manifest: $finalManifestPath"

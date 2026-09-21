@@ -55,6 +55,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Parse current-gate PowerShell fail-closed
+        shell: pwsh
+        run: |
+          $targets = @(
+            'Scripts/run_win64_candidate_acceptance.ps1',
+            'Scripts/run_win64_attested_candidate_acceptance.ps1',
+            'Scripts/write_win64_candidate_attestation.ps1'
+          )
+          foreach ($target in $targets) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD $target),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "${target}: $($_.Message) at $($_.Extent.Text)" }
+              throw "PowerShell parse failed for $target"
+            }
+          }
       - name: Verify fail-closed Win64 candidate and release lane
         run: python Scripts/verify_v0_1_61_win64_candidate_pipeline.py
       - name: Verify one-command Windows candidate acceptance runner
