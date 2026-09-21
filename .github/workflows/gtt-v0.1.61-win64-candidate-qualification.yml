@@ -72,7 +72,7 @@ jobs:
               [ref]$errors
             ) | Out-Null
             if ($errors.Count -gt 0) {
-              $errors | ForEach-Object { Write-Error "$target: $($_.Message) at $($_.Extent.Text)" }
+              $errors | ForEach-Object { Write-Error "${target}: $($_.Message) at $($_.Extent.Text)" }
               throw "PowerShell parse failed for $target"
             }
           }
