@@ -60,6 +60,7 @@ $ImportFile = "$PackageDirectory.authored-trailer-import.json"
 $RuntimeLog = Join-Path $PackageDirectory "GTT_RUNTIME.log"
 $VisualRuntimeLog = Join-Path $PackageDirectory "GTT_VISUAL_RUNTIME.log"
 $FinalAsset = Join-Path $ProjectRoot "Content\GTT\Vehicles\Trailer\SK_GTT_FarmTrailer.uasset"
+$EditorImportEvidenceFile = Join-Path $ProjectRoot "Intermediate\GTT\AuthoredTrailer\AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json"
 $PreviousGithubSha = $env:GITHUB_SHA
 $env:GITHUB_SHA = $GitSha
 
@@ -79,6 +80,22 @@ try {
     if (-not (Test-Path $FinalAsset -PathType Leaf)) {
         throw "Authored trailer skeletal asset missing after UE import: $FinalAsset"
     }
+    if (-not (Test-Path $EditorImportEvidenceFile -PathType Leaf)) {
+        throw "Authored trailer editor acceptance evidence missing after UE import: $EditorImportEvidenceFile"
+    }
+
+    $editorImportEvidence = Get-Content -Raw $EditorImportEvidenceFile | ConvertFrom-Json
+    if ($editorImportEvidence.schema -ne "gtt.authored-trailer-editor-acceptance.v1" -or
+        $editorImportEvidence.result -ne "PASS" -or
+        [string]$editorImportEvidence.git_sha -ne $GitSha) {
+        throw "Authored trailer editor acceptance evidence is not bound to this exact candidate."
+    }
+    if ([string]$editorImportEvidence.source_gltf_sha256 -notmatch '^[0-9a-f]{64}$') {
+        throw "Authored trailer editor acceptance source hash is invalid."
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$editorImportEvidence.physics_asset_object_path)) {
+        throw "Authored trailer editor acceptance is missing the PhysicsAsset object path."
+    }
 
     $importEvidence = [ordered]@{
         schema = "gtt.authored-trailer-import.v1"
@@ -87,9 +104,10 @@ try {
         version = $Version
         asset = "Content/GTT/Vehicles/Trailer/SK_GTT_FarmTrailer.uasset"
         engine = "Unreal Engine 5.8"
+        editor_acceptance = $editorImportEvidence
         generated_utc = (Get-Date).ToUniversalTime().ToString("o")
     }
-    $importEvidence | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $ImportFile
+    $importEvidence | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $ImportFile
 
     Invoke-GTTScript "package_windows.ps1" @(
         "-EngineRoot", $EngineRoot,
@@ -99,6 +117,7 @@ try {
         "-SkipZip"
     )
     Copy-Item -Force $ImportFile (Join-Path $PackageDirectory "AUTHORED_TRAILER_IMPORT.json")
+    Copy-Item -Force $EditorImportEvidenceFile (Join-Path $PackageDirectory "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json")
 
     Invoke-GTTScript "smoke_test_windows.ps1" @(
         "-PackageDirectory", $PackageDirectory,
@@ -139,8 +158,18 @@ try {
 
     $import = Get-Content -Raw (Join-Path $PackageDirectory "AUTHORED_TRAILER_IMPORT.json") | ConvertFrom-Json
     if ($import.schema -ne "gtt.authored-trailer-import.v1" -or $import.result -ne "PASS" -or
-        $import.git_sha -ne $GitSha -or $import.version -ne $Version) {
+        $import.git_sha -ne $GitSha -or $import.version -ne $Version -or
+        $import.editor_acceptance.schema -ne "gtt.authored-trailer-editor-acceptance.v1" -or
+        $import.editor_acceptance.result -ne "PASS" -or
+        [string]$import.editor_acceptance.git_sha -ne $GitSha) {
         throw "Authored trailer import evidence is not bound to this exact candidate."
+    }
+
+    $packagedEditorEvidence = Get-Content -Raw (Join-Path $PackageDirectory "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json") | ConvertFrom-Json
+    if ($packagedEditorEvidence.schema -ne "gtt.authored-trailer-editor-acceptance.v1" -or
+        $packagedEditorEvidence.result -ne "PASS" -or
+        [string]$packagedEditorEvidence.git_sha -ne $GitSha) {
+        throw "Packaged authored trailer editor acceptance evidence is not bound to this exact candidate."
     }
 
     Invoke-GTTScript "evaluate_demo_candidate.ps1" @(
