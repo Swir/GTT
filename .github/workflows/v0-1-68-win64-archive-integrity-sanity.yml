@@ -1,0 +1,56 @@
+name: GTT 0.1.68 Win64 archive integrity sanity
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Config/DefaultGame.ini'
+      - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_win64_candidate_archive.ps1'
+      - 'Scripts/test_win64_candidate_archive_verifier.ps1'
+      - 'Scripts/verify_v0_1_67_fieldmaster_hud_runtime_evidence.py'
+      - 'Scripts/verify_v0_1_68_win64_archive_integrity.py'
+      - 'Docs/PLAYTEST_0.1.68.md'
+      - 'CHANGELOG.d/0.1.68-win64-archive-integrity.md'
+      - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
+      - '.github/workflows/v0-1-68-win64-archive-integrity-sanity.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Config/DefaultGame.ini'
+      - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
+      - 'Scripts/write_win64_candidate_attestation.ps1'
+      - 'Scripts/verify_win64_candidate_archive.ps1'
+      - 'Scripts/test_win64_candidate_archive_verifier.ps1'
+      - 'Scripts/verify_v0_1_67_fieldmaster_hud_runtime_evidence.py'
+      - 'Scripts/verify_v0_1_68_win64_archive_integrity.py'
+      - 'Docs/PLAYTEST_0.1.68.md'
+      - 'CHANGELOG.d/0.1.68-win64-archive-integrity.md'
+      - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
+      - '.github/workflows/v0-1-68-win64-archive-integrity-sanity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  win64-archive-integrity:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Exercise archive verifier positive and negative fixtures
+        shell: pwsh
+        run: ./Scripts/test_win64_candidate_archive_verifier.ps1
+      - name: Verify 0.1.68 archive integrity integration contract
+        run: python Scripts/verify_v0_1_68_win64_archive_integrity.py
+      - name: Regress 0.1.67 packaged Fieldmaster HUD evidence
+        run: python Scripts/verify_v0_1_67_fieldmaster_hud_runtime_evidence.py
+      - name: Regress exact-candidate attestation contract
+        run: python Scripts/verify_v0_1_61_candidate_attestation.py
+      - name: Verify SWIR progress presentation
+        run: python Scripts/verify_progress_presentation.py
+      - name: Verify project sanity
+        run: python Scripts/verify_project.py

@@ -15,11 +15,13 @@ $BaseRunner = Join-Path $PSScriptRoot "run_win64_candidate_acceptance.ps1"
 $HillHaulEvaluator = Join-Path $PSScriptRoot "evaluate_fieldmaster_hill_haul_runtime.ps1"
 $HudEvaluator = Join-Path $PSScriptRoot "evaluate_fieldmaster_hud_runtime.ps1"
 $Attestor = Join-Path $PSScriptRoot "write_win64_candidate_attestation.ps1"
+$ArchiveVerifier = Join-Path $PSScriptRoot "verify_win64_candidate_archive.ps1"
 if (-not (Test-Path $ConfigPath -PathType Leaf)) { throw "Config/DefaultGame.ini missing." }
 if (-not (Test-Path $BaseRunner -PathType Leaf)) { throw "Base candidate acceptance runner missing: $BaseRunner" }
 if (-not (Test-Path $HillHaulEvaluator -PathType Leaf)) { throw "Hill-haul runtime evaluator missing: $HillHaulEvaluator" }
 if (-not (Test-Path $HudEvaluator -PathType Leaf)) { throw "Fieldmaster HUD runtime evaluator missing: $HudEvaluator" }
 if (-not (Test-Path $Attestor -PathType Leaf)) { throw "Candidate attestation writer missing: $Attestor" }
+if (-not (Test-Path $ArchiveVerifier -PathType Leaf)) { throw "Candidate archive verifier missing: $ArchiveVerifier" }
 
 $ini = Get-Content -Raw $ConfigPath
 $match = [regex]::Match($ini, '(?m)^ProjectVersion=(.+)$')
@@ -90,5 +92,23 @@ Write-Host "[GTT][ATTESTED] Sealing final package/evidence identity and rebuildi
 & $Attestor -PackageDirectory $PackageDirectory -Version $Version -Configuration $Configuration -ExpectedGitSha ([string]$summary.git_sha)
 if ($LASTEXITCODE -ne 0) { throw "Win64 candidate attestation failed with exit code $LASTEXITCODE." }
 
-Write-Host "[GTT][ATTESTED] PASS: sealed technical candidate is ready for human visual review only."
+# 0.1.68 verifies the produced ZIP as a consumer would receive it, rather than
+# trusting only the pre-compression package directory. The verification evidence
+# intentionally lives next to the ZIP, not inside the sealed candidate.
+Write-Host "[GTT][ATTESTED] Round-trip verifying sealed Win64 candidate archive..."
+& $ArchiveVerifier -PackageDirectory $PackageDirectory -Version $Version -Configuration $Configuration -ExpectedGitSha ([string]$summary.git_sha)
+$archiveVerificationPath = "$PackageDirectory.zip.verify.json"
+if (-not (Test-Path $archiveVerificationPath -PathType Leaf)) { throw "WIN64_ARCHIVE_VERIFICATION evidence missing: $archiveVerificationPath" }
+$archiveVerification = Get-Content -Raw $archiveVerificationPath | ConvertFrom-Json
+if ($archiveVerification.schema -ne "gtt.win64-candidate-archive-verification.v1" -or
+    $archiveVerification.result -ne "PASS" -or
+    $archiveVerification.git_sha -ne $summary.git_sha -or
+    $archiveVerification.version -ne $Version -or
+    $archiveVerification.configuration -ne $Configuration -or
+    $archiveVerification.human_visual_review -ne "REQUIRED" -or
+    [bool]$archiveVerification.demo_release_authorized) {
+    throw "WIN64_ARCHIVE_VERIFICATION does not match the exact sealed candidate/release boundary."
+}
+
+Write-Host "[GTT][ATTESTED] PASS: sealed technical candidate and archive round-trip are ready for human visual review only."
 Write-Host "[GTT][ATTESTED] Demo Release remains unauthorized until the separate human-reviewed release gate passes."
