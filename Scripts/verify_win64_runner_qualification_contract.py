@@ -61,9 +61,17 @@ for token in (
     "WIN64_RUNNER_QUALIFICATION.json",
     "actions/upload-artifact@v4",
     "qualification-only",
+    "probe-contract",
+    "needs: probe-contract",
+    "qualification/0.1.68-runner-probe",
+    "WIN64_RUNNER_DISPATCH_PROBE.json",
 ):
     require(token in manual_workflow, f"manual runner workflow missing {token!r}")
 require(f"default: '{version}'" in manual_workflow, "manual runner workflow version default is stale")
+require("cancel-in-progress: true" in manual_workflow,
+        "qualification workflow must supersede stale queued runs so the current exact-head probe can execute")
+require("cancel-in-progress: false" not in manual_workflow,
+        "qualification workflow must not let a stale runner wait block a newer exact-head probe")
 require("release" not in manual_workflow.lower() or "release authorization" in manual_workflow.lower(),
         "runner qualification workflow must not publish a GitHub Release")
 

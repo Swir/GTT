@@ -24,7 +24,9 @@ permissions:
 
 concurrency:
   group: gtt-win64-runner-qualification-${{ github.ref }}
-  cancel-in-progress: false
+  # A newer exact-head probe must supersede a stale run waiting for a matching
+  # self-hosted runner; otherwise the old queued run blocks the hosted probe.
+  cancel-in-progress: true
 
 jobs:
   probe-contract:
