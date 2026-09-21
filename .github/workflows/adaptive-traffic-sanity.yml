@@ -30,7 +30,7 @@ permissions:
 jobs:
   adaptive-traffic-contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,5 +39,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify repository-wide source contract
+        run: python Scripts/verify_project.py
       - name: Verify adaptive living-traffic contract
         run: python Scripts/verify_adaptive_traffic_population.py
