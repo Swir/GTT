@@ -1,4 +1,4 @@
-name: GTT 0.1.61 Win64 attested candidate acceptance
+name: GTT Win64 attested candidate acceptance
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       version:
         description: 'Exact candidate version; must match Config/DefaultGame.ini'
         required: true
-        default: '0.1.61'
+        default: '0.1.68'
       configuration:
         description: 'Unreal build configuration'
         required: true
@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   exact-candidate:
-    name: Exact UE 5.8 Win64 package, runtime, visual evidence and attestation
+    name: Exact UE 5.8 Win64 package, runtime, visual evidence and archive attestation
     runs-on: [self-hosted, windows, x64, unreal-5.8]
     timeout-minutes: 120
     env:
@@ -51,7 +51,7 @@ jobs:
           -Version "$env:GTT_VERSION"
           -PackageDirectory "$env:GTT_PACKAGE_DIR"
 
-      - name: Verify attestation boundary before artifact upload
+      - name: Verify exact-candidate identity and archive boundary before upload
         shell: pwsh
         run: |
           $summaryPath = Join-Path $env:GTT_PACKAGE_DIR 'WIN64_ACCEPTANCE_SUMMARY.json'
@@ -59,14 +59,16 @@ jobs:
           $manifestPath = Join-Path $env:GTT_PACKAGE_DIR 'FINAL_SHA256SUMS.txt'
           $zipPath = "$env:GTT_PACKAGE_DIR.zip"
           $zipHashPath = "$zipPath.sha256"
-          foreach ($path in @($summaryPath,$attestationPath,$manifestPath,$zipPath,$zipHashPath)) {
+          $archiveVerificationPath = "$zipPath.verify.json"
+          foreach ($path in @($summaryPath,$attestationPath,$manifestPath,$zipPath,$zipHashPath,$archiveVerificationPath)) {
             if (-not (Test-Path $path -PathType Leaf)) { throw "Required candidate artifact missing: $path" }
           }
           $summary = Get-Content -Raw $summaryPath | ConvertFrom-Json
           $attestation = Get-Content -Raw $attestationPath | ConvertFrom-Json
-          foreach ($doc in @($summary,$attestation)) {
+          $archiveVerification = Get-Content -Raw $archiveVerificationPath | ConvertFrom-Json
+          foreach ($doc in @($summary,$attestation,$archiveVerification)) {
             if ($doc.result -ne 'PASS' -or $doc.git_sha -ne '${{ github.sha }}' -or $doc.version -ne $env:GTT_VERSION -or $doc.configuration -ne $env:GTT_CONFIGURATION) {
-              throw 'Candidate identity mismatch between checkout and attested evidence.'
+              throw 'Candidate identity mismatch between checkout and attested/archive evidence.'
             }
             if ($doc.human_visual_review -ne 'REQUIRED' -or [bool]$doc.demo_release_authorized) {
               throw 'Technical candidate must keep human visual review REQUIRED and Demo Release unauthorized.'
@@ -75,9 +77,15 @@ jobs:
           if ($attestation.schema -ne 'gtt.win64-candidate-attestation.v1' -or [int]$attestation.technical_gate_schema -ne 17) {
             throw 'Unexpected candidate attestation schema or technical gate schema.'
           }
+          if ($archiveVerification.schema -ne 'gtt.win64-candidate-archive-verification.v1' -or
+              $archiveVerification.platform -ne 'Win64' -or
+              $archiveVerification.engine -ne 'Unreal Engine 5.8') {
+            throw 'Unexpected archive verification schema/platform/engine.'
+          }
           $expectedLine = (Get-Content -Raw $zipHashPath).Trim()
           $actualHash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLowerInvariant()
           if (-not $expectedLine.StartsWith($actualHash + '  ')) { throw 'Candidate ZIP hash sidecar does not match the produced archive.' }
+          if ($archiveVerification.archive_sha256 -ne $actualHash) { throw 'Archive verification hash does not match uploaded ZIP bytes.' }
 
       - name: Upload exact attested technical candidate
         uses: actions/upload-artifact@v4
@@ -88,6 +96,7 @@ jobs:
           path: |
             ${{ env.GTT_PACKAGE_DIR }}.zip
             ${{ env.GTT_PACKAGE_DIR }}.zip.sha256
+            ${{ env.GTT_PACKAGE_DIR }}.zip.verify.json
             ${{ env.GTT_PACKAGE_DIR }}\WIN64_ACCEPTANCE_SUMMARY.json
             ${{ env.GTT_PACKAGE_DIR }}\WIN64_CANDIDATE_ATTESTATION.json
             ${{ env.GTT_PACKAGE_DIR }}\FINAL_SHA256SUMS.txt

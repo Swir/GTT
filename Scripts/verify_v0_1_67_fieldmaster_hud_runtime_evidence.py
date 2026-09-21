@@ -33,7 +33,11 @@ roadmap = ROADMAP.read_text(encoding="utf-8")
 playtest = PLAYTEST.read_text(encoding="utf-8")
 changelog = CHANGELOG.read_text(encoding="utf-8")
 
-require("ProjectVersion=0.1.67" in config, "project version must be 0.1.67")
+version_match = re.search(r"(?m)^ProjectVersion=(\d+)\.(\d+)\.(\d+)$", config)
+require(version_match is not None, "project version must be parseable")
+version_tuple = tuple(int(part) for part in version_match.groups())
+require(version_tuple >= (0, 1, 67), "project version must retain the 0.1.67 HUD runtime evidence contract")
+
 for token in (
     "TRAILER RUNAWAY ASSIST",
     "TRAILER BRAKES CRITICAL",
@@ -112,5 +116,5 @@ for token in ("0.1.67", "FIELDMASTER_HUD_RUNTIME.json", "exact candidate", "huma
     require(token.lower() in changelog.lower(), f"changelog missing: {token}")
 
 print("GTT 0.1.67 Fieldmaster HUD packaged-runtime evidence: source/integration contract OK")
-print("Exact candidate attestation now seals authoritative HUD safety-state telemetry evidence")
+print("Exact candidate attestation still seals authoritative HUD safety-state telemetry evidence")
 print("Roadmap truth preserved: 125/130 = 96.2%; five runtime/art gates remain open")
