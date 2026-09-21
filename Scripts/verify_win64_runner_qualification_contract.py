@@ -84,6 +84,23 @@ require(
     "gtt-win64-runner-qualification-${{ github.ref }}" not in manual_workflow,
     "qualification concurrency must not be scoped by github.ref; stale version branches must be superseded",
 )
+require("actions: write" in manual_workflow,
+        "qualification workflow needs narrowly scoped Actions write permission for legacy stale-run cancellation")
+require("pull_request:" not in manual_workflow,
+        "write-enabled qualification workflow must never execute from pull_request events")
+for token in (
+    "Cancel legacy stale qualification runs",
+    "GTT_CURRENT_RUN_ID",
+    'workflow_path = ".github/workflows/win64-runner-qualification.yml"',
+    "status=queued&per_page=100",
+    "if run_id >= current_run_id:",
+    "/actions/runs/{run_id}/cancel",
+    "stale queued qualification runs remain after cleanup",
+    "GTT_CANCELLED_STALE_QUALIFICATION_RUNS",
+    '"legacy_stale_queue_clear": True',
+    '"cancelled_stale_qualification_run_ids": cancelled',
+):
+    require(token in manual_workflow, f"legacy qualification queue cleanup missing {token!r}")
 require("release" not in manual_workflow.lower() or "release authorization" in manual_workflow.lower(),
         "runner qualification workflow must not publish a GitHub Release")
 
@@ -128,6 +145,7 @@ for token in (
 require(version in docs, "runner qualification docs must identify the current ProjectVersion candidate")
 require("self-hosted" in docs and "unreal-5.8" in docs, "runner docs must state qualifying labels")
 require("global concurrency lane" in docs.lower(), "runner docs must explain cross-branch stale-run supersession")
+require("legacy queued" in docs.lower(), "runner docs must explain one-time pre-migration stale-run cleanup")
 require("does not close" in docs.lower(), "runner docs must preserve roadmap gate boundary")
 require("human visual" in docs.lower(), "runner docs must preserve human visual review boundary")
 

@@ -30,7 +30,9 @@ Use branch **`qualification/0.1.69-runner-probe`** for the exact-head push probe
 - `x64`
 - `unreal-5.8`
 
-All versioned qualification probes share **one global concurrency lane**. A newer exact candidate therefore supersedes older queued or in-progress qualification runs even when they came from an older versioned probe branch. This prevents a newly available UE 5.8 runner from being consumed first by stale candidate work; only the newest exact candidate should remain eligible to wait for the real runner.
+All versioned qualification probes now share **one global concurrency lane**. New probes created with this workflow automatically supersede older queued or in-progress probes from other versioned branches.
+
+Runs created before that migration used ref-scoped concurrency and cannot retroactively inherit the new group. The hosted probe therefore performs a narrowly scoped one-time/defensive cleanup of **legacy queued** qualification runs before dispatching the real runner: it may cancel only older run IDs for this exact workflow path, re-queries the queue, and fails closed if any older qualification wait remains. The cleanup result and cancelled run IDs are written into `WIN64_RUNNER_DISPATCH_PROBE.json`. The workflow has `actions: write` solely for that cancellation step and never runs on pull-request events.
 
 Use the same UE installation root that will be used by the final candidate workflow. The self-hosted stage checks out LFS content, binds the report to `${{ github.sha }}` and uploads the JSON, nested preflight JSON and editor-probe log even when qualification fails.
 
