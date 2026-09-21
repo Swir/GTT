@@ -12,6 +12,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 ATTEST = ROOT / "Scripts" / "write_win64_candidate_attestation.ps1"
 RUNNER = ROOT / "Scripts" / "run_win64_attested_candidate_acceptance.ps1"
+ARCHIVE = ROOT / "Scripts" / "verify_win64_candidate_archive.ps1"
 WORKFLOW = ROOT / ".github" / "workflows" / "gtt-v0.1.61-win64-attested-candidate.yml"
 
 
@@ -59,6 +60,7 @@ def exercise_hash_failure_boundary() -> None:
 def main() -> int:
     attest = ATTEST.read_text(encoding="utf-8")
     runner = RUNNER.read_text(encoding="utf-8")
+    archive = ARCHIVE.read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
     # AUDIT #16 FINISH-FIRST: the attestation must seal the concrete packaged-runtime
@@ -146,6 +148,55 @@ def main() -> int:
         "attestation writer",
     )
 
+    # The archive verifier is the consumer-side boundary after compression. It must
+    # independently reject a sealed ZIP whose attestation lost any current target
+    # Native Chaos or authored-trailer proof, even when the generic result says PASS.
+    for token in (
+        "gtt.win64-candidate-attestation.v1",
+        "native_chaos_tractor_movement",
+        "native_chaos_movement_samples",
+        "native_chaos_max_speed_kmh",
+        "native_chaos_drivetrain_suspension_wheels",
+        "native_chaos_valid_wheels",
+        "native_chaos_suspension_samples",
+        "native_chaos_contact_samples",
+        "native_drivetrain_scenario",
+        "native_drivetrain_max_forward_gear",
+        "native_drivetrain_diagnostic_failures",
+        "authored_trailer_runtime",
+        "authored_trailer_dual_contact_samples",
+        "authored_trailer_safe_hitch_samples",
+        "authored_trailer_safe_loaded_motion_samples",
+        "authored_trailer_controlled_stop",
+        "authored_trailer_invalid_rig_observations",
+        "dedicated Native Chaos tractor movement acceptance",
+        "Native Chaos drivetrain/suspension/wheel acceptance",
+        "authored trailer runtime/hitch/wheel acceptance",
+        "technical_gate_schema",
+        "rendered_visual_evidence",
+        "human_visual_review",
+        "demo_release_authorized",
+        "FINAL_SHA256SUMS.txt",
+        "packaged_exe_sha256",
+    ):
+        require(archive, token, "archive verifier")
+
+    require_order(
+        archive,
+        [
+            '$attestation = Get-Content -Raw $attestationPath | ConvertFrom-Json',
+            '$attestation.native_chaos_tractor_movement',
+            '$attestation.native_chaos_drivetrain_suspension_wheels',
+            '$attestation.native_drivetrain_scenario',
+            '$attestation.authored_trailer_runtime',
+            '$attestation.native_authority_runtime',
+            '$attestation.technical_gate_schema',
+            '$attestation.rendered_visual_evidence',
+            '$attestation.human_visual_review',
+        ],
+        "archive verifier",
+    )
+
     for token in (
         "run_win64_candidate_acceptance.ps1",
         "write_win64_candidate_attestation.ps1",
@@ -190,7 +241,7 @@ def main() -> int:
     print(
         "GTT candidate attestation sanity: PASS "
         "(exact SHA/version/config + concrete Native Chaos movement/drivetrain/suspension/wheels + "
-        "authored trailer runtime + packaged EXE/evidence hashes + human-review boundary)"
+        "authored trailer runtime + sealed archive round-trip + packaged EXE/evidence hashes + human-review boundary)"
     )
     return 0
 
