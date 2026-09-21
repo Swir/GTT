@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static contract checks for the Win64 UE 5.8 runner-qualification handoff."""
+"""Static contract checks for the current Win64 UE 5.8 runner/candidate handoff."""
 from __future__ import annotations
 
 import re
@@ -24,12 +24,14 @@ config = read("Config/DefaultGame.ini")
 match = re.search(r"(?m)^ProjectVersion=(.+)$", config)
 require(match is not None, "ProjectVersion missing from Config/DefaultGame.ini")
 version = match.group(1).strip()
-require(version == "0.1.68", f"runner-qualification milestone must stay on current candidate 0.1.68, got {version}")
+require(re.fullmatch(r"\d+\.\d+\.\d+", version) is not None, f"unexpected ProjectVersion format: {version!r}")
+probe_branch = f"qualification/{version}-runner-probe"
 
 qualifier = read("Scripts/qualify_win64_runner.ps1")
 fixture = read("Scripts/test_win64_runner_qualification.ps1")
 manual_workflow = read(".github/workflows/win64-runner-qualification.yml")
 candidate_workflow = read(".github/workflows/gtt-v0.1.61-win64-attested-candidate.yml")
+package_workflow = read(".github/workflows/win64-package-evidence.yml")
 sanity_workflow = read(".github/workflows/win64-runner-qualification-sanity.yml")
 docs = read("Docs/WIN64_RUNNER_QUALIFICATION.md")
 roadmap = read("Docs/ROADMAP.md")
@@ -63,11 +65,13 @@ for token in (
     "qualification-only",
     "probe-contract",
     "needs: probe-contract",
-    "qualification/0.1.68-runner-probe",
+    probe_branch,
     "WIN64_RUNNER_DISPATCH_PROBE.json",
 ):
     require(token in manual_workflow, f"manual runner workflow missing {token!r}")
 require(f"default: '{version}'" in manual_workflow, "manual runner workflow version default is stale")
+require(manual_workflow.count(f"'{version}'") >= 3,
+        "manual runner workflow push/dispatch fallbacks are not all bound to current ProjectVersion")
 require("cancel-in-progress: true" in manual_workflow,
         "qualification workflow must supersede stale queued runs so the current exact-head probe can execute")
 require("cancel-in-progress: false" not in manual_workflow,
@@ -82,6 +86,18 @@ require(acceptance_pos >= 0, "exact-candidate workflow lost the attested accepta
 require(qualifier_pos < acceptance_pos, "runner qualification must execute before expensive exact-candidate acceptance")
 require("WIN64_RUNNER_QUALIFICATION.json" in candidate_workflow, "exact-candidate workflow must persist runner qualification evidence")
 require(f"default: '{version}'" in candidate_workflow, "exact-candidate workflow version default is stale")
+
+require(f"default: '{version}'" in package_workflow, "Win64 package evidence workflow version default is stale")
+for token in (
+    'runs-on: [self-hosted, windows, x64, unreal-5.8]',
+    "run_win64_attested_candidate_acceptance.ps1",
+    "Config\\DefaultGame.ini",
+    "ProjectVersion",
+    "NATIVE_CHAOS_RUNTIME.json",
+    "NATIVE_TRAILER_RUNTIME.json",
+    "DEMO_VISUAL_EVIDENCE.json",
+):
+    require(token in package_workflow, f"Win64 package evidence workflow missing {token!r}")
 
 for token in (
     "test_win64_runner_qualification.ps1",
@@ -101,6 +117,7 @@ for token in (
 ):
     require(token in fixture, f"PowerShell fixture coverage missing {token!r}")
 
+require(version in docs, "runner qualification docs must identify the current ProjectVersion candidate")
 require("self-hosted" in docs and "unreal-5.8" in docs, "runner docs must state qualifying labels")
 require("does not close" in docs.lower(), "runner docs must preserve roadmap gate boundary")
 require("human visual" in docs.lower(), "runner docs must preserve human visual review boundary")
@@ -130,5 +147,5 @@ require("../assets/readme/progress-mini.svg" in roadmap, "roadmap mini SVG path 
 
 print(
     "GTT Win64 runner qualification contract: PASS "
-    f"(version={version}, roadmap={checked}/{total}={expected_percent:.1f}%, open={open_items})"
+    f"(version={version}, probe={probe_branch}, roadmap={checked}/{total}={expected_percent:.1f}%, open={open_items})"
 )

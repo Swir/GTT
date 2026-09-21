@@ -37,7 +37,11 @@ playtest = PLAYTEST.read_text(encoding="utf-8")
 changelog = CHANGELOG.read_text(encoding="utf-8")
 regression = REGRESSION_0167.read_text(encoding="utf-8")
 
-require("ProjectVersion=0.1.68" in config, "project version must be 0.1.68")
+project_version_match = re.search(r"^ProjectVersion=(\d+)\.(\d+)\.(\d+)\s*$", config, flags=re.MULTILINE)
+require(project_version_match is not None, "Config/DefaultGame.ini must declare a semantic ProjectVersion")
+project_version = ".".join(project_version_match.groups())
+project_version_tuple = tuple(int(part) for part in project_version_match.groups())
+require(project_version_tuple >= (0, 1, 68), "archive-integrity regression requires ProjectVersion >= 0.1.68")
 
 for token in (
     "FINAL_SHA256SUMS.txt",
@@ -84,7 +88,7 @@ require("WIN64_ARCHIVE_VERIFICATION" in runner, "attested runner must validate e
 require("$ZipPath.verify.json" in archive, "archive verification evidence must live outside sealed ZIP")
 
 for token in (
-    "default: '0.1.68'",
+    f"default: '{project_version}'",
     "run_win64_attested_candidate_acceptance.ps1",
     "WIN64_CANDIDATE_ATTESTATION.json",
     "FINAL_SHA256SUMS.txt",
@@ -138,6 +142,6 @@ for token in (
     require(token.lower() in playtest.lower(), f"playtest missing: {token}")
     require(token.lower() in changelog.lower(), f"changelog missing: {token}")
 
-print("GTT 0.1.68 Win64 archive integrity: source/integration contract OK")
-print("Sealed ZIP now receives a fail-closed round-trip verification with full manifest/evidence identity checks")
+print(f"GTT 0.1.68 Win64 archive integrity: forward-compatible source/integration contract OK for candidate {project_version}")
+print("Sealed ZIP keeps fail-closed round-trip verification with full manifest/evidence identity checks")
 print("Roadmap truth preserved: 125/130 = 96.2%; five runtime/art gates remain open")
