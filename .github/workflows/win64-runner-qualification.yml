@@ -27,8 +27,76 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  probe-contract:
+    name: Verify qualification dispatch contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GTT_EXPECTED_VERSION: ${{ inputs.version || '0.1.68' }}
+      GTT_PROBE_DIR: ${{ github.workspace }}/Saved/Win64/RunnerQualificationProbe
+    steps:
+      - name: Checkout exact probe source
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+          fetch-depth: 1
+
+      - name: Verify exact source, version and qualification entrypoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [[ "$actual_sha" != "${GITHUB_SHA}" ]]; then
+            echo "Expected workflow SHA ${GITHUB_SHA}, got ${actual_sha}." >&2
+            exit 1
+          fi
+
+          actual_version="$(awk -F= '/^ProjectVersion=/{gsub(/\r/,"",$2); print $2; exit}' Config/DefaultGame.ini)"
+          if [[ -z "$actual_version" || "$actual_version" != "$GTT_EXPECTED_VERSION" ]]; then
+            echo "Expected project version ${GTT_EXPECTED_VERSION}, got ${actual_version:-missing}." >&2
+            exit 1
+          fi
+
+          test -f GTT.uproject
+          test -f Scripts/qualify_win64_runner.ps1
+          test -f .github/workflows/win64-runner-qualification.yml
+
+          mkdir -p "$GTT_PROBE_DIR"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "schema": "gtt.win64.runner-dispatch-probe.v1",
+              "git_sha": os.environ["GITHUB_SHA"],
+              "git_ref": os.environ["GITHUB_REF"],
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+              "workflow_run_id": os.environ["GITHUB_RUN_ID"],
+              "event_name": os.environ["GITHUB_EVENT_NAME"],
+              "expected_project_version": os.environ["GTT_EXPECTED_VERSION"],
+              "required_runner_labels": ["self-hosted", "windows", "x64", "unreal-5.8"],
+              "hosted_dispatch_contract_verified": True,
+              "self_hosted_runner_qualified": False,
+              "demo_release_authorized": False,
+              "human_visual_review": "REQUIRED",
+          }
+          out = Path(os.environ["GTT_PROBE_DIR"]) / "WIN64_RUNNER_DISPATCH_PROBE.json"
+          out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          print(out.read_text(encoding="utf-8"))
+          PY
+
+      - name: Upload dispatch probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: GTT-Win64-runner-dispatch-probe-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: ${{ env.GTT_PROBE_DIR }}/WIN64_RUNNER_DISPATCH_PROBE.json
+
   qualification-only:
     name: Qualify self-hosted Windows x64 + Unreal Engine 5.8 runner
+    needs: probe-contract
     runs-on: [self-hosted, windows, x64, unreal-5.8]
     timeout-minutes: 12
     env:
