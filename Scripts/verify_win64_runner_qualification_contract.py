@@ -76,6 +76,14 @@ require("cancel-in-progress: true" in manual_workflow,
         "qualification workflow must supersede stale queued runs so the current exact-head probe can execute")
 require("cancel-in-progress: false" not in manual_workflow,
         "qualification workflow must not let a stale runner wait block a newer exact-head probe")
+require(
+    re.search(r"(?m)^\s*group:\s*gtt-win64-runner-qualification\s*$", manual_workflow) is not None,
+    "qualification workflow must use one global concurrency lane across versioned probe branches",
+)
+require(
+    "gtt-win64-runner-qualification-${{ github.ref }}" not in manual_workflow,
+    "qualification concurrency must not be scoped by github.ref; stale version branches must be superseded",
+)
 require("release" not in manual_workflow.lower() or "release authorization" in manual_workflow.lower(),
         "runner qualification workflow must not publish a GitHub Release")
 
@@ -119,6 +127,7 @@ for token in (
 
 require(version in docs, "runner qualification docs must identify the current ProjectVersion candidate")
 require("self-hosted" in docs and "unreal-5.8" in docs, "runner docs must state qualifying labels")
+require("global concurrency lane" in docs.lower(), "runner docs must explain cross-branch stale-run supersession")
 require("does not close" in docs.lower(), "runner docs must preserve roadmap gate boundary")
 require("human visual" in docs.lower(), "runner docs must preserve human visual review boundary")
 

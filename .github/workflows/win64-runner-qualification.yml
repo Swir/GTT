@@ -23,9 +23,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: gtt-win64-runner-qualification-${{ github.ref }}
-  # A newer exact-head probe must supersede a stale run waiting for a matching
-  # self-hosted runner; otherwise the old queued run blocks the hosted probe.
+  # One global lane across all versioned qualification probes. A newer exact
+  # candidate must supersede any older queued/in-progress probe before a real
+  # UE 5.8 runner becomes available, otherwise stale work can consume it first.
+  group: gtt-win64-runner-qualification
   cancel-in-progress: true
 
 jobs:

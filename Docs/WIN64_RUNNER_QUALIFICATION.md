@@ -30,6 +30,8 @@ Use branch **`qualification/0.1.69-runner-probe`** for the exact-head push probe
 - `x64`
 - `unreal-5.8`
 
+All versioned qualification probes share **one global concurrency lane**. A newer exact candidate therefore supersedes older queued or in-progress qualification runs even when they came from an older versioned probe branch. This prevents a newly available UE 5.8 runner from being consumed first by stale candidate work; only the newest exact candidate should remain eligible to wait for the real runner.
+
 Use the same UE installation root that will be used by the final candidate workflow. The self-hosted stage checks out LFS content, binds the report to `${{ github.sha }}` and uploads the JSON, nested preflight JSON and editor-probe log even when qualification fails.
 
 A failure is intended to be actionable before the expensive package/runtime pass. Fix the failing machine/toolchain/content condition, then rerun qualification. A queued self-hosted stage is an external runner-availability blocker, not proof of qualification.
