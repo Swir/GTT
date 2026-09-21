@@ -94,10 +94,18 @@ if ($LASTEXITCODE -ne 0) { throw "Win64 candidate attestation failed with exit c
 
 # 0.1.68 verifies the produced ZIP as a consumer would receive it, rather than
 # trusting only the pre-compression package directory. The verification evidence
-# intentionally lives next to the ZIP, not inside the sealed candidate.
+# intentionally lives next to the ZIP, not inside the sealed candidate. Remove any
+# previous sidecar first so a failed verifier can never be masked by stale PASS evidence.
+$archiveVerificationPath = "$PackageDirectory.zip.verify.json"
+if (Test-Path $archiveVerificationPath) {
+    Remove-Item -Force $archiveVerificationPath
+}
 Write-Host "[GTT][ATTESTED] Round-trip verifying sealed Win64 candidate archive..."
 & $ArchiveVerifier -PackageDirectory $PackageDirectory -Version $Version -Configuration $Configuration -ExpectedGitSha ([string]$summary.git_sha)
-$archiveVerificationPath = "$PackageDirectory.zip.verify.json"
+$archiveVerifierExit = $LASTEXITCODE
+if ($archiveVerifierExit -ne 0) {
+    throw "Win64 candidate archive verification failed with exit code $archiveVerifierExit."
+}
 if (-not (Test-Path $archiveVerificationPath -PathType Leaf)) { throw "WIN64_ARCHIVE_VERIFICATION evidence missing: $archiveVerificationPath" }
 $archiveVerification = Get-Content -Raw $archiveVerificationPath | ConvertFrom-Json
 if ($archiveVerification.schema -ne "gtt.win64-candidate-archive-verification.v1" -or
