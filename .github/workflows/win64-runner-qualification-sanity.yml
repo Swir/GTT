@@ -1,0 +1,76 @@
+name: GTT Win64 runner qualification sanity
+
+on:
+  push:
+    paths:
+      - 'Scripts/qualify_win64_runner.ps1'
+      - 'Scripts/test_win64_runner_qualification.ps1'
+      - 'Scripts/verify_win64_runner_qualification_contract.py'
+      - 'Scripts/preflight_win64_unreal.ps1'
+      - 'Docs/WIN64_RUNNER_QUALIFICATION.md'
+      - 'Docs/ROADMAP.md'
+      - 'Config/DefaultGame.ini'
+      - '.github/workflows/win64-runner-qualification.yml'
+      - '.github/workflows/win64-runner-qualification-sanity.yml'
+      - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Scripts/qualify_win64_runner.ps1'
+      - 'Scripts/test_win64_runner_qualification.ps1'
+      - 'Scripts/verify_win64_runner_qualification_contract.py'
+      - 'Scripts/preflight_win64_unreal.ps1'
+      - 'Docs/WIN64_RUNNER_QUALIFICATION.md'
+      - 'Docs/ROADMAP.md'
+      - 'Config/DefaultGame.ini'
+      - '.github/workflows/win64-runner-qualification.yml'
+      - '.github/workflows/win64-runner-qualification-sanity.yml'
+      - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  runner-qualification-contract:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Parse PowerShell qualification scripts
+        shell: pwsh
+        run: |
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path './Scripts/qualify_win64_runner.ps1'),
+            [ref]$null,
+            [ref]$errors
+          )
+          if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path './Scripts/test_win64_runner_qualification.ps1'),
+            [ref]$null,
+            [ref]$errors
+          )
+          if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
+
+      - name: Exercise qualification positive and fail-closed fixtures
+        shell: pwsh
+        run: ./Scripts/test_win64_runner_qualification.ps1
+
+      - name: Verify runner qualification integration contract
+        run: python Scripts/verify_win64_runner_qualification_contract.py
+
+      - name: Verify SWIR progress presentation
+        run: python Scripts/verify_progress_presentation.py
+
+      - name: Verify project sanity
+        run: python Scripts/verify_project.py
