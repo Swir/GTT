@@ -20,6 +20,7 @@ on:
       - qualification/0.1.69-runner-probe
 
 permissions:
+  actions: write
   contents: read
 
 concurrency:
@@ -38,6 +39,100 @@ jobs:
       GTT_EXPECTED_VERSION: ${{ inputs.version || '0.1.69' }}
       GTT_PROBE_DIR: ${{ github.workspace }}/Saved/Win64/RunnerQualificationProbe
     steps:
+      - name: Cancel legacy stale qualification runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GTT_REPOSITORY: ${{ github.repository }}
+          GTT_CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          repository = os.environ["GTT_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          current_run_id = int(os.environ["GTT_CURRENT_RUN_ID"])
+          workflow_path = ".github/workflows/win64-runner-qualification.yml"
+          runs_url = f"https://api.github.com/repos/{repository}/actions/runs?status=queued&per_page=100"
+
+          def request_json(url: str):
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+
+          def cancel_run(run_id: int) -> None:
+              url = f"https://api.github.com/repos/{repository}/actions/runs/{run_id}/cancel"
+              req = urllib.request.Request(
+                  url,
+                  data=b"",
+                  method="POST",
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      if response.status not in (202, 204):
+                          raise RuntimeError(f"unexpected cancellation status {response.status} for run {run_id}")
+              except urllib.error.HTTPError as exc:
+                  # 409 is only tolerable when another actor/concurrency transition
+                  # already removed the run from the queued set; final re-query below
+                  # remains authoritative and fails closed otherwise.
+                  if exc.code != 409:
+                      raise
+
+          def stale_legacy_runs():
+              payload = request_json(runs_url)
+              result = []
+              for run in payload.get("workflow_runs", []):
+                  run_id = int(run.get("id", 0))
+                  if run.get("path") != workflow_path:
+                      continue
+                  if run.get("status") != "queued":
+                      continue
+                  if run_id >= current_run_id:
+                      continue
+                  result.append(run)
+              return result
+
+          stale = stale_legacy_runs()
+          cancelled = []
+          for run in stale:
+              run_id = int(run["id"])
+              cancel_run(run_id)
+              cancelled.append(run_id)
+              print(
+                  "Requested cancellation of stale qualification run "
+                  f"{run_id} ({run.get('head_branch')} @ {run.get('head_sha')})."
+              )
+
+          remaining = stale_legacy_runs()
+          if remaining:
+              ids = ", ".join(str(run["id"]) for run in remaining)
+              raise RuntimeError(f"stale queued qualification runs remain after cleanup: {ids}")
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              env_file.write(
+                  "GTT_CANCELLED_STALE_QUALIFICATION_RUNS="
+                  + ",".join(str(run_id) for run_id in cancelled)
+                  + "\n"
+              )
+          print(f"Legacy qualification queue clear; cancelled={cancelled}")
+          PY
+
       - name: Checkout exact probe source
         uses: actions/checkout@v4
         with:
@@ -70,6 +165,11 @@ jobs:
           import os
           from pathlib import Path
 
+          cancelled = [
+              int(value)
+              for value in os.environ.get("GTT_CANCELLED_STALE_QUALIFICATION_RUNS", "").split(",")
+              if value.strip()
+          ]
           payload = {
               "schema": "gtt.win64.runner-dispatch-probe.v1",
               "git_sha": os.environ["GITHUB_SHA"],
@@ -80,6 +180,8 @@ jobs:
               "expected_project_version": os.environ["GTT_EXPECTED_VERSION"],
               "required_runner_labels": ["self-hosted", "windows", "x64", "unreal-5.8"],
               "hosted_dispatch_contract_verified": True,
+              "legacy_stale_queue_clear": True,
+              "cancelled_stale_qualification_run_ids": cancelled,
               "self_hosted_runner_qualified": False,
               "demo_release_authorized": False,
               "human_visual_review": "REQUIRED",
