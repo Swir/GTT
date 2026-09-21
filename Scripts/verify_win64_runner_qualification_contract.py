@@ -99,11 +99,28 @@ require("human visual" in docs.lower(), "runner docs must preserve human visual 
 
 checked = len(re.findall(r"(?m)^\s*-\s+\[x\]\s+", roadmap, flags=re.IGNORECASE))
 open_items = len(re.findall(r"(?m)^\s*-\s+\[ \]\s+", roadmap))
+total = checked + open_items
+expected_percent = round((checked * 100.0 / total), 1) if total else 0.0
 require(checked == 125 and open_items == 5, f"roadmap truth changed unexpectedly: checked={checked}, open={open_items}")
-require("125 / 130" in roadmap and "96.2%" in roadmap, "roadmap counter/percentage drifted")
+
+progress_row = re.search(
+    r"(?m)^\|\s*\*\*(\d+)\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|\s*\*\*([0-9]+(?:\.[0-9]+)?)%\*\*\s*\|\s*$",
+    roadmap,
+)
+require(progress_row is not None, "canonical roadmap progress table row missing")
+table_completed, table_remaining, table_total = map(int, progress_row.group(1, 2, 3))
+table_percent = float(progress_row.group(4))
+require(
+    (table_completed, table_remaining, table_total) == (checked, open_items, total),
+    "roadmap progress table counters do not match checklist truth",
+)
+require(abs(table_percent - expected_percent) < 0.05, "roadmap progress table percentage does not match checklist math")
+require(f"ROADMAP-{expected_percent:.1f}%25" in roadmap, "roadmap progress badge percentage drifted")
+require(f"DONE-{checked}%2F{total}" in roadmap, "roadmap DONE badge counter drifted")
+require(f"{checked} of {total} tasks complete, {expected_percent:.1f} percent" in roadmap, "roadmap SVG alt text drifted")
 require("../assets/readme/progress-mini.svg" in roadmap, "roadmap mini SVG path missing")
 
 print(
     "GTT Win64 runner qualification contract: PASS "
-    f"(version={version}, roadmap={checked}/{checked + open_items}=96.2%, open={open_items})"
+    f"(version={version}, roadmap={checked}/{total}={expected_percent:.1f}%, open={open_items})"
 )
