@@ -47,6 +47,20 @@ function Command-Exists {
     return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+function Get-LatestVersionDirectory {
+    param([string]$Root)
+
+    if ([string]::IsNullOrWhiteSpace($Root) -or -not (Test-Path $Root -PathType Container)) {
+        return $null
+    }
+
+    return @(
+        Get-ChildItem -Path $Root -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d+(?:\.\d+)+$' } |
+            Sort-Object { [version]$_.Name } -Descending
+    ) | Select-Object -First 1
+}
+
 $isWindowsHost = $false
 if (Get-Variable IsWindows -ErrorAction SilentlyContinue) {
     $isWindowsHost = [bool]$IsWindows
@@ -128,11 +142,41 @@ if (-not [string]::IsNullOrWhiteSpace($vswhere) -and (Test-Path $vswhere -PathTy
         $vsInstall = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null | Select-Object -First 1)
     } catch { }
 }
-Add-Check "msvc-toolchain" (-not [string]::IsNullOrWhiteSpace($vsInstall)) ($(if ($vsInstall) { $vsInstall } else { "Visual Studio 2022 C++ toolchain not detected via vswhere" }))
+
+$msvcToolsetVersion = "missing"
+$clExe = ""
+$linkExe = ""
+if (-not [string]::IsNullOrWhiteSpace($vsInstall)) {
+    $msvcRoot = Join-Path $vsInstall "VC\Tools\MSVC"
+    $msvcToolset = Get-LatestVersionDirectory -Root $msvcRoot
+    if ($null -ne $msvcToolset) {
+        $msvcToolsetVersion = $msvcToolset.Name
+        $clExe = Join-Path $msvcToolset.FullName "bin\Hostx64\x64\cl.exe"
+        $linkExe = Join-Path $msvcToolset.FullName "bin\Hostx64\x64\link.exe"
+    }
+}
+$clFound = -not [string]::IsNullOrWhiteSpace($clExe) -and (Test-Path $clExe -PathType Leaf)
+$linkFound = -not [string]::IsNullOrWhiteSpace($linkExe) -and (Test-Path $linkExe -PathType Leaf)
+$msvcReady = -not [string]::IsNullOrWhiteSpace($vsInstall) -and $clFound -and $linkFound
+Add-Check "msvc-toolchain" $msvcReady "install=$vsInstall; toolset=$msvcToolsetVersion; cl=$clExe; link=$linkExe"
 
 $windowsKits = if ([string]::IsNullOrWhiteSpace($programFilesX86)) { "" } else { Join-Path $programFilesX86 "Windows Kits\10" }
-$windowsSdkFound = -not [string]::IsNullOrWhiteSpace($windowsKits) -and (Test-Path $windowsKits -PathType Container)
-Add-Check "windows-sdk" $windowsSdkFound ($(if ($windowsKits) { $windowsKits } else { "ProgramFiles(x86) unavailable" }))
+$windowsSdkVersion = "missing"
+$rcExe = ""
+$mtExe = ""
+if (-not [string]::IsNullOrWhiteSpace($windowsKits) -and (Test-Path $windowsKits -PathType Container)) {
+    $sdkBinRoot = Join-Path $windowsKits "bin"
+    $sdkVersionDir = Get-LatestVersionDirectory -Root $sdkBinRoot
+    if ($null -ne $sdkVersionDir) {
+        $windowsSdkVersion = $sdkVersionDir.Name
+        $rcExe = Join-Path $sdkVersionDir.FullName "x64\rc.exe"
+        $mtExe = Join-Path $sdkVersionDir.FullName "x64\mt.exe"
+    }
+}
+$rcFound = -not [string]::IsNullOrWhiteSpace($rcExe) -and (Test-Path $rcExe -PathType Leaf)
+$mtFound = -not [string]::IsNullOrWhiteSpace($mtExe) -and (Test-Path $mtExe -PathType Leaf)
+$windowsSdkFound = $rcFound -and $mtFound
+Add-Check "windows-sdk" $windowsSdkFound "root=$windowsKits; version=$windowsSdkVersion; rc=$rcExe; mt=$mtExe"
 
 $freeGiB = -1.0
 try {
