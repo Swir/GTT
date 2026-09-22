@@ -14,6 +14,7 @@ ATTEST = ROOT / "Scripts" / "write_win64_candidate_attestation.ps1"
 RUNNER = ROOT / "Scripts" / "run_win64_attested_candidate_acceptance.ps1"
 ARCHIVE = ROOT / "Scripts" / "verify_win64_candidate_archive.ps1"
 WORKFLOW = ROOT / ".github" / "workflows" / "gtt-v0.1.61-win64-attested-candidate.yml"
+QUALIFICATION_WORKFLOW = ROOT / ".github" / "workflows" / "win64-runner-qualification.yml"
 
 
 def fail(message: str) -> None:
@@ -62,6 +63,7 @@ def main() -> int:
     runner = RUNNER.read_text(encoding="utf-8")
     archive = ARCHIVE.read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
+    qualification_workflow = QUALIFICATION_WORKFLOW.read_text(encoding="utf-8")
 
     # AUDIT #16 FINISH-FIRST: the attestation must seal the concrete packaged-runtime
     # observations for the existing five-gate target, not only generic PASS files.
@@ -217,7 +219,11 @@ def main() -> int:
     )
 
     for token in (
+        "workflow_call:",
         "workflow_dispatch:",
+        "version:",
+        "configuration:",
+        "engine_root:",
         "runs-on: [self-hosted, windows, x64, unreal-5.8]",
         "timeout-minutes: 120",
         "actions/checkout@v4",
@@ -232,6 +238,31 @@ def main() -> int:
     ):
         require(workflow, token, "attested candidate workflow")
 
+    # Once a matching runner is available, qualification must hand the same caller
+    # ref/SHA directly into the sealed technical candidate workflow rather than
+    # stopping after a probe and requiring a second manual dispatch.
+    for token in (
+        "exact-candidate-after-qualification:",
+        "needs: qualification-only",
+        "uses: ./.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml",
+        "version: ${{ inputs.version || '0.1.69' }}",
+        "configuration: Shipping",
+        "engine_root: ${{ inputs.engine_root || 'C:\\Program Files\\Epic Games\\UE_5.8' }}",
+        '"exact_candidate_handoff_required": True',
+    ):
+        require(qualification_workflow, token, "runner-to-candidate handoff")
+
+    require_order(
+        qualification_workflow,
+        [
+            "qualification-only:",
+            "exact-candidate-after-qualification:",
+            "needs: qualification-only",
+            "uses: ./.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml",
+        ],
+        "runner-to-candidate handoff",
+    )
+
     if "softprops/action-gh-release" in workflow or "gh release" in workflow.lower():
         fail("attested candidate workflow must not publish a release")
     if "cancel-in-progress: true" in workflow:
@@ -241,7 +272,8 @@ def main() -> int:
     print(
         "GTT candidate attestation sanity: PASS "
         "(exact SHA/version/config + concrete Native Chaos movement/drivetrain/suspension/wheels + "
-        "authored trailer runtime + sealed archive round-trip + packaged EXE/evidence hashes + human-review boundary)"
+        "authored trailer runtime + sealed archive round-trip + packaged EXE/evidence hashes + "
+        "qualified-runner exact-candidate handoff + human-review boundary)"
     )
     return 0
 
