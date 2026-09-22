@@ -73,6 +73,14 @@ def main() -> int:
         "Runner qualification version does not match exact candidate",
         "Runner qualification must contain PASS preflight and editor probe evidence",
         "Runner preflight Git SHA does not match exact candidate",
+        "Runner qualification/preflight host machine mismatch.",
+        "GitHub Actions runner identity is incomplete",
+        "GitHub Actions runner OS must be Windows.",
+        "GitHub Actions runner architecture must be X64.",
+        "Runner qualification was produced on a different machine than the live GitHub Actions runner.",
+        "Runner preflight was produced on a different machine than the live GitHub Actions runner.",
+        "preflight_machine",
+        "same_machine_verified",
         "engine-version-5.8",
         "project-engine-association",
         "chaos-vehicles-plugin",
@@ -98,6 +106,7 @@ def main() -> int:
         [
             '$qualification = Read-JsonRequired',
             '$preflight = Read-JsonRequired',
+            '$isGitHubActions = [string]$env:GITHUB_ACTIONS -eq "true"',
             '$archiveVerification = Read-JsonRequired',
             '$archiveSha256 = (Get-FileHash',
             '$qualificationSha256 = (Get-FileHash',
@@ -119,6 +128,7 @@ def main() -> int:
     for token in (
         'evidence_schema = 2',
         'gate = "GTT_WIN64_UNREAL_PREFLIGHT"',
+        'machine = $env:COMPUTERNAME',
         'Add-Check "msvc-toolchain"',
         'Add-Check "windows-sdk"',
         'Add-Check "engine-version-5.8"',
@@ -157,7 +167,7 @@ def main() -> int:
     exercise_mutation_boundary()
     print(
         "GTT runner/candidate binding sanity: PASS "
-        "(same-job UE 5.8 qualification + MSVC/SDK preflight + exact SHA/version + sealed ZIP hash binding + release boundary)"
+        "(same-machine UE 5.8 qualification/preflight + live Windows X64 runner identity + MSVC/SDK + exact SHA/version + sealed ZIP hash binding + release boundary)"
     )
     return 0
 
