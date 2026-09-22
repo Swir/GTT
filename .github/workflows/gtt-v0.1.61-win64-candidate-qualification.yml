@@ -14,6 +14,7 @@ on:
       - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
       - 'Scripts/write_win64_candidate_attestation.ps1'
       - 'Scripts/verify_win64_candidate_archive.ps1'
+      - 'Scripts/verify_authored_trailer_archive_evidence.ps1'
       - 'Scripts/bind_win64_runner_to_candidate.ps1'
       - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
@@ -38,6 +39,7 @@ on:
       - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
       - 'Scripts/write_win64_candidate_attestation.ps1'
       - 'Scripts/verify_win64_candidate_archive.ps1'
+      - 'Scripts/verify_authored_trailer_archive_evidence.ps1'
       - 'Scripts/bind_win64_runner_to_candidate.ps1'
       - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
@@ -71,6 +73,7 @@ jobs:
             'Scripts/run_win64_attested_candidate_acceptance.ps1',
             'Scripts/write_win64_candidate_attestation.ps1',
             'Scripts/verify_win64_candidate_archive.ps1',
+            'Scripts/verify_authored_trailer_archive_evidence.ps1',
             'Scripts/bind_win64_runner_to_candidate.ps1'
           )
           foreach ($target in $targets) {

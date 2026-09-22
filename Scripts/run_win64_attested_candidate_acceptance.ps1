@@ -16,12 +16,14 @@ $HillHaulEvaluator = Join-Path $PSScriptRoot "evaluate_fieldmaster_hill_haul_run
 $HudEvaluator = Join-Path $PSScriptRoot "evaluate_fieldmaster_hud_runtime.ps1"
 $Attestor = Join-Path $PSScriptRoot "write_win64_candidate_attestation.ps1"
 $ArchiveVerifier = Join-Path $PSScriptRoot "verify_win64_candidate_archive.ps1"
+$TrailerArchiveVerifier = Join-Path $PSScriptRoot "verify_authored_trailer_archive_evidence.ps1"
 if (-not (Test-Path $ConfigPath -PathType Leaf)) { throw "Config/DefaultGame.ini missing." }
 if (-not (Test-Path $BaseRunner -PathType Leaf)) { throw "Base candidate acceptance runner missing: $BaseRunner" }
 if (-not (Test-Path $HillHaulEvaluator -PathType Leaf)) { throw "Hill-haul runtime evaluator missing: $HillHaulEvaluator" }
 if (-not (Test-Path $HudEvaluator -PathType Leaf)) { throw "Fieldmaster HUD runtime evaluator missing: $HudEvaluator" }
 if (-not (Test-Path $Attestor -PathType Leaf)) { throw "Candidate attestation writer missing: $Attestor" }
 if (-not (Test-Path $ArchiveVerifier -PathType Leaf)) { throw "Candidate archive verifier missing: $ArchiveVerifier" }
+if (-not (Test-Path $TrailerArchiveVerifier -PathType Leaf)) { throw "Authored trailer archive verifier missing: $TrailerArchiveVerifier" }
 
 $ini = Get-Content -Raw $ConfigPath
 $match = [regex]::Match($ini, '(?m)^ProjectVersion=(.+)$')
@@ -67,9 +69,7 @@ if ([int]$hillHaul.loaded_trailer_samples -lt 2 -or [int]$hillHaul.assist_sample
 $summary | Add-Member -NotePropertyName fieldmaster_hill_haul_runtime -NotePropertyValue "PASS" -Force
 $summary | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 $summaryPath
 
-# 0.1.67 binds the driver-facing 0.1.66 HUD safety contract to the same packaged
-# runtime log and exact candidate identity. This proves the authoritative telemetry
-# states that drive the HUD were exercised; it does not replace human screenshot review.
+# Bind the driver-facing HUD safety contract to the same packaged runtime log and exact candidate.
 Write-Host "[GTT][ATTESTED] Evaluating packaged Native Fieldmaster HUD safety evidence..."
 & $HudEvaluator -PackageDirectory $PackageDirectory -RuntimeLog $runtimeLog -ExpectedGitSha ([string]$summary.git_sha)
 if ($LASTEXITCODE -ne 0) { throw "Fieldmaster HUD runtime evidence failed with exit code $LASTEXITCODE." }
@@ -92,14 +92,10 @@ Write-Host "[GTT][ATTESTED] Sealing final package/evidence identity and rebuildi
 & $Attestor -PackageDirectory $PackageDirectory -Version $Version -Configuration $Configuration -ExpectedGitSha ([string]$summary.git_sha)
 if ($LASTEXITCODE -ne 0) { throw "Win64 candidate attestation failed with exit code $LASTEXITCODE." }
 
-# 0.1.68 verifies the produced ZIP as a consumer would receive it, rather than
-# trusting only the pre-compression package directory. The verification evidence
-# intentionally lives next to the ZIP, not inside the sealed candidate. Remove any
-# previous sidecar first so a failed verifier can never be masked by stale PASS evidence.
+# Verify the produced ZIP as a consumer would receive it. Sidecars live outside the archive
+# and are removed before each verification so stale PASS evidence can never mask failure.
 $archiveVerificationPath = "$PackageDirectory.zip.verify.json"
-if (Test-Path $archiveVerificationPath) {
-    Remove-Item -Force $archiveVerificationPath
-}
+if (Test-Path $archiveVerificationPath) { Remove-Item -Force $archiveVerificationPath }
 Write-Host "[GTT][ATTESTED] Round-trip verifying sealed Win64 candidate archive..."
 & $ArchiveVerifier -PackageDirectory $PackageDirectory -Version $Version -Configuration $Configuration -ExpectedGitSha ([string]$summary.git_sha)
 $archiveVerifierExit = $LASTEXITCODE
@@ -118,5 +114,37 @@ if ($archiveVerification.schema -ne "gtt.win64-candidate-archive-verification.v1
     throw "WIN64_ARCHIVE_VERIFICATION does not match the exact sealed candidate/release boundary."
 }
 
-Write-Host "[GTT][ATTESTED] PASS: sealed technical candidate and archive round-trip are ready for human visual review only."
+# Gate 3 consumer-side proof: independently inspect the sealed ZIP and require the exact
+# authored skeletal trailer editor contract (wheel bones, final hitch/axle sockets,
+# PhysicsAsset and project-owned source hash) to survive compression unchanged.
+$trailerArchiveVerificationPath = "$PackageDirectory.zip.trailer-editor-verify.json"
+if (Test-Path $trailerArchiveVerificationPath) { Remove-Item -Force $trailerArchiveVerificationPath }
+Write-Host "[GTT][ATTESTED] Verifying authored trailer editor evidence from sealed archive..."
+& $TrailerArchiveVerifier -PackageDirectory $PackageDirectory -Version $Version -Configuration $Configuration -ExpectedGitSha ([string]$summary.git_sha)
+$trailerArchiveVerifierExit = $LASTEXITCODE
+if ($trailerArchiveVerifierExit -ne 0) {
+    throw "Authored trailer sealed-archive verification failed with exit code $trailerArchiveVerifierExit."
+}
+if (-not (Test-Path $trailerArchiveVerificationPath -PathType Leaf)) {
+    throw "Authored trailer sealed-archive verification evidence missing: $trailerArchiveVerificationPath"
+}
+$trailerArchiveVerification = Get-Content -Raw $trailerArchiveVerificationPath | ConvertFrom-Json
+if ($trailerArchiveVerification.schema -ne "gtt.authored-trailer-archive-evidence.v1" -or
+    $trailerArchiveVerification.result -ne "PASS" -or
+    $trailerArchiveVerification.git_sha -ne $summary.git_sha -or
+    $trailerArchiveVerification.version -ne $Version -or
+    $trailerArchiveVerification.configuration -ne $Configuration -or
+    $trailerArchiveVerification.archive_sha256 -ne $archiveVerification.archive_sha256 -or
+    $trailerArchiveVerification.authored_skeletal_mesh -ne "PASS" -or
+    $trailerArchiveVerification.authored_skeleton -ne "PASS" -or
+    $trailerArchiveVerification.authored_physics_asset -ne "PASS" -or
+    $trailerArchiveVerification.final_hitch_socket -ne "PASS" -or
+    $trailerArchiveVerification.final_axle_sockets -ne "PASS" -or
+    $trailerArchiveVerification.skeletal_wheel_bones -ne "PASS" -or
+    $trailerArchiveVerification.human_visual_review -ne "REQUIRED" -or
+    [bool]$trailerArchiveVerification.demo_release_authorized) {
+    throw "Authored trailer sealed-archive verification does not match the exact candidate/current gate boundary."
+}
+
+Write-Host "[GTT][ATTESTED] PASS: sealed technical candidate, archive round-trip and authored trailer editor evidence are ready for human visual review only."
 Write-Host "[GTT][ATTESTED] Demo Release remains unauthorized until the separate human-reviewed release gate passes."
