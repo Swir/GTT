@@ -126,6 +126,29 @@ jobs:
           if (-not $expectedLine.StartsWith($actualHash + '  ')) { throw 'Candidate ZIP hash sidecar does not match the produced archive.' }
           if ($archiveVerification.archive_sha256 -ne $actualHash) { throw 'Archive verification hash does not match uploaded ZIP bytes.' }
 
+      - name: Bind exact qualifying runner/toolchain to sealed candidate archive
+        shell: pwsh
+        run: |
+          ./Scripts/bind_win64_runner_to_candidate.ps1 `
+            -PackageDirectory "$env:GTT_PACKAGE_DIR" `
+            -RunnerQualificationPath "$env:GTT_QUALIFICATION_DIR\WIN64_RUNNER_QUALIFICATION.json" `
+            -Version "$env:GTT_VERSION" `
+            -Configuration "$env:GTT_CONFIGURATION" `
+            -ExpectedGitSha "${{ github.sha }}" `
+            -OutputPath "$env:GTT_PACKAGE_DIR.zip.runner-bind.json"
+
+          $bindingPath = "$env:GTT_PACKAGE_DIR.zip.runner-bind.json"
+          if (-not (Test-Path $bindingPath -PathType Leaf)) { throw "Runner/candidate binding evidence missing." }
+          $binding = Get-Content -Raw $bindingPath | ConvertFrom-Json
+          if ($binding.schema -ne 'gtt.win64-runner-candidate-binding.v1' -or $binding.result -ne 'PASS' -or
+              $binding.git_sha -ne '${{ github.sha }}' -or $binding.version -ne $env:GTT_VERSION -or
+              $binding.configuration -ne $env:GTT_CONFIGURATION -or $binding.human_visual_review -ne 'REQUIRED' -or
+              [bool]$binding.demo_release_authorized) {
+            throw 'Runner/candidate binding does not match exact qualified candidate/release boundary.'
+          }
+          $zipHash = (Get-FileHash -Algorithm SHA256 -Path "$env:GTT_PACKAGE_DIR.zip").Hash.ToLowerInvariant()
+          if ($binding.candidate_archive.sha256 -ne $zipHash) { throw 'Runner/candidate binding archive hash mismatch.' }
+
       - name: Upload exact attested technical candidate
         uses: actions/upload-artifact@v4
         with:
@@ -136,6 +159,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}.zip
             ${{ env.GTT_PACKAGE_DIR }}.zip.sha256
             ${{ env.GTT_PACKAGE_DIR }}.zip.verify.json
+            ${{ env.GTT_PACKAGE_DIR }}.zip.runner-bind.json
             ${{ env.GTT_PACKAGE_DIR }}\WIN64_ACCEPTANCE_SUMMARY.json
             ${{ env.GTT_PACKAGE_DIR }}\WIN64_CANDIDATE_ATTESTATION.json
             ${{ env.GTT_PACKAGE_DIR }}\FINAL_SHA256SUMS.txt
@@ -143,3 +167,5 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_VISUAL_EVIDENCE.json
             ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\GTT_visual_*.png
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json
+            ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.preflight.json
+            ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-probe.log
