@@ -45,6 +45,29 @@ foreach ($scene in $expectedScenes) {
     if ([string]$record[0].human_decision -ne "PENDING") { throw "Human review packet screenshot '$scene' was modified before review." }
 }
 
+# Re-extract the exact sealed ZIP and prove that every frame the reviewer is
+# attesting to is byte-identical to the frame named in the packet. This closes a
+# tamper gap where a packet could otherwise be edited after preparation.
+$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("gtt-human-review-record-" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+try {
+    Expand-Archive -Path $CandidateArchivePath -DestinationPath $tempRoot -Force
+    foreach ($scene in $expectedScenes) {
+        $record = @($packetScenes | Where-Object { [string]$_.scene -eq $scene })[0]
+        $expectedRelative = "DemoVisualEvidence/GTT_visual_$scene.png"
+        if ([string]$record.file -ne $expectedRelative) { throw "Human review packet file path mismatch for '$scene'." }
+        $framePath = Join-Path $tempRoot ($expectedRelative.Replace('/','\'))
+        if (-not (Test-Path $framePath -PathType Leaf)) { throw "Sealed candidate frame missing for '$scene'." }
+        $frame = Get-Item $framePath
+        $frameHash = (Get-FileHash -Algorithm SHA256 -Path $framePath).Hash.ToLowerInvariant()
+        if ($frameHash -ne [string]$record.sha256) { throw "Reviewed frame hash mismatch for '$scene'." }
+        if ([int64]$frame.Length -ne [int64]$record.bytes) { throw "Reviewed frame byte count mismatch for '$scene'." }
+    }
+}
+finally {
+    if (Test-Path $tempRoot) { Remove-Item -Recurse -Force $tempRoot -ErrorAction SilentlyContinue }
+}
+
 $expectedCriteria = @(
     'coherent_gameplay_presentation',
     'readable_hud_ui',
