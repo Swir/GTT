@@ -99,13 +99,15 @@ jobs:
           $zipPath = "$env:GTT_PACKAGE_DIR.zip"
           $zipHashPath = "$zipPath.sha256"
           $archiveVerificationPath = "$zipPath.verify.json"
-          foreach ($path in @($summaryPath,$attestationPath,$manifestPath,$zipPath,$zipHashPath,$archiveVerificationPath)) {
+          $trailerArchiveVerificationPath = "$zipPath.trailer-editor-verify.json"
+          foreach ($path in @($summaryPath,$attestationPath,$manifestPath,$zipPath,$zipHashPath,$archiveVerificationPath,$trailerArchiveVerificationPath)) {
             if (-not (Test-Path $path -PathType Leaf)) { throw "Required candidate artifact missing: $path" }
           }
           $summary = Get-Content -Raw $summaryPath | ConvertFrom-Json
           $attestation = Get-Content -Raw $attestationPath | ConvertFrom-Json
           $archiveVerification = Get-Content -Raw $archiveVerificationPath | ConvertFrom-Json
-          foreach ($doc in @($summary,$attestation,$archiveVerification)) {
+          $trailerArchiveVerification = Get-Content -Raw $trailerArchiveVerificationPath | ConvertFrom-Json
+          foreach ($doc in @($summary,$attestation,$archiveVerification,$trailerArchiveVerification)) {
             if ($doc.result -ne 'PASS' -or $doc.git_sha -ne '${{ github.sha }}' -or $doc.version -ne $env:GTT_VERSION -or $doc.configuration -ne $env:GTT_CONFIGURATION) {
               throw 'Candidate identity mismatch between checkout and attested/archive evidence.'
             }
@@ -121,10 +123,20 @@ jobs:
               $archiveVerification.engine -ne 'Unreal Engine 5.8') {
             throw 'Unexpected archive verification schema/platform/engine.'
           }
+          if ($trailerArchiveVerification.schema -ne 'gtt.authored-trailer-archive-evidence.v1' -or
+              $trailerArchiveVerification.authored_skeletal_mesh -ne 'PASS' -or
+              $trailerArchiveVerification.authored_skeleton -ne 'PASS' -or
+              $trailerArchiveVerification.authored_physics_asset -ne 'PASS' -or
+              $trailerArchiveVerification.final_hitch_socket -ne 'PASS' -or
+              $trailerArchiveVerification.final_axle_sockets -ne 'PASS' -or
+              $trailerArchiveVerification.skeletal_wheel_bones -ne 'PASS') {
+            throw 'Authored trailer sealed-archive evidence is incomplete.'
+          }
           $expectedLine = (Get-Content -Raw $zipHashPath).Trim()
           $actualHash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLowerInvariant()
           if (-not $expectedLine.StartsWith($actualHash + '  ')) { throw 'Candidate ZIP hash sidecar does not match the produced archive.' }
           if ($archiveVerification.archive_sha256 -ne $actualHash) { throw 'Archive verification hash does not match uploaded ZIP bytes.' }
+          if ($trailerArchiveVerification.archive_sha256 -ne $actualHash) { throw 'Authored trailer archive evidence hash does not match uploaded ZIP bytes.' }
 
       - name: Bind exact qualifying runner/toolchain to sealed candidate archive
         shell: pwsh
@@ -159,6 +171,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}.zip
             ${{ env.GTT_PACKAGE_DIR }}.zip.sha256
             ${{ env.GTT_PACKAGE_DIR }}.zip.verify.json
+            ${{ env.GTT_PACKAGE_DIR }}.zip.trailer-editor-verify.json
             ${{ env.GTT_PACKAGE_DIR }}.zip.runner-bind.json
             ${{ env.GTT_PACKAGE_DIR }}\WIN64_ACCEPTANCE_SUMMARY.json
             ${{ env.GTT_PACKAGE_DIR }}\WIN64_CANDIDATE_ATTESTATION.json
