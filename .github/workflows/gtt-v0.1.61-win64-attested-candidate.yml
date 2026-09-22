@@ -1,6 +1,20 @@
 name: GTT Win64 attested candidate acceptance
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Exact candidate version; must match Config/DefaultGame.ini'
+        required: true
+        type: string
+      configuration:
+        description: 'Unreal build configuration'
+        required: true
+        type: string
+      engine_root:
+        description: 'UE 5.8 installation root on the qualifying self-hosted runner'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:
