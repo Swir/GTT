@@ -5,6 +5,7 @@ on:
     paths:
       - 'Config/DefaultGame.ini'
       - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/win64-runner-qualification.yml'
       - '.github/workflows/release-windows.yml'
       - '.github/workflows/gtt-v0.1.61-win64-candidate-qualification.yml'
       - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
@@ -26,6 +27,7 @@ on:
     paths:
       - 'Config/DefaultGame.ini'
       - '.github/workflows/win64-package-evidence.yml'
+      - '.github/workflows/win64-runner-qualification.yml'
       - '.github/workflows/release-windows.yml'
       - '.github/workflows/gtt-v0.1.61-win64-candidate-qualification.yml'
       - '.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml'
