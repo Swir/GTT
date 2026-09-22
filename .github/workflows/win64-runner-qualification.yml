@@ -158,6 +158,7 @@ jobs:
           test -f GTT.uproject
           test -f Scripts/qualify_win64_runner.ps1
           test -f .github/workflows/win64-runner-qualification.yml
+          test -f .github/workflows/gtt-v0.1.61-win64-attested-candidate.yml
 
           mkdir -p "$GTT_PROBE_DIR"
           python3 - <<'PY'
@@ -183,6 +184,7 @@ jobs:
               "legacy_stale_queue_clear": True,
               "cancelled_stale_qualification_run_ids": cancelled,
               "self_hosted_runner_qualified": False,
+              "exact_candidate_handoff_required": True,
               "demo_release_authorized": False,
               "human_visual_review": "REQUIRED",
           }
@@ -251,3 +253,12 @@ jobs:
             throw "Runner qualification crossed the human visual review / release authorization boundary."
           }
           Write-Host "Runner qualification never authorizes a Demo Release."
+
+  exact-candidate-after-qualification:
+    name: Continue exact qualified SHA into sealed Win64 candidate acceptance
+    needs: qualification-only
+    uses: ./.github/workflows/gtt-v0.1.61-win64-attested-candidate.yml
+    with:
+      version: ${{ inputs.version || '0.1.69' }}
+      configuration: Shipping
+      engine_root: ${{ inputs.engine_root || 'C:\Program Files\Epic Games\UE_5.8' }}
