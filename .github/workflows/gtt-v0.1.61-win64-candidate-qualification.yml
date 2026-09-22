@@ -14,9 +14,11 @@ on:
       - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
       - 'Scripts/write_win64_candidate_attestation.ps1'
       - 'Scripts/verify_win64_candidate_archive.ps1'
+      - 'Scripts/bind_win64_runner_to_candidate.ps1'
       - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
       - 'Scripts/verify_v0_1_61_candidate_attestation.py'
+      - 'Scripts/verify_v0_1_69_runner_candidate_binding.py'
       - 'Scripts/verify_win64_evidence_pipeline.py'
       - 'Scripts/import_gtt_farm_trailer_unreal.ps1'
       - 'Scripts/Unreal/import_gtt_farm_trailer.py'
@@ -36,9 +38,11 @@ on:
       - 'Scripts/run_win64_attested_candidate_acceptance.ps1'
       - 'Scripts/write_win64_candidate_attestation.ps1'
       - 'Scripts/verify_win64_candidate_archive.ps1'
+      - 'Scripts/bind_win64_runner_to_candidate.ps1'
       - 'Scripts/verify_win64_candidate_acceptance_runner.py'
       - 'Scripts/verify_v0_1_61_win64_candidate_pipeline.py'
       - 'Scripts/verify_v0_1_61_candidate_attestation.py'
+      - 'Scripts/verify_v0_1_69_runner_candidate_binding.py'
       - 'Scripts/verify_win64_evidence_pipeline.py'
       - 'Scripts/import_gtt_farm_trailer_unreal.ps1'
       - 'Scripts/Unreal/import_gtt_farm_trailer.py'
@@ -66,7 +70,8 @@ jobs:
             'Scripts/run_win64_candidate_acceptance.ps1',
             'Scripts/run_win64_attested_candidate_acceptance.ps1',
             'Scripts/write_win64_candidate_attestation.ps1',
-            'Scripts/verify_win64_candidate_archive.ps1'
+            'Scripts/verify_win64_candidate_archive.ps1',
+            'Scripts/bind_win64_runner_to_candidate.ps1'
           )
           foreach ($target in $targets) {
             $tokens = $null
@@ -87,5 +92,7 @@ jobs:
         run: python Scripts/verify_win64_candidate_acceptance_runner.py
       - name: Verify exact-candidate attestation and self-hosted qualification lane
         run: python Scripts/verify_v0_1_61_candidate_attestation.py
+      - name: Verify exact runner/toolchain to sealed candidate binding
+        run: python Scripts/verify_v0_1_69_runner_candidate_binding.py
       - name: Preserve full Win64 evidence and release regression contract
         run: python Scripts/verify_win64_evidence_pipeline.py
