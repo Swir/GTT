@@ -29,7 +29,7 @@ function Read-JsonRequired {
     param([Parameter(Mandatory=$true)][string]$Path, [Parameter(Mandatory=$true)][string]$Name)
     if (-not (Test-Path $Path -PathType Leaf)) { throw "Required evidence missing: $Name ($Path)" }
     try { return (Get-Content -Raw $Path | ConvertFrom-Json) }
-    catch { throw "Invalid JSON in $Name: $($_.Exception.Message)" }
+    catch { throw "Invalid JSON in ${Name}: $($_.Exception.Message)" }
 }
 
 function Get-RequiredCheck {
