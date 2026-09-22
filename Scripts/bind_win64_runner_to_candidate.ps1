@@ -85,6 +85,26 @@ if ([int]$preflight.evidence_schema -ne 2 -or [string]$preflight.gate -ne "GTT_W
 if ([string]$preflight.git_sha -ne $ExpectedGitSha) { throw "Runner preflight Git SHA does not match exact candidate." }
 if ([string]$preflight.unreal.detected_version -notmatch '^5\.8(?:\.|$)') { throw "Runner preflight did not detect Unreal Engine 5.8.x." }
 if ([string]$preflight.unreal.project_engine_association -ne "5.8") { throw "Runner preflight project EngineAssociation must be 5.8." }
+if ([string]::IsNullOrWhiteSpace([string]$preflight.host.machine)) { throw "Runner preflight host machine identity is missing." }
+if (-not [string]::Equals([string]$qualification.host.machine, [string]$preflight.host.machine, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Runner qualification/preflight host machine mismatch."
+}
+
+$isGitHubActions = [string]$env:GITHUB_ACTIONS -eq "true"
+if ($isGitHubActions) {
+    foreach ($requiredEnv in @("COMPUTERNAME", "RUNNER_NAME", "RUNNER_OS", "RUNNER_ARCH")) {
+        $value = [string][System.Environment]::GetEnvironmentVariable($requiredEnv)
+        if ([string]::IsNullOrWhiteSpace($value)) { throw "GitHub Actions runner identity is incomplete: $requiredEnv is missing." }
+    }
+    if ([string]$env:RUNNER_OS -ne "Windows") { throw "GitHub Actions runner OS must be Windows." }
+    if ([string]$env:RUNNER_ARCH -ne "X64") { throw "GitHub Actions runner architecture must be X64." }
+    if (-not [string]::Equals([string]$qualification.host.machine, [string]$env:COMPUTERNAME, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Runner qualification was produced on a different machine than the live GitHub Actions runner."
+    }
+    if (-not [string]::Equals([string]$preflight.host.machine, [string]$env:COMPUTERNAME, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Runner preflight was produced on a different machine than the live GitHub Actions runner."
+    }
+}
 
 $preflightChecks = @{}
 foreach ($name in @(
@@ -142,11 +162,14 @@ $binding = [ordered]@{
     engine = "Unreal Engine 5.8"
     runner = [ordered]@{
         machine = [string]$qualification.host.machine
+        preflight_machine = [string]$preflight.host.machine
+        live_machine = [string]$env:COMPUTERNAME
         os = [string]$qualification.host.os
         powershell = [string]$qualification.host.powershell
         github_runner_name = [string]$env:RUNNER_NAME
         github_runner_os = [string]$env:RUNNER_OS
         github_runner_arch = [string]$env:RUNNER_ARCH
+        same_machine_verified = $true
         detected_engine_version = [string]$qualification.detected_engine_version
     }
     toolchain = [ordered]@{
@@ -188,6 +211,8 @@ if ([string]$roundTrip.schema -ne "gtt.win64-runner-candidate-binding.v1" -or [s
     [string]$roundTrip.git_sha -ne $ExpectedGitSha -or [string]$roundTrip.version -ne $Version -or
     [string]$roundTrip.configuration -ne $Configuration -or [string]$roundTrip.qualification.sha256 -ne $qualificationSha256 -or
     [string]$roundTrip.qualification.preflight_sha256 -ne $preflightSha256 -or [string]$roundTrip.candidate_archive.sha256 -ne $archiveSha256 -or
+    [string]$roundTrip.runner.machine -ne [string]$qualification.host.machine -or
+    [string]$roundTrip.runner.preflight_machine -ne [string]$preflight.host.machine -or -not [bool]$roundTrip.runner.same_machine_verified -or
     [string]$roundTrip.human_visual_review -ne "REQUIRED" -or [bool]$roundTrip.demo_release_authorized) {
     throw "Runner/candidate binding failed round-trip exact identity/hash/release-boundary validation."
 }
