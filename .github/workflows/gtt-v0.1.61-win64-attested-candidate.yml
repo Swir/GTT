@@ -161,6 +161,34 @@ jobs:
           $zipHash = (Get-FileHash -Algorithm SHA256 -Path "$env:GTT_PACKAGE_DIR.zip").Hash.ToLowerInvariant()
           if ($binding.candidate_archive.sha256 -ne $zipHash) { throw 'Runner/candidate binding archive hash mismatch.' }
 
+      - name: Prepare immutable exact-candidate human review packet
+        shell: pwsh
+        run: |
+          $packetPath = "$env:GTT_PACKAGE_DIR.zip.human-review-packet.json"
+          ./Scripts/prepare_demo_human_review_packet.ps1 `
+            -PackageDirectory "$env:GTT_PACKAGE_DIR" `
+            -Version "$env:GTT_VERSION" `
+            -Configuration "$env:GTT_CONFIGURATION" `
+            -ExpectedGitSha "${{ github.sha }}" `
+            -OutputPath "$packetPath"
+
+          if (-not (Test-Path $packetPath -PathType Leaf)) { throw 'Human review packet was not produced.' }
+          $packet = Get-Content -Raw $packetPath | ConvertFrom-Json
+          $zipHash = (Get-FileHash -Algorithm SHA256 -Path "$env:GTT_PACKAGE_DIR.zip").Hash.ToLowerInvariant()
+          if ($packet.schema -ne 'gtt.demo-human-review-packet.v1' -or
+              $packet.status -ne 'READY_FOR_HUMAN_REVIEW' -or
+              $packet.git_sha -ne '${{ github.sha }}' -or
+              $packet.version -ne $env:GTT_VERSION -or
+              $packet.configuration -ne $env:GTT_CONFIGURATION -or
+              $packet.archive_sha256 -ne $zipHash -or
+              $packet.human_visual_review -ne 'PENDING' -or
+              [bool]$packet.demo_release_authorized) {
+            throw 'Human review packet is not bound to the exact sealed candidate/release boundary.'
+          }
+          if (@($packet.screenshots).Count -ne 5 -or @($packet.criteria).Count -ne 5) {
+            throw 'Human review packet does not contain the complete five-scene/five-criterion witness set.'
+          }
+
       - name: Upload exact attested technical candidate
         uses: actions/upload-artifact@v4
         with:
@@ -173,6 +201,7 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}.zip.verify.json
             ${{ env.GTT_PACKAGE_DIR }}.zip.trailer-editor-verify.json
             ${{ env.GTT_PACKAGE_DIR }}.zip.runner-bind.json
+            ${{ env.GTT_PACKAGE_DIR }}.zip.human-review-packet.json
             ${{ env.GTT_PACKAGE_DIR }}\WIN64_ACCEPTANCE_SUMMARY.json
             ${{ env.GTT_PACKAGE_DIR }}\WIN64_CANDIDATE_ATTESTATION.json
             ${{ env.GTT_PACKAGE_DIR }}\FINAL_SHA256SUMS.txt
