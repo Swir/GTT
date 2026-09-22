@@ -201,6 +201,9 @@ def main() -> int:
 
     for token in (
         "run_win64_candidate_acceptance.ps1",
+        "verify_authored_trailer_archive_evidence.ps1",
+        "$PackageDirectory.zip.trailer-editor-verify.json",
+        "gtt.authored-trailer-archive-evidence.v1",
         "write_win64_candidate_attestation.ps1",
         "WIN64_ACCEPTANCE_SUMMARY.json",
         "human_visual_review",
@@ -214,6 +217,8 @@ def main() -> int:
             "& $BaseRunner",
             "$summary = Get-Content -Raw $summaryPath | ConvertFrom-Json",
             "& $Attestor",
+            "& $ArchiveVerifier",
+            "& $TrailerArchiveVerifier",
         ],
         "attested acceptance wrapper",
     )
@@ -233,6 +238,9 @@ def main() -> int:
         "WIN64_CANDIDATE_ATTESTATION.json",
         "FINAL_SHA256SUMS.txt",
         "WIN64_ACCEPTANCE_SUMMARY.json",
+        "zip.trailer-editor-verify.json",
+        "gtt.authored-trailer-archive-evidence.v1",
+        "Authored trailer archive evidence hash does not match uploaded ZIP bytes.",
         "github.sha",
         "actions/upload-artifact@v4",
     ):
@@ -272,8 +280,8 @@ def main() -> int:
     print(
         "GTT candidate attestation sanity: PASS "
         "(exact SHA/version/config + concrete Native Chaos movement/drivetrain/suspension/wheels + "
-        "authored trailer runtime + sealed archive round-trip + packaged EXE/evidence hashes + "
-        "qualified-runner exact-candidate handoff + human-review boundary)"
+        "authored trailer runtime + sealed archive round-trip + preserved trailer archive verification artifact + "
+        "packaged EXE/evidence hashes + qualified-runner exact-candidate handoff + human-review boundary)"
     )
     return 0
 
