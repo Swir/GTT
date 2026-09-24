@@ -28,15 +28,24 @@ if ($LASTEXITCODE -ne 0) { throw "Trailer glTF source verification failed." }
 
 if (-not (Test-Path $Py)) { throw "Missing Unreal import script: $Py" }
 
+# Unreal's Python commandlet interprets backslash escape sequences in quoted
+# command-line values. A runner path containing "\runners" was therefore read
+# with a carriage return and the Python file/log could not be opened. Unreal
+# accepts forward slashes on Windows, so normalize every path passed through
+# command-line parsing while retaining native paths for local file checks.
+$ProjectArg = $Project -replace '\\', '/'
+$PythonScriptArg = $Py -replace '\\', '/'
+$LogArg = $Log -replace '\\', '/'
+
 $Args = @(
-    $Project,
+    $ProjectArg,
     "-unattended",
     "-nop4",
     "-nosplash",
     "-NullRHI",
     "-run=pythonscript",
-    "-script=`"$Py`"",
-    "-log=`"$Log`""
+    "-script=`"$PythonScriptArg`"",
+    "-log=`"$LogArg`""
 )
 & $UnrealEditorCmd @Args
 $ExitCode = $LASTEXITCODE
