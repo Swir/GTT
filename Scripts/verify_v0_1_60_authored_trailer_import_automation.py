@@ -83,7 +83,9 @@ def main() -> int:
     required_wrapper = (
         "generate_gtt_farm_trailer_gltf.py",
         "verify_v0_1_60_authored_trailer_source_rig.py",
-        "-run=pythonscript",
+        "-ExecutePythonScript=",
+        "-ScriptErrorsAreFatal",
+        "-abslog=",
         "import_gtt_farm_trailer.py",
         "-unattended",
         "-NullRHI",

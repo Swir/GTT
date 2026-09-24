@@ -43,9 +43,9 @@ $Args = @(
     "-nop4",
     "-nosplash",
     "-NullRHI",
-    "-run=pythonscript",
-    "-script=`"$PythonScriptArg`"",
-    "-log=`"$LogArg`""
+    "-ExecutePythonScript=`"$PythonScriptArg`"",
+    "-ScriptErrorsAreFatal",
+    "-abslog=`"$LogArg`""
 )
 & $UnrealEditorCmd @Args
 $ExitCode = $LASTEXITCODE
