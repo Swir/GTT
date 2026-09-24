@@ -189,9 +189,13 @@ def main() -> None:
         fail("INTERCHANGE_TRANSLATOR_UNAVAILABLE")
 
     pipelines = configure_pipelines(source_data)
+    # UE 5.8 exposes OverridePipelines to Python as SoftObjectPath values. Keep
+    # the configured transient pipeline instances alive in ``pipelines`` and
+    # pass their object paths so Interchange can resolve and duplicate them.
+    pipeline_paths = [unreal.SoftObjectPath(pipeline.get_path_name()) for pipeline in pipelines]
     params = unreal.ImportAssetParameters(
         is_automated=True,
-        override_pipelines=pipelines,
+        override_pipelines=pipeline_paths,
         destination_name=ASSET_NAME,
         replace_existing=True,
     )
