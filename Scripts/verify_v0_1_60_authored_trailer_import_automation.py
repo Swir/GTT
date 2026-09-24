@@ -53,6 +53,8 @@ def main() -> int:
         "pipeline_paths = [unreal.SoftObjectPath(pipeline.get_path_name()) for pipeline in pipelines]",
         "override_pipelines=pipeline_paths",
         "manager.import_asset",
+        "EditorAssetLibrary.list_assets(",
+        "EditorAssetLibrary.rename_asset(mesh.get_path_name(), ASSET_PATH)",
         "/Game/GTT/Vehicles/Trailer",
         "SK_GTT_FarmTrailer",
         "SkeletalMeshEditorSubsystem.create_physics_asset",

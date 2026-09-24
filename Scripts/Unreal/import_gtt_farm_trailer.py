@@ -86,6 +86,31 @@ def configure_pipelines(source_data):
     return pipelines
 
 
+def load_imported_skeletal_mesh():
+    if unreal.EditorAssetLibrary.does_asset_exist(ASSET_PATH):
+        expected = unreal.EditorAssetLibrary.load_asset(ASSET_PATH)
+        if isinstance(expected, unreal.SkeletalMesh):
+            return expected
+
+    candidates = []
+    for candidate_path in unreal.EditorAssetLibrary.list_assets(
+        DESTINATION, recursive=True, include_folder=False
+    ):
+        candidate = unreal.EditorAssetLibrary.load_asset(candidate_path)
+        if isinstance(candidate, unreal.SkeletalMesh):
+            candidates.append(candidate)
+
+    if len(candidates) != 1:
+        fail(f"SKELETAL_MESH_COUNT_{len(candidates)}")
+
+    mesh = candidates[0]
+    if not unreal.EditorAssetLibrary.rename_asset(mesh.get_path_name(), ASSET_PATH):
+        fail("SKELETAL_MESH_RENAME_FAILED")
+    if mesh.get_path_name() != f"{ASSET_PATH}.{ASSET_NAME}":
+        fail("SKELETAL_MESH_RENAME_PATH_MISMATCH")
+    return mesh
+
+
 def socket_names(mesh) -> set[str]:
     result: set[str] = set()
     for index in range(mesh.num_sockets()):
@@ -203,9 +228,7 @@ def main() -> None:
     if not imported:
         fail("INTERCHANGE_IMPORT_FAILED")
 
-    mesh = unreal.EditorAssetLibrary.load_asset(ASSET_PATH)
-    if mesh is None or not isinstance(mesh, unreal.SkeletalMesh):
-        fail("SKELETAL_MESH_NOT_CREATED")
+    mesh = load_imported_skeletal_mesh()
 
     verified_bones = validate_bones(mesh)
     normalize_sockets(mesh)
