@@ -102,10 +102,10 @@ for token in (
 require(f"default: '{version}'" in manual_workflow, "manual runner workflow version default is stale")
 require(manual_workflow.count(f"'{version}'") >= 3,
         "manual runner workflow push/dispatch fallbacks are not all bound to current ProjectVersion")
-require("cancel-in-progress: true" in manual_workflow,
-        "qualification workflow must supersede stale queued runs so the current exact-head probe can execute")
-require("cancel-in-progress: false" not in manual_workflow,
-        "qualification workflow must not let a stale runner wait block a newer exact-head probe")
+require("cancel-in-progress: ${{ github.event_name != 'schedule' }}" in manual_workflow,
+        "qualification workflow must let push/manual probes supersede stale runs without scheduled interruption")
+require("cancel-in-progress: true" not in manual_workflow,
+        "scheduled retries must not unconditionally cancel a live qualification/candidate pass")
 require(
     re.search(r"(?m)^\s*group:\s*gtt-win64-runner-qualification\s*$", manual_workflow) is not None,
     "qualification workflow must use one global concurrency lane across versioned probe branches",
@@ -147,6 +147,8 @@ require(acceptance_pos >= 0, "exact-candidate workflow lost the attested accepta
 require(qualifier_pos < acceptance_pos, "runner qualification must execute before expensive exact-candidate acceptance")
 require("WIN64_RUNNER_QUALIFICATION.json" in candidate_workflow, "exact-candidate workflow must persist runner qualification evidence")
 require(f"default: '{version}'" in candidate_workflow, "exact-candidate workflow version default is stale")
+require("timeout-minutes: 120" in candidate_workflow,
+        "exact-candidate workflow timeout contract changed; scheduled re-arm safety assumes a long live acceptance window")
 
 require(f"default: '{version}'" in package_workflow, "Win64 package evidence workflow version default is stale")
 for token in (

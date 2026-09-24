@@ -3,7 +3,7 @@ name: GTT Win64 UE 5.8 runner qualification
 on:
   schedule:
     # Re-arm the current default-branch candidate without heartbeat commits.
-    # Global concurrency below ensures only the newest exact-SHA probe waits.
+    # Scheduled retries must never cancel a live qualification/candidate pass.
     - cron: '17 * * * *'
   workflow_dispatch:
     inputs:
@@ -28,11 +28,11 @@ permissions:
   contents: read
 
 concurrency:
-  # One global lane across all versioned qualification probes. A newer exact
-  # candidate must supersede any older queued/in-progress probe before a real
-  # UE 5.8 runner becomes available, otherwise stale work can consume it first.
+  # One global lane across all versioned qualification probes. Push/manual runs
+  # supersede stale work, but the hourly scheduled re-arm is only a pending
+  # backup and may not interrupt a live UE 5.8 qualification/candidate pass.
   group: gtt-win64-runner-qualification
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 jobs:
   probe-contract:
