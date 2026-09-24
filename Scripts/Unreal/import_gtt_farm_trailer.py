@@ -67,7 +67,10 @@ def configure_pipelines(source_data):
     mesh_pipeline = generic.get_editor_property("mesh_pipeline")
     mesh_pipeline.set_editor_property("import_skeletal_meshes", True)
     mesh_pipeline.set_editor_property("import_static_meshes", False)
-    mesh_pipeline.set_editor_property("combine_skeletal_meshes", True)
+    mesh_pipeline.set_editor_property(
+        "combine_skeletal_meshes_behavior",
+        unreal.InterchangeCombineSkeletalMeshesBehavior.BY_SKELETON,
+    )
     mesh_pipeline.set_editor_property("create_physics_asset", True)
 
     common_meshes = generic.get_editor_property("common_meshes_properties")
