@@ -1,6 +1,10 @@
 name: GTT Win64 UE 5.8 runner qualification
 
 on:
+  schedule:
+    # Re-arm the current default-branch candidate without heartbeat commits.
+    # Global concurrency below ensures only the newest exact-SHA probe waits.
+    - cron: '17 * * * *'
   workflow_dispatch:
     inputs:
       version:
