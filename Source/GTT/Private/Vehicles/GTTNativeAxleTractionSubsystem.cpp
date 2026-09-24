@@ -27,7 +27,7 @@ namespace
         const float SlipAngleRisk = FMath::Clamp(FMath::Abs(Wheel.SlipAngle) / 32.0f, 0.0f, 1.0f);
         const float SlipFlagRisk = Wheel.bIsSlipping ? 0.62f : 0.0f;
         const float SkidFlagRisk = Wheel.bIsSkidding ? 0.82f : 0.0f;
-        return FMath::Max4(SlipMagnitudeRisk, SlipAngleRisk, SlipFlagRisk, SkidFlagRisk);
+        return FMath::Max(FMath::Max(SlipMagnitudeRisk, SlipAngleRisk), FMath::Max(SlipFlagRisk, SkidFlagRisk));
     }
 
     float WheelLoadProxy(const FWheelStatus& Wheel)
@@ -137,7 +137,7 @@ FGTTNativeAxleTractionSnapshot UGTTNativeAxleTractionSubsystem::SampleSnapshot(
     const float SlipRisk = FMath::Max(Snapshot.FrontSlipRisk, Snapshot.RearSlipRisk);
     const float TirePenalty = 1.0f - FMath::Clamp(TireIntegrity, 0.0f, 1.0f);
     const float UpgradeRelief = FMath::Clamp(static_cast<float>(FMath::Clamp(TireUpgradeLevel, 0, 3)) * 0.04f, 0.0f, 0.12f);
-    const float CombinedRisk = FMath::Clamp(FMath::Max4(ContactRisk, AxleContactRisk, SlipRisk, Snapshot.AxleImbalance * 0.90f) + TirePenalty * 0.18f - UpgradeRelief, 0.0f, 1.0f);
+    const float CombinedRisk = FMath::Clamp(FMath::Max(FMath::Max(ContactRisk, AxleContactRisk), FMath::Max(SlipRisk, Snapshot.AxleImbalance * 0.90f)) + TirePenalty * 0.18f - UpgradeRelief, 0.0f, 1.0f);
     Snapshot.TractionAuthority = FMath::Clamp(1.0f - CombinedRisk, 0.0f, 1.0f);
     Snapshot.bTorqueCut = CombinedRisk >= TorqueCutRiskThreshold || Snapshot.ContactWheels <= 1;
     Snapshot.BrakeAssist = CombinedRisk >= SevereRiskThreshold ? SevereBrakeAssist : (CombinedRisk >= ModerateRiskThreshold ? ModerateBrakeAssist : 0.0f);

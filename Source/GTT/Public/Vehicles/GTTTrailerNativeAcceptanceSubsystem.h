@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/TickableWorldSubsystem.h"
+#include "Subsystems/WorldSubsystem.h"
 #include "GTTTrailerNativeAcceptanceSubsystem.generated.h"
 
 class AGTTFarmTrailer;

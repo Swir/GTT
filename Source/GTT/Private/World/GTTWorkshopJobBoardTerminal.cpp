@@ -217,10 +217,14 @@ FText AGTTWorkshopJobBoardTerminal::GetInteractionText_Implementation() const
     const UGTTWorkshopRepairQueueSubsystem* Queue = World ? World->GetSubsystem<UGTTWorkshopRepairQueueSubsystem>() : nullptr;
     const int32 Count = Queue ? Queue->GetQueuedRepairCount() : 0;
     const int32 Capacity = Queue ? Queue->GetQueueCapacity() : UGTTWorkshopRepairQueueSubsystem::MaxQueuedRepairs;
-    const int32 PickupCount = Queue
-        ? Queue->GetQueueSnapshots().CountByPredicate(
-            [](const FGTTWorkshopRepairQueueSnapshot& Snapshot) { return Snapshot.bReadyForPickup; })
-        : 0;
+    int32 PickupCount = 0;
+    if (Queue)
+    {
+        for (const FGTTWorkshopRepairQueueSnapshot& Snapshot : Queue->GetQueueSnapshots())
+        {
+            PickupCount += Snapshot.bReadyForPickup ? 1 : 0;
+        }
+    }
     return FText::FromString(FString::Printf(
         TEXT("Workshop job board: %d/%d | pickup %d | view exact-ID jobs / collect completed / guarded cancel"),
         Count, Capacity, PickupCount));

@@ -711,12 +711,15 @@ void UGTTWorkshopRepairQueueSubsystem::LoadCheckpointOnce()
         return;
     }
 
-    const int32 CheckedInCount = QueueEntries.CountByPredicate(
-        [](const FGTTWorkshopRepairQueueSnapshot& Entry) { return Entry.bCheckedIn && !Entry.bReadyForPickup; });
-    const int32 UrgentCount = QueueEntries.CountByPredicate(
-        [](const FGTTWorkshopRepairQueueSnapshot& Entry) { return Entry.bUrgent; });
-    const int32 PickupCount = QueueEntries.CountByPredicate(
-        [](const FGTTWorkshopRepairQueueSnapshot& Entry) { return Entry.bReadyForPickup; });
+    int32 CheckedInCount = 0;
+    int32 UrgentCount = 0;
+    int32 PickupCount = 0;
+    for (const FGTTWorkshopRepairQueueSnapshot& Entry : QueueEntries)
+    {
+        CheckedInCount += Entry.bCheckedIn && !Entry.bReadyForPickup ? 1 : 0;
+        UrgentCount += Entry.bUrgent ? 1 : 0;
+        PickupCount += Entry.bReadyForPickup ? 1 : 0;
+    }
     UE_LOG(LogGTT, Display,
         TEXT("WORKSHOP_QUEUE_RESTORED count=%d capacity=%d checked_in=%d urgent=%d pickup=%d first_vehicle=%s first_locked_quote=%d exact_id=YES legacy_migrated=%s"),
         QueueEntries.Num(), MaxQueuedRepairs, CheckedInCount, UrgentCount, PickupCount,

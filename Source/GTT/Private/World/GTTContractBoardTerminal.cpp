@@ -69,7 +69,7 @@ void AGTTContractBoardTerminal::RefreshLabel()
     if (!Contracts) return;
 
     const FGTTContractBoardOffer Offer = Contracts->BuildOffer(JobTag);
-    const FString Role = UGTTGarageFleetSubsystem::FleetRoleLabel(Offer.RequiredRole);
+    const FString FleetRole = UGTTGarageFleetSubsystem::FleetRoleLabel(Offer.RequiredRole);
     const FString Readiness = UGTTGarageFleetSubsystem::MissionReadinessLabel(Offer.Fleet.Readiness);
     const FString Vehicle = Offer.Fleet.AssignedVehicleName.IsEmpty() ? TEXT("NO LOADOUT") : Offer.Fleet.AssignedVehicleName.ToUpper();
 
@@ -95,7 +95,7 @@ void AGTTContractBoardTerminal::RefreshLabel()
 
         Label->SetText(FText::FromString(FString::Printf(
             TEXT("CONTRACT BOARD\n%s | %s | CAP T%d / ORDER T%d\n%s | %d UNITS\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\n%s | %s\n%s\n%s\nREP %s %d | CARGO %d/%d\n%s\n%s"),
-            *Offer.Title.ToUpper(), *Role, CapabilityTier, RouteTier,
+            *Offer.Title.ToUpper(), *FleetRole, CapabilityTier, RouteTier,
             Logistics ? *Logistics->GetCargoOrderPriorityLabel() : TEXT("ORDER OFFLINE"), OrderUnits,
             DisplayBase, DisplayMax,
             *Vehicle, *Readiness,
@@ -126,7 +126,7 @@ void AGTTContractBoardTerminal::RefreshLabel()
         const UGTTDispatcherRelationshipSubsystem* Relationships = GetWorld()->GetSubsystem<UGTTDispatcherRelationshipSubsystem>();
         Label->SetText(FText::FromString(FString::Printf(
             TEXT("CONTRACT BOARD\n%s | %s\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\nREP %s %d | BONUS %d%% | %s\n%s\n%s\n%s"),
-            *Offer.Title.ToUpper(), *Role,
+            *Offer.Title.ToUpper(), *FleetRole,
             Offer.BaseReward, Offer.MaximumReward,
             *Vehicle, *Readiness,
             Offer.Fleet.ConditionPercent * 100.0f,
@@ -144,7 +144,7 @@ void AGTTContractBoardTerminal::RefreshLabel()
 
     Label->SetText(FText::FromString(FString::Printf(
         TEXT("CONTRACT BOARD\n%s | %s\nPAY $%d-$%d\n%s | %s\nC%.0f F%.0f T%.0f B%.0f\nPREP $%d | NET MAX $%d\n%s"),
-        *Offer.Title.ToUpper(), *Role,
+        *Offer.Title.ToUpper(), *FleetRole,
         Offer.BaseReward, Offer.MaximumReward,
         *Vehicle, *Readiness,
         Offer.Fleet.ConditionPercent * 100.0f,

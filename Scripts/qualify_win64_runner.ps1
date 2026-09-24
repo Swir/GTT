@@ -6,6 +6,7 @@ param(
     [string]$ExpectedVersion = "",
     [int]$MinimumFreeGiB = 25,
     [switch]$SkipEditorProbe,
+    [int]$EditorBuildTimeoutSeconds = 1200,
     [int]$EditorProbeTimeoutSeconds = 120
 )
 
@@ -29,6 +30,7 @@ $OutputParent = Split-Path -Parent $OutputPath
 New-Item -ItemType Directory -Force -Path $OutputParent | Out-Null
 
 $PreflightPath = "$OutputPath.preflight.json"
+$EditorBuildLog = "$OutputPath.editor-build.log"
 $ProbeLog = "$OutputPath.editor-probe.log"
 $checks = New-Object System.Collections.Generic.List[object]
 $requiredFailure = $false
@@ -58,6 +60,7 @@ function Write-QualificationReport {
         [string]$Version,
         [string]$EngineVersion,
         [string]$PreflightResult,
+        [string]$EditorBuildResult,
         [string]$EditorProbeResult
     )
     $passed = @($script:checks | Where-Object { $_.passed }).Count
@@ -75,6 +78,7 @@ function Write-QualificationReport {
         git_sha = $GitSha
         version = $Version
         preflight = $PreflightResult
+        editor_build = $EditorBuildResult
         editor_probe = $EditorProbeResult
         human_visual_review = "REQUIRED"
         demo_release_authorized = $false
@@ -93,6 +97,7 @@ function Write-QualificationReport {
         checks = $script:checks
         evidence = [ordered]@{
             preflight_json = [System.IO.Path]::GetFileName($PreflightPath)
+            editor_build_log = $(if ($SkipEditorProbe) { $null } else { [System.IO.Path]::GetFileName($EditorBuildLog) })
             editor_probe_log = $(if ($SkipEditorProbe) { $null } else { [System.IO.Path]::GetFileName($ProbeLog) })
         }
     }
@@ -103,7 +108,26 @@ $gitSha = "unknown"
 $projectVersion = "unknown"
 $engineVersion = "unknown"
 $preflightResult = "NOT_RUN"
+$editorBuildResult = "NOT_RUN"
 $editorProbeResult = "NOT_RUN"
+
+function Merge-ProcessLogs {
+    param(
+        [string]$StandardOutputPath,
+        [string]$StandardErrorPath,
+        [string]$DestinationPath
+    )
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    if (Test-Path $StandardOutputPath -PathType Leaf) {
+        foreach ($line in Get-Content $StandardOutputPath) { $lines.Add($line) }
+    }
+    if (Test-Path $StandardErrorPath -PathType Leaf) {
+        foreach ($line in Get-Content $StandardErrorPath) { $lines.Add($line) }
+    }
+    $lines | Set-Content -Encoding UTF8 $DestinationPath
+    Remove-Item -Force $StandardOutputPath,$StandardErrorPath -ErrorAction SilentlyContinue
+}
 
 try {
     Add-QualificationCheck "qualification-script-version" $true "schema=gtt.win64-runner-qualification.v1"
@@ -214,49 +238,109 @@ try {
     }
 
     $editorCmd = Join-Path $EngineRoot "Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+    $buildBat = Join-Path $EngineRoot "Engine\Build\BatchFiles\Build.bat"
     if ($SkipEditorProbe) {
+        $editorBuildResult = "SKIPPED"
+        Add-QualificationCheck "editor-target-build" $true "Skipped by explicit -SkipEditorProbe" $false
         $editorProbeResult = "SKIPPED"
         Add-QualificationCheck "editor-nullrhi-project-probe" $true "Skipped by explicit -SkipEditorProbe" $false
+    } elseif (-not (Test-Path $buildBat -PathType Leaf)) {
+        $editorBuildResult = "FAIL"
+        Add-QualificationCheck "editor-target-build" $false "Build.bat missing: $buildBat"
+        $editorProbeResult = "FAIL"
+        Add-QualificationCheck "editor-nullrhi-project-probe" $false "Skipped because the editor target build could not start."
     } elseif (-not (Test-Path $editorCmd -PathType Leaf)) {
+        $editorBuildResult = "FAIL"
+        Add-QualificationCheck "editor-target-build" $false "UnrealEditor-Cmd.exe missing: $editorCmd"
         $editorProbeResult = "FAIL"
         Add-QualificationCheck "editor-nullrhi-project-probe" $false "UnrealEditor-Cmd.exe missing: $editorCmd"
     } elseif (-not (Test-Path $ProjectFile -PathType Leaf)) {
+        $editorBuildResult = "FAIL"
+        Add-QualificationCheck "editor-target-build" $false "Project missing: $ProjectFile"
         $editorProbeResult = "FAIL"
         Add-QualificationCheck "editor-nullrhi-project-probe" $false "Project missing: $ProjectFile"
     } else {
-        if (Test-Path $ProbeLog) { Remove-Item -Force $ProbeLog }
-        $args = @(
-            $ProjectFile,
-            "-unattended",
-            "-nop4",
-            "-nosplash",
-            "-NullRHI",
-            "-NoSound",
-            "-ExecCmds=quit",
-            "-log=$ProbeLog"
-        )
+        $buildStdout = "$EditorBuildLog.stdout"
+        $buildStderr = "$EditorBuildLog.stderr"
+        Remove-Item -Force $EditorBuildLog,$buildStdout,$buildStderr -ErrorAction SilentlyContinue
         try {
-            $process = Start-Process -FilePath $editorCmd -ArgumentList $args -PassThru -WindowStyle Hidden
-            $finished = $process.WaitForExit($EditorProbeTimeoutSeconds * 1000)
-            if (-not $finished) {
-                try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
-                $editorProbeResult = "TIMEOUT"
-                Add-QualificationCheck "editor-nullrhi-project-probe" $false "Timed out after $EditorProbeTimeoutSeconds seconds; log=$ProbeLog"
+            $buildArgs = @(
+                "GTTEditor",
+                "Win64",
+                "Development",
+                "-Project=$ProjectFile",
+                "-WaitMutex",
+                "-NoHotReloadFromIDE"
+            )
+            $buildProcess = Start-Process -FilePath $buildBat -ArgumentList $buildArgs -PassThru -WindowStyle Hidden -RedirectStandardOutput $buildStdout -RedirectStandardError $buildStderr
+            $buildFinished = $buildProcess.WaitForExit($EditorBuildTimeoutSeconds * 1000)
+            if (-not $buildFinished) {
+                try { $buildProcess.Kill($true) } catch { try { $buildProcess.Kill() } catch { } }
+                $editorBuildResult = "TIMEOUT"
             } else {
-                $exitCode = $process.ExitCode
+                $editorBuildResult = if ($buildProcess.ExitCode -eq 0) { "PASS" } else { "FAIL" }
+            }
+            Merge-ProcessLogs -StandardOutputPath $buildStdout -StandardErrorPath $buildStderr -DestinationPath $EditorBuildLog
+            Add-QualificationCheck "editor-target-build" ($editorBuildResult -eq "PASS") "result=$editorBuildResult exit=$(if ($buildFinished) { $buildProcess.ExitCode } else { 'timeout' }) log=$EditorBuildLog"
+        } catch {
+            $editorBuildResult = "FAIL"
+            Merge-ProcessLogs -StandardOutputPath $buildStdout -StandardErrorPath $buildStderr -DestinationPath $EditorBuildLog
+            Add-QualificationCheck "editor-target-build" $false "Build launch failed: $($_.Exception.Message); log=$EditorBuildLog"
+        }
+
+        if ($editorBuildResult -ne "PASS") {
+            $editorProbeResult = "FAIL"
+            Add-QualificationCheck "editor-nullrhi-project-probe" $false "Skipped because editor-target-build result=$editorBuildResult; log=$EditorBuildLog"
+        } else {
+            $probeStdout = "$ProbeLog.stdout"
+            $probeStderr = "$ProbeLog.stderr"
+            Remove-Item -Force $ProbeLog,$probeStdout,$probeStderr -ErrorAction SilentlyContinue
+            $args = @(
+                $ProjectFile,
+                "-unattended",
+                "-nop4",
+                "-nosplash",
+                "-NullRHI",
+                "-NoSound",
+                "-NoWrite",
+                "-ExecCmds=quit",
+                "-stdout",
+                "-FullStdOutLogOutput"
+            )
+            try {
+                $process = Start-Process -FilePath $editorCmd -ArgumentList $args -PassThru -WindowStyle Hidden -RedirectStandardOutput $probeStdout -RedirectStandardError $probeStderr
+                $deadline = [DateTime]::UtcNow.AddSeconds($EditorProbeTimeoutSeconds)
+                $startupConfirmed = $false
+                $fatalObserved = $false
+                while (-not $process.HasExited -and [DateTime]::UtcNow -lt $deadline) {
+                    Start-Sleep -Milliseconds 500
+                    $liveProbeText = if (Test-Path $probeStdout -PathType Leaf) { Get-Content -Raw $probeStdout } else { "" }
+                    $fatalObserved = $liveProbeText -match '(?im)Fatal error:|Assertion failed:|Unhandled Exception:'
+                    $startupConfirmed = $liveProbeText -match 'Engine is initialized\. Leaving FEngineLoop::Init\(\)' -and $liveProbeText -match '(?m)Cmd: quit\s*$'
+                    if ($fatalObserved -or $startupConfirmed) { break }
+                }
+                $finishedNaturally = $process.HasExited
+                if (-not $finishedNaturally) {
+                    try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
+                    [void]$process.WaitForExit(10000)
+                }
+                Merge-ProcessLogs -StandardOutputPath $probeStdout -StandardErrorPath $probeStderr -DestinationPath $ProbeLog
                 $probeText = if (Test-Path $ProbeLog -PathType Leaf) { Get-Content -Raw $ProbeLog } else { "" }
                 $fatal = $probeText -match '(?im)Fatal error:|Assertion failed:|Unhandled Exception:'
-                $editorProbeResult = if ($exitCode -eq 0 -and -not $fatal) { "PASS" } else { "FAIL" }
-                Add-QualificationCheck "editor-nullrhi-project-probe" ($editorProbeResult -eq "PASS") "exit=$exitCode fatal=$fatal log=$ProbeLog"
+                $startupConfirmed = $probeText -match 'Engine is initialized\. Leaving FEngineLoop::Init\(\)' -and $probeText -match '(?m)Cmd: quit\s*$'
+                $editorProbeResult = if ($startupConfirmed -and -not $fatal) { "PASS" } elseif ([DateTime]::UtcNow -ge $deadline) { "TIMEOUT" } else { "FAIL" }
+                $exitDetail = if ($finishedNaturally) { $process.ExitCode } elseif ($startupConfirmed) { "terminated-after-startup" } else { "terminated" }
+                Add-QualificationCheck "editor-nullrhi-project-probe" ($editorProbeResult -eq "PASS") "result=$editorProbeResult exit=$exitDetail startup=$startupConfirmed fatal=$fatal log=$ProbeLog"
+            } catch {
+                $editorProbeResult = "FAIL"
+                Merge-ProcessLogs -StandardOutputPath $probeStdout -StandardErrorPath $probeStderr -DestinationPath $ProbeLog
+                Add-QualificationCheck "editor-nullrhi-project-probe" $false "Launch failed: $($_.Exception.Message); log=$ProbeLog"
             }
-        } catch {
-            $editorProbeResult = "FAIL"
-            Add-QualificationCheck "editor-nullrhi-project-probe" $false "Launch failed: $($_.Exception.Message)"
         }
     }
 
     $result = if ($requiredFailure) { "FAIL" } else { "PASS" }
-    Write-QualificationReport -Result $result -GitSha $gitSha -Version $projectVersion -EngineVersion $engineVersion -PreflightResult $preflightResult -EditorProbeResult $editorProbeResult
+    Write-QualificationReport -Result $result -GitSha $gitSha -Version $projectVersion -EngineVersion $engineVersion -PreflightResult $preflightResult -EditorBuildResult $editorBuildResult -EditorProbeResult $editorProbeResult
 
     Write-Host "[GTT][RUNNER] Win64 UE 5.8 runner qualification: $result"
     Write-Host "[GTT][RUNNER] Evidence: $OutputPath"
@@ -269,7 +353,7 @@ try {
     exit 0
 } catch {
     Add-QualificationCheck "qualification-unhandled-error" $false $_.Exception.Message
-    Write-QualificationReport -Result "FAIL" -GitSha $gitSha -Version $projectVersion -EngineVersion $engineVersion -PreflightResult $preflightResult -EditorProbeResult $editorProbeResult
+    Write-QualificationReport -Result "FAIL" -GitSha $gitSha -Version $projectVersion -EngineVersion $engineVersion -PreflightResult $preflightResult -EditorBuildResult $editorBuildResult -EditorProbeResult $editorProbeResult
     Write-Error "[GTT][RUNNER] Qualification failed: $($_.Exception.Message)"
     exit 2
 }

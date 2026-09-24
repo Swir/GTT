@@ -49,6 +49,10 @@ for token in (
     '"github-runner-arch-label"',
     '"win64-unreal-preflight"',
     '"editor-nullrhi-project-probe"',
+    '"editor-target-build"',
+    '"GTTEditor"',
+    '"Win64"',
+    '"Development"',
     'human_visual_review = "REQUIRED"',
     'demo_release_authorized = $false',
 ):
@@ -57,7 +61,10 @@ for token in (
 require("preflight_win64_unreal.ps1" in qualifier, "qualifier must reuse canonical UE/Win64 preflight")
 require("UnrealEditor-Cmd.exe" in qualifier and "-NullRHI" in qualifier, "qualifier must probe UnrealEditor-Cmd under NullRHI")
 require("EditorProbeTimeoutSeconds" in qualifier and "WaitForExit" in qualifier, "editor probe must be time bounded")
+require("EditorBuildTimeoutSeconds" in qualifier, "editor target build must be time bounded")
 require("git lfs fsck" in qualifier, "qualifier must fail closed on unresolved/corrupt LFS state")
+require('Add-Check "netfx-sdk"' in read("Scripts/preflight_win64_unreal.ps1"),
+        "preflight must require the .NET Framework SDK used by UE SwarmInterface")
 
 for token in (
     '"gtt.win64-runner-provisioning.v1"',
@@ -175,6 +182,7 @@ for token in (
     '-ExpectedVersion "$env:GTT_VERSION"',
     "gtt.win64-runner-qualification.v1",
     "$qualification.preflight -ne 'PASS'",
+    "$qualification.editor_build -ne 'PASS'",
     "$qualification.editor_probe -ne 'PASS'",
     "GTT_RUNNER_QUALIFICATION_DIR }}\\**",
 ):

@@ -217,9 +217,13 @@ bool UGTTFarmCargoBreakdownRecoverySubsystem::CheckpointPrimarySave(const TCHAR*
     AGTTGameMode* GameMode = Cast<AGTTGameMode>(UGameplayStatics::GetGameMode(this));
     const bool bSaved = GameMode && GameMode->SaveProgress();
     if (bSaved)
+    {
         UE_LOG(LogGTT, Display, TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=CHECKPOINT reason=%s result=PASS vehicle=%s"), Reason ? Reason : TEXT("unknown"), *RecoveryVehicleId.ToString());
+    }
     else
+    {
         UE_LOG(LogGTT, Warning, TEXT("FARM_CARGO_BREAKDOWN_RECOVERY event=CHECKPOINT reason=%s result=FAIL vehicle=%s"), Reason ? Reason : TEXT("unknown"), *RecoveryVehicleId.ToString());
+    }
     return bSaved;
 }
 

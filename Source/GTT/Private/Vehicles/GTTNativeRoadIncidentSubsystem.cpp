@@ -122,7 +122,7 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
         for (TActorIterator<AGTTTrafficCarPawn> TrafficIt(World); TrafficIt; ++TrafficIt)
         {
             AGTTTrafficCarPawn* TrafficCar = *TrafficIt;
-            if (!TrafficCar || TrafficCar->IsActorHiddenInGame())
+            if (!TrafficCar || TrafficCar->IsHidden())
             {
                 continue;
             }
@@ -158,7 +158,7 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
         for (TActorIterator<AGTTTrafficCarPawn> TrafficIt(World); TrafficIt; ++TrafficIt)
         {
             AGTTTrafficCarPawn* TrafficCar = *TrafficIt;
-            if (!TrafficCar || TrafficCar == ClosestTraffic || TrafficCar->IsActorHiddenInGame())
+            if (!TrafficCar || TrafficCar == ClosestTraffic || TrafficCar->IsHidden())
             {
                 continue;
             }

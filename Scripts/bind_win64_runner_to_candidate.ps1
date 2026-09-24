@@ -56,8 +56,8 @@ if ([string]$qualification.version -ne $Version) { throw "Runner qualification v
 if ([string]$qualification.platform -ne "Win64") { throw "Runner qualification platform must be Win64." }
 if ([string]$qualification.engine -ne "Unreal Engine 5.8") { throw "Runner qualification engine must be Unreal Engine 5.8." }
 if ([string]$qualification.detected_engine_version -notmatch '^5\.8(?:\.|$)') { throw "Runner qualification did not detect Unreal Engine 5.8.x." }
-if ([string]$qualification.preflight -ne "PASS" -or [string]$qualification.editor_probe -ne "PASS") {
-    throw "Runner qualification must contain PASS preflight and editor probe evidence."
+if ([string]$qualification.preflight -ne "PASS" -or [string]$qualification.editor_build -ne "PASS" -or [string]$qualification.editor_probe -ne "PASS") {
+    throw "Runner qualification must contain PASS preflight, editor build, and editor probe evidence."
 }
 if ([string]$qualification.human_visual_review -ne "REQUIRED" -or [bool]$qualification.demo_release_authorized) {
     throw "Runner qualification crossed the human visual review / Demo Release boundary."
@@ -73,6 +73,7 @@ foreach ($name in @(
     "clean-tracked-tree",
     "git-lfs-fsck",
     "win64-unreal-preflight",
+    "editor-target-build",
     "editor-nullrhi-project-probe"
 )) {
     [void](Get-RequiredCheck -Document $qualification -Name $name -Scope "runner qualification")
@@ -119,6 +120,7 @@ foreach ($name in @(
     "git-lfs",
     "msvc-toolchain",
     "windows-sdk",
+    "netfx-sdk",
     "free-disk"
 )) {
     $check = Get-RequiredCheck -Document $preflight -Name $name -Scope "runner preflight"
@@ -175,6 +177,7 @@ $binding = [ordered]@{
     toolchain = [ordered]@{
         msvc = [string]$preflightChecks["msvc-toolchain"].detail
         windows_sdk = [string]$preflightChecks["windows-sdk"].detail
+        netfx_sdk = [string]$preflightChecks["netfx-sdk"].detail
         unreal_build_tool = [string]$preflightChecks["unreal-build-tool"].detail
     }
     qualification = [ordered]@{
@@ -183,6 +186,7 @@ $binding = [ordered]@{
         preflight_file = [IO.Path]::GetFileName($RunnerPreflightPath)
         preflight_sha256 = $preflightSha256
         preflight = "PASS"
+        editor_build = "PASS"
         editor_probe = "PASS"
     }
     candidate_archive = [ordered]@{

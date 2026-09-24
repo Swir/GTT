@@ -209,7 +209,7 @@ jobs:
     name: Qualify self-hosted Windows x64 + Unreal Engine 5.8 runner
     needs: probe-contract
     runs-on: [self-hosted, windows, x64, unreal-5.8]
-    timeout-minutes: 12
+    timeout-minutes: 25
     env:
       GTT_ENGINE_ROOT: ${{ inputs.engine_root || 'C:\Program Files\Epic Games\UE_5.8' }}
       GTT_EXPECTED_VERSION: ${{ inputs.version || '0.1.69' }}
@@ -244,6 +244,7 @@ jobs:
           path: |
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.preflight.json
+            ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-build.log
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-probe.log
 
       - name: Preserve release boundary

@@ -8,12 +8,12 @@
 
 namespace GTTTrailerRoadFeedback
 {
-    constexpr FVector TailLeftLocation(286.0f, -88.0f, 24.0f);
-    constexpr FVector TailRightLocation(286.0f, 88.0f, 24.0f);
-    constexpr FVector ReverseLeftLocation(287.0f, -48.0f, 20.0f);
-    constexpr FVector ReverseRightLocation(287.0f, 48.0f, 20.0f);
-    constexpr FVector HazardLeftLocation(282.0f, -116.0f, 34.0f);
-    constexpr FVector HazardRightLocation(282.0f, 116.0f, 34.0f);
+    const FVector TailLeftLocation(286.0f, -88.0f, 24.0f);
+    const FVector TailRightLocation(286.0f, 88.0f, 24.0f);
+    const FVector ReverseLeftLocation(287.0f, -48.0f, 20.0f);
+    const FVector ReverseRightLocation(287.0f, 48.0f, 20.0f);
+    const FVector HazardLeftLocation(282.0f, -116.0f, 34.0f);
+    const FVector HazardRightLocation(282.0f, 116.0f, 34.0f);
 
     UPointLightComponent* CreateRoadLight(
         AGTTFarmTrailer* Trailer,

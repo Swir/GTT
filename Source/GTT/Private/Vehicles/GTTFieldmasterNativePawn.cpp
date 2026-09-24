@@ -426,8 +426,8 @@ void AGTTFieldmasterNativePawn::SyncLegacyMirror()
 
 bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
 {
-    const USkeletalMeshComponent* Mesh = GetMesh();
-    if (!Mesh)
+    const USkeletalMeshComponent* SkeletalMeshComponent = GetMesh();
+    if (!SkeletalMeshComponent)
     {
         OutSummary = TEXT("No skeletal mesh component");
         return false;
@@ -443,7 +443,7 @@ bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
     TArray<FString> Missing;
     for (const FName BoneName : UGTTChaosRigContractLibrary::GetRequiredBoneNames(Rig))
     {
-        if (BoneName.IsNone() || Mesh->GetBoneIndex(BoneName) == INDEX_NONE)
+        if (BoneName.IsNone() || SkeletalMeshComponent->GetBoneIndex(BoneName) == INDEX_NONE)
         {
             Missing.Add(FString::Printf(TEXT("bone:%s"), *BoneName.ToString()));
         }
@@ -451,7 +451,7 @@ bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
 
     for (const FName SocketName : UGTTChaosRigContractLibrary::GetRequiredSocketNames(Rig))
     {
-        if (SocketName.IsNone() || !Mesh->DoesSocketExist(SocketName))
+        if (SocketName.IsNone() || !SkeletalMeshComponent->DoesSocketExist(SocketName))
         {
             Missing.Add(FString::Printf(TEXT("socket:%s"), *SocketName.ToString()));
         }

@@ -52,8 +52,8 @@ AGTTFarmTrailer::AGTTFarmTrailer()
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    UStaticMesh* Cube = CubeFinder.Succeeded() ? CubeFinder.Object : nullptr;
-    UStaticMesh* Cylinder = CylinderFinder.Succeeded() ? CylinderFinder.Object : Cube;
+    UStaticMesh* Cube = CubeFinder.Succeeded() ? CubeFinder.Object.Get() : nullptr;
+    UStaticMesh* Cylinder = CylinderFinder.Succeeded() ? CylinderFinder.Object.Get() : Cube;
 
     TrailerBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TrailerBody"));
     SetRootComponent(TrailerBody);

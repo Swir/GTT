@@ -177,8 +177,8 @@ void AGTTRoadVehicleNativePawn::Interact_Implementation(AActor* Interactor)
     if (!bNativeReady || !bTakeoverActive || bOccupied || !MigrationSnapshot.bOwnedByPlayer || MigrationSnapshot.ConditionPercent <= 0.0f) return;
     APawn* InteractingPawn = Cast<APawn>(Interactor);
     if (!InteractingPawn) return;
-    AController* Controller = InteractingPawn->GetController();
-    if (!Controller) return;
+    AController* PossessingController = InteractingPawn->GetController();
+    if (!PossessingController) return;
     PreviousPawn = InteractingPawn;
     FGTTChaosRigContract Rig;
     if (GetMesh() && UGTTChaosRigContractLibrary::GetRigForVehicleId(NativeVehicleId, Rig) && GetMesh()->DoesSocketExist(Rig.DriverSocket))
@@ -187,7 +187,7 @@ void AGTTRoadVehicleNativePawn::Interact_Implementation(AActor* Interactor)
         InteractingPawn->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
     InteractingPawn->SetActorHiddenInGame(true);
     InteractingPawn->SetActorEnableCollision(false);
-    Controller->Possess(this);
+    PossessingController->Possess(this);
     bOccupied = true;
     UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_DRIVER_ENTER vehicle=%s"), *NativeVehicleId.ToString());
 }
@@ -204,9 +204,9 @@ FText AGTTRoadVehicleNativePawn::GetInteractionText_Implementation() const
 
 void AGTTRoadVehicleNativePawn::ExitNativeVehicle()
 {
-    AController* Controller = GetController();
+    AController* PossessingController = GetController();
     APawn* PawnToRestore = PreviousPawn.Get();
-    if (!Controller || !PawnToRestore) return;
+    if (!PossessingController || !PawnToRestore) return;
     LastThrottleInput = 0.0f;
     if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
     {
@@ -223,7 +223,7 @@ void AGTTRoadVehicleNativePawn::ExitNativeVehicle()
     PawnToRestore->SetActorRotation(FRotator(0.0f, GetActorRotation().Yaw, 0.0f));
     PawnToRestore->SetActorHiddenInGame(false);
     PawnToRestore->SetActorEnableCollision(true);
-    Controller->Possess(PawnToRestore);
+    PossessingController->Possess(PawnToRestore);
     PreviousPawn.Reset();
     bOccupied = false;
     SyncLegacyMirror();

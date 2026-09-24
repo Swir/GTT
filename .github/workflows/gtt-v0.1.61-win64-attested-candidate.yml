@@ -79,6 +79,7 @@ jobs:
           path: |
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.preflight.json
+            ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-build.log
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-probe.log
 
       - name: Qualify exact Win64 candidate
@@ -210,4 +211,5 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\GTT_visual_*.png
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.preflight.json
+            ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-build.log
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-probe.log

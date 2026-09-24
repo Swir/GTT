@@ -16,7 +16,7 @@ EVehicleDifferential ToChaosDifferential(EGTTChaosDriveLayout Layout)
     }
 }
 
-bool NearlyEqual(float A, float B, float Tolerance = 0.01f)
+bool PowertrainNearlyEqual(float A, float B, float Tolerance = 0.01f)
 {
     return FMath::IsNearlyEqual(A, B, Tolerance);
 }
@@ -80,23 +80,23 @@ bool UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(const UChaosWh
 
     TArray<FString> Problems;
     if (!Movement->bMechanicalSimEnabled) Problems.Add(TEXT("mechanical-sim"));
-    if (!NearlyEqual(Movement->EngineSetup.MaxTorque, Spec.EngineMaxTorqueNm)) Problems.Add(TEXT("engine-torque"));
-    if (!NearlyEqual(Movement->EngineSetup.MaxRPM, Spec.EngineMaxRpm)) Problems.Add(TEXT("engine-max-rpm"));
-    if (!NearlyEqual(Movement->EngineSetup.EngineIdleRPM, Spec.EngineIdleRpm)) Problems.Add(TEXT("engine-idle-rpm"));
-    if (!NearlyEqual(Movement->TransmissionSetup.FinalRatio, Spec.FinalDriveRatio)) Problems.Add(TEXT("final-drive"));
+    if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxTorque, Spec.EngineMaxTorqueNm)) Problems.Add(TEXT("engine-torque"));
+    if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxRPM, Spec.EngineMaxRpm)) Problems.Add(TEXT("engine-max-rpm"));
+    if (!PowertrainNearlyEqual(Movement->EngineSetup.EngineIdleRPM, Spec.EngineIdleRpm)) Problems.Add(TEXT("engine-idle-rpm"));
+    if (!PowertrainNearlyEqual(Movement->TransmissionSetup.FinalRatio, Spec.FinalDriveRatio)) Problems.Add(TEXT("final-drive"));
     if (Movement->TransmissionSetup.ForwardGearRatios.Num() != Spec.ForwardGearRatios.Num()) Problems.Add(TEXT("forward-gear-count"));
     else
     {
         for (int32 Index = 0; Index < Spec.ForwardGearRatios.Num(); ++Index)
         {
-            if (!NearlyEqual(Movement->TransmissionSetup.ForwardGearRatios[Index], Spec.ForwardGearRatios[Index]))
+            if (!PowertrainNearlyEqual(Movement->TransmissionSetup.ForwardGearRatios[Index], Spec.ForwardGearRatios[Index]))
             {
                 Problems.Add(FString::Printf(TEXT("forward-gear-%d"), Index + 1));
             }
         }
     }
     if (Movement->TransmissionSetup.ReverseGearRatios.Num() != 1 ||
-        !NearlyEqual(Movement->TransmissionSetup.ReverseGearRatios[0], Spec.ReverseGearRatio))
+        !PowertrainNearlyEqual(Movement->TransmissionSetup.ReverseGearRatios[0], Spec.ReverseGearRatio))
     {
         Problems.Add(TEXT("reverse-gear"));
     }

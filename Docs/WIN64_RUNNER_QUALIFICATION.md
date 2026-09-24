@@ -10,13 +10,14 @@ The qualification checks:
 
 - Windows host and a real UE **5.8** installation;
 - `RunUAT.bat`, `UnrealEditor-Cmd.exe` and UnrealBuildTool presence;
-- Visual Studio C++ toolchain and Windows SDK;
+- Visual Studio C++ toolchain, Windows SDK and the .NET Framework SDK required by Unreal's `SwarmInterface` module;
 - project EngineAssociation, Chaos Vehicles plugin and GTT runtime module;
 - exact Git SHA and exact `ProjectVersion`;
 - clean tracked worktree;
 - Git LFS integrity (`git lfs fsck`);
 - free disk and workspace write access;
 - the canonical `preflight_win64_unreal.ps1`;
+- a time-bounded `GTTEditor Win64 Development` build on a clean runner;
 - an actual time-bounded `UnrealEditor-Cmd` project bootstrap under `-NullRHI`.
 
 A successful run emits `WIN64_RUNNER_QUALIFICATION.json` using schema `gtt.win64-runner-qualification.v1`.
@@ -36,7 +37,7 @@ The workflow also has an **hourly scheduled retry** on the repository default br
 
 Runs created before the global-lane migration used ref-scoped concurrency and cannot retroactively inherit the new group. The hosted probe therefore keeps a narrowly scoped defensive cleanup of **legacy queued** qualification runs before dispatching the real runner: it may cancel only older run IDs for this exact workflow path, re-queries the queue, and fails closed if any older qualification wait remains. The cleanup result and cancelled run IDs are written into `WIN64_RUNNER_DISPATCH_PROBE.json`. The workflow has `actions: write` solely for that cancellation step and never runs on pull-request events.
 
-Use the same UE installation root that will be used by the final candidate workflow. The self-hosted stage checks out LFS content, binds the report to `${{ github.sha }}` and uploads the JSON, nested preflight JSON and editor-probe log even when qualification fails.
+Use the same UE installation root that will be used by the final candidate workflow. The self-hosted stage checks out LFS content, binds the report to `${{ github.sha }}`, builds the project editor module required by a clean C++ checkout, and uploads the JSON, nested preflight JSON, editor-build log and editor-probe log even when qualification fails.
 
 A failure is intended to be actionable before the expensive package/runtime pass. Fix the failing machine/toolchain/content condition, then rerun qualification. A queued self-hosted stage is an external runner-availability blocker, not proof of qualification.
 
