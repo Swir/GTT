@@ -22,7 +22,31 @@ function Invoke-GTTScript {
     $resolved = Join-Path $PSScriptRoot $Path
     if (-not (Test-Path $resolved -PathType Leaf)) { throw "Required acceptance script missing: $resolved" }
     Write-Host "[GTT][ACCEPTANCE] $Path $($Arguments -join ' ')"
-    & $resolved @Arguments
+
+    # Array splatting is positional in PowerShell. Passing strings such as
+    # '-ProjectFile' through @Arguments therefore binds them as values instead
+    # of named parameters (for example, ProjectFile was being coerced into the
+    # positional MinimumFreeGiB parameter). Convert the existing token list to
+    # a real named-parameter splat before invoking each acceptance helper.
+    $parameters = @{}
+    for ($index = 0; $index -lt $Arguments.Count; $index++) {
+        $token = [string]$Arguments[$index]
+        if (-not $token.StartsWith('-') -or $token.Length -lt 2) {
+            throw "Invalid argument token '$token' for acceptance script '$Path'."
+        }
+
+        $name = $token.Substring(1)
+        $hasValue = ($index + 1 -lt $Arguments.Count) -and
+            -not (($Arguments[$index + 1] -is [string]) -and ([string]$Arguments[$index + 1]).StartsWith('-'))
+        if ($hasValue) {
+            $parameters[$name] = $Arguments[$index + 1]
+            $index++
+        } else {
+            $parameters[$name] = $true
+        }
+    }
+
+    & $resolved @parameters
     if ($LASTEXITCODE -ne 0) { throw "$Path failed with exit code $LASTEXITCODE" }
 }
 
