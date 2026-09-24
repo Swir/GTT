@@ -75,12 +75,14 @@ def configure_pipelines(source_data):
 
     common_meshes = generic.get_editor_property("common_meshes_properties")
     common_meshes.set_editor_property("import_sockets", True)
+    common_meshes.set_editor_property(
+        "convert_statics_in_bone_hierarchy_to_skeletals", False
+    )
 
     common_skeletal = generic.get_editor_property(
         "common_skeletal_meshes_and_animations_properties"
     )
     common_skeletal.set_editor_property("import_only_animations", False)
-    common_skeletal.set_editor_property("import_meshes_in_bone_hierarchy", False)
     return pipelines
 
 
