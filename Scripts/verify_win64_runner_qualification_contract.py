@@ -118,6 +118,12 @@ require("actions: write" in manual_workflow,
         "qualification workflow needs narrowly scoped Actions write permission for legacy stale-run cancellation")
 require("pull_request:" not in manual_workflow,
         "write-enabled qualification workflow must never execute from pull_request events")
+require("schedule:" in manual_workflow,
+        "qualification workflow must keep an automatic scheduled retry while the external runner is unavailable")
+require(
+    re.search(r"(?m)^\s*-\s+cron:\s+['\"]17 \* \* \* \*['\"]\s*$", manual_workflow) is not None,
+    "qualification workflow must retry hourly without requiring heartbeat commits",
+)
 for token in (
     "Cancel legacy stale qualification runs",
     "GTT_CURRENT_RUN_ID",
