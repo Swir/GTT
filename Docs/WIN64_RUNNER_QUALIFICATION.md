@@ -17,7 +17,7 @@ The qualification checks:
 - Git LFS integrity (`git lfs fsck`);
 - free disk and workspace write access;
 - the canonical `preflight_win64_unreal.ps1`;
-- a time-bounded `GTTEditor Win64 Development` build on a clean runner;
+- a time-bounded `GTTEditor Win64 Development` build on a clean runner, using the standard local executor with one action at a time so the 14 GB qualification host does not exhaust virtual memory in UBA;
 - an actual time-bounded `UnrealEditor-Cmd` project bootstrap under `-NullRHI`.
 
 A successful run emits `WIN64_RUNNER_QUALIFICATION.json` using schema `gtt.win64-runner-qualification.v1`.

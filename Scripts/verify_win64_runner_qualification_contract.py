@@ -62,6 +62,8 @@ require("preflight_win64_unreal.ps1" in qualifier, "qualifier must reuse canonic
 require("UnrealEditor-Cmd.exe" in qualifier and "-NullRHI" in qualifier, "qualifier must probe UnrealEditor-Cmd under NullRHI")
 require("EditorProbeTimeoutSeconds" in qualifier and "WaitForExit" in qualifier, "editor probe must be time bounded")
 require("EditorBuildTimeoutSeconds" in qualifier, "editor target build must be time bounded")
+require('"-NoUBA"' in qualifier and '"-MaxParallelActions=1"' in qualifier,
+        "editor target build must stay within the qualification host memory envelope")
 require("git lfs fsck" in qualifier, "qualifier must fail closed on unresolved/corrupt LFS state")
 require('Add-Check "netfx-sdk"' in read("Scripts/preflight_win64_unreal.ps1"),
         "preflight must require the .NET Framework SDK used by UE SwarmInterface")

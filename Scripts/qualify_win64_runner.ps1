@@ -270,7 +270,9 @@ try {
                 "Development",
                 "-Project=$ProjectFile",
                 "-WaitMutex",
-                "-NoHotReloadFromIDE"
+                "-NoHotReloadFromIDE",
+                "-NoUBA",
+                "-MaxParallelActions=1"
             )
             $buildProcess = Start-Process -FilePath $buildBat -ArgumentList $buildArgs -PassThru -WindowStyle Hidden -RedirectStandardOutput $buildStdout -RedirectStandardError $buildStderr
             $buildFinished = $buildProcess.WaitForExit($EditorBuildTimeoutSeconds * 1000)
