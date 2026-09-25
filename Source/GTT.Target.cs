@@ -8,6 +8,7 @@ public class GTTTarget : TargetRules
         Type = TargetType.Game;
         DefaultBuildSettings = BuildSettingsVersion.Latest;
         IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+        bUseLoggingInShipping = true;
         ExtraModuleNames.Add("GTT");
     }
 }
