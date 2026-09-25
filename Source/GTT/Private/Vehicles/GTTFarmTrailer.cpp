@@ -59,6 +59,7 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     SetRootComponent(TrailerBody);
     TrailerBody->SetStaticMesh(Cube);
     TrailerBody->SetRelativeScale3D(FVector(2.9f, 1.25f, 0.20f));
+    TrailerBody->SetSimulatePhysics(true);
     TrailerBody->SetNotifyRigidBodyCollision(true);
     TrailerBody->SetMassOverrideInKg(NAME_None, 980.0f, true);
     TrailerBody->SetLinearDamping(0.45f);
@@ -71,6 +72,7 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     LeftWheel->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
     LeftWheel->SetRelativeScale3D(FVector(0.62f, 0.62f, 0.34f));
     LeftWheel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    LeftWheel->SetSimulatePhysics(true);
     LeftWheel->SetMassOverrideInKg(NAME_None, 74.0f, true);
     LeftWheel->SetLinearDamping(0.18f);
     LeftWheel->SetAngularDamping(0.10f);
@@ -82,6 +84,7 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     RightWheel->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
     RightWheel->SetRelativeScale3D(FVector(0.62f, 0.62f, 0.34f));
     RightWheel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    RightWheel->SetSimulatePhysics(true);
     RightWheel->SetMassOverrideInKg(NAME_None, 74.0f, true);
     RightWheel->SetLinearDamping(0.18f);
     RightWheel->SetAngularDamping(0.10f);
@@ -135,9 +138,6 @@ AGTTFarmTrailer::AGTTFarmTrailer()
 void AGTTFarmTrailer::BeginPlay()
 {
     Super::BeginPlay();
-    TrailerBody->SetSimulatePhysics(true);
-    LeftWheel->SetSimulatePhysics(true);
-    RightWheel->SetSimulatePhysics(true);
     ConfigureWheelAxle(LeftWheelConstraint, LeftWheel);
     ConfigureWheelAxle(RightWheelConstraint, RightWheel);
     ConfigureHitchConstraint();

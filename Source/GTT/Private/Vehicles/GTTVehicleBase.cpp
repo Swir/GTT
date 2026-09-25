@@ -19,6 +19,7 @@ AGTTVehicleBase::AGTTVehicleBase()
 
     VehicleMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VehicleMesh"));
     SetRootComponent(VehicleMesh);
+    VehicleMesh->SetSimulatePhysics(true);
     VehicleMesh->SetNotifyRigidBodyCollision(true);
     VehicleMesh->SetLinearDamping(0.45f);
     VehicleMesh->SetAngularDamping(1.4f);
@@ -68,7 +69,6 @@ AGTTVehicleBase::AGTTVehicleBase()
 void AGTTVehicleBase::BeginPlay()
 {
     Super::BeginPlay();
-    VehicleMesh->SetSimulatePhysics(true);
     CurrentFuelLiters = FMath::Clamp(StartingFuelLiters, 0.0f, FuelCapacityLiters);
     EngineTemperatureC = NormalEngineTemperatureC;
     TireIntegrity = FMath::Clamp(TireIntegrity, 0.0f, 1.0f);
