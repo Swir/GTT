@@ -81,21 +81,24 @@ Write-Host "[GTT] Output: $ArchiveDirectory"
 
 $uatExit = -1
 try {
-    & $RunUAT BuildCookRun `
-        -project="$ProjectFile" `
-        -noP4 `
-        -platform=Win64 `
-        -target=GTT `
-        -clientconfig=$Configuration `
-        -build `
-        -cook `
-        -stage `
-        -pak `
-        -iostore `
-        -prereqs `
-        -archive `
-        -archivedirectory="$ArchiveDirectory" `
-        -utf8output
+    $UATArgs = @(
+        "BuildCookRun"
+        "-project=$ProjectFile"
+        "-noP4"
+        "-platform=Win64"
+        "-target=GTT"
+        "-clientconfig=$Configuration"
+        "-build"
+        "-cook"
+        "-stage"
+        "-pak"
+        "-iostore"
+        "-prereqs"
+        "-archive"
+        "-archivedirectory=$ArchiveDirectory"
+        "-utf8output"
+    )
+    & $RunUAT @UATArgs
 
     $uatExit = $LASTEXITCODE
     if ($uatExit -ne 0) { throw "Unreal Automation Tool failed with exit code $uatExit" }
