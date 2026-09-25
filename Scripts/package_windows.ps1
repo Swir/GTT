@@ -96,6 +96,7 @@ try {
         "-pak"
         "-iostore"
         "-prereqs"
+        "-nodebuginfo"
         "-archive"
         "-archivedirectory=$ArchiveDirectory"
         "-IgnoreCookErrors"
@@ -147,6 +148,15 @@ $buildInfo = [ordered]@{
 }
 $buildInfoPath = Join-Path $ArchiveDirectory "BUILD_INFO.json"
 $buildInfo | ConvertTo-Json | Set-Content -Encoding UTF8 $buildInfoPath
+
+if ($Configuration -eq "Shipping") {
+    $debugArtifacts = @(Get-ChildItem -Path $ArchiveDirectory -Recurse -File | Where-Object { $_.Extension -in '.pdb', '.exp', '.lib' })
+    $debugArtifactCount = ($debugArtifacts | Measure-Object).Count
+    if ($debugArtifactCount -gt 0) {
+        $debugArtifacts | Remove-Item -Force
+        Write-Host "[GTT] Removed $debugArtifactCount debug/linker artifact(s) from the Shipping archive."
+    }
+}
 
 & $Validator -PackageDirectory $ArchiveDirectory -Configuration $Configuration -Version $Version
 if ($LASTEXITCODE -ne 0) { throw "Package validation failed with exit code $LASTEXITCODE" }
