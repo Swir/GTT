@@ -81,6 +81,8 @@ Write-Host "[GTT] Output: $ArchiveDirectory"
 
 $uatExit = -1
 try {
+    $UATLog = Join-Path $ProjectRoot "Saved\Logs\GTT-Package-UAT.log"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $UATLog) | Out-Null
     $UATArgs = @(
         "BuildCookRun"
         "-project=$ProjectFile"
@@ -96,11 +98,22 @@ try {
         "-prereqs"
         "-archive"
         "-archivedirectory=$ArchiveDirectory"
+        "-IgnoreCookErrors"
         "-utf8output"
     )
-    & $RunUAT @UATArgs
+    $UATOutput = @(& $RunUAT @UATArgs 2>&1 | Tee-Object -FilePath $UATLog)
 
     $uatExit = $LASTEXITCODE
+    $KnownUE58CookError = "FBodyInstance::GetSimplePhysicalMaterial : GEngine not initialized! Cannot call this during native CDO construction"
+    $ErrorLines = @($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match '(?i)\b(?:Error|Fatal):' })
+    $UnexpectedErrorLines = @($ErrorLines | Where-Object { $_ -notlike "*$KnownUE58CookError*" })
+    if ($UnexpectedErrorLines.Count -gt 0) {
+        throw "UAT emitted unexpected error lines despite -IgnoreCookErrors. First unexpected line: $($UnexpectedErrorLines[0])"
+    }
+    $KnownErrorCount = @($ErrorLines | Where-Object { $_ -like "*$KnownUE58CookError*" }).Count
+    if ($KnownErrorCount -gt 0) {
+        Write-Host "[GTT] Accepted $KnownErrorCount occurrence(s) of the verified UE 5.8.3 native-CDO physical-material cook defect; no other Error/Fatal log lines were present."
+    }
     if ($uatExit -ne 0) { throw "Unreal Automation Tool failed with exit code $uatExit" }
     $attempt.result = "PASS"
 } catch {
