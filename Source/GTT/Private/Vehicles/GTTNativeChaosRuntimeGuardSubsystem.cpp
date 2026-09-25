@@ -57,7 +57,8 @@ bool UGTTNativeChaosRuntimeGuardSubsystem::EvaluateLiveChaosContract(
     OutMinSuspension = 1.0f;
     OutMaxSuspension = 0.0f;
 
-    if (!NativePawn || !Movement || !Movement->IsActive() || !Mesh || !Mesh->GetPhysicsAsset()
+    if (!NativePawn || !Movement || !Movement->IsActive()
+        || Movement->GetNumWheels() < RequiredWheelCount || !Mesh || !Mesh->GetPhysicsAsset()
         || Mesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
     {
         return false;

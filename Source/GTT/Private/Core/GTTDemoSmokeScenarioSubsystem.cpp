@@ -25,7 +25,7 @@ bool HasLiveNativeMotion(AWheeledVehiclePawn* Pawn)
 {
     if (!Pawn) return false;
     UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(Pawn->GetVehicleMovementComponent());
-    if (!Movement || !Movement->IsActive()) return false;
+    if (!Movement || !Movement->IsActive() || Movement->GetNumWheels() < 4) return false;
     int32 Valid=0, Contacts=0, Suspension=0;
     for(int32 Index=0;Index<4;++Index){const FWheelStatus Wheel=Movement->GetWheelState(Index);if(!Wheel.bIsValid)continue;++Valid;if(Wheel.bInContact)++Contacts;if(FMath::IsFinite(Wheel.NormalizedSuspensionLength)&&Wheel.NormalizedSuspensionLength>=0.f&&Wheel.NormalizedSuspensionLength<=1.f)++Suspension;}
     return Valid==4 && Contacts>=2 && Suspension==4 && Pawn->GetVelocity().SizeSquared2D()>FMath::Square(10.f);

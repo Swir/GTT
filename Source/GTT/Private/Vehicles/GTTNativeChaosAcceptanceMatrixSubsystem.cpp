@@ -71,7 +71,8 @@ bool UGTTNativeChaosAcceptanceMatrixSubsystem::EvaluateLiveMatrix(
     bOutWheelConfig = false;
     bOutPowertrainConfig = false;
 
-    if (!Pawn || VehicleId.IsNone() || !Movement || !Movement->IsActive() || !Mesh || !Mesh->GetPhysicsAsset()
+    if (!Pawn || VehicleId.IsNone() || !Movement || !Movement->IsActive()
+        || Movement->GetNumWheels() < RequiredWheelCount || !Mesh || !Mesh->GetPhysicsAsset()
         || Mesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
     {
         OutWheelSummary = TEXT("live movement/mesh contract unavailable");
