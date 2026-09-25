@@ -6,7 +6,7 @@ param(
     [string]$ExpectedVersion = "",
     [int]$MinimumFreeGiB = 25,
     [switch]$SkipEditorProbe,
-    [int]$EditorBuildTimeoutSeconds = 1200,
+    [int]$EditorBuildTimeoutSeconds = 3600,
     [int]$EditorProbeTimeoutSeconds = 120
 )
 
