@@ -105,12 +105,13 @@ try {
 
     $uatExit = $LASTEXITCODE
     $KnownUE58CookError = "FBodyInstance::GetSimplePhysicalMaterial : GEngine not initialized! Cannot call this during native CDO construction"
-    $ErrorLines = @($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match '(?i)\b(?:Error|Fatal):' })
-    $UnexpectedErrorLines = @($ErrorLines | Where-Object { $_ -notlike "*$KnownUE58CookError*" })
-    if ($UnexpectedErrorLines.Count -gt 0) {
+    $ErrorLines = [string[]]@($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match '(?i)\b(?:Error|Fatal):' })
+    $UnexpectedErrorLines = [string[]]@($ErrorLines | Where-Object { $_ -notlike "*$KnownUE58CookError*" })
+    $UnexpectedErrorCount = ($UnexpectedErrorLines | Measure-Object).Count
+    if ($UnexpectedErrorCount -gt 0) {
         throw "UAT emitted unexpected error lines despite -IgnoreCookErrors. First unexpected line: $($UnexpectedErrorLines[0])"
     }
-    $KnownErrorCount = @($ErrorLines | Where-Object { $_ -like "*$KnownUE58CookError*" }).Count
+    $KnownErrorCount = ($ErrorLines | Where-Object { $_ -like "*$KnownUE58CookError*" } | Measure-Object).Count
     if ($KnownErrorCount -gt 0) {
         Write-Host "[GTT] Accepted $KnownErrorCount occurrence(s) of the verified UE 5.8.3 native-CDO physical-material cook defect; no other Error/Fatal log lines were present."
     }
