@@ -85,6 +85,7 @@ $RuntimeLog = Join-Path $PackageDirectory "GTT_RUNTIME.log"
 $VisualRuntimeLog = Join-Path $PackageDirectory "GTT_VISUAL_RUNTIME.log"
 $FinalAsset = Join-Path $ProjectRoot "Content\GTT\Vehicles\Trailer\SK_GTT_FarmTrailer.uasset"
 $EditorImportEvidenceFile = Join-Path $ProjectRoot "Intermediate\GTT\AuthoredTrailer\AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json"
+$NativeRigEvidenceFile = Join-Path $ProjectRoot "Intermediate\GTT\NativeVehicles\NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json"
 $PreviousGithubSha = $env:GITHUB_SHA
 $env:GITHUB_SHA = $GitSha
 
@@ -101,11 +102,25 @@ try {
         "-UnrealEditorCmd", $EditorCmd,
         "-Project", $ProjectFile
     )
+    Invoke-GTTScript "import_gtt_vehicle_rigs_unreal.ps1" @(
+        "-UnrealEditorCmd", $EditorCmd,
+        "-Project", $ProjectFile
+    )
     if (-not (Test-Path $FinalAsset -PathType Leaf)) {
         throw "Authored trailer skeletal asset missing after UE import: $FinalAsset"
     }
     if (-not (Test-Path $EditorImportEvidenceFile -PathType Leaf)) {
         throw "Authored trailer editor acceptance evidence missing after UE import: $EditorImportEvidenceFile"
+    }
+    if (-not (Test-Path $NativeRigEvidenceFile -PathType Leaf)) {
+        throw "Native vehicle rig editor acceptance evidence missing: $NativeRigEvidenceFile"
+    }
+    $nativeRigEvidence = Get-Content -Raw $NativeRigEvidenceFile | ConvertFrom-Json
+    if ($nativeRigEvidence.schema -ne "gtt.native-vehicle-rig-editor-acceptance.v1" -or
+        $nativeRigEvidence.result -ne "PASS" -or
+        [string]$nativeRigEvidence.git_sha -ne $GitSha -or
+        $nativeRigEvidence.assets.Count -ne 3) {
+        throw "Native vehicle rig editor acceptance evidence is not bound to this exact candidate."
     }
 
     $editorImportEvidence = Get-Content -Raw $EditorImportEvidenceFile | ConvertFrom-Json
@@ -142,6 +157,7 @@ try {
     )
     Copy-Item -Force $ImportFile (Join-Path $PackageDirectory "AUTHORED_TRAILER_IMPORT.json")
     Copy-Item -Force $EditorImportEvidenceFile (Join-Path $PackageDirectory "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json")
+    Copy-Item -Force $NativeRigEvidenceFile (Join-Path $PackageDirectory "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json")
 
     Invoke-GTTScript "smoke_test_windows.ps1" @(
         "-PackageDirectory", $PackageDirectory,

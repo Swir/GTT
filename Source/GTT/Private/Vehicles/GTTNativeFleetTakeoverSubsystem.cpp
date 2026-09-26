@@ -3,6 +3,7 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
+#include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "GTT.h"
 
 void UGTTNativeFleetTakeoverSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -15,10 +16,14 @@ void UGTTNativeFleetTakeoverSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     {
         InWorld.SpawnActor<AGTTRattlebackNativePawn>(AGTTRattlebackNativePawn::StaticClass(), FTransform::Identity);
     }
+    if (!UGameplayStatics::GetActorOfClass(&InWorld, AGTTFieldmasterNativePawn::StaticClass()))
+    {
+        InWorld.SpawnActor<AGTTFieldmasterNativePawn>(AGTTFieldmasterNativePawn::StaticClass(), FTransform::Identity);
+    }
     if (!UGameplayStatics::GetActorOfClass(&InWorld, AGTTMuleboxNativePawn::StaticClass()))
     {
         InWorld.SpawnActor<AGTTMuleboxNativePawn>(AGTTMuleboxNativePawn::StaticClass(), FTransform::Identity);
     }
 
-    GTT_LOG( Log, TEXT("NATIVE_FLEET_TAKEOVER_BOOT vehicles=Rattleback82,Mulebox1200 mode=acceptance-gated"));
+    GTT_LOG( Log, TEXT("NATIVE_FLEET_TAKEOVER_BOOT vehicles=RustyFieldmaster60,Rattleback82,Mulebox1200 mode=acceptance-gated"));
 }

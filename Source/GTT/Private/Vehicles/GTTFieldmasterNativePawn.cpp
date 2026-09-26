@@ -6,9 +6,11 @@
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "EngineUtils.h"
+#include "Engine/SkeletalMesh.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Radio/GTTRadioComponent.h"
 #include "Vehicles/GTTChaosRigContract.h"
 #include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
@@ -29,6 +31,13 @@ AGTTFieldmasterNativePawn::AGTTFieldmasterNativePawn(const FObjectInitializer& O
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickInterval = 0.1f;
+
+    static ConstructorHelpers::FObjectFinder<USkeletalMesh> VehicleMesh(
+        TEXT("/Game/GTT/Vehicles/Fieldmaster/SK_GTT_Fieldmaster60.SK_GTT_Fieldmaster60"));
+    if (VehicleMesh.Succeeded())
+    {
+        GetMesh()->SetSkeletalMesh(VehicleMesh.Object);
+    }
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(GetMesh());

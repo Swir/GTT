@@ -413,8 +413,7 @@ void UGTTAuthoredTrailerPresentationSubsystem::EmitRuntimeEvidence(FRuntimeTrail
     const bool bWarning = JackknifeRisk >= JackknifeWarningRiskThreshold;
     const bool bNativeTow = Trailer->IsAttachedToNativeFieldmaster();
 
-    UE_LOG(
-        LogGTT,
+    GTT_LOG(
         Display,
         TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=1 nativeTow=%d contacts=%.3f left=%d right=%d clearL=%.2f clearR=%.2f axleTilt=%.2f hitchError=%.2f articulation=%.2f stabilization=%.3f warning=%d"),
         *GetNameSafe(Trailer),

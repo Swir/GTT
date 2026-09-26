@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Controller.h"
@@ -83,6 +84,9 @@ AGTTRattlebackNativePawn::AGTTRattlebackNativePawn()
     IdleFuelBurnPerSecond = 0.028f;
     FullThrottleFuelBurnPerSecond = 0.19f;
     ExitOffset = FVector(0.0f, 165.0f, 65.0f);
+    static ConstructorHelpers::FObjectFinder<USkeletalMesh> VehicleMesh(
+        TEXT("/Game/GTT/Vehicles/Rattleback/SK_GTT_Rattleback82.SK_GTT_Rattleback82"));
+    if (VehicleMesh.Succeeded()) GetMesh()->SetSkeletalMesh(VehicleMesh.Object);
 }
 
 AGTTMuleboxNativePawn::AGTTMuleboxNativePawn()
@@ -93,6 +97,9 @@ AGTTMuleboxNativePawn::AGTTMuleboxNativePawn()
     IdleFuelBurnPerSecond = 0.04f;
     FullThrottleFuelBurnPerSecond = 0.22f;
     ExitOffset = FVector(0.0f, 205.0f, 82.0f);
+    static ConstructorHelpers::FObjectFinder<USkeletalMesh> VehicleMesh(
+        TEXT("/Game/GTT/Vehicles/Mulebox/SK_GTT_Mulebox1200.SK_GTT_Mulebox1200"));
+    if (VehicleMesh.Succeeded()) GetMesh()->SetSkeletalMesh(VehicleMesh.Object);
 }
 
 void AGTTRoadVehicleNativePawn::BeginPlay()
