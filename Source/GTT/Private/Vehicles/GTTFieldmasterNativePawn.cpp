@@ -503,6 +503,7 @@ bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
 
 bool AGTTFieldmasterNativePawn::ConfigureAndValidateNativeFieldmaster(FString& OutSummary)
 {
+    const bool bNeedsPhysicsRebuild = !bNativeReady;
     UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement();
     if (!Movement)
     {
@@ -535,6 +536,12 @@ bool AGTTFieldmasterNativePawn::ConfigureAndValidateNativeFieldmaster(FString& O
     if (!bNativeReady)
     {
         Movement->HoldFieldmasterStopped();
+    }
+    else if (bNeedsPhysicsRebuild)
+    {
+        // Wheel and powertrain setups are authored into the movement component at runtime.
+        // Rebuild its physics state once so Chaos creates the live vehicle with those four wheels.
+        Movement->RecreatePhysicsState();
     }
     return bNativeReady;
 }

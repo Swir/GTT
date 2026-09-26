@@ -65,7 +65,7 @@ current_build_evidence = all(x in attestor for x in [
 
 checks = {
     'core world subsystem': 'UTickableWorldSubsystem' in h,
-    'fresh acceptance fleet ownership fixture': all(x in cpp for x in ['PrepareAcceptanceFleet', 'MarkOwnedByPlayer', 'DEMO_SCENARIO_FLEET_PREP result=PASS']),
+    'fresh acceptance fleet ownership fixture': all(x in cpp for x in ['PrepareAcceptanceFleet', 'MarkOwnedByPlayer', 'RepairVehicle', 'RepairTires', 'RestorePersistentMigrationSnapshot', 'DEMO_SCENARIO_FLEET_PREP result=PASS']),
     'recovery world subsystem': 'UTickableWorldSubsystem' in recovery_h,
     'structural world subsystem': 'UTickableWorldSubsystem' in struct_h,
     'structural drive world subsystem': 'UTickableWorldSubsystem' in drive_h,

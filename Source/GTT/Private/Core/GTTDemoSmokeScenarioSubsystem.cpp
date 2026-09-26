@@ -63,12 +63,21 @@ void UGTTDemoSmokeScenarioSubsystem::PrepareAcceptanceFleet()
     {
         AGTTVehicleBase* Vehicle=*It;if(!Vehicle||!RequiredVehicleIds.Contains(Vehicle->GetPersistentVehicleId()))continue;
         if(!Vehicle->IsOwnedByPlayer())Vehicle->MarkOwnedByPlayer();
+        Vehicle->RepairVehicle(100000.f);Vehicle->RefuelVehicle(100000.f);Vehicle->RepairTires();
         PreparedIds.Add(Vehicle->GetPersistentVehicleId());
     }
     if(PreparedIds.Num()==RequiredVehicleIds.Num())
     {
+        for(TActorIterator<AGTTFieldmasterNativePawn> It(World);It;++It)
+        {
+            FGTTVehicleMigrationSnapshot State=It->GetMigrationSnapshot();State.ConditionPercent=1.f;State.FuelLiters=FMath::Max(State.FuelLiters,10.f);State.bOwnedByPlayer=true;State.TireIntegrity=1.f;It->ApplyMigrationSnapshot(State);
+        }
+        for(TActorIterator<AGTTRoadVehicleNativePawn> It(World);It;++It)
+        {
+            FGTTRoadVehicleMigrationSnapshot State=It->GetMigrationSnapshot();State.ConditionPercent=1.f;State.FuelLiters=FMath::Max(State.FuelLiters,10.f);State.bOwnedByPlayer=true;State.TireIntegrity=1.f;It->RestorePersistentMigrationSnapshot(State);It->RestorePersistentBodyDamage(FGTTRoadBodyDamageSnapshot(),0);
+        }
         bAcceptanceFleetPrepared=true;
-        GTT_LOG(Display,TEXT("DEMO_SCENARIO_FLEET_PREP result=PASS owned=RustyFieldmaster60,Rattleback82,Mulebox1200"));
+        GTT_LOG(Display,TEXT("DEMO_SCENARIO_FLEET_PREP result=PASS owned=RustyFieldmaster60,Rattleback82,Mulebox1200 condition=1.0 tires=1.0"));
     }
 }
 

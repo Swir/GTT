@@ -313,6 +313,7 @@ bool AGTTRoadVehicleNativePawn::ValidateRigContract(FString& OutSummary) const
 
 bool AGTTRoadVehicleNativePawn::ConfigureAndValidateNativeRoadVehicle(FString& OutSummary)
 {
+    const bool bNeedsPhysicsRebuild = !bNativeReady;
     UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent());
     if (!Movement || NativeVehicleId.IsNone()) { OutSummary = TEXT("Native movement or vehicle ID missing"); bNativeReady = false; return false; }
     FString RigSummary;
@@ -329,6 +330,12 @@ bool AGTTRoadVehicleNativePawn::ConfigureAndValidateNativeRoadVehicle(FString& O
         bPowertrainValid ? *PowertrainValidationSummary : *PowertrainConfigureSummary,
         bPhysicsAssetPresent ? TEXT("YES") : TEXT("NO"));
     NativeAcceptanceSummary = OutSummary;
+    if (bNativeReady && bNeedsPhysicsRebuild)
+    {
+        // ConfigureCanonicalWheelSetups runs after the component's initial registration.
+        // Rebuild once so the Chaos simulation owns the canonical four-wheel setup.
+        Movement->RecreatePhysicsState();
+    }
     return bNativeReady;
 }
 
