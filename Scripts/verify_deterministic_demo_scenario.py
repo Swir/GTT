@@ -5,6 +5,8 @@ import re
 root = Path(__file__).resolve().parents[1]
 h = (root / 'Source/GTT/Public/Core/GTTDemoSmokeScenarioSubsystem.h').read_text(encoding='utf-8')
 cpp = (root / 'Source/GTT/Private/Core/GTTDemoSmokeScenarioSubsystem.cpp').read_text(encoding='utf-8')
+fieldmaster_cpp = (root / 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp').read_text(encoding='utf-8')
+road_vehicle_cpp = (root / 'Source/GTT/Private/Vehicles/GTTRoadVehicleNativePawn.cpp').read_text(encoding='utf-8')
 recovery_h = (root / 'Source/GTT/Public/Core/GTTDamageRecoveryEvidenceSubsystem.h').read_text(encoding='utf-8')
 recovery_cpp = (root / 'Source/GTT/Private/Core/GTTDamageRecoveryEvidenceSubsystem.cpp').read_text(encoding='utf-8')
 struct_h = (root / 'Source/GTT/Public/Core/GTTStructuralDamageEvidenceSubsystem.h').read_text(encoding='utf-8')
@@ -69,7 +71,12 @@ checks = {
     'structural drive world subsystem': 'UTickableWorldSubsystem' in drive_h,
     'opt-in commandline': all('GTTDemoSmokeScenario' in text for text in [cpp, recovery_cpp, struct_cpp, drive_cpp, smoke]),
     'explicit 26 core markers': all(f'TEXT("{s}")' in cpp for s in core_steps) and 'steps=26' in cpp,
-    'native control actuation': all(x in cpp for x in ['SetThrottleInput', 'SetSteeringInput', 'SetBrakeInput', 'DEMO_SCENARIO_CONTROL']),
+    'native control actuation': (
+        'ApplyAcceptanceDriveCommand' in cpp
+        and 'DEMO_SCENARIO_CONTROL' in cpp
+        and all(x in fieldmaster_cpp for x in ['ApplyAcceptanceDriveCommand', 'SetTargetGear', 'GTTDemoSmokeScenario'])
+        and all(x in road_vehicle_cpp for x in ['ApplyAcceptanceDriveCommand', 'SetThrottleInput', 'SetSteeringInput', 'SetBrakeInput', 'SetTargetGear', 'GTTDemoSmokeScenario'])
+    ),
     'live wheel motion evidence': all(x in cpp for x in ['GetWheelState', 'bInContact', 'NormalizedSuspensionLength', 'GetVelocity().SizeSquared2D()']),
     'wanted-4 escalation': 'AddHeat(130.f)' in cpp and 'GetWantedLevel()>=4' in cpp,
     'active police response': 'GetActiveFootUnitCount()>0' in cpp,

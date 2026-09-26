@@ -10,6 +10,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Radio/GTTRadioComponent.h"
 #include "Vehicles/GTTChaosRigContract.h"
@@ -94,7 +96,7 @@ void AGTTFieldmasterNativePawn::Tick(float DeltaSeconds)
         MigrationSnapshot.FuelLiters = FMath::Max(0.0f, MigrationSnapshot.FuelLiters - BurnRate * DeltaSeconds);
     }
 
-    if (bOccupied)
+    if (bOccupied || bAcceptanceDriveCommandActive)
     {
         RefreshNativeDriveCommand();
     }
@@ -220,7 +222,7 @@ void AGTTFieldmasterNativePawn::RefreshNativeDriveCommand()
         return;
     }
 
-    const bool bCanDrive = bNativeReady && bTakeoverActive && bOccupied && MigrationSnapshot.FuelLiters > KINDA_SMALL_NUMBER;
+    const bool bCanDrive = bNativeReady && bTakeoverActive && (bOccupied || bAcceptanceDriveCommandActive) && MigrationSnapshot.FuelLiters > KINDA_SMALL_NUMBER;
     if (!bCanDrive)
     {
         Movement->HoldFieldmasterStopped();
@@ -240,6 +242,29 @@ void AGTTFieldmasterNativePawn::HandleNativeThrottle(float Value)
 {
     LastThrottleInput = FMath::Clamp(Value, -1.0f, 1.0f);
     RefreshNativeDriveCommand();
+}
+
+bool AGTTFieldmasterNativePawn::ApplyAcceptanceDriveCommand(float Throttle, float Steering, float Brake)
+{
+    if (!FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario")) || !bNativeReady || !bTakeoverActive)
+    {
+        return false;
+    }
+
+    bAcceptanceDriveCommandActive = true;
+    LastThrottleInput = FMath::Clamp(Throttle, -1.0f, 1.0f);
+    LastSteeringInput = FMath::Clamp(Steering, -1.0f, 1.0f);
+    RefreshNativeDriveCommand();
+    if (UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement())
+    {
+        Movement->SetBrakeInput(FMath::Clamp(Brake, 0.0f, 1.0f));
+        if (!FMath::IsNearlyZero(LastThrottleInput))
+        {
+            Movement->SetTargetGear(LastThrottleInput < 0.0f ? -1 : 1, true);
+        }
+        return true;
+    }
+    return false;
 }
 
 void AGTTFieldmasterNativePawn::HandleNativeSteering(float Value)

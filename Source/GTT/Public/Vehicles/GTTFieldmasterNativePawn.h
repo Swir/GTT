@@ -68,6 +68,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Takeover")
     void DeactivateLegacyTakeover();
 
+    /** Drives the real Chaos input path only during the packaged demo acceptance scenario. */
+    bool ApplyAcceptanceDriveCommand(float Throttle, float Steering, float Brake);
+
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle")
     void ExitNativeVehicle();
 
@@ -155,6 +158,7 @@ private:
     TWeakObjectPtr<AGTTVehicleBase> LegacyMirror;
     bool bTakeoverActive = false;
     bool bOccupied = false;
+    bool bAcceptanceDriveCommandActive = false;
     float LastThrottleInput = 0.0f;
     float LastSteeringInput = 0.0f;
     float MirrorSyncAccumulator = 0.0f;

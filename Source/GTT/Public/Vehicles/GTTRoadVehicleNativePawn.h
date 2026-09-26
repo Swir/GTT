@@ -54,6 +54,8 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Fleet") bool ConfigureAndValidateNativeRoadVehicle(FString& OutSummary);
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Fleet") bool TryActivateLegacyTakeover();
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Fleet") void DeactivateLegacyTakeover();
+    /** Drives the real Chaos input path only during the packaged demo acceptance scenario. */
+    bool ApplyAcceptanceDriveCommand(float Throttle, float Steering, float Brake);
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle") void ExitNativeVehicle();
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Cargo") virtual void SetCargoLoadFactor(float NewLoadFactor);
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Workshop") bool ApplyNativeWorkshopService();
@@ -180,6 +182,7 @@ private:
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bNativeReady = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bTakeoverActive = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bOccupied = false;
+    bool bAcceptanceDriveCommandActive = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") FString NativeAcceptanceSummary = TEXT("Not validated");
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Migration") FGTTRoadVehicleMigrationSnapshot MigrationSnapshot;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Cargo") float CargoLoadFactor = 0.0f;

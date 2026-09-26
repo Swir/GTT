@@ -12,6 +12,8 @@
 #include "EngineUtils.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
 #include "Vehicles/GTTChaosPowertrainSetupLibrary.h"
@@ -809,6 +811,43 @@ void AGTTRoadVehicleNativePawn::StopNativeDriveForBreakdown()
         Movement->SetSteeringInput(0.0f);
         Movement->SetBrakeInput(1.0f);
     }
+}
+
+bool AGTTRoadVehicleNativePawn::ApplyAcceptanceDriveCommand(float Throttle, float Steering, float Brake)
+{
+    if (!FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario")) || !bNativeReady || !bTakeoverActive)
+    {
+        return false;
+    }
+
+    bAcceptanceDriveCommandActive = true;
+    LastThrottleInput = FMath::Clamp(Throttle, -1.0f, 1.0f);
+    UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent());
+    if (!Movement || !Movement->IsActive())
+    {
+        return false;
+    }
+
+    const float SpeedKmh = GetVelocity().Size() * 0.036f;
+    const float TunePower = 1.0f + FMath::Clamp(MigrationSnapshot.EngineUpgradeLevel, 0, 3) * 0.08f;
+    const float ConditionPower = FMath::Lerp(0.35f, 1.0f, FMath::Clamp(MigrationSnapshot.ConditionPercent, 0.0f, 1.0f));
+    const float ScaledThrottle = FMath::Clamp(
+        FMath::Abs(LastThrottleInput) * TunePower * ConditionPower * GetCargoPowerLimit(SpeedKmh) * RuntimeThrottleLimit * DamageThrottleLimit,
+        0.0f,
+        1.0f);
+    const float TireGrip = FMath::Lerp(0.45f, 1.0f, FMath::Clamp(MigrationSnapshot.TireIntegrity, 0.0f, 1.0f));
+    const float TuneGrip = 1.0f + FMath::Clamp(MigrationSnapshot.TireUpgradeLevel, 0, 3) * 0.05f;
+    Movement->SetThrottleInput(ScaledThrottle);
+    Movement->SetSteeringInput(FMath::Clamp(
+        (Steering * DamageSteeringLimit + DamageSteeringBias) * TireGrip * TuneGrip * GetCargoSteeringLimit(SpeedKmh) * RuntimeSteeringLimit,
+        -1.0f,
+        1.0f));
+    Movement->SetBrakeInput(FMath::Clamp(FMath::Max(Brake, RuntimeBrakeAssist), 0.0f, 1.0f));
+    if (!FMath::IsNearlyZero(LastThrottleInput))
+    {
+        Movement->SetTargetGear(LastThrottleInput < 0.0f ? -1 : 1, true);
+    }
+    return true;
 }
 
 void AGTTRoadVehicleNativePawn::HandleNativeThrottle(float Value)

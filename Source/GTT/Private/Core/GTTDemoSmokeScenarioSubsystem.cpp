@@ -39,7 +39,10 @@ bool ExerciseNativeControls(AWheeledVehiclePawn* Pawn,float Elapsed,const TCHAR*
     UChaosWheeledVehicleMovementComponent* Movement=Cast<UChaosWheeledVehicleMovementComponent>(Pawn->GetVehicleMovementComponent());
     if(!Movement||!Movement->IsActive()) return false;
     const float Phase=FMath::Fmod(Elapsed,6.f);const float Throttle=Phase<4.5f?0.72f:0.f;const float Steering=Phase<2.f?0.35f:(Phase<4.f?-0.35f:0.f);const float Brake=Phase>=4.5f?0.65f:0.f;
-    Movement->SetThrottleInput(Throttle);Movement->SetSteeringInput(Steering);Movement->SetBrakeInput(Brake);
+    bool bApplied=false;
+    if(AGTTFieldmasterNativePawn* Fieldmaster=Cast<AGTTFieldmasterNativePawn>(Pawn))bApplied=Fieldmaster->ApplyAcceptanceDriveCommand(Throttle,Steering,Brake);
+    else if(AGTTRoadVehicleNativePawn* RoadVehicle=Cast<AGTTRoadVehicleNativePawn>(Pawn))bApplied=RoadVehicle->ApplyAcceptanceDriveCommand(Throttle,Steering,Brake);
+    if(!bApplied)return false;
     if(HasLiveNativeMotion(Pawn)){GTT_LOG(Display,TEXT("DEMO_SCENARIO_CONTROL vehicle=%s throttle=%.2f steering=%.2f brake=%.2f speed_cm_s=%.1f"),VehicleId,Throttle,Steering,Brake,Pawn->GetVelocity().Size2D());return true;}return false;
 }
 }
@@ -85,11 +88,11 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
     {
         const FVector Approach=Roadblock->GetSpikeApproachDirection();const FVector Spike=Roadblock->GetSpikeStripWorldLocation();const FVector Stage=Spike-Approach*900.f+FVector(0,0,95.f);
         Vehicle->SetActorLocation(Stage,false,nullptr,ETeleportType::TeleportPhysics);Vehicle->SetActorRotation(Approach.Rotation(),ETeleportType::TeleportPhysics);
-        Movement->SetBrakeInput(0.f);Movement->SetSteeringInput(0.f);Movement->SetThrottleInput(0.85f);
+        Vehicle->ApplyAcceptanceDriveCommand(0.85f,0.f,0.f);
         RoadblockBaselineTires=Vehicle->GetMigrationSnapshot().TireIntegrity;RoadblockBaselineWheelRisk=Vehicle->GetRuntimeWheelRisk();RoadblockBaselineThrottleLimit=Vehicle->GetRuntimeThrottleLimit();RoadblockBaselineSteeringLimit=Vehicle->GetRuntimeSteeringLimit();RoadblockCrossingStartSeconds=Elapsed;bRoadblockCrossingStaged=true;
         GTT_LOG(Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s phase=STAGED tire_before=%.3f wheel_risk_before=%.3f throttle_limit_before=%.3f steering_limit_before=%.3f distance_cm=900"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,RoadblockBaselineWheelRisk,RoadblockBaselineThrottleLimit,RoadblockBaselineSteeringLimit);return;
     }
-    Movement->SetBrakeInput(0.f);Movement->SetSteeringInput(0.f);Movement->SetThrottleInput(0.85f);
+    Vehicle->ApplyAcceptanceDriveCommand(0.85f,0.f,0.f);
     if(Roadblock->HasProvenSpikeConsequence()&&Roadblock->GetLastSpikedVehicleId()==Vehicle->GetPersistentVehicleId())
     {
         if(!Passed.Contains(TEXT("ROADBLOCK_PHYSICAL_CROSSING"))){Pass(TEXT("ROADBLOCK_PHYSICAL_CROSSING"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s result=PASS roadblock_hits=%d"),*Vehicle->GetPersistentVehicleId().ToString(),Roadblock->GetSpikeHitCount());}
@@ -101,10 +104,10 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
         }
         if(bPostSpikeEscapeStarted)
         {
-            const float Phase=Elapsed-PostSpikeEscapeStartSeconds;Movement->SetBrakeInput(0.f);Movement->SetThrottleInput(1.f);Movement->SetSteeringInput(FMath::Sin(Phase*2.2f)*0.65f);
+            const float Phase=Elapsed-PostSpikeEscapeStartSeconds;Vehicle->ApplyAcceptanceDriveCommand(1.f,FMath::Sin(Phase*2.2f)*0.65f,0.f);
             if(Phase>=3.f&&HasLiveNativeMotion(Vehicle))
             {
-                Pass(TEXT("POST_SPIKE_ESCAPE"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_POST_SPIKE_ESCAPE vehicle=%s result=PASS duration=%.2f start_speed_cm_s=%.1f current_speed_cm_s=%.1f wheel_risk=%.3f throttle_limit=%.3f steering_limit=%.3f"),*Vehicle->GetPersistentVehicleId().ToString(),Phase,PostSpikeStartSpeedCmS,Vehicle->GetVelocity().Size2D(),Vehicle->GetRuntimeWheelRisk(),Vehicle->GetRuntimeThrottleLimit(),Vehicle->GetRuntimeSteeringLimit());Movement->SetThrottleInput(0.f);Movement->SetSteeringInput(0.f);Movement->SetBrakeInput(1.f);
+                Pass(TEXT("POST_SPIKE_ESCAPE"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_POST_SPIKE_ESCAPE vehicle=%s result=PASS duration=%.2f start_speed_cm_s=%.1f current_speed_cm_s=%.1f wheel_risk=%.3f throttle_limit=%.3f steering_limit=%.3f"),*Vehicle->GetPersistentVehicleId().ToString(),Phase,PostSpikeStartSpeedCmS,Vehicle->GetVelocity().Size2D(),Vehicle->GetRuntimeWheelRisk(),Vehicle->GetRuntimeThrottleLimit(),Vehicle->GetRuntimeSteeringLimit());Vehicle->ApplyAcceptanceDriveCommand(0.f,0.f,1.f);
             }
         }
     }
