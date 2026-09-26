@@ -504,11 +504,14 @@ void AGTTRoadVehicleNativePawn::UpdateNativeWheelRuntime(float DeltaSeconds)
         return;
     }
 
-    const float ContactRisk = FMath::Clamp((4.0f - static_cast<float>(RuntimeWheelContacts)) / 3.0f, 0.0f, 1.0f);
-    const float SlipRisk = FMath::Clamp(static_cast<float>(SlippingWheels) / 3.0f, 0.0f, 1.0f);
-    const float SkidRisk = FMath::Clamp(static_cast<float>(SkiddingWheels) / 2.0f, 0.0f, 1.0f);
-    const float MagnitudeRisk = FMath::Clamp(MaxSlipMagnitude / 650.0f, 0.0f, 1.0f);
-    const float AngleRisk = FMath::Clamp(MaxSlipAngle / 32.0f, 0.0f, 1.0f);
+    // Transient airborne/slip samples are warnings, not total loss of control by themselves.
+    // Keep headroom so persistent tire and body damage can still produce a measurable
+    // additional handling consequence in low-render and uneven-terrain runtime tests.
+    const float ContactRisk = FMath::Clamp((4.0f - static_cast<float>(RuntimeWheelContacts)) / 3.0f, 0.0f, 1.0f) * 0.60f;
+    const float SlipRisk = FMath::Clamp(static_cast<float>(SlippingWheels) / 3.0f, 0.0f, 1.0f) * 0.35f;
+    const float SkidRisk = FMath::Clamp(static_cast<float>(SkiddingWheels) / 2.0f, 0.0f, 1.0f) * 0.45f;
+    const float MagnitudeRisk = FMath::Clamp(MaxSlipMagnitude / 650.0f, 0.0f, 1.0f) * 0.60f;
+    const float AngleRisk = FMath::Clamp(MaxSlipAngle / 32.0f, 0.0f, 1.0f) * 0.50f;
     const float SuspensionRisk = FMath::Clamp((MaxSuspensionLength - MinSuspensionLength) / 0.55f, 0.0f, 1.0f) * 0.72f;
     const float RawRisk = FMath::Max3(ContactRisk, SkidRisk,
         FMath::Max(SlipRisk, FMath::Max(MagnitudeRisk, FMath::Max(AngleRisk, SuspensionRisk))));
