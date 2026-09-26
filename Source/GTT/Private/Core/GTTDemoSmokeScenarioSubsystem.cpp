@@ -95,7 +95,9 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
     UChaosWheeledVehicleMovementComponent* Movement=Cast<UChaosWheeledVehicleMovementComponent>(Vehicle->GetVehicleMovementComponent());if(!Movement||!Movement->IsActive())return;
     if(!bRoadblockCrossingStaged)
     {
-        const FVector Approach=Roadblock->GetSpikeApproachDirection();const FVector Spike=Roadblock->GetSpikeStripWorldLocation();const FVector Stage=Spike-Approach*900.f+FVector(0,0,95.f);
+        const FVector Approach=Roadblock->GetSpikeApproachDirection();const FVector Spike=Roadblock->GetSpikeStripWorldLocation();FVector Stage=Spike-Approach*900.f;
+        FHitResult GroundHit;FCollisionObjectQueryParams GroundObjects;GroundObjects.AddObjectTypesToQuery(ECC_WorldStatic);FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(GTTRoadblockAcceptanceGround),false,Vehicle);GroundQuery.AddIgnoredActor(Roadblock);
+        if(World->LineTraceSingleByObjectType(GroundHit,Stage+FVector(0,0,500.f),Stage-FVector(0,0,1200.f),GroundObjects,GroundQuery))Stage.Z=GroundHit.ImpactPoint.Z+2.f;else Stage.Z=Spike.Z;
         FGTTRoadVehicleMigrationSnapshot CleanState=Vehicle->GetMigrationSnapshot();CleanState.ConditionPercent=1.f;CleanState.TireIntegrity=1.f;Vehicle->RestorePersistentMigrationSnapshot(CleanState);Vehicle->RestorePersistentBodyDamage(FGTTRoadBodyDamageSnapshot(),0);
         Vehicle->SetActorLocation(Stage,false,nullptr,ETeleportType::TeleportPhysics);Vehicle->SetActorRotation(Approach.Rotation(),ETeleportType::TeleportPhysics);
         if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh()){Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);Mesh->WakeAllRigidBodies();}

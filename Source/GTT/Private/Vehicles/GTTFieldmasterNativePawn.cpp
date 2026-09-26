@@ -7,6 +7,7 @@
 #include "Core/GTTGameplayStatics.h"
 #include "EngineUtils.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -26,6 +27,27 @@ namespace
     constexpr float TakeoverRetryIntervalSeconds = 1.0f;
     constexpr float NativeIdleFuelBurnPerSecond = 0.025f;
     constexpr float NativeFullThrottleFuelBurnPerSecond = 0.11f;
+
+    FTransform ResolveGroundedFieldmasterTransform(UWorld* World, const AActor* NativeVehicle, const AActor* LegacyVehicle, const FTransform& SourceTransform)
+    {
+        if (!World) return SourceTransform;
+        const FVector SourceLocation = SourceTransform.GetLocation();
+        FHitResult Hit;
+        FCollisionObjectQueryParams ObjectQuery;
+        ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
+        FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GTTNativeFieldmasterTakeoverGround), false, NativeVehicle);
+        QueryParams.AddIgnoredActor(LegacyVehicle);
+        if (!World->LineTraceSingleByObjectType(Hit, SourceLocation + FVector(0.0f, 0.0f, 500.0f),
+            SourceLocation - FVector(0.0f, 0.0f, 1200.0f), ObjectQuery, QueryParams))
+        {
+            return SourceTransform;
+        }
+        FTransform Grounded = SourceTransform;
+        FVector GroundedLocation = SourceLocation;
+        GroundedLocation.Z = Hit.ImpactPoint.Z + 2.0f;
+        Grounded.SetLocation(GroundedLocation);
+        return Grounded;
+    }
 }
 
 AGTTFieldmasterNativePawn::AGTTFieldmasterNativePawn(const FObjectInitializer& ObjectInitializer)
@@ -378,7 +400,7 @@ bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
         }
 
         LegacyMirror = LegacyVehicle;
-        SetActorTransform(LegacyVehicle->GetActorTransform(), false, nullptr, ETeleportType::TeleportPhysics);
+        SetActorTransform(ResolveGroundedFieldmasterTransform(GetWorld(), this, LegacyVehicle, LegacyVehicle->GetActorTransform()), false, nullptr, ETeleportType::TeleportPhysics);
         LegacyVehicle->SetActorHiddenInGame(true);
         LegacyVehicle->SetActorEnableCollision(false);
         LegacyVehicle->SetActorTickEnabled(false);

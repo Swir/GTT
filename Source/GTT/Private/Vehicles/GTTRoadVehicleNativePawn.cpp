@@ -34,6 +34,27 @@ namespace
     constexpr float SevereImpactSpeedKmh = 38.0f;
     constexpr float PanelDetachMinimumSpeedKmh = 27.0f;
 
+    FTransform ResolveGroundedNativeTransform(UWorld* World, const AActor* NativeVehicle, const AActor* LegacyVehicle, const FTransform& SourceTransform)
+    {
+        if (!World) return SourceTransform;
+        const FVector SourceLocation = SourceTransform.GetLocation();
+        FHitResult Hit;
+        FCollisionObjectQueryParams ObjectQuery;
+        ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
+        FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GTTNativeRoadTakeoverGround), false, NativeVehicle);
+        QueryParams.AddIgnoredActor(LegacyVehicle);
+        if (!World->LineTraceSingleByObjectType(Hit, SourceLocation + FVector(0.0f, 0.0f, 500.0f),
+            SourceLocation - FVector(0.0f, 0.0f, 1200.0f), ObjectQuery, QueryParams))
+        {
+            return SourceTransform;
+        }
+        FTransform Grounded = SourceTransform;
+        FVector GroundedLocation = SourceLocation;
+        GroundedLocation.Z = Hit.ImpactPoint.Z + 2.0f;
+        Grounded.SetLocation(GroundedLocation);
+        return Grounded;
+    }
+
     void ConfigureDamageDebrisComponent(UStaticMeshComponent* Component, UStaticMesh* Mesh)
     {
         if (!Component) return;
@@ -379,7 +400,7 @@ bool AGTTRoadVehicleNativePawn::TryActivateLegacyTakeover()
         FString ImportSummary;
         if (!ImportLegacyGameplayState(LegacyVehicle, ImportSummary)) return false;
         LegacyMirror = LegacyVehicle;
-        SetActorTransform(LegacyVehicle->GetActorTransform(), false, nullptr, ETeleportType::TeleportPhysics);
+        SetActorTransform(ResolveGroundedNativeTransform(GetWorld(), this, LegacyVehicle, LegacyVehicle->GetActorTransform()), false, nullptr, ETeleportType::TeleportPhysics);
         LegacyVehicle->SetActorHiddenInGame(true);
         LegacyVehicle->SetActorEnableCollision(false);
         LegacyVehicle->SetActorTickEnabled(false);
