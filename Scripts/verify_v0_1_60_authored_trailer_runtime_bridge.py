@@ -95,6 +95,8 @@ def main() -> int:
         "FindBoneIndex",
         "FindSocket",
         "GetPhysicsAsset()",
+        "Mesh->GetSkeleton()",
+        'TEXT("Skeleton missing")',
         "UPoseableMeshComponent",
         "SetBoneTransformByName",
         "LeftWheel",

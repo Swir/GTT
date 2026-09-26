@@ -68,6 +68,8 @@ def main() -> int:
         "verified_sockets",
         "physics_asset_object_path",
         "hashlib.sha256",
+        "EditorAssetLibrary.save_loaded_asset(skeleton, False)",
+        'fail("SKELETON_SAVE_FAILED")',
     )
     for token in required_importer:
         require(token in importer, f"UE import contract missing: {token}")

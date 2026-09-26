@@ -246,6 +246,12 @@ def main() -> None:
 
     if not unreal.EditorAssetLibrary.save_loaded_asset(mesh, False):
         fail("SKELETAL_MESH_SAVE_FAILED")
+    # Interchange creates the USkeleton in its own package. Saving only the
+    # mesh leaves that package transient, so a cooked build can deserialize
+    # the skeletal mesh with a null Skeleton and crash when a poseable mesh is
+    # registered at runtime.
+    if not unreal.EditorAssetLibrary.save_loaded_asset(skeleton, False):
+        fail("SKELETON_SAVE_FAILED")
     if not unreal.EditorAssetLibrary.save_loaded_asset(physics_asset, False):
         fail("PHYSICS_ASSET_SAVE_FAILED")
 

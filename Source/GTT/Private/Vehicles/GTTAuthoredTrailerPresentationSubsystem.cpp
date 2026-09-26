@@ -240,6 +240,12 @@ bool UGTTAuthoredTrailerPresentationSubsystem::ValidateAuthoredAsset(USkeletalMe
         return false;
     }
 
+    if (!Mesh->GetSkeleton())
+    {
+        OutReason = TEXT("Skeleton missing");
+        return false;
+    }
+
     const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
     for (const FName BoneName : {BodyBoneName, LeftWheelBoneName, RightWheelBoneName})
     {
