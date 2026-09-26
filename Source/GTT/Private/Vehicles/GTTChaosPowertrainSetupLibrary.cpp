@@ -44,6 +44,15 @@ bool UGTTChaosPowertrainSetupLibrary::ConfigureCanonicalPowertrain(UChaosWheeled
     Movement->EngineSetup.EngineBrakeEffect = 0.12f;
     Movement->EngineSetup.EngineRevUpMOI = 5.0f;
     Movement->EngineSetup.EngineRevDownRate = 600.0f;
+    // Chaos disables the entire mechanical simulation when the authored curve is empty.
+    // Runtime-created native vehicles therefore need a real RPM-domain torque curve,
+    // even though MaxTorque and MaxRPM are configured separately.
+    FRichCurve* TorqueCurve = Movement->EngineSetup.TorqueCurve.GetRichCurve();
+    TorqueCurve->Reset();
+    TorqueCurve->AddKey(0.0f, 0.55f);
+    TorqueCurve->AddKey(Spec.EngineIdleRpm, 0.72f);
+    TorqueCurve->AddKey(Spec.EngineMaxRpm * 0.45f, 1.0f);
+    TorqueCurve->AddKey(Spec.EngineMaxRpm, 0.72f);
 
     Movement->TransmissionSetup.bUseAutomaticGears = true;
     Movement->TransmissionSetup.bUseAutoReverse = false;
@@ -80,6 +89,7 @@ bool UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(const UChaosWh
 
     TArray<FString> Problems;
     if (!Movement->bMechanicalSimEnabled) Problems.Add(TEXT("mechanical-sim"));
+    if (Movement->EngineSetup.TorqueCurve.GetRichCurveConst()->IsEmpty()) Problems.Add(TEXT("torque-curve"));
     if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxTorque, Spec.EngineMaxTorqueNm)) Problems.Add(TEXT("engine-torque"));
     if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxRPM, Spec.EngineMaxRpm)) Problems.Add(TEXT("engine-max-rpm"));
     if (!PowertrainNearlyEqual(Movement->EngineSetup.EngineIdleRPM, Spec.EngineIdleRpm)) Problems.Add(TEXT("engine-idle-rpm"));
