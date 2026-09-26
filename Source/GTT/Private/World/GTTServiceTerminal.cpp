@@ -242,7 +242,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
             Economy->PushMessage(FString::Printf(
                 TEXT("Workshop appointment %s: %s | locked $%d | %s. Queue lifecycle owns this exact vehicle; direct walk-up repair/refuel is blocked so the locked quote, timer and no-precharge contract cannot be bypassed."),
                 *QueueState, *NativeRoad->GetVehicleDisplayName().ToString(), QueueSnapshot.LockedQuote, *Timing), 8.0f);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("WORKSHOP_QUEUE_TERMINAL_GUARD vehicle=%s state=%s locked_quote=%d queue_authority=YES direct_service=BLOCKED hard_hold=NO"),
                 *QueueSnapshot.PersistentVehicleId.ToString(), *QueueState, QueueSnapshot.LockedQuote);
             return;

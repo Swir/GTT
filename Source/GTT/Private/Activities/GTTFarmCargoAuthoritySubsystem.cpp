@@ -126,7 +126,7 @@ bool UGTTFarmCargoAuthoritySubsystem::BindLoadedVehicle(APawn* PlayerPawn, FStri
     if (!LoadedVehicle)
     {
         OutSummary = TEXT("CARGO AUTHORITY ERROR: the loaded contract has no resolvable physical vehicle.");
-        UE_LOG(LogGTT, Error, TEXT("FARM_CARGO_AUTHORITY event=BIND result=FAIL reason=no_vehicle"));
+        GTT_LOG( Error, TEXT("FARM_CARGO_AUTHORITY event=BIND result=FAIL reason=no_vehicle"));
         return false;
     }
 
@@ -136,7 +136,7 @@ bool UGTTFarmCargoAuthoritySubsystem::BindLoadedVehicle(APawn* PlayerPawn, FStri
 
     OutSummary = FString::Printf(TEXT("CARGO VEHICLE LOCKED: %s must complete every handoff for this load."),
         *BoundCargoVehicleId.ToString());
-    UE_LOG(LogGTT, Display, TEXT("FARM_CARGO_AUTHORITY event=BIND result=PASS vehicle=%s actor=%s"),
+    GTT_LOG( Display, TEXT("FARM_CARGO_AUTHORITY event=BIND result=PASS vehicle=%s actor=%s"),
         *BoundCargoVehicleId.ToString(), *LoadedVehicle->GetName());
     return true;
 }
@@ -150,7 +150,7 @@ bool UGTTFarmCargoAuthoritySubsystem::TryRebindBoundVehicle()
     APawn* Resolved = ResolveVehicleByPersistentId(BoundCargoVehicleId);
     if (!Resolved)
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("FARM_CARGO_RECOVERY event=REBIND result=WAIT vehicle=%s reason=actor_not_present"),
             *BoundCargoVehicleId.ToString());
         return false;
@@ -163,7 +163,7 @@ bool UGTTFarmCargoAuthoritySubsystem::TryRebindBoundVehicle()
         Director->AdoptRestoredCargoVehicle(Resolved);
     }
 
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("FARM_CARGO_RECOVERY event=REBIND result=PASS vehicle=%s actor=%s"),
         *BoundCargoVehicleId.ToString(), *Resolved->GetName());
     return true;
@@ -211,7 +211,7 @@ bool UGTTFarmCargoAuthoritySubsystem::ValidateHandoff(
     OutReason = FString::Printf(
         TEXT("CARGO HANDOFF VERIFIED: %s | distance %.1f m | speed %.1f km/h."),
         *BoundCargoVehicleId.ToString(), DistanceCm / 100.0f, SpeedKmh);
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("FARM_CARGO_AUTHORITY event=HANDOFF_CHECK result=PASS vehicle=%s distance_cm=%.1f speed_kmh=%.2f"),
         *BoundCargoVehicleId.ToString(), DistanceCm, SpeedKmh);
     return true;
@@ -247,7 +247,7 @@ void UGTTFarmCargoAuthoritySubsystem::ClearLoadedVehicle(const TCHAR* Reason)
 {
     if (BoundCargoVehicle.IsValid() || !BoundCargoVehicleId.IsNone())
     {
-        UE_LOG(LogGTT, Display, TEXT("FARM_CARGO_AUTHORITY event=CLEAR vehicle=%s reason=%s loaded_observed=%d"),
+        GTT_LOG( Display, TEXT("FARM_CARGO_AUTHORITY event=CLEAR vehicle=%s reason=%s loaded_observed=%d"),
             *BoundCargoVehicleId.ToString(), Reason ? Reason : TEXT("unknown"), bObservedLoadedContract ? 1 : 0);
     }
     BoundCargoVehicle.Reset();

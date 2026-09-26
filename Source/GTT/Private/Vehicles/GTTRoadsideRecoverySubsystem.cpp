@@ -190,7 +190,7 @@ bool UGTTRoadsideRecoverySubsystem::CancelPendingRoadsideService(AGTTRoadVehicle
                 : TEXT("Tow dispatch cancelled. No charge was taken; press T again if you still need it."),
             6.0f);
     }
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("NATIVE_ROADSIDE_DISPATCH_CANCELLED vehicle=%s mode=%s locked_quote=%d charged=NO"),
         *ExpectedVehicleId.ToString(),
         CancelledMode == EGTTRoadsideRecoveryMode::EmergencyPatch ? TEXT("PATCH") : TEXT("TOW"),
@@ -212,7 +212,7 @@ bool UGTTRoadsideRecoverySubsystem::RequestRoadsideTow(AGTTRoadVehicleNativePawn
         Economy->PushMessage(WantedLevel == 1
             ? TEXT("Roadside tow blocked while police are searching.")
             : TEXT("Police control recovery during an active pursuit."), 5.0f);
-        UE_LOG(LogGTT, Log, TEXT("NATIVE_ROADSIDE_TOW_REQUEST_DENIED vehicle=%s reason=WANTED wanted=%d"),
+        GTT_LOG( Log, TEXT("NATIVE_ROADSIDE_TOW_REQUEST_DENIED vehicle=%s reason=WANTED wanted=%d"),
             *Vehicle->GetPersistentVehicleId().ToString(), WantedLevel);
         return false;
     }
@@ -224,7 +224,7 @@ bool UGTTRoadsideRecoverySubsystem::RequestRoadsideTow(AGTTRoadVehicleNativePawn
         Economy->PushMessage(Runtime.bPatchRequested
             ? TEXT("Emergency patch service is already inbound. Cancel it with Y before requesting a tow.")
             : TEXT("Tow service is already inbound. Press T again to cancel it."), 5.0f);
-        UE_LOG(LogGTT, Log, TEXT("NATIVE_ROADSIDE_DISPATCH_CONFLICT vehicle=%s requested=TOW active=%s"),
+        GTT_LOG( Log, TEXT("NATIVE_ROADSIDE_DISPATCH_CONFLICT vehicle=%s requested=TOW active=%s"),
             *Vehicle->GetPersistentVehicleId().ToString(), Runtime.bPatchRequested ? TEXT("PATCH") : TEXT("TOW"));
         return false;
     }
@@ -233,7 +233,7 @@ bool UGTTRoadsideRecoverySubsystem::RequestRoadsideTow(AGTTRoadVehicleNativePawn
     if (TowQuote <= 0 || Economy->GetCash() < TowQuote)
     {
         Economy->PushMessage(FString::Printf(TEXT("Tow quote is $%d. You do not have enough cash."), TowQuote), 6.0f);
-        UE_LOG(LogGTT, Warning, TEXT("NATIVE_ROADSIDE_RECOVERY_DENIED vehicle=%s cost=%d reason=INSUFFICIENT_CASH"),
+        GTT_LOG( Warning, TEXT("NATIVE_ROADSIDE_RECOVERY_DENIED vehicle=%s cost=%d reason=INSUFFICIENT_CASH"),
             *Vehicle->GetPersistentVehicleId().ToString(), TowQuote);
         return false;
     }
@@ -251,7 +251,7 @@ bool UGTTRoadsideRecoverySubsystem::RequestRoadsideTow(AGTTRoadVehicleNativePawn
     Economy->PushMessage(FString::Printf(
         TEXT("Tow dispatched: locked quote $%d, charged on arrival. Press T again to cancel. Damage is preserved; workshop estimate $%d remains separate."),
         TowQuote, RepairQuote), 8.0f);
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("NATIVE_ROADSIDE_TOW_REQUESTED vehicle=%s tow_quote=%d quote_locked=YES target_pinned=YES repair_quote=%d player_authorized=YES"),
         *Runtime.PendingPersistentVehicleId.ToString(), TowQuote, RepairQuote);
     return true;
@@ -272,7 +272,7 @@ bool UGTTRoadsideRecoverySubsystem::RequestEmergencyRoadsidePatch(AGTTRoadVehicl
         Economy->PushMessage(WantedLevel == 1
             ? TEXT("Roadside patch blocked while police are searching.")
             : TEXT("Police control recovery during an active pursuit."), 5.0f);
-        UE_LOG(LogGTT, Log, TEXT("NATIVE_ROADSIDE_PATCH_REQUEST_DENIED vehicle=%s reason=WANTED wanted=%d"),
+        GTT_LOG( Log, TEXT("NATIVE_ROADSIDE_PATCH_REQUEST_DENIED vehicle=%s reason=WANTED wanted=%d"),
             *Vehicle->GetPersistentVehicleId().ToString(), WantedLevel);
         return false;
     }
@@ -284,7 +284,7 @@ bool UGTTRoadsideRecoverySubsystem::RequestEmergencyRoadsidePatch(AGTTRoadVehicl
         Economy->PushMessage(Runtime.bTowRequested
             ? TEXT("Tow service is already inbound. Cancel it with T before requesting an emergency patch.")
             : TEXT("Emergency patch service is already inbound. Press Y again to cancel it."), 5.0f);
-        UE_LOG(LogGTT, Log, TEXT("NATIVE_ROADSIDE_DISPATCH_CONFLICT vehicle=%s requested=PATCH active=%s"),
+        GTT_LOG( Log, TEXT("NATIVE_ROADSIDE_DISPATCH_CONFLICT vehicle=%s requested=PATCH active=%s"),
             *Vehicle->GetPersistentVehicleId().ToString(), Runtime.bTowRequested ? TEXT("TOW") : TEXT("PATCH"));
         return false;
     }
@@ -293,7 +293,7 @@ bool UGTTRoadsideRecoverySubsystem::RequestEmergencyRoadsidePatch(AGTTRoadVehicl
     if (PatchQuote <= 0 || Economy->GetCash() < PatchQuote)
     {
         Economy->PushMessage(FString::Printf(TEXT("Emergency patch costs $%d. You do not have enough cash."), PatchQuote), 6.0f);
-        UE_LOG(LogGTT, Warning, TEXT("NATIVE_ROADSIDE_PATCH_DENIED vehicle=%s cost=%d reason=INSUFFICIENT_CASH"),
+        GTT_LOG( Warning, TEXT("NATIVE_ROADSIDE_PATCH_DENIED vehicle=%s cost=%d reason=INSUFFICIENT_CASH"),
             *Vehicle->GetPersistentVehicleId().ToString(), PatchQuote);
         return false;
     }
@@ -309,7 +309,7 @@ bool UGTTRoadsideRecoverySubsystem::RequestEmergencyRoadsidePatch(AGTTRoadVehicl
     Economy->PushMessage(FString::Printf(
         TEXT("Emergency patch dispatched: locked quote $%d, charged on arrival. Press Y again to cancel. Limp-home service only; body damage and workshop repairs remain."),
         PatchQuote), 8.0f);
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("NATIVE_ROADSIDE_PATCH_REQUESTED vehicle=%s patch_quote=%d quote_locked=YES target_pinned=YES player_authorized=YES"),
         *Runtime.PendingPersistentVehicleId.ToString(), PatchQuote);
     return true;
@@ -325,7 +325,7 @@ void UGTTRoadsideRecoverySubsystem::UpdateVehicle(AGTTRoadVehicleNativePawn* Veh
     {
         if (Runtime.bTowRequested || Runtime.bPatchRequested)
         {
-            UE_LOG(LogGTT, Log, TEXT("NATIVE_ROADSIDE_DISPATCH_DROPPED vehicle=%s reason=NO_LONGER_ELIGIBLE charged=NO"),
+            GTT_LOG( Log, TEXT("NATIVE_ROADSIDE_DISPATCH_DROPPED vehicle=%s reason=NO_LONGER_ELIGIBLE charged=NO"),
                 *Runtime.PendingPersistentVehicleId.ToString());
         }
         ResetPendingService(Runtime);
@@ -346,7 +346,7 @@ void UGTTRoadsideRecoverySubsystem::UpdateVehicle(AGTTRoadVehicleNativePawn* Veh
         {
             Runtime.bAnnounced = true;
             Economy->PushMessage(TEXT("Roadside assistance unavailable while police are searching. Any voluntary dispatch was cancelled without charge."), 6.0f);
-            UE_LOG(LogGTT, Log, TEXT("NATIVE_ROADSIDE_RECOVERY_BLOCKED vehicle=%s wanted=1 cancelled_dispatch=%s charged=NO"),
+            GTT_LOG( Log, TEXT("NATIVE_ROADSIDE_RECOVERY_BLOCKED vehicle=%s wanted=1 cancelled_dispatch=%s charged=NO"),
                 *Vehicle->GetPersistentVehicleId().ToString(), bHadDispatch ? TEXT("YES") : TEXT("NO"));
         }
         return;
@@ -376,7 +376,7 @@ void UGTTRoadsideRecoverySubsystem::UpdateVehicle(AGTTRoadVehicleNativePawn* Veh
         {
             Runtime.bAnnounced = true;
             Economy->PushMessage(TEXT("Vehicle disabled during an active pursuit. Police impound response inbound."), 5.0f);
-            UE_LOG(LogGTT, Warning, TEXT("NATIVE_POLICE_IMPOUND_ARMED vehicle=%s wanted=%d"),
+            GTT_LOG( Warning, TEXT("NATIVE_POLICE_IMPOUND_ARMED vehicle=%s wanted=%d"),
                 *Vehicle->GetPersistentVehicleId().ToString(), WantedLevel);
         }
         if (Runtime.StrandedSeconds >= PoliceImpoundArmSeconds
@@ -398,7 +398,7 @@ void UGTTRoadsideRecoverySubsystem::UpdateVehicle(AGTTRoadVehicleNativePawn* Veh
         if (!IsPinnedVehicleValid(Vehicle, Runtime))
         {
             Economy->PushMessage(TEXT("Emergency patch dispatch cancelled: the target vehicle identity changed. No charge was taken."), 7.0f);
-            UE_LOG(LogGTT, Warning,
+            GTT_LOG( Warning,
                 TEXT("NATIVE_ROADSIDE_DISPATCH_TARGET_MISMATCH expected=%s actual=%s mode=PATCH charged=NO"),
                 *Runtime.PendingPersistentVehicleId.ToString(), *Vehicle->GetPersistentVehicleId().ToString());
             ResetPendingService(Runtime);
@@ -422,7 +422,7 @@ void UGTTRoadsideRecoverySubsystem::UpdateVehicle(AGTTRoadVehicleNativePawn* Veh
         if (!IsPinnedVehicleValid(Vehicle, Runtime))
         {
             Economy->PushMessage(TEXT("Tow dispatch cancelled: the target vehicle identity changed. No charge was taken."), 7.0f);
-            UE_LOG(LogGTT, Warning,
+            GTT_LOG( Warning,
                 TEXT("NATIVE_ROADSIDE_DISPATCH_TARGET_MISMATCH expected=%s actual=%s mode=TOW charged=NO"),
                 *Runtime.PendingPersistentVehicleId.ToString(), *Vehicle->GetPersistentVehicleId().ToString());
             ResetPendingService(Runtime);
@@ -460,7 +460,7 @@ void UGTTRoadsideRecoverySubsystem::UpdateVehicle(AGTTRoadVehicleNativePawn* Veh
                 TEXT("Vehicle needs recovery. T / D-Pad Up tow $%d; quote locks on dispatch and T again cancels before arrival. Workshop repair ~$%d. Structural/body damage is too severe for a roadside patch."),
                 Assessment.TowEstimate, Assessment.RepairEstimate), 11.0f);
         }
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_ROADSIDE_RECOVERY_ARMED vehicle=%s tow_quote=%d patch_quote=%d patch_possible=%s repair_quote=%d severity=%.3f player_choice=REQUIRED"),
             *Vehicle->GetPersistentVehicleId().ToString(), Assessment.TowEstimate, Assessment.EmergencyPatchEstimate,
             Assessment.bEmergencyPatchPossible ? TEXT("YES") : TEXT("NO"), Assessment.RepairEstimate, Assessment.Severity);
@@ -546,7 +546,7 @@ bool UGTTRoadsideRecoverySubsystem::CompleteEmergencyPatch(
         Economy->PushMessage(FString::Printf(
             TEXT("Emergency patch complete at locked quote $%d. Limp-home only — body damage remains and a full workshop repair is still recommended."),
             PatchQuote), 8.0f);
-        UE_LOG(LogGTT, Display,
+        GTT_LOG( Display,
             TEXT("NATIVE_ROADSIDE_PATCH_COMPLETE vehicle=%s cost=%d quote_locked=YES result=PASS identity_preserved=YES body_preserved=YES workshop_repair_still_required=YES"),
             *ExpectedVehicleId.ToString(), PatchQuote);
     }
@@ -555,7 +555,7 @@ bool UGTTRoadsideRecoverySubsystem::CompleteEmergencyPatch(
         Vehicle->RestorePersistentMigrationSnapshot(Before);
         Economy->AddCash(PatchQuote, TEXT("Emergency patch verification failed — charge refunded."));
         Economy->PushMessage(TEXT("Emergency patch verification failed. Vehicle state was rolled back; use workshop/tow recovery before continuing."), 8.0f);
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_PATCH_COMPLETE vehicle=%s cost=%d quote_locked=YES result=FAIL identity_preserved=%s body_preserved=%s floors_applied=%s rollback=YES refund=YES"),
             *ExpectedVehicleId.ToString(), PatchQuote, bIdentityPreserved ? TEXT("YES") : TEXT("NO"),
             bBodyPreserved ? TEXT("YES") : TEXT("NO"), bLimpFloorsApplied ? TEXT("YES") : TEXT("NO"));
@@ -581,7 +581,7 @@ bool UGTTRoadsideRecoverySubsystem::CompleteRecovery(
         if (ExpectedVehicleId.IsNone() || Vehicle->GetPersistentVehicleId() != ExpectedVehicleId || LockedTowQuote <= 0)
         {
             Economy->PushMessage(TEXT("Tow dispatch contract no longer matches this vehicle. Service cancelled without charge."), 7.0f);
-            UE_LOG(LogGTT, Warning,
+            GTT_LOG( Warning,
                 TEXT("NATIVE_ROADSIDE_TOW_CONTRACT_REJECTED expected=%s actual=%s locked_quote=%d charged=NO"),
                 *ExpectedVehicleId.ToString(), *Vehicle->GetPersistentVehicleId().ToString(), LockedTowQuote);
             return false;
@@ -596,7 +596,7 @@ bool UGTTRoadsideRecoverySubsystem::CompleteRecovery(
     {
         Economy->PushMessage(FString::Printf(
             TEXT("Locked tow quote is $%d, but cash is no longer sufficient. Dispatch ended without moving the vehicle."), Cost), 7.0f);
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_RECOVERY_DENIED vehicle=%s cost=%d quote_locked=YES reason=INSUFFICIENT_CASH"),
             *ExpectedVehicleId.ToString(), Cost);
         return false;
@@ -619,7 +619,7 @@ bool UGTTRoadsideRecoverySubsystem::CompleteRecovery(
     {
         const bool bServiced = Vehicle->ApplyNativeWorkshopService();
         Economy->PushMessage(FString::Printf(TEXT("Vehicle impounded and safety-serviced: $%d."), Cost), 6.0f);
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_POLICE_IMPOUND vehicle=%s wanted=%d cost=%d serviced=%s destination=WORKSHOP"),
             *Vehicle->GetPersistentVehicleId().ToString(), WantedLevel, Cost, bServiced ? TEXT("YES") : TEXT("NO"));
         return bServiced;
@@ -638,7 +638,7 @@ bool UGTTRoadsideRecoverySubsystem::CompleteRecovery(
     const int32 RepairEstimate = Decision ? Decision->CalculateRepairEstimate(Vehicle) : 0;
     Economy->PushMessage(FString::Printf(
         TEXT("Tow complete at locked quote $%d. Damage preserved; workshop estimate $%d."), Cost, RepairEstimate), 7.0f);
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_ROADSIDE_TOW_COMPLETE vehicle=%s tow_cost=%d quote_locked=YES target_pinned=YES repair_estimate=%d damage_preserved=%s identity_preserved=%s serviced=NO destination=WORKSHOP"),
         *Vehicle->GetPersistentVehicleId().ToString(), Cost, RepairEstimate,
         bDamagePreserved ? TEXT("YES") : TEXT("NO"), bIdentityPreserved ? TEXT("YES") : TEXT("NO"));

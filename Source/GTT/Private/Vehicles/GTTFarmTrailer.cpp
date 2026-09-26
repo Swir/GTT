@@ -285,14 +285,14 @@ void AGTTFarmTrailer::BeginRoadsideRepair(APawn* RepairPawn)
     RoadsideRepairTimeRemaining = LockedRoadsideRepairDuration;
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(RepairPawn))
         Economy->PushMessage(FString::Printf(TEXT("TRAILER FIELD REPAIR STARTED: $%d locked | %.0fs. Stay close and keep the trailer still."), LockedRoadsideRepairQuote, LockedRoadsideRepairDuration), 6.0f);
-    UE_LOG(LogGTT, Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=START quote=%d duration=%.1f repair_index=%d wheels_lost=%d cargo=%s integrity=%.3f"), LockedRoadsideRepairQuote, LockedRoadsideRepairDuration, RoadsideRepairCount + 1, GetLostWheelCount(), bCargoLoaded ? TEXT("YES") : TEXT("NO"), TrailerIntegrity);
+    GTT_LOG( Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=START quote=%d duration=%.1f repair_index=%d wheels_lost=%d cargo=%s integrity=%.3f"), LockedRoadsideRepairQuote, LockedRoadsideRepairDuration, RoadsideRepairCount + 1, GetLostWheelCount(), bCargoLoaded ? TEXT("YES") : TEXT("NO"), TrailerIntegrity);
 }
 
 void AGTTFarmTrailer::CancelRoadsideRepair(const FString& Reason)
 {
     APawn* RepairPawn = RoadsideRepairPlayer.Get();
     if (RepairPawn) if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(RepairPawn)) Economy->PushMessage(Reason, 4.5f);
-    UE_LOG(LogGTT, Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=CANCEL quote=%d remaining=%.2f reason=%s"), LockedRoadsideRepairQuote, RoadsideRepairTimeRemaining, *Reason);
+    GTT_LOG( Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=CANCEL quote=%d remaining=%.2f reason=%s"), LockedRoadsideRepairQuote, RoadsideRepairTimeRemaining, *Reason);
     bRoadsideRepairPending = false;
     RoadsideRepairPlayer.Reset();
     LockedRoadsideRepairQuote = 0;
@@ -321,7 +321,7 @@ void AGTTFarmTrailer::CompleteRoadsideRepair()
 
     ++RoadsideRepairCount;
     Economy->PushMessage(FString::Printf(TEXT("TRAILER FIELD REPAIR COMPLETE: $%d paid | wheels %d->%d | structure %.0f%%->%.0f%% | cargo remains %.0f%%."), CompletedQuote, LostWheelsBefore, GetLostWheelCount(), IntegrityBefore * 100.0f, TrailerIntegrity * 100.0f, CargoIntegrity * 100.0f), 7.0f);
-    UE_LOG(LogGTT, Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=COMPLETE quote=%d repair_count=%d wheels_before=%d wheels_after=%d integrity_before=%.3f integrity_after=%.3f cargo_before=%.3f cargo_after=%.3f"), CompletedQuote, RoadsideRepairCount, LostWheelsBefore, GetLostWheelCount(), IntegrityBefore, TrailerIntegrity, CargoIntegrityBefore, CargoIntegrity);
+    GTT_LOG( Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=COMPLETE quote=%d repair_count=%d wheels_before=%d wheels_after=%d integrity_before=%.3f integrity_after=%.3f cargo_before=%.3f cargo_after=%.3f"), CompletedQuote, RoadsideRepairCount, LostWheelsBefore, GetLostWheelCount(), IntegrityBefore, TrailerIntegrity, CargoIntegrityBefore, CargoIntegrity);
     bRoadsideRepairPending = false;
     RoadsideRepairPlayer.Reset();
     LockedRoadsideRepairQuote = 0;

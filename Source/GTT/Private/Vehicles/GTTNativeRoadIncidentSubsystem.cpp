@@ -72,7 +72,7 @@ void UGTTNativeRoadIncidentSubsystem::UpdateActiveIncidents(float NowSeconds)
         const float EscapeHeat = FMath::Clamp(6.0f + Incident.ImpactSpeedKmh * 0.12f, 7.0f, 18.0f);
         Wanted->AddHeat(EscapeHeat);
         Incident.bHitAndRunEscalated = true;
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROAD_HIT_AND_RUN vehicle=%s victim=%s escape_distance=%.0f heat_added=%.1f wanted_level=%d"),
             *NativeVehicle->GetPersistentVehicleId().ToString(), *Victim->GetName(),
             FMath::Sqrt(DistanceSq), EscapeHeat, Wanted->GetWantedLevel());
@@ -136,7 +136,7 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
 
         if (!ClosestTraffic)
         {
-            UE_LOG(LogGTT, Verbose, TEXT("NATIVE_ROAD_INCIDENT_NO_TRAFFIC vehicle=%s impact_speed_kmh=%.1f"),
+            GTT_LOG( Verbose, TEXT("NATIVE_ROAD_INCIDENT_NO_TRAFFIC vehicle=%s impact_speed_kmh=%.1f"),
                 *NativeVehicle->GetPersistentVehicleId().ToString(), ImpactSpeedKmh);
             continue;
         }
@@ -191,14 +191,14 @@ void UGTTNativeRoadIncidentSubsystem::ScanNativeRoadIncidents()
             ? (LocalVictim.X >= 0.0f ? TEXT("FRONT") : TEXT("REAR"))
             : (LocalVictim.Y >= 0.0f ? TEXT("RIGHT") : TEXT("LEFT"));
 
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROAD_TRAFFIC_INCIDENT vehicle=%s victim=%s zone=%s impact_speed_kmh=%.1f victim_damage=%.1f victim_tire_damage=%.3f nearby_reactors=%d cargo=%.2f"),
             *NativeVehicle->GetPersistentVehicleId().ToString(), *ClosestTraffic->GetName(), ImpactZone,
             ImpactSpeedKmh, VictimBodyDamage, VictimTireDamage, NearbyReactors, NativeVehicle->GetCargoLoadFactor());
 
         if (Wanted)
         {
-            UE_LOG(LogGTT, Warning,
+            GTT_LOG( Warning,
                 TEXT("NATIVE_ROAD_CRIME_ESCALATION vehicle=%s heat_added=%.1f wanted_level=%d total_heat=%.1f"),
                 *NativeVehicle->GetPersistentVehicleId().ToString(), CrimeHeat,
                 Wanted->GetWantedLevel(), Wanted->GetHeat());

@@ -238,7 +238,7 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
     State.EvidenceSeconds = 0.0f;
     while (ClearancesCm.Num() < 4) ClearancesCm.Add(-1.0f);
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_STABILITY_EVIDENCE vehicle=RustyFieldmaster60 speed_kmh=%.1f contacts=%d/4 contact_source=%s trace_contacts=%d/4 clearances_cm=[%.1f,%.1f,%.1f,%.1f] roll=%.1f pitch=%.1f risk=%.2f tow_load=%.2f sway_risk=%.2f load_transfer=%.2f traction_risk=%.2f chaos_slip_risk=%.2f slip_deg=%.1f front_traction=%.2f rear_traction=%.2f front_rear_bias=%.2f side_bias=%.2f sway_s=%.2f load_transfer_s=%.2f traction_loss_s=%.2f low_contact_s=%.2f traction_control=%s throttle_limit=%.2f intervention=%s brake=%.2f tire_level=%d tire_integrity=%.2f trailer=%s"),
         SpeedKmh, Contacts, bChaosWheelEvidenceValid ? TEXT("CHAOS") : TEXT("TRACE_FALLBACK"), TraceContacts,
         ClearancesCm[0], ClearancesCm[1], ClearancesCm[2], ClearancesCm[3], Rotation.Roll, Rotation.Pitch,
@@ -249,7 +249,7 @@ void UGTTNativeStabilitySubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePawn
 
     if (bChaosWheelEvidenceValid)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_CHAOS_WHEEL_STATE_EVIDENCE vehicle=RustyFieldmaster60 valid=%d/4 contacts=%d/4 suspension=[%.3f,%.3f,%.3f,%.3f] spring_force=[%.1f,%.1f,%.1f,%.1f] drive_torque=[%.1f,%.1f,%.1f,%.1f] brake_torque=[%.1f,%.1f,%.1f,%.1f] slipping=%d skidding=%d max_slip_magnitude=%.1f max_slip_angle=%.3f chaos_slip_risk=%.2f"),
             ChaosWheelEvidence.ValidWheels, ChaosWheelEvidence.Contacts,
             ChaosWheelEvidence.SuspensionLength[0], ChaosWheelEvidence.SuspensionLength[1], ChaosWheelEvidence.SuspensionLength[2], ChaosWheelEvidence.SuspensionLength[3],

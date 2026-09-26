@@ -341,7 +341,7 @@ bool UGTTWorkshopRepairQueueSubsystem::TryQueueNearestEligibleNativeRoadVehicle(
         TEXT("QUEUED %d/%d: %s STANDARD repair | locked quote $%d | appointment day %d %s | exact vehicle ID pinned | check-in starts timed service | no pre-charge."),
         QueueEntries.Num(), MaxQueuedRepairs, *VehicleId.ToString(), Quote, ReadyDay,
         *GTTWorkshopHoursPolicy::FormatHour(ReadyHour));
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("WORKSHOP_QUEUE_ACCEPTED vehicle=%s priority=STANDARD locked_quote=%d requested_day=%d requested_hour=%.2f ready_day=%d ready_hour=%.2f position=%d capacity=%d charged=NO exact_id=YES lifecycle=WAITING"),
         *VehicleId.ToString(), Quote, Day, Hour, ReadyDay, ReadyHour, QueueEntries.Num(), MaxQueuedRepairs);
     return true;
@@ -463,7 +463,7 @@ bool UGTTWorkshopRepairQueueSubsystem::PromoteQueuedRepairToUrgent(FName Vehicle
         TEXT("URGENT CONFIRMED: %s | STANDARD $%d -> locked URGENT $%d (+%d%%) | priority slot day %d %s | service timer x%.2f | no pre-charge."),
         *VehicleId.ToString(), StandardQuote, UrgentQuote, UrgentQuoteSurchargePercent,
         ReadyDay, *GTTWorkshopHoursPolicy::FormatHour(ReadyHour), UrgentServiceDurationMultiplier);
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("WORKSHOP_QUEUE_PRIORITY_UPGRADED vehicle=%s standard_quote=%d urgent_locked_quote=%d surcharge_percent=%d ready_day=%d ready_hour=%.2f service_multiplier=%.2f charged=NO exact_id=YES"),
         *VehicleId.ToString(), StandardQuote, UrgentQuote, UrgentQuoteSurchargePercent,
         ReadyDay, ReadyHour, UrgentServiceDurationMultiplier);
@@ -526,7 +526,7 @@ bool UGTTWorkshopRepairQueueSubsystem::ReleaseCompletedRepairForPickup(FName Veh
     OutSummary = FString::Printf(
         TEXT("PICKUP COMPLETE: %s returned to garage/fleet dispatch | paid $%d already | repair/refuel complete | %d/%d workshop slots remain occupied."),
         *VehicleId.ToString(), Entry.PaidAmount, QueueEntries.Num(), MaxQueuedRepairs);
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("WORKSHOP_QUEUE_PICKUP_RELEASED vehicle=%s paid_amount=%d exact_id=YES repair_complete=YES fleet_return=YES remaining=%d capacity=%d"),
         *VehicleId.ToString(), Entry.PaidAmount, QueueEntries.Num(), MaxQueuedRepairs);
     return true;
@@ -720,7 +720,7 @@ void UGTTWorkshopRepairQueueSubsystem::LoadCheckpointOnce()
         UrgentCount += Entry.bUrgent ? 1 : 0;
         PickupCount += Entry.bReadyForPickup ? 1 : 0;
     }
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("WORKSHOP_QUEUE_RESTORED count=%d capacity=%d checked_in=%d urgent=%d pickup=%d first_vehicle=%s first_locked_quote=%d exact_id=YES legacy_migrated=%s"),
         QueueEntries.Num(), MaxQueuedRepairs, CheckedInCount, UrgentCount, PickupCount,
         *QueueEntries[0].PersistentVehicleId.ToString(), QueueEntries[0].LockedQuote,
@@ -781,7 +781,7 @@ void UGTTWorkshopRepairQueueSubsystem::ClearCheckpoint(const TCHAR* Reason)
     if (UGameplayStatics::DoesSaveGameExist(WorkshopQueueSlot, SaveUserIndex))
         UGameplayStatics::DeleteGameInSlot(WorkshopQueueSlot, SaveUserIndex);
     QueueEntries.Reset();
-    UE_LOG(LogGTT, VeryVerbose, TEXT("WORKSHOP_QUEUE_CLEARED reason=%s charged=NO"), Reason ? Reason : TEXT("UNKNOWN"));
+    GTT_LOG( VeryVerbose, TEXT("WORKSHOP_QUEUE_CLEARED reason=%s charged=NO"), Reason ? Reason : TEXT("UNKNOWN"));
 }
 
 void UGTTWorkshopRepairQueueSubsystem::RemoveEntryAt(int32 Index, const TCHAR* Reason)
@@ -791,10 +791,10 @@ void UGTTWorkshopRepairQueueSubsystem::RemoveEntryAt(int32 Index, const TCHAR* R
     QueueEntries.RemoveAt(Index);
     if (!WriteCheckpoint())
     {
-        UE_LOG(LogGTT, Error, TEXT("WORKSHOP_QUEUE_PERSIST_FAILED after_remove=%s reason=%s"),
+        GTT_LOG( Error, TEXT("WORKSHOP_QUEUE_PERSIST_FAILED after_remove=%s reason=%s"),
             *VehicleId, Reason ? Reason : TEXT("UNKNOWN"));
     }
-    UE_LOG(LogGTT, VeryVerbose, TEXT("WORKSHOP_QUEUE_ENTRY_REMOVED vehicle=%s reason=%s remaining=%d charged=NO"),
+    GTT_LOG( VeryVerbose, TEXT("WORKSHOP_QUEUE_ENTRY_REMOVED vehicle=%s reason=%s remaining=%d charged=NO"),
         *VehicleId, Reason ? Reason : TEXT("UNKNOWN"), QueueEntries.Num());
 }
 
@@ -936,7 +936,7 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
                     *Entry.PersistentVehicleId.ToString(), Entry.bUrgent ? TEXT("URGENT") : TEXT("STANDARD")), 7.0f);
                 NoticeCooldown = 8.0f;
             }
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("WORKSHOP_QUEUE_SERVICE_PAUSED vehicle=%s priority=%s reason=LEFT_SERVICE_AREA locked_quote=%d charged=NO appointment_preserved=YES"),
                 *Entry.PersistentVehicleId.ToString(), Entry.bUrgent ? TEXT("URGENT") : TEXT("STANDARD"), Entry.LockedQuote);
             ++Index;
@@ -965,7 +965,7 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
                 MutableEntry.ServiceStartHour = 0.0f;
                 MutableEntry.ServiceCompleteDay = 0;
                 MutableEntry.ServiceCompleteHour = 0.0f;
-                UE_LOG(LogGTT, Error,
+                GTT_LOG( Error,
                     TEXT("WORKSHOP_QUEUE_CHECKIN_FAILED vehicle=%s priority=%s reason=PERSISTENCE charged=NO mutation=NO"),
                     *Entry.PersistentVehicleId.ToString(), Entry.bUrgent ? TEXT("URGENT") : TEXT("STANDARD"));
                 ++Index;
@@ -977,7 +977,7 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
                 *Entry.PersistentVehicleId.ToString(), Entry.bUrgent ? TEXT("URGENT") : TEXT("STANDARD"),
                 Entry.LockedQuote, DurationHours, MutableEntry.ServiceCompleteDay,
                 *GTTWorkshopHoursPolicy::FormatHour(MutableEntry.ServiceCompleteHour)), 8.0f);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("WORKSHOP_QUEUE_CHECKED_IN vehicle=%s priority=%s locked_quote=%d duration_hours=%.2f start_day=%d start_hour=%.2f complete_day=%d complete_hour=%.2f charged=NO mutation=NO exact_id=YES"),
                 *Entry.PersistentVehicleId.ToString(), Entry.bUrgent ? TEXT("URGENT") : TEXT("STANDARD"),
                 Entry.LockedQuote, DurationHours, MutableEntry.ServiceStartDay, MutableEntry.ServiceStartHour,
@@ -1034,7 +1034,7 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
             Economy->PushMessage(FString::Printf(
                 TEXT("Workshop checkout completed for %s, but pickup checkpoint persistence failed. Vehicle was released to fleet automatically rather than stranded; charged $%d once."),
                 *VehicleIdText, LockedQuote), 9.0f);
-            UE_LOG(LogGTT, Error,
+            GTT_LOG( Error,
                 TEXT("WORKSHOP_QUEUE_PICKUP_CHECKPOINT_FAILED vehicle=%s charged=%d repair_complete=YES auto_release=YES"),
                 *VehicleIdText, LockedQuote);
             continue;
@@ -1046,7 +1046,7 @@ void UGTTWorkshopRepairQueueSubsystem::TryExecuteReadyReservations()
         Economy->PushMessage(FString::Printf(
             TEXT("Workshop service complete: %s | %s | charged locked quote $%d exactly once | repair/refuel complete | READY FOR PICKUP at the job board."),
             *Entry.PersistentVehicleId.ToString(), Entry.bUrgent ? TEXT("URGENT") : TEXT("STANDARD"), LockedQuote), 9.0f);
-        UE_LOG(LogGTT, Display,
+        GTT_LOG( Display,
             TEXT("WORKSHOP_QUEUE_READY_FOR_PICKUP vehicle=%s priority=%s charged=%d locked_quote_match=YES exact_id=YES timed_service=YES saved=YES fleet_release=PENDING"),
             *Entry.PersistentVehicleId.ToString(), Entry.bUrgent ? TEXT("URGENT") : TEXT("STANDARD"), LockedQuote);
         ++Index;

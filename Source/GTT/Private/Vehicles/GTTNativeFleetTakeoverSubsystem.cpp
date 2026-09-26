@@ -20,5 +20,5 @@ void UGTTNativeFleetTakeoverSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         InWorld.SpawnActor<AGTTMuleboxNativePawn>(AGTTMuleboxNativePawn::StaticClass(), FTransform::Identity);
     }
 
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_FLEET_TAKEOVER_BOOT vehicles=Rattleback82,Mulebox1200 mode=acceptance-gated"));
+    GTT_LOG( Log, TEXT("NATIVE_FLEET_TAKEOVER_BOOT vehicles=Rattleback82,Mulebox1200 mode=acceptance-gated"));
 }

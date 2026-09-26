@@ -298,7 +298,7 @@ void AGTTTrafficDirector::ReconcileTrafficPopulation(bool bFillImmediately)
 
     if (bProfileChanged || Adjustments > 0)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("TRAFFIC_POPULATION profile=%s target=%d live=%d adjustments=%d clock=%s"),
             *TrafficProfileText,
             TargetTrafficCount,

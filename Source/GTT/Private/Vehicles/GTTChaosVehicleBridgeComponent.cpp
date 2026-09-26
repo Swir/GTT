@@ -97,7 +97,7 @@ void UGTTChaosVehicleBridgeComponent::ResolveSpec()
 
     if (!UGTTVehicleChaosSpecLibrary::GetSpecForVehicleId(VehicleOwner->GetPersistentVehicleId(), ResolvedSpec))
     {
-        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge has no canonical spec for %s"), *VehicleOwner->GetPersistentVehicleId().ToString());
+        GTT_LOG( Warning, TEXT("Chaos bridge has no canonical spec for %s"), *VehicleOwner->GetPersistentVehicleId().ToString());
     }
 }
 
@@ -108,7 +108,7 @@ void UGTTChaosVehicleBridgeComponent::ResolveRigContract()
 
     if (!UGTTChaosRigContractLibrary::GetRigForVehicleId(VehicleOwner->GetPersistentVehicleId(), ResolvedRigContract))
     {
-        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge has no rig contract for %s"), *VehicleOwner->GetPersistentVehicleId().ToString());
+        GTT_LOG( Warning, TEXT("Chaos bridge has no rig contract for %s"), *VehicleOwner->GetPersistentVehicleId().ToString());
     }
 }
 
@@ -221,11 +221,11 @@ void UGTTChaosVehicleBridgeComponent::RefreshNativeBinding()
     if (bNativeMovementReady)
     {
         DisableLegacyDynamicsIfNeeded();
-        UE_LOG(LogGTT, Log, TEXT("Chaos bridge native setup accepted for %s (%s; %s; %s)"), *ResolvedSpec.VehicleId.ToString(), *RigValidationSummary, *NativeSetupValidationSummary, *PowertrainValidationSummary);
+        GTT_LOG( Log, TEXT("Chaos bridge native setup accepted for %s (%s; %s; %s)"), *ResolvedSpec.VehicleId.ToString(), *RigValidationSummary, *NativeSetupValidationSummary, *PowertrainValidationSummary);
     }
     else if (NativeMovement || NativeSkeletalBody)
     {
-        UE_LOG(LogGTT, Warning, TEXT("Chaos bridge native setup rejected for %s: movement=%s rig=%s wheels=%s powertrain=%s"),
+        GTT_LOG( Warning, TEXT("Chaos bridge native setup rejected for %s: movement=%s rig=%s wheels=%s powertrain=%s"),
             ResolvedSpec.VehicleId.IsNone() ? TEXT("NO SPEC") : *ResolvedSpec.VehicleId.ToString(), NativeMovement ? TEXT("YES") : TEXT("NO"), *RigValidationSummary, *NativeSetupValidationSummary, *PowertrainValidationSummary);
     }
 }
@@ -307,7 +307,7 @@ void UGTTChaosVehicleBridgeComponent::UpdateFleetWheelRuntime(float DeltaTime)
     if (WheelEvidenceCountdown <= 0.0f)
     {
         WheelEvidenceCountdown = FleetWheelEvidenceInterval;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_FLEET_WHEEL_STATE_EVIDENCE vehicle=%s contacts=%d/4 slipping=%d skidding=%d slip_mag=%.2f slip_angle=%.2f suspension=[%.2f,%.2f,%.2f,%.2f] spring=[%.1f,%.1f,%.1f,%.1f] runtime_risk=%.2f throttle_limit=%.2f brake_assist=%.2f steering_limit=%.2f tire_integrity=%.2f tire_level=%d"),
             *VehicleOwner->GetPersistentVehicleId().ToString(), WheelRuntimeSnapshot.Contacts, WheelRuntimeSnapshot.SlippingWheels, WheelRuntimeSnapshot.SkiddingWheels,
             WheelRuntimeSnapshot.MaxSlipMagnitude, WheelRuntimeSnapshot.MaxSlipAngle,

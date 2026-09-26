@@ -38,7 +38,7 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::Initialize(FSubsystemCo
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopPriorityPickupRuntimeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_PRIORITY_PICKUP_RUNTIME_BEGIN version=1 route=standard-urgent-timed-checkout-pickup start_delay=%.1f deadline=%.1f surcharge_percent=20 service_multiplier=0.80 exact_vehicle=required no_precharge=required single_debit=required pickup=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
@@ -200,7 +200,7 @@ bool UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::VerifyPrimaryCargoConti
 void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("WORKSHOP_PRIORITY_PICKUP_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
@@ -243,7 +243,7 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::FinishScenario(const TC
         && bWrongIdRejected && bExactPickupReleased && bNoSecondCharge && bIdentityPreserved
         && bCargoContinuity && StandardQuote > 0 && UrgentQuote > StandardQuote && !VehicleId.IsNone();
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("WORKSHOP_PRIORITY_PICKUP_RUNTIME_COMPLETE result=%s priority_promoted=%d no_precharge=%d priority_persisted=%d urgent_timing_x080=%d single_debit=%d pickup_persisted=%d pickup_hold=%d wrong_id_rejected=%d exact_pickup=%d no_second_charge=%d identity_preserved=%d cargo_continuity=%d standard_quote=%d urgent_quote=%d standard_duration=%.3f urgent_duration=%.3f vehicle=%s decoy=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bPriorityPromoted ? 1 : 0, bNoPrecharge ? 1 : 0,
         bPriorityPersisted ? 1 : 0, bUrgentTiming ? 1 : 0, bSingleDebit ? 1 : 0,
@@ -343,7 +343,7 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bNoPrecharge = Economy->GetCash() == CashBeforeBooking;
         bPriorityPersisted = bPriorityPromoted && VerifyPriorityCheckpoint(false);
         const bool bPass = bQueued && bPriorityPromoted && bNoPrecharge && bPriorityPersisted;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_PRIORITY_PICKUP_RUNTIME phase=PRIORITY result=%s queued=%d promoted=%d exact_id=%d standard_quote=%d urgent_quote=%d surcharge_20=%d no_precharge=%d disk_priority=%d vehicle=%s"),
             bPass ? TEXT("PASS") : TEXT("FAIL"), bQueued ? 1 : 0, bPromoted ? 1 : 0,
             Urgent && Urgent->PersistentVehicleId == VehicleId ? 1 : 0, StandardQuote, UrgentQuote,
@@ -382,7 +382,7 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bUrgentTiming = Active->bUrgent && Active->Priority == TEXT("URGENT")
             && FMath::IsNearlyEqual(ObservedUrgentDuration, ExpectedUrgentDuration, 0.011f)
             && Economy->GetCash() == CashBeforeBooking;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_PRIORITY_PICKUP_RUNTIME phase=CHECKIN result=%s urgent=%d no_precharge=%d standard_duration=%.3f urgent_duration=%.3f expected_urgent=%.3f complete_day=%d complete_hour=%.2f"),
             bUrgentTiming ? TEXT("PASS") : TEXT("FAIL"), Active->bUrgent ? 1 : 0,
             Economy->GetCash() == CashBeforeBooking ? 1 : 0, ExpectedStandardDuration,
@@ -414,7 +414,7 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::Tick(float DeltaTime)
             && After.FuelLiters + 0.05f >= Vehicle->GetFuelCapacityLiters();
         const bool bPass = bSingleDebit && bPickupPersisted && bPickupHoldObserved
             && bIdentityPreserved && bRepairComplete;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_PRIORITY_PICKUP_RUNTIME phase=CHECKOUT result=%s single_debit=%d charged=%d locked_quote=%d pickup_persisted=%d pickup_hold=%d repair_complete=%d identity_preserved=%d"),
             bPass ? TEXT("PASS") : TEXT("FAIL"), bSingleDebit ? 1 : 0, Charged, UrgentQuote,
             bPickupPersisted ? 1 : 0, bPickupHoldObserved ? 1 : 0, bRepairComplete ? 1 : 0,
@@ -444,7 +444,7 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bCargoContinuity = VerifyPrimaryCargoContinuity();
         const bool bPass = bWrongIdRejected && bExactPickupReleased && bNoSecondCharge
             && bIdentityPreserved && bCargoContinuity;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_PRIORITY_PICKUP_RUNTIME phase=PICKUP result=%s wrong_id_rejected=%d exact_pickup=%d no_second_charge=%d identity_preserved=%d cargo_continuity=%d queue_remaining=%d"),
             bPass ? TEXT("PASS") : TEXT("FAIL"), bWrongIdRejected ? 1 : 0,
             bExactPickupReleased ? 1 : 0, bNoSecondCharge ? 1 : 0,

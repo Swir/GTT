@@ -150,7 +150,7 @@ void AGTTFarmVanPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 void AGTTFarmVanPawn::SetCargoLoadFactor(float NewLoadFactor)
 {
     CargoLoadFactor = FMath::Clamp(NewLoadFactor, 0.0f, 1.0f);
-    UE_LOG(LogGTT, Log, TEXT("MULEBOX_CARGO_LOAD vehicle=Mulebox1200 load=%.2f"), CargoLoadFactor);
+    GTT_LOG( Log, TEXT("MULEBOX_CARGO_LOAD vehicle=Mulebox1200 load=%.2f"), CargoLoadFactor);
 }
 
 void AGTTFarmVanPawn::CaptureChaosThrottle(float Value)

@@ -180,7 +180,7 @@ void UGTTNativeTerrainLoadSubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePa
     if (State.EvidenceSeconds < EvidenceIntervalSeconds) return;
     State.EvidenceSeconds = 0.0f;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_TERRAIN_LOAD_EVIDENCE vehicle=RustyFieldmaster60 speed_kmh=%.1f signed_forward_kmh=%.1f grade_deg=%.1f mud=%.2f terrain_grip=%.2f tow_load=%.2f front_clearance_cm=%.1f rear_clearance_cm=%.1f rear_load_bias=%.2f launch_grip=%.2f throttle_limit=%.2f rollback_s=%.2f rollback_control=%s trailer=%s"),
         SpeedKmh,
         SignedForwardKmh,
@@ -199,7 +199,7 @@ void UGTTNativeTerrainLoadSubsystem::EvaluateFieldmaster(AGTTFieldmasterNativePa
 
     if (bWheelEvidence)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_WHEEL_LOAD_EVIDENCE vehicle=RustyFieldmaster60 contacts=%d/4 fl_cm=%.1f fr_cm=%.1f rl_cm=%.1f rr_cm=%.1f fl_load=%.2f fr_load=%.2f rl_load=%.2f rr_load=%.2f front_grip=%.2f rear_grip=%.2f front_split=%.2f rear_split=%.2f side_imbalance=%.2f cross_axle_risk=%.2f risk_s=%.2f control=%s brake=%.2f"),
             WheelEvidence.GroundedWheelCount,
             WheelEvidence.FrontLeftClearanceCm,

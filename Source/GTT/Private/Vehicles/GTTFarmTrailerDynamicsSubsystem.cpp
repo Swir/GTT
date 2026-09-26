@@ -101,7 +101,7 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
     UPhysicsConstraintComponent* HitchConstraint = FindConstraintByName(Trailer, HitchConstraintName);
     if (Trailer->IsAttached() && HitchConstraint && HitchConstraint->IsBroken())
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("TRAILER_HITCH_PHYSICS_BREAK cargo=%s integrity=%.2f hitch_load=%.2f dynamic_stress=%.2f"),
             Trailer->HasCargo() ? TEXT("LOADED") : TEXT("EMPTY"),
             Trailer->GetTrailerIntegrity(), Trailer->GetHitchLoad(), State.Snapshot.DynamicStress01);
@@ -170,7 +170,7 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
     {
         State.EvidenceSeconds = 0.0f;
         const FGTTFarmTrailerDynamicsSnapshot& Snapshot = State.Snapshot;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("TRAILER_NATIVE_DYNAMICS attached=%s cargo=%s suspension=%s/%s travel_cm=%.1f spring=%.0f damping=%.0f hitch_break_force=%.0f hitch_break_torque=%.0f integrity=%.2f hitch_load=%.2f dynamic_stress=%.2f speed_kmh=%.1f roll=%.1f pitch=%.1f"),
             Trailer->IsAttached() ? TEXT("YES") : TEXT("NO"),
             Trailer->HasCargo() ? TEXT("LOADED") : TEXT("EMPTY"),

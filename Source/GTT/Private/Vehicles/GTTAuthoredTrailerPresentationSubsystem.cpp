@@ -310,7 +310,7 @@ bool UGTTAuthoredTrailerPresentationSubsystem::TryActivateAuthoredPresentation(A
     {
         if (AuthoredMesh)
         {
-            UE_LOG(LogGTT, Warning, TEXT("AUTHORED_TRAILER_PRESENTATION event=REJECTED actor=%s reason=%s"), *GetNameSafe(Trailer), *ValidationFailure);
+            GTT_LOG( Warning, TEXT("AUTHORED_TRAILER_PRESENTATION event=REJECTED actor=%s reason=%s"), *GetNameSafe(Trailer), *ValidationFailure);
         }
         return false;
     }
@@ -346,7 +346,7 @@ bool UGTTAuthoredTrailerPresentationSubsystem::TryActivateAuthoredPresentation(A
     RuntimeVisuals.Add(Runtime);
     UpdateWheelPose(RuntimeVisuals.Last());
 
-    UE_LOG(LogGTT, Display, TEXT("AUTHORED_TRAILER_PRESENTATION event=ACTIVATED actor=%s asset=%s bones=body,wheel_l,wheel_r sockets=socket_hitch,socket_cargo,socket_axle_l,socket_axle_r physics_asset=YES"), *GetNameSafe(Trailer), AuthoredTrailerAssetPath);
+    GTT_LOG( Display, TEXT("AUTHORED_TRAILER_PRESENTATION event=ACTIVATED actor=%s asset=%s bones=body,wheel_l,wheel_r sockets=socket_hitch,socket_cargo,socket_axle_l,socket_axle_r physics_asset=YES"), *GetNameSafe(Trailer), AuthoredTrailerAssetPath);
     return true;
 }
 

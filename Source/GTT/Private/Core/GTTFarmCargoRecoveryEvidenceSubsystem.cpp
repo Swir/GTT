@@ -57,7 +57,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Initialize(FSubsystemCollectionBase
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRecoveryScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME_BEGIN version=1 route=feed-hill-wood start_delay=%.1f deadline=%.1f save_load=loaded+relay actor_recreation=required wrong_vehicle_after_reload=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
@@ -110,14 +110,14 @@ AGTTFarmVanPawn* UGTTFarmCargoRecoveryEvidenceSubsystem::SpawnEvidenceVan(
 
     if (!Van->AssignPersistentVehicleIdForInstance(VehicleId))
     {
-        UE_LOG(LogGTT, Error,
+        GTT_LOG( Error,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME event=SPAWN_EVIDENCE_VAN result=FAIL label=%s requested_id=%s reason=id_assignment_rejected"),
             Label, *VehicleId.ToString());
         Van->Destroy();
         return nullptr;
     }
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("FARM_CARGO_RECOVERY_RUNTIME event=SPAWN_EVIDENCE_VAN result=PASS label=%s actor=%s vehicle=%s"),
         Label, *Van->GetName(), *Van->GetPersistentVehicleId().ToString());
     return Van;
@@ -180,7 +180,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::DisturbCargoRuntimeState()
 void UGTTFarmCargoRecoveryEvidenceSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
@@ -232,7 +232,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::FinishScenario(const TCHAR* Reason)
         && CargoRunsDelta == 1
         && ReputationDelta > 0;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("FARM_CARGO_RECOVERY_RUNTIME_COMPLETE result=%s route=feed-hill-wood identity_unique=%d accepted=%d pickup=%d loaded_save=%d loaded_reload=%d actor_rebound=%d wrong_vehicle_after_reload=%d hill=%d relay_save=%d relay_reload=%d relay_same_vehicle=%d final=%d completion_reload=%d final_save=%d authority_cleared=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bIdentityUnique ? 1 : 0, bAccepted ? 1 : 0, bPickupBound ? 1 : 0,
         bLoadedCheckpointSaved ? 1 : 0, bLoadedReloadRestored ? 1 : 0, bActorRebound ? 1 : 0,
@@ -341,7 +341,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         EvidenceCashBefore = Economy->GetCash();
         EvidenceCargoRunsBefore = Logistics->GetCargoCompletedRuns();
         EvidenceReputationBefore = Logistics->GetReputation();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=PREPARE result=PASS identity_unique=1 primary=%s decoy=%s route_tier=%d active_order_tier=%d stock=%d seeded_runs=%d"),
             *SpawnedPickupVan->GetPersistentVehicleId().ToString(), *SpawnedDecoyVan->GetPersistentVehicleId().ToString(),
             Logistics->GetCargoRouteTier(), Logistics->GetActiveCargoOrderTier(), Logistics->GetFeedDepotStock(), SeedRuns);
@@ -352,7 +352,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
     case ERecoveryEvidencePhase::AcceptContract:
         StartTerminal->Interact_Implementation(PlayerPawn.Get());
         bAccepted = Director->GetStage() == EGTTFarmJobStage::ReachPickup;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=ACCEPT result=%s stage=%s"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=ACCEPT result=%s stage=%s"),
             bAccepted ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()));
         if (!bAccepted)
         {
@@ -371,7 +371,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         bPickupBound = Director->GetStage() == EGTTFarmJobStage::DeliverCargo
             && Authority->GetBoundCargoVehicle() == SpawnedPickupVan.Get()
             && LoadedVehicleId == SpawnedPickupVan->GetPersistentVehicleId();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=PICKUP result=%s stage=%s bound_vehicle=%s timer=%.2f integrity=%.4f stock=%d"),
             bPickupBound ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()), *LoadedVehicleId.ToString(),
             Director->GetTimeRemaining(), Director->GetCargoIntegrity(), Logistics->GetFeedDepotStock());
@@ -391,7 +391,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         LoadedCheckpointIntegrity = Director->GetCargoIntegrity();
         LoadedCheckpointStock = Logistics->GetFeedDepotStock();
         bLoadedCheckpointSaved = GameMode && GameMode->SaveProgress();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=SAVE_LOADED result=%s explicit_save=%d stage=%s vehicle=%s timer=%.2f integrity=%.4f stock=%d"),
             bLoadedCheckpointSaved ? TEXT("PASS") : TEXT("FAIL"), bLoadedCheckpointSaved ? 1 : 0,
             StageLabel(Director->GetStage()), *LoadedVehicleId.ToString(), LoadedCheckpointTime,
@@ -430,7 +430,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         const bool bStockStable = Logistics->GetFeedDepotStock() == LoadedCheckpointStock;
         bLoadedReloadRestored = bLoadPass && bStageRestored && bIdRestored && bActorRebound
             && bTimerRestored && bIntegrityRestored && bStockStable;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=RELOAD_LOADED result=%s load=%d stage_restored=%d id_restored=%d actor_rebound=%d timer_restored=%d integrity_restored=%d stock_stable=%d vehicle=%s timer=%.2f integrity=%.4f stock=%d"),
             bLoadedReloadRestored ? TEXT("PASS") : TEXT("FAIL"), bLoadPass ? 1 : 0, bStageRestored ? 1 : 0,
             bIdRestored ? 1 : 0, bActorRebound ? 1 : 0, bTimerRestored ? 1 : 0, bIntegrityRestored ? 1 : 0,
@@ -458,7 +458,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             && Director->GetStage() == EGTTFarmJobStage::DeliverCargo
             && Authority->GetBoundCargoVehicle() == SpawnedRecoveredVan.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=WRONG_VEHICLE_AFTER_RELOAD result=%s wrong_vehicle_rejected=%d decoy=%s bound_vehicle=%s stage=%s"),
             bWrongVehicleRejectedAfterReload ? TEXT("PASS") : TEXT("FAIL"),
             bWrongVehicleRejectedAfterReload ? 1 : 0, *SpawnedDecoyVan->GetPersistentVehicleId().ToString(),
@@ -482,7 +482,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         bHillHandoff = Director->GetStage() == EGTTFarmJobStage::DeliverFinalStop
             && Authority->GetBoundCargoVehicle() == SpawnedRecoveredVan.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=HILL_HANDOFF result=%s stage=%s same_vehicle=%d vehicle=%s timer=%.2f integrity=%.4f"),
             bHillHandoff ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()), bHillHandoff ? 1 : 0,
             *LoadedVehicleId.ToString(), Director->GetTimeRemaining(), Director->GetCargoIntegrity());
@@ -502,7 +502,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         RelayCheckpointIntegrity = Director->GetCargoIntegrity();
         RelayCheckpointStock = Logistics->GetFeedDepotStock();
         bRelayCheckpointSaved = GameMode && GameMode->SaveProgress();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=SAVE_RELAY result=%s explicit_save=%d stage=%s vehicle=%s timer=%.2f integrity=%.4f stock=%d"),
             bRelayCheckpointSaved ? TEXT("PASS") : TEXT("FAIL"), bRelayCheckpointSaved ? 1 : 0,
             StageLabel(Director->GetStage()), *LoadedVehicleId.ToString(), RelayCheckpointTime,
@@ -529,7 +529,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         const bool bStockStable = Logistics->GetFeedDepotStock() == RelayCheckpointStock;
         bRelayReloadRestored = bLoadPass && bStageRestored && bIdRestored && bSameVehicleAfterRelay
             && bTimerRestored && bIntegrityRestored && bStockStable;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=RELOAD_RELAY result=%s load=%d stage_restored=%d id_restored=%d relay_same_vehicle=%d timer_restored=%d integrity_restored=%d stock_stable=%d vehicle=%s timer=%.2f integrity=%.4f stock=%d"),
             bRelayReloadRestored ? TEXT("PASS") : TEXT("FAIL"), bLoadPass ? 1 : 0, bStageRestored ? 1 : 0,
             bIdRestored ? 1 : 0, bSameVehicleAfterRelay ? 1 : 0, bTimerRestored ? 1 : 0,
@@ -555,7 +555,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         PayoutDelta = Economy->GetCash() - EvidenceCashBefore;
         CargoRunsDelta = Logistics->GetCargoCompletedRuns() - EvidenceCargoRunsBefore;
         ReputationDelta = Logistics->GetReputation() - EvidenceReputationBefore;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=FINAL_HANDOFF result=%s stage=%s final=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d authority_cleared=%d"),
             (bFinalHandoff && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0) ? TEXT("PASS") : TEXT("FAIL"),
             StageLabel(Director->GetStage()), bFinalHandoff ? 1 : 0, PayoutDelta, CargoRunsDelta, ReputationDelta,
@@ -583,7 +583,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             && Economy->GetCash() == CashBeforeReload
             && Logistics->GetCargoCompletedRuns() == RunsBeforeReload
             && Logistics->GetReputation() == ReputationBeforeReload;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=COMPLETION_RELOAD result=%s load=%d completion_reload_stable=%d stage=%s authority_cleared=%d cash=%d cargo_runs=%d reputation=%d"),
             bCompletionReloadStable ? TEXT("PASS") : TEXT("FAIL"), bLoadPass ? 1 : 0,
             bCompletionReloadStable ? 1 : 0, StageLabel(Director->GetStage()),
@@ -601,7 +601,7 @@ void UGTTFarmCargoRecoveryEvidenceSubsystem::Tick(float DeltaTime)
 
     case ERecoveryEvidencePhase::VerifyPersistence:
         bSaveVerified = GameMode && GameMode->SaveProgress();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RECOVERY_RUNTIME phase=PERSISTENCE result=%s explicit_save=%d"),
             bSaveVerified ? TEXT("PASS") : TEXT("FAIL"), bSaveVerified ? 1 : 0);
         if (!bSaveVerified) MarkFailure(TEXT("post-recovery-final-save-failed"));

@@ -48,7 +48,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBase
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRuntimeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RUNTIME_BEGIN version=1 route=feed-hill-wood start_delay=%.1f deadline=%.1f exact_vehicle=required wrong_vehicle_probe=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
@@ -95,7 +95,7 @@ AGTTFarmVanPawn* UGTTFarmCargoEvidenceScenarioSubsystem::SpawnEvidenceVan(const 
     AGTTFarmVanPawn* Van = World->SpawnActor<AGTTFarmVanPawn>(Location, FRotator::ZeroRotator, Params);
     if (Van)
     {
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_RUNTIME event=SPAWN_EVIDENCE_VAN label=%s actor=%s"), Label, *Van->GetName());
+        GTT_LOG( Log, TEXT("FARM_CARGO_RUNTIME event=SPAWN_EVIDENCE_VAN label=%s actor=%s"), Label, *Van->GetName());
     }
     return Van;
 }
@@ -148,7 +148,7 @@ bool UGTTFarmCargoEvidenceScenarioSubsystem::ResolveScenarioActors()
 void UGTTFarmCargoEvidenceScenarioSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("FARM_CARGO_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
@@ -202,7 +202,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::FinishScenario(const TCHAR* Reason)
         && CargoRunsDelta == 1
         && ReputationDelta > 0;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("FARM_CARGO_RUNTIME_COMPLETE result=%s route=feed-hill-wood accepted=%d pickup=%d wrong_vehicle_rejected=%d hill=%d final=%d same_vehicle=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d save=%d authority_cleared=%d vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bAccepted ? 1 : 0, bPickupBound ? 1 : 0,
         bWrongVehicleRejected ? 1 : 0, bHillHandoff ? 1 : 0, bFinalHandoff ? 1 : 0,
@@ -303,7 +303,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
         EvidenceCashBefore = Economy->GetCash();
         EvidenceCargoRunsBefore = Logistics->GetCargoCompletedRuns();
         EvidenceReputationBefore = Logistics->GetReputation();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RUNTIME phase=PREPARE result=PASS route_tier=%d active_order_tier=%d depot_stock=%d hill_demand=%d wood_demand=%d seeded_runs=%d hour=%.2f"),
             Logistics->GetCargoRouteTier(), Logistics->GetActiveCargoOrderTier(), Logistics->GetFeedDepotStock(),
             Logistics->GetHillFarmDemand(), Logistics->GetWoodYardDemand(), SeedRuns, DayNight->GetTimeOfDayHours());
@@ -314,7 +314,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
     case EFarmCargoEvidencePhase::AcceptContract:
         StartTerminal->Interact_Implementation(PlayerPawn.Get());
         bAccepted = Director->GetStage() == EGTTFarmJobStage::ReachPickup;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_RUNTIME phase=ACCEPT result=%s stage=%s"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_RUNTIME phase=ACCEPT result=%s stage=%s"),
             bAccepted ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()));
         if (!bAccepted)
         {
@@ -333,7 +333,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
         LoadedVehicleId = Authority->GetBoundCargoVehicleId();
         bPickupBound = Director->GetStage() == EGTTFarmJobStage::DeliverCargo
             && LoadedVehicle.IsValid() && !LoadedVehicleId.IsNone();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RUNTIME phase=PICKUP result=%s stage=%s bound_vehicle=%s actor=%s timer=%.1f cargo_integrity=%.3f"),
             bPickupBound ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()), *LoadedVehicleId.ToString(),
             LoadedVehicle.IsValid() ? *LoadedVehicle->GetName() : TEXT("none"), Director->GetTimeRemaining(), Director->GetCargoIntegrity());
@@ -359,7 +359,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
         bWrongVehicleRejected = Before == EGTTFarmJobStage::DeliverCargo
             && Director->GetStage() == EGTTFarmJobStage::DeliverCargo
             && Authority->GetBoundCargoVehicle() == LoadedVehicle.Get();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RUNTIME phase=WRONG_VEHICLE result=%s decoy=%s bound_vehicle=%s stage=%s"),
             bWrongVehicleRejected ? TEXT("PASS") : TEXT("FAIL"), *SpawnedDecoyVan->GetName(),
             *LoadedVehicleId.ToString(), StageLabel(Director->GetStage()));
@@ -382,7 +382,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
         bHillHandoff = Director->GetStage() == EGTTFarmJobStage::DeliverFinalStop;
         bSameVehicleMaintained = Authority->GetBoundCargoVehicle() == LoadedVehicle.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RUNTIME phase=HILL_HANDOFF result=%s stage=%s same_vehicle=%d vehicle=%s timer=%.1f cargo_integrity=%.3f"),
             (bHillHandoff && bSameVehicleMaintained) ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()),
             bSameVehicleMaintained ? 1 : 0, *LoadedVehicleId.ToString(), Director->GetTimeRemaining(), Director->GetCargoIntegrity());
@@ -407,7 +407,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
         CargoRunsDelta = Logistics->GetCargoCompletedRuns() - EvidenceCargoRunsBefore;
         ReputationDelta = Logistics->GetReputation() - EvidenceReputationBefore;
         const bool bAuthorityCleared = !Authority->HasBoundCargoVehicle();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_RUNTIME phase=FINAL_HANDOFF result=%s stage=%s payout_delta=%d cargo_runs_delta=%d reputation_delta=%d authority_cleared=%d"),
             (bFinalHandoff && bAuthorityCleared && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0) ? TEXT("PASS") : TEXT("FAIL"),
             StageLabel(Director->GetStage()), PayoutDelta, CargoRunsDelta, ReputationDelta, bAuthorityCleared ? 1 : 0);
@@ -423,7 +423,7 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EFarmCargoEvidencePhase::VerifyPersistence:
         bSaveVerified = GameMode && GameMode->SaveProgress();
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_RUNTIME phase=PERSISTENCE result=%s explicit_save=%d"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_RUNTIME phase=PERSISTENCE result=%s explicit_save=%d"),
             bSaveVerified ? TEXT("PASS") : TEXT("FAIL"), bSaveVerified ? 1 : 0);
         if (!bSaveVerified) MarkFailure(TEXT("post-delivery-save-failed"));
         FinishScenario(TEXT("sequence-complete"));

@@ -34,7 +34,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Initialize(FSubsystemCollectionB
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopHoursRuntimeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_HOURS_RUNTIME_BEGIN version=1 route=clock-closed-reject-tow-hold-emergency-service start_delay=%.1f deadline=%.1f opening=06:30 closing=20:00 emergency_surcharge_percent=%d exact_vehicle=required"),
             StartDelaySeconds, GlobalDeadlineSeconds, GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent);
     }
@@ -157,7 +157,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::StageTowDamage()
 void UGTTWorkshopHoursRuntimeEvidenceSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error, TEXT("WORKSHOP_HOURS_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
+    GTT_LOG( Error, TEXT("WORKSHOP_HOURS_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
 
@@ -189,7 +189,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::FinishScenario(const TCHAR* Reas
         && bIdentityPreserved && bMechanicalRepaired && bRefuelled && TowLockedQuote > 0
         && BaseWorkshopQuote > 0 && EmergencyWorkshopQuote > BaseWorkshopQuote && !VehicleId.IsNone();
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("WORKSHOP_HOURS_RUNTIME_COMPLETE result=%s boundaries=%d closed_rejected=%d closed_no_charge=%d closed_no_mutation=%d tow_requested=%d tow_completed=%d tow_single_charge=%d hold_detected=%d emergency_quote=%d emergency_single_charge=%d emergency_service=%d hold_cleared=%d identity_preserved=%d repaired=%d refuelled=%d tow_quote=%d base_quote=%d emergency_quote_total=%d surcharge_percent=%d vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bBoundariesVerified ? 1 : 0, bClosedServiceRejected ? 1 : 0,
         bClosedNoCharge ? 1 : 0, bClosedNoMutation ? 1 : 0, bTowRequested ? 1 : 0, bTowCompleted ? 1 : 0,
@@ -256,7 +256,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         {
             MarkFailure(TEXT("native-driver-entry-failed")); FinishScenario(TEXT("prepare-failed")); return;
         }
-        UE_LOG(LogGTT, Log, TEXT("WORKSHOP_HOURS_RUNTIME phase=PREPARE result=PASS vehicle=%s cash_seeded=%d"),
+        GTT_LOG( Log, TEXT("WORKSHOP_HOURS_RUNTIME phase=PREPARE result=PASS vehicle=%s cash_seeded=%d"),
             *VehicleId.ToString(), Economy->GetCash());
         Phase = EPhase::Boundaries;
         break;
@@ -273,7 +273,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         DayNight->RestoreTime(BaselineDay, GTTWorkshopHoursPolicy::ClosingHour);
         const bool bClosingClosed = !Workshop->IsWorkshopOpenNow();
         bBoundariesVerified = bBeforeOpenClosed && bOpeningOpen && bLastMinuteOpen && bClosingClosed;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_HOURS_RUNTIME phase=BOUNDARIES result=%s pre_open_closed=%d opening_open=%d last_minute_open=%d closing_closed=%d opening=%.2f closing=%.2f"),
             bBoundariesVerified ? TEXT("PASS") : TEXT("FAIL"), bBeforeOpenClosed ? 1 : 0, bOpeningOpen ? 1 : 0,
             bLastMinuteOpen ? 1 : 0, bClosingClosed ? 1 : 0,
@@ -297,7 +297,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Tick(float DeltaTime)
             && FMath::IsNearlyEqual(Before.TireIntegrity, After.TireIntegrity, 0.0001f)
             && FMath::IsNearlyEqual(Before.FuelLiters, After.FuelLiters, 0.01f);
         bClosedServiceRejected = !bHoldBefore && !Workshop->IsWorkshopOpenNow() && bClosedNoCharge && bClosedNoMutation;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_HOURS_RUNTIME phase=CLOSED_ORDINARY result=%s closed=1 hold_before=%d rejected=%d no_charge=%d no_mutation=%d condition=%.3f tire=%.3f fuel=%.2f"),
             bClosedServiceRejected ? TEXT("PASS") : TEXT("FAIL"), bHoldBefore ? 1 : 0,
             bClosedServiceRejected ? 1 : 0, bClosedNoCharge ? 1 : 0, bClosedNoMutation ? 1 : 0,
@@ -316,7 +316,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         const bool bPinned = bTowRequested && TowLockedQuote > 0
             && Roadside->GetPendingRecoveryVehicleId(Vehicle.Get()) == VehicleId
             && Economy->GetCash() == CashBeforeTow;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_HOURS_RUNTIME phase=TOW_REQUEST result=%s requested=%d locked_quote=%d target_pinned=%d no_precharge=%d vehicle=%s"),
             bPinned ? TEXT("PASS") : TEXT("FAIL"), bTowRequested ? 1 : 0, TowLockedQuote,
             Roadside->GetPendingRecoveryVehicleId(Vehicle.Get()) == VehicleId ? 1 : 0,
@@ -342,7 +342,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bTowSingleCharge = Charged == TowLockedQuote;
         bHoldDetected = GarageFleet->IsVehicleOnWorkshopHold(VehicleId);
         bIdentityPreserved = Vehicle->GetPersistentVehicleId() == VehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_HOURS_RUNTIME phase=TOW_COMPLETE result=%s completed=%d single_charge=%d charged=%d locked_quote=%d hold_detected=%d identity_preserved=%d vehicle=%s"),
             (bTowCompleted && bTowSingleCharge && bHoldDetected && bIdentityPreserved) ? TEXT("PASS") : TEXT("FAIL"),
             bTowCompleted ? 1 : 0, bTowSingleCharge ? 1 : 0, Charged, TowLockedQuote,
@@ -364,7 +364,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bEmergencyQuoteVerified = !Workshop->IsWorkshopOpenNow() && GarageFleet->IsVehicleOnWorkshopHold(VehicleId)
             && BaseWorkshopQuote > 0 && EmergencyWorkshopQuote == ExpectedEmergency
             && EmergencyWorkshopQuote > BaseWorkshopQuote;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_HOURS_RUNTIME phase=EMERGENCY_QUOTE result=%s closed=1 hold=1 base_quote=%d checkout_quote=%d expected_quote=%d surcharge_percent=%d exact=%d"),
             bEmergencyQuoteVerified ? TEXT("PASS") : TEXT("FAIL"), BaseWorkshopQuote, EmergencyWorkshopQuote,
             ExpectedEmergency, GTTWorkshopHoursPolicy::AfterHoursRecoverySurchargePercent,
@@ -387,7 +387,7 @@ void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bIdentityPreserved = bIdentityPreserved && Vehicle->GetPersistentVehicleId() == VehicleId;
         bMechanicalRepaired = After.ConditionPercent >= 0.999f && After.TireIntegrity >= 0.999f;
         bRefuelled = After.FuelLiters + 0.05f >= Vehicle->GetFuelCapacityLiters();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_HOURS_RUNTIME phase=EMERGENCY_SERVICE result=%s charged=%d checkout_quote=%d single_charge=%d hold_cleared=%d identity_preserved=%d repaired=%d refuelled=%d closed=%d vehicle=%s"),
             (bEmergencySingleCharge && bEmergencyServiceApplied && bHoldCleared && bIdentityPreserved && bMechanicalRepaired && bRefuelled) ? TEXT("PASS") : TEXT("FAIL"),
             Charged, EmergencyWorkshopQuote, bEmergencySingleCharge ? 1 : 0, bHoldCleared ? 1 : 0,

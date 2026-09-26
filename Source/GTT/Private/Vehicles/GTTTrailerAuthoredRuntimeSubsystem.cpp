@@ -188,7 +188,7 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
     {
         if (State.EvidenceCooldown <= 0.0f)
         {
-            UE_LOG(LogGTT, Verbose, TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=0 reason=NO_VALID_AUTHORED_RIG"), *GetNameSafe(Trailer));
+            GTT_LOG( Verbose, TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=0 reason=NO_VALID_AUTHORED_RIG"), *GetNameSafe(Trailer));
             State.EvidenceCooldown = EvidenceIntervalSeconds;
         }
         return;
@@ -221,7 +221,7 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
 
     if (State.EvidenceCooldown <= 0.0f)
     {
-        UE_LOG(LogGTT, Log, TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=%d nativeTow=%d contacts=%.1f left=%d right=%d clearL=%.1f clearR=%.1f axleTilt=%.1f hitchError=%.1f articulation=%.1f stabilization=%.2f warning=%d"),
+        GTT_LOG( Log, TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=%d nativeTow=%d contacts=%.1f left=%d right=%d clearL=%.1f clearR=%.1f axleTilt=%.1f hitchError=%.1f articulation=%.1f stabilization=%.2f warning=%d"),
             *GetNameSafe(Trailer), State.bPresentationTakeover ? 1 : 0, Trailer->IsAttachedToNativeFieldmaster() ? 1 : 0,
             State.Snapshot.ContactRatio, State.Snapshot.bLeftWheelContact ? 1 : 0, State.Snapshot.bRightWheelContact ? 1 : 0,
             State.Snapshot.LeftGroundClearanceCm, State.Snapshot.RightGroundClearanceCm, State.Snapshot.AxleTiltDeg,

@@ -39,7 +39,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Initialize(FSubsystemCollectionBase&
     bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY_BEGIN version=10 route=structural-save-load-workshop"));
+        GTT_LOG( Display, TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY_BEGIN version=10 route=structural-save-load-workshop"));
     }
 }
 
@@ -74,7 +74,7 @@ AGTTServiceTerminal* UGTTStructuralDamageEvidenceSubsystem::FindWorkshopTerminal
 
 void UGTTStructuralDamageEvidenceSubsystem::Fail(const FString& Reason)
 {
-    UE_LOG(LogGTT, Error, TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY result=FAIL phase=%d reason=%s elapsed=%.2f"),
+    GTT_LOG( Error, TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY result=FAIL phase=%d reason=%s elapsed=%.2f"),
         static_cast<int32>(Phase), *Reason, Elapsed);
     bFinished = true;
     Phase = EEvidencePhase::Complete;
@@ -134,7 +134,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_DAMAGE vehicle=%s result=PASS front=%.3f rear=%.3f left=%.3f right=%.3f cooling=%.3f panel_mask=%d surcharge=%d"),
                 *TargetVehicleId.ToString(), SavedBody.FrontHealth, SavedBody.RearHealth,
                 SavedBody.LeftHealth, SavedBody.RightHealth, SavedBody.CoolingStress,
@@ -210,7 +210,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_PERSISTENCE vehicle=%s result=PASS front_saved=%.3f front_reloaded=%.3f left_saved=%.3f left_reloaded=%.3f cooling_saved=%.3f cooling_reloaded=%.3f panel_mask_saved=%d panel_mask_reloaded=%d surcharge=%d"),
                 *TargetVehicleId.ToString(), SavedBody.FrontHealth, Reloaded.FrontHealth,
                 SavedBody.LeftHealth, Reloaded.LeftHealth, SavedBody.CoolingStress, Reloaded.CoolingStress,
@@ -238,7 +238,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
             {
                 const int32 Reserve = 450 - Economy->GetCash();
                 Economy->AddCash(Reserve, TEXT("Demo structural workshop evidence reserve"));
-                UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=STRUCTURAL_WORKSHOP_TEST_RESERVE amount=%d"), Reserve);
+                GTT_LOG( Display, TEXT("DEMO_SCENARIO_ACTION action=STRUCTURAL_WORKSHOP_TEST_RESERVE amount=%d"), Reserve);
             }
 
             Terminal->SetServiceType(EGTTServiceType::Workshop);
@@ -308,11 +308,11 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_REPAIR vehicle=%s result=PASS cash_before=%d cash_after=%d paid=%d surcharge_before=%d panel_mask_before=%d panel_mask_after=%d body_min_after=%.3f cooling_after=%.3f"),
                 *TargetVehicleId.ToString(), CashBeforeWorkshop, CashAfter, Paid, SavedRepairSurcharge,
                 SavedPanelMask, RepairedMask, MinBodyHealth(Repaired), Repaired.CoolingStress);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY result=PASS vehicle=%s route=structural-save-load-workshop"),
                 *TargetVehicleId.ToString());
 

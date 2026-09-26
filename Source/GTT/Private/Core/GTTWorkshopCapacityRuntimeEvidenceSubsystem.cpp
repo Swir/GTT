@@ -38,7 +38,7 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Initialize(FSubsystemCollecti
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopCapacityRuntimeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_CAPACITY_RUNTIME_BEGIN version=1 route=two-bookings-disk-cancel-rebook-underfunded-nonblocking start_delay=%.1f deadline=%.1f capacity=4 spacing_hours=0.75 exact_vehicle=required no_precharge=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
@@ -162,7 +162,7 @@ bool UGTTWorkshopCapacityRuntimeEvidenceSubsystem::VerifyPrimaryCargoContinuity(
 void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error, TEXT("WORKSHOP_CAPACITY_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
+    GTT_LOG( Error, TEXT("WORKSHOP_CAPACITY_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
 
@@ -204,7 +204,7 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::FinishScenario(const TCHAR* R
         && bIdentityPreserved && bCargoContinuity && FirstLockedQuote > SecondLockedQuote
         && SecondLockedQuote > 0 && !FirstVehicleId.IsNone() && !SecondVehicleId.IsNone();
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("WORKSHOP_CAPACITY_RUNTIME_COMPLETE result=%s two_bookings=%d no_precharge=%d spacing_45m=%d disk_roundtrip=%d independent_cancel=%d rebook_preserved=%d underfunded_nonblocking=%d later_single_debit=%d earlier_preserved=%d later_exact_service=%d identity_preserved=%d cargo_continuity=%d first_quote=%d second_quote=%d first_vehicle=%s second_vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bTwoBookingsAccepted ? 1 : 0, bNoPrecharge ? 1 : 0,
         bCapacitySpacing ? 1 : 0, bDiskRoundtrip ? 1 : 0, bIndependentCancel ? 1 : 0,
@@ -297,7 +297,7 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Tick(float DeltaTime)
             && FMath::IsNearlyEqual(SecondReadyHour - FirstReadyHour, ExpectedSpacingHours, 0.001f);
         const bool bQuotesOrdered = FirstLockedQuote > SecondLockedQuote && SecondLockedQuote > 0;
         const bool bPass = bTwoBookingsAccepted && bNoPrecharge && bCapacitySpacing && bQuotesOrdered;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_CAPACITY_RUNTIME phase=BOOK_TWO result=%s count=%d no_precharge=%d spacing_45m=%d quote_order=%d first_quote=%d second_quote=%d first_ready=%.2f second_ready=%.2f first=%s second=%s"),
             bPass ? TEXT("PASS") : TEXT("FAIL"), Snapshots.Num(), bNoPrecharge ? 1 : 0,
             bCapacitySpacing ? 1 : 0, bQuotesOrdered ? 1 : 0, FirstLockedQuote, SecondLockedQuote,
@@ -327,7 +327,7 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         const bool bSecondGone = !Queue->HasQueuedRepairForVehicle(SecondVehicleId);
         bIndependentCancel = bCancelled && bFirstStillQueued && bSecondGone && Queue->GetQueuedRepairCount() == 1
             && Economy->GetCash() == CashBeforeBookings;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_CAPACITY_RUNTIME phase=DISK_CANCEL result=%s disk_roundtrip=%d independent_cancel=%d first_preserved=%d second_removed=%d no_charge=%d"),
             (bDiskRoundtrip && bIndependentCancel) ? TEXT("PASS") : TEXT("FAIL"), bDiskRoundtrip ? 1 : 0,
             bIndependentCancel ? 1 : 0, bFirstStillQueued ? 1 : 0, bSecondGone ? 1 : 0,
@@ -353,7 +353,7 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Tick(float DeltaTime)
             && FMath::IsNearlyEqual(Second->ReadyHour - FirstReadyHour, ExpectedSpacingHours, 0.001f)
             && Economy->GetCash() == CashBeforeBookings;
         if (Second) { SecondReadyDay = Second->ReadyDay; SecondReadyHour = Second->ReadyHour; }
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_CAPACITY_RUNTIME phase=REBOOK result=%s rebooked=%d count=%d exact_second=%d locked_quote_preserved=%d spacing_45m=%d no_precharge=%d"),
             bRebookPreserved ? TEXT("PASS") : TEXT("FAIL"), bRebooked ? 1 : 0, Snapshots.Num(),
             Second && Second->PersistentVehicleId == SecondVehicleId ? 1 : 0,
@@ -392,7 +392,7 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bCargoContinuity = VerifyPrimaryCargoContinuity();
         const bool bPass = bUnderfundedNonBlocking && bLaterSingleDebit && bLaterExactService
             && bIdentityPreserved && bCargoContinuity;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_CAPACITY_RUNTIME phase=EXECUTE result=%s underfunded_nonblocking=%d earlier_preserved=%d later_single_debit=%d charged=%d second_quote=%d later_exact_service=%d identity_preserved=%d cargo_continuity=%d remaining=%d"),
             bPass ? TEXT("PASS") : TEXT("FAIL"), bUnderfundedNonBlocking ? 1 : 0,
             bEarlierReservationPreserved ? 1 : 0, bLaterSingleDebit ? 1 : 0, Charged, SecondLockedQuote,

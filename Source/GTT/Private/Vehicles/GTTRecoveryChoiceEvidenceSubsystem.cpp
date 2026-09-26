@@ -42,7 +42,7 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Initialize(FSubsystemCollectionBase& C
 {
     Super::Initialize(Collection);
     bEvidenceEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
-    if (bEvidenceEnabled) UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE_BEGIN version=1 route=stranded-offer-manual-tow-paid-repair"));
+    if (bEvidenceEnabled) GTT_LOG( Display, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE_BEGIN version=1 route=stranded-offer-manual-tow-paid-repair"));
 }
 
 AGTTRoadVehicleNativePawn* UGTTRecoveryChoiceEvidenceSubsystem::FindEvidenceVehicle() const
@@ -78,7 +78,7 @@ AGTTServiceTerminal* UGTTRecoveryChoiceEvidenceSubsystem::FindWorkshopTerminal()
 
 void UGTTRecoveryChoiceEvidenceSubsystem::Fail(const FString& Reason)
 {
-    UE_LOG(LogGTT, Error, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE_COMPLETE result=FAIL phase=%d elapsed=%.2f reason=%s"), static_cast<int32>(Phase), Elapsed, *Reason);
+    GTT_LOG( Error, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE_COMPLETE result=FAIL phase=%d elapsed=%.2f reason=%s"), static_cast<int32>(Phase), Elapsed, *Reason);
     bFinished = true;
     Phase = EPhase::Complete;
 }
@@ -122,7 +122,7 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Tick(float DeltaTime)
                 if (Wanted->GetWantedLevel() > 0)
                 {
                     Wanted->ClearWanted();
-                    UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=RECOVERY_CHOICE_CLEAR_WANTED"));
+                    GTT_LOG( Display, TEXT("DEMO_SCENARIO_ACTION action=RECOVERY_CHOICE_CLEAR_WANTED"));
                 }
             }
             if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
@@ -143,7 +143,7 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Tick(float DeltaTime)
             {
                 const int32 Reserve = RequiredReserve - Economy->GetCash();
                 Economy->AddCash(Reserve, TEXT("Demo recovery-choice reserve"));
-                UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=RECOVERY_CHOICE_RESERVE amount=%d"), Reserve);
+                GTT_LOG( Display, TEXT("DEMO_SCENARIO_ACTION action=RECOVERY_CHOICE_RESERVE amount=%d"), Reserve);
             }
             const FGTTRoadVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
             const FGTTRoadBodyDamageSnapshot Body = Vehicle->GetBodyDamageSnapshot();
@@ -152,7 +152,7 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Tick(float DeltaTime)
             SavedBodyMin = MinBodyHealth(Body);
             StrandedLocation = Vehicle->GetActorLocation();
             OfferCash = Economy->GetCash();
-            UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_RECOVERY_OFFER vehicle=%s result=PASS recommendation=%s tow_quote=%d repair_quote=%d severity=%.3f"), *EvidenceVehicleId.ToString(), RecommendationName(Assessment.Recommendation), TowQuote, RepairQuote, Assessment.Severity);
+            GTT_LOG( Display, TEXT("DEMO_SCENARIO_RECOVERY_OFFER vehicle=%s result=PASS recommendation=%s tow_quote=%d repair_quote=%d severity=%.3f"), *EvidenceVehicleId.ToString(), RecommendationName(Assessment.Recommendation), TowQuote, RepairQuote, Assessment.Severity);
             Phase = EPhase::VerifyOffer;
             PhaseStarted = Elapsed;
             return;
@@ -177,7 +177,7 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Tick(float DeltaTime)
             {
                 Fail(TEXT("roadside assistance auto-resolved without explicit player authorization")); return;
             }
-            UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE vehicle=%s result=PASS waited=%.2f auto_tow=NO cash=%d tire=%.3f"), *EvidenceVehicleId.ToString(), NoAutoTowProofSeconds, Economy->GetCash(), State.TireIntegrity);
+            GTT_LOG( Display, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE vehicle=%s result=PASS waited=%.2f auto_tow=NO cash=%d tire=%.3f"), *EvidenceVehicleId.ToString(), NoAutoTowProofSeconds, Economy->GetCash(), State.TireIntegrity);
             Phase = EPhase::RequestTow;
             PhaseStarted = Elapsed;
             return;
@@ -208,7 +208,7 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Tick(float DeltaTime)
                 Fail(TEXT("player-authorized tow did not preserve damage or charge the quoted amount")); return;
             }
             RepairQuote = Decision->CalculateRepairEstimate(Vehicle);
-            UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_PLAYER_TOW vehicle=%s result=PASS requested=YES tow_paid=%d cash_before=%d cash_after=%d damage_preserved=YES serviced=NO repair_quote=%d"), *EvidenceVehicleId.ToString(), TowPaid, CashBeforeTow, Economy->GetCash(), RepairQuote);
+            GTT_LOG( Display, TEXT("DEMO_SCENARIO_PLAYER_TOW vehicle=%s result=PASS requested=YES tow_paid=%d cash_before=%d cash_after=%d damage_preserved=YES serviced=NO repair_quote=%d"), *EvidenceVehicleId.ToString(), TowPaid, CashBeforeTow, Economy->GetCash(), RepairQuote);
             Phase = EPhase::InvokeRepair;
             PhaseStarted = Elapsed;
             return;
@@ -242,8 +242,8 @@ void UGTTRecoveryChoiceEvidenceSubsystem::Tick(float DeltaTime)
             {
                 Fail(TEXT("separate paid workshop service did not fully restore the towed vehicle")); return;
             }
-            UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_SEPARATE_REPAIR vehicle=%s result=PASS repair_paid=%d cash_before=%d cash_after=%d condition_after=%.3f tire_after=%.3f body_min_after=%.3f"), *EvidenceVehicleId.ToString(), RepairPaid, CashBeforeRepair, Economy->GetCash(), State.ConditionPercent, State.TireIntegrity, BodyMinAfter);
-            UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE_COMPLETE result=PASS vehicle=%s route=stranded-offer-manual-tow-paid-repair"), *EvidenceVehicleId.ToString());
+            GTT_LOG( Display, TEXT("DEMO_SCENARIO_SEPARATE_REPAIR vehicle=%s result=PASS repair_paid=%d cash_before=%d cash_after=%d condition_after=%.3f tire_after=%.3f body_min_after=%.3f"), *EvidenceVehicleId.ToString(), RepairPaid, CashBeforeRepair, Economy->GetCash(), State.ConditionPercent, State.TireIntegrity, BodyMinAfter);
+            GTT_LOG( Display, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE_COMPLETE result=PASS vehicle=%s route=stranded-offer-manual-tow-paid-repair"), *EvidenceVehicleId.ToString());
             bFinished = true;
             Phase = EPhase::Complete;
             return;

@@ -61,7 +61,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Initialize(FSubsystemCollec
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoWorkshopRecoveryScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME_BEGIN version=1 route=feed-tow-workshop-hold-service-hill-wood start_delay=%.1f deadline=%.1f exact_vehicle=required locked_quote=required garage_bypass=forbidden workshop_charge=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
@@ -213,7 +213,7 @@ bool UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::ResolveScenarioActors()
 void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
+    GTT_LOG( Error, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
 
@@ -261,7 +261,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::FinishScenario(const TCHAR*
         && bWrongVehicleRejected && bHillHandoff && bFinalHandoff && bSaveVerified && bAuthorityCleared
         && TowLockedQuote > 0 && WorkshopQuote > 0 && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME_COMPLETE result=%s route=feed-tow-workshop-hold-service-hill-wood accepted=%d pickup=%d tow_requested=%d tow_completed=%d tow_single_charge=%d tow_damage_preserved=%d tow_identity_preserved=%d workshop_destination=%d hold_detected=%d garage_recall_blocked=%d garage_no_charge=%d garage_no_move=%d workshop_service=%d workshop_single_charge=%d hold_cleared=%d repaired=%d refuelled=%d exact_vehicle=%d timer_continued=%d integrity_not_improved=%d wrong_vehicle_rejected=%d hill=%d final=%d save=%d authority_cleared=%d tow_quote=%d workshop_quote=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bAccepted ? 1 : 0, bPickupBound ? 1 : 0,
         bTowRequested ? 1 : 0, bTowCompleted ? 1 : 0, bTowSingleCharge ? 1 : 0,
@@ -356,7 +356,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         }
         EvidenceCargoRunsBefore = Logistics->GetCargoCompletedRuns();
         EvidenceReputationBefore = Logistics->GetReputation();
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=PREPARE result=PASS route_tier=%d cash_seeded=%d"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=PREPARE result=PASS route_tier=%d cash_seeded=%d"),
             Logistics->GetCargoRouteTier(), Economy->GetCash());
         Phase = EWorkshopEvidencePhase::AcceptContract;
         break;
@@ -365,7 +365,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
     case EWorkshopEvidencePhase::AcceptContract:
         StartTerminal->Interact_Implementation(PlayerPawn.Get());
         bAccepted = Director->GetStage() == EGTTFarmJobStage::ReachPickup;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=ACCEPT result=%s stage=%s"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=ACCEPT result=%s stage=%s"),
             bAccepted ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()));
         if (!bAccepted) { MarkFailure(TEXT("contract-acceptance-failed")); FinishScenario(TEXT("accept-failed")); return; }
         Phase = EWorkshopEvidencePhase::EnterAndPickup;
@@ -382,7 +382,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             && LoadedVehicleId == NativeMulebox->GetPersistentVehicleId();
         TimerBeforeRecovery = Director->GetTimeRemaining();
         IntegrityBeforeRecovery = Director->GetCargoIntegrity();
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=PICKUP result=%s vehicle=%s timer=%.2f integrity=%.4f"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=PICKUP result=%s vehicle=%s timer=%.2f integrity=%.4f"),
             bPickupBound ? TEXT("PASS") : TEXT("FAIL"), *LoadedVehicleId.ToString(), TimerBeforeRecovery, IntegrityBeforeRecovery);
         if (!bPickupBound) { MarkFailure(TEXT("native-exact-vehicle-binding-failed")); FinishScenario(TEXT("pickup-failed")); return; }
         Phase = EWorkshopEvidencePhase::RequestTow;
@@ -405,7 +405,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             && Roadside->GetPendingRecoveryMode(NativeMulebox.Get()) == EGTTRoadsideRecoveryMode::RoadsideAssistance
             && Roadside->GetPendingRecoveryVehicleId(NativeMulebox.Get()) == LoadedVehicleId
             && Economy->GetCash() == CashBeforeTow;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=TOW_REQUEST result=%s locked_quote=%d target_pinned=%d charged=NO"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=TOW_REQUEST result=%s locked_quote=%d target_pinned=%d charged=NO"),
             bPinned ? TEXT("PASS") : TEXT("FAIL"), TowLockedQuote,
             Roadside->GetPendingRecoveryVehicleId(NativeMulebox.Get()) == LoadedVehicleId ? 1 : 0);
         if (!bPinned) { MarkFailure(TEXT("tow-request-contract-failed")); FinishScenario(TEXT("tow-request-failed")); return; }
@@ -434,7 +434,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
         bWorkshopDestination = WorkshopTerminal.IsValid()
             && FVector::Dist(NativeMulebox->GetActorLocation(), WorkshopTerminal->GetActorLocation()) <= WorkshopEvidenceRadiusCm;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=TOW_COMPLETE result=%s single_charge=%d charged=%d locked_quote=%d damage_preserved=%d identity_preserved=%d workshop_destination=%d workshop_distance=%.1f"),
             (bTowCompleted && bTowSingleCharge && bTowDamagePreserved && bTowIdentityPreserved && bWorkshopDestination) ? TEXT("PASS") : TEXT("FAIL"),
             bTowSingleCharge ? 1 : 0, CashBeforeTow - Economy->GetCash(), TowLockedQuote, bTowDamagePreserved ? 1 : 0,
@@ -457,7 +457,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         if (Found) Snapshot = *Found;
         bWorkshopHoldDetected = Found && GarageFleet->IsVehicleOnWorkshopHold(LoadedVehicleId)
             && (Snapshot.ServiceStatus == TEXT("TOW") || Snapshot.ServiceStatus == TEXT("IMMOBILE"));
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=WORKSHOP_HOLD result=%s hold=%d service_status=%s repair_estimate=%d hold_count=%d"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=WORKSHOP_HOLD result=%s hold=%d service_status=%s repair_estimate=%d hold_count=%d"),
             bWorkshopHoldDetected ? TEXT("PASS") : TEXT("FAIL"), bWorkshopHoldDetected ? 1 : 0,
             Found ? *Snapshot.ServiceStatus : TEXT("MISSING"), Found ? Snapshot.RepairEstimate : 0, GarageFleet->GetWorkshopHoldCount(8));
         if (!bWorkshopHoldDetected) { MarkFailure(TEXT("authoritative-workshop-hold-missing")); FinishScenario(TEXT("hold-failed")); return; }
@@ -476,7 +476,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         bGarageRecallNoMove = NativeMulebox->GetActorLocation().Equals(BeforeRecall.GetLocation(), 2.0f);
         bGarageRecallBlocked = GarageFleet->IsVehicleOnWorkshopHold(LoadedVehicleId)
             && bGarageRecallNoCharge && bGarageRecallNoMove;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=GARAGE_RECALL_REJECT result=%s blocked=%d no_charge=%d no_move=%d slot=%d"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=GARAGE_RECALL_REJECT result=%s blocked=%d no_charge=%d no_move=%d slot=%d"),
             bGarageRecallBlocked ? TEXT("PASS") : TEXT("FAIL"), bGarageRecallBlocked ? 1 : 0,
             bGarageRecallNoCharge ? 1 : 0, bGarageRecallNoMove ? 1 : 0, Slot->GetSlotIndex());
         if (!bGarageRecallBlocked) { MarkFailure(TEXT("garage-recall-bypassed-workshop-hold")); FinishScenario(TEXT("garage-recall-failed")); return; }
@@ -505,7 +505,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             && Director->GetTimeRemaining() <= TimerBeforeService + KINDA_SMALL_NUMBER;
         bIntegrityNotImproved = Director->GetCargoIntegrity() <= IntegrityBeforeRecovery + KINDA_SMALL_NUMBER
             && Director->GetCargoIntegrity() <= IntegrityBeforeService + KINDA_SMALL_NUMBER;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=WORKSHOP_SERVICE result=%s service=%d single_charge=%d charged=%d quote=%d hold_cleared=%d repaired=%d refuelled=%d exact_vehicle=%d timer_continued=%d integrity_not_improved=%d"),
             (bWorkshopServiceApplied && bWorkshopSingleCharge && bWorkshopHoldCleared && bMechanicalRepaired && bRefuelled && bExactVehiclePreserved && bTimerContinued && bIntegrityNotImproved) ? TEXT("PASS") : TEXT("FAIL"),
             bWorkshopServiceApplied ? 1 : 0, bWorkshopSingleCharge ? 1 : 0, CashBeforeWorkshop - Economy->GetCash(), WorkshopQuote,
@@ -531,7 +531,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             && Director->GetStage() == EGTTFarmJobStage::DeliverCargo
             && Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=WRONG_VEHICLE result=%s rejected=%d vehicle=%s"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=WRONG_VEHICLE result=%s rejected=%d vehicle=%s"),
             bWrongVehicleRejected ? TEXT("PASS") : TEXT("FAIL"), bWrongVehicleRejected ? 1 : 0, *LoadedVehicleId.ToString());
         if (!bWrongVehicleRejected) { MarkFailure(TEXT("wrong-vehicle-after-workshop-was-not-rejected")); FinishScenario(TEXT("wrong-vehicle-failed")); return; }
         Phase = EWorkshopEvidencePhase::HillHandoff;
@@ -546,7 +546,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         bHillHandoff = Director->GetStage() == EGTTFarmJobStage::DeliverFinalStop
             && Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=HILL_HANDOFF result=%s same_vehicle=%d"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=HILL_HANDOFF result=%s same_vehicle=%d"),
             bHillHandoff ? TEXT("PASS") : TEXT("FAIL"), bHillHandoff ? 1 : 0);
         if (!bHillHandoff) { MarkFailure(TEXT("hill-handoff-after-workshop-failed")); FinishScenario(TEXT("hill-failed")); return; }
         Phase = EWorkshopEvidencePhase::FinalHandoff;
@@ -562,7 +562,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         PayoutDelta = Economy->GetCash() - CashBeforeFinal;
         CargoRunsDelta = Logistics->GetCargoCompletedRuns() - EvidenceCargoRunsBefore;
         ReputationDelta = Logistics->GetReputation() - EvidenceReputationBefore;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=FINAL_HANDOFF result=%s final=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d authority_cleared=%d"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=FINAL_HANDOFF result=%s final=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d authority_cleared=%d"),
             (bFinalHandoff && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0) ? TEXT("PASS") : TEXT("FAIL"),
             bFinalHandoff ? 1 : 0, PayoutDelta, CargoRunsDelta, ReputationDelta, !Authority->HasBoundCargoVehicle() ? 1 : 0);
         if (!bFinalHandoff || PayoutDelta <= 0 || CargoRunsDelta != 1 || ReputationDelta <= 0)
@@ -575,7 +575,7 @@ void UGTTFarmCargoWorkshopRecoveryEvidenceSubsystem::Tick(float DeltaTime)
 
     case EWorkshopEvidencePhase::VerifyPersistence:
         bSaveVerified = GameMode && GameMode->SaveProgress();
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=PERSISTENCE result=%s explicit_save=%d"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_WORKSHOP_RECOVERY_RUNTIME phase=PERSISTENCE result=%s explicit_save=%d"),
             bSaveVerified ? TEXT("PASS") : TEXT("FAIL"), bSaveVerified ? 1 : 0);
         if (!bSaveVerified) MarkFailure(TEXT("post-workshop-route-save-failed"));
         FinishScenario(TEXT("sequence-complete"));

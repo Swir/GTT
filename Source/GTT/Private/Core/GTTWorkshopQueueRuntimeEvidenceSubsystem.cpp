@@ -38,7 +38,7 @@ void UGTTWorkshopQueueRuntimeEvidenceSubsystem::Initialize(FSubsystemCollectionB
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopQueueRuntimeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_QUEUE_RUNTIME_BEGIN version=1 route=after-hours-book-checkpoint-substitute-exact-service start_delay=%.1f deadline=%.1f exact_vehicle=required no_precharge=required single_debit=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
@@ -180,7 +180,7 @@ bool UGTTWorkshopQueueRuntimeEvidenceSubsystem::VerifyPrimaryCargoContinuity()
 void UGTTWorkshopQueueRuntimeEvidenceSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error, TEXT("WORKSHOP_QUEUE_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
+    GTT_LOG( Error, TEXT("WORKSHOP_QUEUE_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
 
@@ -212,7 +212,7 @@ void UGTTWorkshopQueueRuntimeEvidenceSubsystem::FinishScenario(const TCHAR* Reas
         && bExactExecution && bSidecarCleared && bIdentityPreserved && bMechanicalRepaired
         && bRefuelled && bCargoContinuity && LockedQuote > 0 && !VehicleId.IsNone();
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("WORKSHOP_QUEUE_RUNTIME_COMPLETE result=%s booked=%d no_precharge=%d checkpoint_loaded=%d locked_quote_preserved=%d substitute_rejected=%d reservation_preserved=%d single_debit=%d exact_execution=%d sidecar_cleared=%d identity_preserved=%d repaired=%d refuelled=%d cargo_continuity=%d locked_quote=%d vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bBookingAccepted ? 1 : 0, bNoPrecharge ? 1 : 0,
         bCheckpointLoaded ? 1 : 0, bLockedQuotePreserved ? 1 : 0, bSubstituteRejected ? 1 : 0,
@@ -294,7 +294,7 @@ void UGTTWorkshopQueueRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         const bool bScheduleValid = ReadyDay >= BaselineDay && FMath::IsNearlyEqual(ReadyHour, GTTWorkshopHoursPolicy::OpeningHour, 0.001f);
         const bool bSidecarSaved = UGameplayStatics::DoesSaveGameExist(QueueSlot, SaveUserIndex);
         const bool bPass = bBookingAccepted && bNoPrecharge && bExactPinned && bScheduleValid && bSidecarSaved && LockedQuote > 0;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_QUEUE_RUNTIME phase=BOOK result=%s accepted=%d no_precharge=%d exact_id=%d sidecar_saved=%d locked_quote=%d ready_day=%d ready_hour=%.2f vehicle=%s"),
             bPass ? TEXT("PASS") : TEXT("FAIL"), bBookingAccepted ? 1 : 0, bNoPrecharge ? 1 : 0,
             bExactPinned ? 1 : 0, bSidecarSaved ? 1 : 0, LockedQuote, ReadyDay, ReadyHour, *VehicleId.ToString());
@@ -311,7 +311,7 @@ void UGTTWorkshopQueueRuntimeEvidenceSubsystem::Tick(float DeltaTime)
             && Save->LockedQuote == LockedQuote && Save->ReadyDay == ReadyDay
             && FMath::IsNearlyEqual(Save->ReadyHour, ReadyHour, 0.001f);
         bNoPrecharge = bNoPrecharge && Economy->GetCash() == CashBeforeBooking;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_QUEUE_RUNTIME phase=CHECKPOINT_LOAD result=%s loaded=%d exact_id=%d locked_quote_preserved=%d no_precharge=%d locked_quote=%d vehicle=%s"),
             (bCheckpointLoaded && bLockedQuotePreserved && bNoPrecharge) ? TEXT("PASS") : TEXT("FAIL"),
             bCheckpointLoaded ? 1 : 0, (Save && Save->PersistentVehicleId == VehicleId) ? 1 : 0,
@@ -336,7 +336,7 @@ void UGTTWorkshopQueueRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bReservationPreserved = Snapshot.bQueued && Snapshot.PersistentVehicleId == VehicleId && Snapshot.LockedQuote == LockedQuote;
         bSubstituteRejected = bReservationPreserved && Economy->GetCash() == CashBeforeBooking
             && Decoy->GetPersistentVehicleId() != VehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_QUEUE_RUNTIME phase=SUBSTITUTE result=%s substitute_rejected=%d reservation_preserved=%d no_charge=%d exact_away=1 decoy=%s target=%s"),
             bSubstituteRejected ? TEXT("PASS") : TEXT("FAIL"), bSubstituteRejected ? 1 : 0,
             bReservationPreserved ? 1 : 0, Economy->GetCash() == CashBeforeBooking ? 1 : 0,
@@ -363,12 +363,12 @@ void UGTTWorkshopQueueRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         bMechanicalRepaired = After.ConditionPercent >= 0.999f && After.TireIntegrity >= 0.999f;
         bRefuelled = After.FuelLiters + 0.05f >= Vehicle->GetFuelCapacityLiters();
         bCargoContinuity = VerifyPrimaryCargoContinuity();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_QUEUE_RUNTIME phase=EXACT_SERVICE result=%s completed=%d charged=%d locked_quote=%d single_debit=%d sidecar_cleared=%d identity_preserved=%d repaired=%d refuelled=%d vehicle=%s"),
             (bExactExecution && bSingleDebit && bSidecarCleared && bIdentityPreserved && bMechanicalRepaired && bRefuelled) ? TEXT("PASS") : TEXT("FAIL"),
             bExactExecution ? 1 : 0, Charged, LockedQuote, bSingleDebit ? 1 : 0, bSidecarCleared ? 1 : 0,
             bIdentityPreserved ? 1 : 0, bMechanicalRepaired ? 1 : 0, bRefuelled ? 1 : 0, *VehicleId.ToString());
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_QUEUE_RUNTIME phase=CARGO result=%s authority_preserved=%d active_before=%d active_after=%d bound_before=%s bound_expected=%s stage_before=%d integrity_before=%.3f timer_before=%.2f"),
             bCargoContinuity ? TEXT("PASS") : TEXT("FAIL"), bCargoContinuity ? 1 : 0,
             bBaselineCargoActive ? 1 : 0, bBaselineCargoActive ? 1 : 0,

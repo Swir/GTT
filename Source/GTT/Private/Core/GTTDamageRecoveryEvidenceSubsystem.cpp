@@ -28,7 +28,7 @@ void UGTTDamageRecoveryEvidenceSubsystem::Initialize(FSubsystemCollectionBase& C
     bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY_BEGIN version=9 route=save-load-workshop"));
+        GTT_LOG( Display, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY_BEGIN version=9 route=save-load-workshop"));
     }
 }
 
@@ -79,7 +79,7 @@ AGTTServiceTerminal* UGTTDamageRecoveryEvidenceSubsystem::FindWorkshopTerminal()
 
 void UGTTDamageRecoveryEvidenceSubsystem::Fail(const FString& Reason)
 {
-    UE_LOG(LogGTT, Error, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY result=FAIL phase=%d reason=%s elapsed=%.2f"),
+    GTT_LOG( Error, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY result=FAIL phase=%d reason=%s elapsed=%.2f"),
         static_cast<int32>(Phase), *Reason, Elapsed);
     bFinished = true;
     Phase = EEvidencePhase::Complete;
@@ -119,7 +119,7 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             DamagedThrottleLimit = Vehicle->GetRuntimeThrottleLimit();
             DamagedSteeringLimit = Vehicle->GetRuntimeSteeringLimit();
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_DAMAGE_PERSISTENCE vehicle=%s phase=CAPTURE tire=%.3f condition=%.3f wheel_risk=%.3f throttle_limit=%.3f steering_limit=%.3f"),
                 *TargetVehicleId.ToString(), DamagedTireIntegrity, DamagedCondition, DamagedWheelRisk,
                 DamagedThrottleLimit, DamagedSteeringLimit);
@@ -220,7 +220,7 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_DAMAGE_PERSISTENCE vehicle=%s result=PASS tire_saved=%.3f tire_reloaded=%.3f condition_saved=%.3f condition_reloaded=%.3f"),
                 *TargetVehicleId.ToString(), DamagedTireIntegrity, NativeState.TireIntegrity,
                 DamagedCondition, NativeState.ConditionPercent);
@@ -258,7 +258,7 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             {
                 const int32 Reserve = 250 - Economy->GetCash();
                 Economy->AddCash(Reserve, TEXT("Demo workshop recovery evidence reserve"));
-                UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=WORKSHOP_TEST_RESERVE amount=%d"), Reserve);
+                GTT_LOG( Display, TEXT("DEMO_SCENARIO_ACTION action=WORKSHOP_TEST_RESERVE amount=%d"), Reserve);
             }
 
             Terminal->SetServiceType(EGTTServiceType::Workshop);
@@ -331,12 +331,12 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_WORKSHOP_RECOVERY vehicle=%s result=PASS cash_before=%d cash_after=%d tire_before=%.3f tire_after=%.3f wheel_risk_before=%.3f wheel_risk_after=%.3f throttle_limit_before=%.3f throttle_limit_after=%.3f steering_limit_before=%.3f steering_limit_after=%.3f"),
                 *TargetVehicleId.ToString(), CashBeforeWorkshop, CashAfterWorkshop,
                 ReloadedTireIntegrity, Repaired.TireIntegrity, DamagedWheelRisk, RepairedRisk,
                 DamagedThrottleLimit, RepairedThrottle, DamagedSteeringLimit, RepairedSteering);
-            UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY result=PASS vehicle=%s route=spike-save-load-workshop"), *TargetVehicleId.ToString());
+            GTT_LOG( Display, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY result=PASS vehicle=%s route=spike-save-load-workshop"), *TargetVehicleId.ToString());
 
             Phase = EEvidencePhase::Complete;
             bFinished = true;

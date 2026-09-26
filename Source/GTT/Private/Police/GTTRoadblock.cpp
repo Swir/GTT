@@ -72,5 +72,5 @@ void AGTTRoadblock::HandleSpikeHit(UPrimitiveComponent*,AActor* OtherActor,UPrim
     if(!bAccepted) return;
     LastSpikedActor=OtherActor; LastSpikeHitTimeSeconds=Now; LastSpikedVehicleId=VehicleId;
     LastTireIntegrityBefore=TireBefore; LastTireIntegrityAfter=TireAfter; ++SpikeHitCount;
-    UE_LOG(LogGTT,Warning,TEXT("ROADBLOCK_SPIKE_CONSEQUENCE vehicle=%s path=%s tier=%d hit=%d tire_before=%.3f tire_after=%.3f tire_delta=%.3f body_damage=%.1f speed_kmh=%.1f"),*LastSpikedVehicleId.ToString(),VehiclePath,ResponseTier,SpikeHitCount,LastTireIntegrityBefore,LastTireIntegrityAfter,LastTireIntegrityBefore-LastTireIntegrityAfter,BodyDamage,SpeedKmh);
+    GTT_LOG(Warning,TEXT("ROADBLOCK_SPIKE_CONSEQUENCE vehicle=%s path=%s tier=%d hit=%d tire_before=%.3f tire_after=%.3f tire_delta=%.3f body_damage=%.1f speed_kmh=%.1f"),*LastSpikedVehicleId.ToString(),VehiclePath,ResponseTier,SpikeHitCount,LastTireIntegrityBefore,LastTireIntegrityAfter,LastTireIntegrityBefore-LastTireIntegrityAfter,BodyDamage,SpeedKmh);
 }

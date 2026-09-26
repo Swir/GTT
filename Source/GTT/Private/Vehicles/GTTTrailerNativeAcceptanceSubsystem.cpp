@@ -160,7 +160,7 @@ void UGTTTrailerNativeAcceptanceSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trai
         State.InvalidSeconds += DeltaSeconds;
         if (State.InvalidSeconds >= InvalidGraceSeconds)
         {
-            UE_LOG(LogGTT, Warning, TEXT("NATIVE_TRAILER_FAILSAFE trailer=%s rig=%s hitch=%s yaw=%.1f error=%.1f action=DETACH"), *GetNameSafe(Trailer), *RigReason, *HitchReason, State.ArticulationYawDeg, State.HitchErrorCm);
+            GTT_LOG( Warning, TEXT("NATIVE_TRAILER_FAILSAFE trailer=%s rig=%s hitch=%s yaw=%.1f error=%.1f action=DETACH"), *GetNameSafe(Trailer), *RigReason, *HitchReason, State.ArticulationYawDeg, State.HitchErrorCm);
             Trailer->DetachTrailer();
             State.InvalidSeconds = 0.0f;
         }
@@ -179,13 +179,13 @@ void UGTTTrailerNativeAcceptanceSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trai
 
 void UGTTTrailerNativeAcceptanceSubsystem::EmitEvidence(AGTTFarmTrailer* Trailer, const FGTTTrailerNativeAcceptanceState& State, const FString& Reason) const
 {
-    UE_LOG(LogGTT, Display, TEXT("NATIVE_TRAILER_ACCEPTANCE_EVIDENCE trailer=%s authored=%d physics=%d bones=%d sockets=%d nativeTow=%d aligned=%d axle=%d accepted=%d yaw=%.1f hitchError=%.1f reason=%s"),
+    GTT_LOG( Display, TEXT("NATIVE_TRAILER_ACCEPTANCE_EVIDENCE trailer=%s authored=%d physics=%d bones=%d sockets=%d nativeTow=%d aligned=%d axle=%d accepted=%d yaw=%.1f hitchError=%.1f reason=%s"),
         *GetNameSafe(Trailer), State.bAuthoredRigPresent ? 1 : 0, State.bPhysicsAssetReady ? 1 : 0, State.bRequiredBonesReady ? 1 : 0,
         State.bRequiredSocketsReady ? 1 : 0, State.bNativeTowReady ? 1 : 0, State.bHitchAligned ? 1 : 0,
         Trailer && Trailer->HasIntactAxle() ? 1 : 0, State.bRuntimeAccepted ? 1 : 0, State.ArticulationYawDeg, State.HitchErrorCm, *Reason);
 
     if (Trailer && Trailer->IsAttachedToNativeFieldmaster() && State.ArticulationYawDeg >= JackknifeWarningYawDeg && State.ArticulationYawDeg < JackknifeDetachYawDeg)
     {
-        UE_LOG(LogGTT, Warning, TEXT("NATIVE_TRAILER_JACKKNIFE_WARNING trailer=%s yaw=%.1f limit=%.1f"), *GetNameSafe(Trailer), State.ArticulationYawDeg, JackknifeDetachYawDeg);
+        GTT_LOG( Warning, TEXT("NATIVE_TRAILER_JACKKNIFE_WARNING trailer=%s yaw=%.1f limit=%.1f"), *GetNameSafe(Trailer), State.ArticulationYawDeg, JackknifeDetachYawDeg);
     }
 }

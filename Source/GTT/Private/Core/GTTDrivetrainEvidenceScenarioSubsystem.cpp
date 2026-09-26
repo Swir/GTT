@@ -32,7 +32,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBas
     bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_DRIVETRAIN_SCENARIO_BEGIN version=1 start_delay=%.1f deadline=%.1f release_kmh=%.2f"),
             StartDelaySeconds, GlobalDeadlineSeconds, ShiftReleaseSpeedKmh);
     }
@@ -80,7 +80,7 @@ float UGTTDrivetrainEvidenceScenarioSubsystem::GetSignedSpeedKmh(const AGTTField
 void UGTTDrivetrainEvidenceScenarioSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason, Elapsed);
 }
@@ -99,7 +99,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::BeginForwardAcceleration(
     PhaseStartedSeconds = Elapsed;
     MaxForwardGearObserved = FMath::Max(MaxForwardGearObserved, Movement->GetCurrentGear());
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=FORWARD_ACCELERATE result=START gear=%d signed_speed_kmh=%.2f throttle=%.2f"),
         Movement->GetCurrentGear(), GetSignedSpeedKmh(Pawn), ForwardThrottle);
 }
@@ -124,7 +124,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::CompleteScenario(
         && bSafeForwardCommitObserved
         && bForwardReturnObserved;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_DRIVETRAIN_SCENARIO_COMPLETE result=%s route=forward-auto-reverse-forward max_forward_gear=%d reverse_interlock_speed_kmh=%.2f reverse_commit_speed_kmh=%.2f forward_commit_speed_kmh=%.2f final_signed_speed_kmh=%.2f reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), MaxForwardGearObserved, ReverseInterlockStartSpeedKmh,
         ReverseCommitSpeedKmh, ForwardCommitSpeedKmh, GetSignedSpeedKmh(Pawn), Reason, Elapsed);
@@ -177,7 +177,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
         if (!bAutomaticUpshiftObserved && CurrentGear >= 2 && SignedSpeedKmh >= ForwardEvidenceSpeedKmh)
         {
             bAutomaticUpshiftObserved = true;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=AUTOMATIC_UPSHIFT result=PASS gear=%d speed_kmh=%.2f max_forward_gear=%d"),
                 CurrentGear, SignedSpeedKmh, MaxForwardGearObserved);
         }
@@ -188,7 +188,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
         {
             if (!bAutomaticUpshiftObserved)
             {
-                UE_LOG(LogGTT, Log,
+                GTT_LOG( Log,
                     TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=AUTOMATIC_UPSHIFT result=FAIL gear=%d speed_kmh=%.2f max_forward_gear=%d reason=timeout"),
                     CurrentGear, SignedSpeedKmh, MaxForwardGearObserved);
                 MarkFailure(TEXT("automatic-upshift-not-observed"));
@@ -196,7 +196,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
             ReverseInterlockStartSpeedKmh = AbsoluteSpeedKmh;
             bReverseInterlockObserved = AbsoluteSpeedKmh > ShiftReleaseSpeedKmh;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=REVERSE_INTERLOCK result=%s speed_abs_kmh=%.2f gear=%d release_kmh=%.2f action=HOLD_GEAR_AND_BRAKE"),
                 bReverseInterlockObserved ? TEXT("PASS") : TEXT("FAIL"), AbsoluteSpeedKmh, CurrentGear, ShiftReleaseSpeedKmh);
             if (!bReverseInterlockObserved) MarkFailure(TEXT("forward-speed-too-low-for-reverse-interlock-evidence"));
@@ -220,7 +220,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
             bSafeReverseCommitObserved = ReverseCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
             const int32 GearBefore = CurrentGear;
             Movement->SetTargetGear(-1, true);
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=REVERSE_COMMIT result=%s speed_abs_kmh=%.2f gear_before=%d target=-1 release_kmh=%.2f"),
                 bSafeReverseCommitObserved ? TEXT("PASS") : TEXT("FAIL"), ReverseCommitSpeedKmh, GearBefore, ShiftReleaseSpeedKmh);
             if (!bSafeReverseCommitObserved) MarkFailure(TEXT("reverse-commit-above-safe-window"));
@@ -241,7 +241,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
         if (bReverseProven || bTimedOut)
         {
             bReverseMotionObserved = bReverseProven;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=REVERSE_MOTION result=%s signed_speed_kmh=%.2f gear=%d target_speed_kmh=-%.2f"),
                 bReverseProven ? TEXT("PASS") : TEXT("FAIL"), SignedSpeedKmh, CurrentGear, ReverseEvidenceSpeedKmh);
             if (!bReverseProven) MarkFailure(TEXT("reverse-motion-not-observed"));
@@ -263,7 +263,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
             bSafeForwardCommitObserved = ForwardCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
             const int32 GearBefore = CurrentGear;
             Movement->SetTargetGear(1, true);
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=FORWARD_COMMIT result=%s speed_abs_kmh=%.2f gear_before=%d target=1 release_kmh=%.2f"),
                 bSafeForwardCommitObserved ? TEXT("PASS") : TEXT("FAIL"), ForwardCommitSpeedKmh, GearBefore, ShiftReleaseSpeedKmh);
             if (!bSafeForwardCommitObserved) MarkFailure(TEXT("forward-commit-above-safe-window"));
@@ -284,7 +284,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
         if (bForwardProven || bTimedOut)
         {
             bForwardReturnObserved = bForwardProven;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=FORWARD_MOTION result=%s signed_speed_kmh=%.2f gear=%d target_speed_kmh=%.2f"),
                 bForwardProven ? TEXT("PASS") : TEXT("FAIL"), SignedSpeedKmh, CurrentGear, ForwardReturnEvidenceSpeedKmh);
             if (!bForwardProven) MarkFailure(TEXT("forward-return-motion-not-observed"));

@@ -53,12 +53,12 @@ void AGTTFieldmasterNativePawn::BeginPlay()
 
     if (bNativeReady)
     {
-        UE_LOG(LogGTT, Log, TEXT("Fieldmaster native pawn accepted: %s"), *NativeAcceptanceSummary);
+        GTT_LOG( Log, TEXT("Fieldmaster native pawn accepted: %s"), *NativeAcceptanceSummary);
         TryActivateLegacyTakeover();
     }
     else
     {
-        UE_LOG(LogGTT, Warning, TEXT("Fieldmaster native pawn not accepted: %s"), *NativeAcceptanceSummary);
+        GTT_LOG( Warning, TEXT("Fieldmaster native pawn not accepted: %s"), *NativeAcceptanceSummary);
     }
 }
 
@@ -339,7 +339,7 @@ bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
         FString ImportSummary;
         if (!ImportLegacyGameplayState(LegacyVehicle, ImportSummary))
         {
-            UE_LOG(LogGTT, Warning, TEXT("Fieldmaster takeover rejected: %s"), *ImportSummary);
+            GTT_LOG( Warning, TEXT("Fieldmaster takeover rejected: %s"), *ImportSummary);
             return false;
         }
 
@@ -353,7 +353,7 @@ bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
         bTakeoverActive = true;
         MirrorSyncAccumulator = 0.0f;
         RefreshNativeDriveCommand();
-        UE_LOG(LogGTT, Log, TEXT("Fieldmaster native takeover ACTIVE: %s"), *ImportSummary);
+        GTT_LOG( Log, TEXT("Fieldmaster native takeover ACTIVE: %s"), *ImportSummary);
         return true;
     }
 

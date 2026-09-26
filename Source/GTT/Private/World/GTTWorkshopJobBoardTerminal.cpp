@@ -175,7 +175,7 @@ void AGTTWorkshopJobBoardTerminal::Interact_Implementation(AActor* Interactor)
             PendingCancelVehicleId = NAME_None;
             PendingCancelExpiresAt = -1.0f;
             Economy->PushMessage(PickupSummary, 9.0f);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("WORKSHOP_JOB_BOARD_PICKUP vehicle=%s success=%s board_authority=RELEASE_ONLY charged=NO repair_mutation=NO"),
                 *NearbyQueuedId.ToString(), bReleased ? TEXT("YES") : TEXT("NO"));
             return;
@@ -190,7 +190,7 @@ void AGTTWorkshopJobBoardTerminal::Interact_Implementation(AActor* Interactor)
                 PendingCancelVehicleId = NAME_None;
                 PendingCancelExpiresAt = -1.0f;
                 Economy->PushMessage(CancelSummary, 8.0f);
-                UE_LOG(LogGTT, Display,
+                GTT_LOG( Display,
                     TEXT("WORKSHOP_JOB_BOARD_CANCEL_CONFIRMED vehicle=%s success=%s board_authority=PRESENTATION_ONLY charged=NO mutation=NO"),
                     *NearbyQueuedId.ToString(), bCancelled ? TEXT("YES") : TEXT("NO"));
                 return;
@@ -201,7 +201,7 @@ void AGTTWorkshopJobBoardTerminal::Interact_Implementation(AActor* Interactor)
             Economy->PushMessage(FString::Printf(
                 TEXT("%s\n\nCancel guard ARMED for exact vehicle %s. Interact again within %.0f seconds to confirm cancellation. No charge or repair mutation occurs."),
                 *BuildBoardSummary(), *NearbyQueuedId.ToString(), CancelConfirmationSeconds), 11.0f);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("WORKSHOP_JOB_BOARD_CANCEL_ARMED vehicle=%s timeout=%.1f exact_id=YES charged=NO mutation=NO"),
                 *NearbyQueuedId.ToString(), CancelConfirmationSeconds);
             return;

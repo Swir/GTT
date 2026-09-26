@@ -52,14 +52,14 @@ bool UGTTRoadsideDispatchPersistenceSubsystem::ReloadCheckpointForRuntimeEvidenc
 {
     if (!FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoDispatchPersistenceScenario")))
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_EVIDENCE_RELOAD result=REJECTED reason=EVIDENCE_FLAG_REQUIRED"));
         return false;
     }
 
     if (!UGameplayStatics::DoesSaveGameExist(RoadsideDispatchSlot, SaveUserIndex))
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_EVIDENCE_RELOAD result=REJECTED reason=CHECKPOINT_MISSING"));
         return false;
     }
@@ -72,7 +72,7 @@ bool UGTTRoadsideDispatchPersistenceSubsystem::ReloadCheckpointForRuntimeEvidenc
     CheckpointAccumulator = 0.0f;
     LoadCheckpointOnce();
 
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("NATIVE_ROADSIDE_DISPATCH_EVIDENCE_RELOAD result=%s checkpoint_pending=%s charged=NO"),
         bRestorePending ? TEXT("PASS") : TEXT("REJECTED"), bRestorePending ? TEXT("YES") : TEXT("NO"));
     return bRestorePending;
@@ -126,7 +126,7 @@ void UGTTRoadsideDispatchPersistenceSubsystem::LoadCheckpointOnce()
     // resume and the normal production completion path will charge it exactly once there.
     if (LooksLikeAlreadyCommittedCharge())
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_REPLAY_GUARD vehicle=%s locked_quote=%d authorized_cash=%d current_cash=%d authorized_revision=%d current_revision=%d action=DISCARD charged=NO"),
             *RestoreVehicleId.ToString(), RestoreLockedQuote, RestoreAuthorizedCash, ReadPrimaryCash(),
             RestoreAuthorizedPrimaryRevision, ReadPrimaryWorldRevision());
@@ -135,7 +135,7 @@ void UGTTRoadsideDispatchPersistenceSubsystem::LoadCheckpointOnce()
     }
 
     bRestorePending = true;
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_LOADED vehicle=%s mode=%d locked_quote=%d eta=%.2f authorized_cash=%d authorized_revision=%d primary_revision=%d charged=NO"),
         *RestoreVehicleId.ToString(), static_cast<int32>(RestoreMode), RestoreLockedQuote,
         RestoreSecondsRemaining, RestoreAuthorizedCash, RestoreAuthorizedPrimaryRevision,
@@ -152,7 +152,7 @@ bool UGTTRoadsideDispatchPersistenceSubsystem::TryRestoreLoadedCheckpoint()
     // may have finished loading since LoadCheckpointOnce().
     if (LooksLikeAlreadyCommittedCharge())
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_REPLAY_GUARD vehicle=%s locked_quote=%d action=DISCARD_ON_RESTORE charged=NO"),
             *RestoreVehicleId.ToString(), RestoreLockedQuote);
         ClearCheckpoint(TEXT("POSSIBLE_ALREADY_COMMITTED_CHARGE"));
@@ -178,7 +178,7 @@ bool UGTTRoadsideDispatchPersistenceSubsystem::TryRestoreLoadedCheckpoint()
     LastSavedPrimaryRevision = ReadPrimaryWorldRevision();
     AuthorizedCash = RestoreAuthorizedCash;
     AuthorizedPrimaryRevision = RestoreAuthorizedPrimaryRevision;
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_REBOUND vehicle=%s locked_quote=%d eta=%.2f exact_id=YES charged=NO"),
         *RestoreVehicleId.ToString(), RestoreLockedQuote, RestoreSecondsRemaining);
     return true;
@@ -202,7 +202,7 @@ void UGTTRoadsideDispatchPersistenceSubsystem::CaptureLiveCheckpoint()
 
     if (PendingCount > 1)
     {
-        UE_LOG(LogGTT, Error,
+        GTT_LOG( Error,
             TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_SKIPPED reason=AMBIGUOUS_PENDING_SERVICES count=%d"), PendingCount);
         return;
     }
@@ -223,7 +223,7 @@ void UGTTRoadsideDispatchPersistenceSubsystem::CaptureLiveCheckpoint()
             && Mode != EGTTRoadsideRecoveryMode::RoadsideAssistance)
         || VehicleId.IsNone() || LockedQuote <= 0 || SecondsRemaining <= 0.0f)
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_SKIPPED reason=INVALID_LIVE_CONTRACT vehicle=%s quote=%d eta=%.2f"),
             *VehicleId.ToString(), LockedQuote, SecondsRemaining);
         return;
@@ -231,7 +231,7 @@ void UGTTRoadsideDispatchPersistenceSubsystem::CaptureLiveCheckpoint()
 
     if (!IsCargoVehicleCompatible(VehicleId))
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_SKIPPED reason=FARM_CARGO_ID_MISMATCH vehicle=%s"),
             *VehicleId.ToString());
         return;
@@ -267,7 +267,7 @@ void UGTTRoadsideDispatchPersistenceSubsystem::CaptureLiveCheckpoint()
 
     if (!UGameplayStatics::SaveGameToSlot(Save, RoadsideDispatchSlot, SaveUserIndex))
     {
-        UE_LOG(LogGTT, Error, TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_WRITE_FAILED vehicle=%s"), *VehicleId.ToString());
+        GTT_LOG( Error, TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_WRITE_FAILED vehicle=%s"), *VehicleId.ToString());
         return;
     }
 
@@ -277,7 +277,7 @@ void UGTTRoadsideDispatchPersistenceSubsystem::CaptureLiveCheckpoint()
     LastSavedLockedQuote = LockedQuote;
     LastSavedSecondsRemaining = SecondsRemaining;
     LastSavedPrimaryRevision = PrimaryRevision;
-    UE_LOG(LogGTT, VeryVerbose,
+    GTT_LOG( VeryVerbose,
         TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_SAVED vehicle=%s mode=%d locked_quote=%d eta=%.2f authorized_cash=%d authorized_revision=%d primary_revision=%d charged=NO"),
         *VehicleId.ToString(), static_cast<int32>(Mode), LockedQuote, SecondsRemaining,
         AuthorizedCash, AuthorizedPrimaryRevision, PrimaryRevision);
@@ -310,7 +310,7 @@ void UGTTRoadsideDispatchPersistenceSubsystem::ClearCheckpoint(const TCHAR* Reas
 
     bCheckpointOnDisk = false;
     ResetInMemoryCheckpointState();
-    UE_LOG(LogGTT, VeryVerbose,
+    GTT_LOG( VeryVerbose,
         TEXT("NATIVE_ROADSIDE_DISPATCH_CHECKPOINT_CLEARED reason=%s"), Reason ? Reason : TEXT("UNKNOWN"));
 }
 

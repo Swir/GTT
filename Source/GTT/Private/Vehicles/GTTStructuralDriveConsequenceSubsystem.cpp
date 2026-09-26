@@ -33,7 +33,7 @@ void UGTTStructuralDriveConsequenceSubsystem::Initialize(FSubsystemCollectionBas
     bEvidenceEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
     if (bEvidenceEnabled)
     {
-        UE_LOG(LogGTT, Display,
+        GTT_LOG( Display,
             TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE_BEGIN version=11 route=damage-physics-save-load-workshop"));
     }
 }
@@ -143,7 +143,7 @@ AGTTServiceTerminal* UGTTStructuralDriveConsequenceSubsystem::FindWorkshopTermin
 
 void UGTTStructuralDriveConsequenceSubsystem::FailEvidence(const FString& Reason)
 {
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE result=FAIL phase=%d reason=%s elapsed=%.2f"),
         static_cast<int32>(EvidencePhase), *Reason, EvidenceElapsed);
     bEvidenceFinished = true;
@@ -221,7 +221,7 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_HANDLING vehicle=%s result=PASS severity=%.3f drag_rate=%.3f pull_rate=%.3f power_retention=%.3f steering_retention=%.3f cooling=%.3f limp=YES front=%.3f right=%.3f panels=%d"),
                 *EvidenceVehicleId.ToString(), DamagedState.DamageSeverity, DamagedState.DragRatePerSecond,
                 DamagedState.LateralPullRate, DamagedState.PowerRetention, DamagedState.SteeringRetention,
@@ -275,7 +275,7 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_RELOAD_HANDLING vehicle=%s result=PASS severity_before=%.3f severity_after=%.3f drag_before=%.3f drag_after=%.3f pull_before=%.3f pull_after=%.3f power_before=%.3f power_after=%.3f steering_before=%.3f steering_after=%.3f limp=YES"),
                 *EvidenceVehicleId.ToString(), DamagedState.DamageSeverity, Reloaded.DamageSeverity,
                 DamagedState.DragRatePerSecond, Reloaded.DragRatePerSecond,
@@ -303,7 +303,7 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
             {
                 const int32 Reserve = 550 - Economy->GetCash();
                 Economy->AddCash(Reserve, TEXT("Demo structural drive recovery reserve"));
-                UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=STRUCTURAL_DRIVE_WORKSHOP_RESERVE amount=%d"), Reserve);
+                GTT_LOG( Display, TEXT("DEMO_SCENARIO_ACTION action=STRUCTURAL_DRIVE_WORKSHOP_RESERVE amount=%d"), Reserve);
             }
             Terminal->SetServiceType(EGTTServiceType::Workshop);
             Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 260.0f + FVector(0.0f, 0.0f, 85.0f),
@@ -354,14 +354,14 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE_RECOVERY vehicle=%s result=PASS cash_before=%d cash_after=%d paid=%d severity_before=%.3f severity_after=%.3f drag_before=%.3f drag_after=%.3f pull_before=%.3f pull_after=%.3f power_after=%.3f steering_after=%.3f limp_after=NO"),
                 *EvidenceVehicleId.ToString(), CashBeforeWorkshop, Economy->GetCash(), Paid,
                 DamagedState.DamageSeverity, Recovered.DamageSeverity,
                 DamagedState.DragRatePerSecond, Recovered.DragRatePerSecond,
                 DamagedState.LateralPullRate, Recovered.LateralPullRate,
                 Recovered.PowerRetention, Recovered.SteeringRetention);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE result=PASS vehicle=%s route=damage-physics-save-load-workshop"),
                 *EvidenceVehicleId.ToString());
             bEvidenceFinished = true;
@@ -396,7 +396,7 @@ void UGTTStructuralDriveConsequenceSubsystem::Tick(float DeltaTime)
             if (!IsValid(Vehicle) || !Vehicle->IsLegacyTakeoverActive()) continue;
             const FGTTStructuralDriveState State = GetDriveStateForVehicle(Vehicle);
             if (State.DamageSeverity <= 0.015f) continue;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_STRUCTURAL_DRIVE_STATE vehicle=%s severity=%.3f drag_rate=%.3f pull_rate=%.3f power_retention=%.3f steering_retention=%.3f cooling=%.3f panels=%d limp=%s"),
                 *Vehicle->GetPersistentVehicleId().ToString(), State.DamageSeverity, State.DragRatePerSecond,
                 State.LateralPullRate, State.PowerRetention, State.SteeringRetention,

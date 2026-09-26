@@ -106,12 +106,12 @@ void AGTTRoadVehicleNativePawn::BeginPlay()
     SetActorEnableCollision(false);
     if (bNativeReady)
     {
-        UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_ACCEPTED vehicle=%s %s"), *NativeVehicleId.ToString(), *NativeAcceptanceSummary);
+        GTT_LOG( Log, TEXT("NATIVE_ROAD_ACCEPTED vehicle=%s %s"), *NativeVehicleId.ToString(), *NativeAcceptanceSummary);
         TryActivateLegacyTakeover();
     }
     else
     {
-        UE_LOG(LogGTT, Warning, TEXT("NATIVE_ROAD_WAIT vehicle=%s %s"), *NativeVehicleId.ToString(), *NativeAcceptanceSummary);
+        GTT_LOG( Warning, TEXT("NATIVE_ROAD_WAIT vehicle=%s %s"), *NativeVehicleId.ToString(), *NativeAcceptanceSummary);
     }
 }
 
@@ -189,7 +189,7 @@ void AGTTRoadVehicleNativePawn::Interact_Implementation(AActor* Interactor)
     InteractingPawn->SetActorEnableCollision(false);
     PossessingController->Possess(this);
     bOccupied = true;
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_DRIVER_ENTER vehicle=%s"), *NativeVehicleId.ToString());
+    GTT_LOG( Log, TEXT("NATIVE_ROAD_DRIVER_ENTER vehicle=%s"), *NativeVehicleId.ToString());
 }
 
 FText AGTTRoadVehicleNativePawn::GetInteractionText_Implementation() const
@@ -227,7 +227,7 @@ void AGTTRoadVehicleNativePawn::ExitNativeVehicle()
     PreviousPawn.Reset();
     bOccupied = false;
     SyncLegacyMirror();
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_DRIVER_EXIT vehicle=%s"), *NativeVehicleId.ToString());
+    GTT_LOG( Log, TEXT("NATIVE_ROAD_DRIVER_EXIT vehicle=%s"), *NativeVehicleId.ToString());
 }
 
 void AGTTRoadVehicleNativePawn::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved,
@@ -272,7 +272,7 @@ void AGTTRoadVehicleNativePawn::NotifyHit(UPrimitiveComponent* MyComp, AActor* O
         !FMath::IsNearlyEqual(PreviousTires, MigrationSnapshot.TireIntegrity))
     {
         SyncLegacyMirror();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_ROAD_IMPACT_DAMAGE vehicle=%s zone=%s speed_kmh=%.1f condition=%.1f%% tire_integrity=%.2f condition_delta=%.3f tire_delta=%.3f cargo=%.2f impacts=%d other=%s"),
             *NativeVehicleId.ToString(),
             DamageZoneToString(LastImpactZone),
@@ -373,7 +373,7 @@ bool AGTTRoadVehicleNativePawn::TryActivateLegacyTakeover()
         MirrorSyncAccumulator = 0.0f;
         WheelEvidenceAccumulator = 0.0f;
         DamageEvidenceAccumulator = 0.0f;
-        UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_TAKEOVER_ACTIVE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
+        GTT_LOG( Log, TEXT("NATIVE_ROAD_TAKEOVER_ACTIVE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
         return true;
     }
     return false;
@@ -418,7 +418,7 @@ void AGTTRoadVehicleNativePawn::RuntimeAcceptanceGuard()
     FString Summary;
     if (!ConfigureAndValidateNativeRoadVehicle(Summary))
     {
-        UE_LOG(LogGTT, Error, TEXT("NATIVE_ROAD_FALLBACK vehicle=%s reason=%s"), *NativeVehicleId.ToString(), *Summary);
+        GTT_LOG( Error, TEXT("NATIVE_ROAD_FALLBACK vehicle=%s reason=%s"), *NativeVehicleId.ToString(), *Summary);
         DeactivateLegacyTakeover();
     }
 }
@@ -499,7 +499,7 @@ void AGTTRoadVehicleNativePawn::UpdateNativeWheelRuntime(float DeltaSeconds)
     if (WheelEvidenceAccumulator >= WheelEvidenceIntervalSeconds)
     {
         WheelEvidenceAccumulator = 0.0f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_ROAD_WHEEL_STATE_EVIDENCE vehicle=%s contacts=%d/4 slipping=%d skidding=%d slip_mag=%.2f slip_angle=%.2f suspension_spread=%.2f risk=%.2f throttle_limit=%.2f brake_assist=%.2f steering_limit=%.2f tire_integrity=%.2f tire_level=%d rear_body=%.2f"),
             *NativeVehicleId.ToString(),
             RuntimeWheelContacts,
@@ -557,7 +557,7 @@ void AGTTRoadVehicleNativePawn::UpdateDamageConsequences(float DeltaSeconds)
     if (DamageEvidenceAccumulator >= DamageEvidenceIntervalSeconds)
     {
         DamageEvidenceAccumulator = 0.0f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_ROAD_DAMAGE_DYNAMICS vehicle=%s front=%.2f rear=%.2f left=%.2f right=%.2f cooling=%.2f detached=%d power_limit=%.2f steering_limit=%.2f steering_bias=%.2f repair_surcharge=%d"),
             *NativeVehicleId.ToString(), BodyDamage.FrontHealth, BodyDamage.RearHealth,
             BodyDamage.LeftHealth, BodyDamage.RightHealth, BodyDamage.CoolingStress,
@@ -642,7 +642,7 @@ void AGTTRoadVehicleNativePawn::ApplyNativeImpactDamage(float ImpactSpeedKmh, EG
 
     TryDetachDamagePanel(Zone, HitLocation, NormalImpulse, ImpactSpeedKmh);
 
-    UE_LOG(LogGTT, Warning,
+    GTT_LOG( Warning,
         TEXT("NATIVE_ROAD_DAMAGE_ZONE vehicle=%s zone=%s speed_kmh=%.1f zone_health=%.2f zone_delta=%.3f condition=%.2f tires=%.2f detached=%d"),
         *NativeVehicleId.ToString(), DamageZoneToString(Zone), ImpactSpeedKmh,
         ZoneHealth, PreviousZoneHealth - ZoneHealth, MigrationSnapshot.ConditionPercent,
@@ -651,7 +651,7 @@ void AGTTRoadVehicleNativePawn::ApplyNativeImpactDamage(float ImpactSpeedKmh, EG
     if (MigrationSnapshot.ConditionPercent <= KINDA_SMALL_NUMBER)
     {
         StopNativeDriveForBreakdown();
-        UE_LOG(LogGTT, Warning, TEXT("NATIVE_ROAD_BREAKDOWN vehicle=%s impact_speed_kmh=%.1f"), *NativeVehicleId.ToString(), ImpactSpeedKmh);
+        GTT_LOG( Warning, TEXT("NATIVE_ROAD_BREAKDOWN vehicle=%s impact_speed_kmh=%.1f"), *NativeVehicleId.ToString(), ImpactSpeedKmh);
     }
 }
 
@@ -692,7 +692,7 @@ void AGTTRoadVehicleNativePawn::TryDetachDamagePanel(EGTTRoadDamageZone Zone, co
         Panel->AddImpulseAtLocation(NormalImpulse.GetClampedToMaxSize(180000.0f), HitLocation);
     }
 
-    UE_LOG(LogGTT, Warning,
+    GTT_LOG( Warning,
         TEXT("NATIVE_ROAD_PANEL_DETACH vehicle=%s zone=%s speed_kmh=%.1f detached=%d"),
         *NativeVehicleId.ToString(), DamageZoneToString(Zone), ImpactSpeedKmh, BodyDamage.DetachedPanelCount);
 }
@@ -789,7 +789,7 @@ bool AGTTRoadVehicleNativePawn::ApplyNativeWorkshopService()
 
     RestoreNativeBodyDamage();
     SyncLegacyMirror();
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_WORKSHOP_RESTORE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
+    GTT_LOG( Log, TEXT("NATIVE_ROAD_WORKSHOP_RESTORE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
     return true;
 }
 
@@ -849,7 +849,7 @@ void AGTTRoadVehicleNativePawn::HandleNativeSteering(float Value)
 void AGTTRoadVehicleNativePawn::SetCargoLoadFactor(float NewLoadFactor)
 {
     CargoLoadFactor = FMath::Clamp(NewLoadFactor, 0.0f, 1.0f);
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_CARGO vehicle=%s load=%.2f"), *NativeVehicleId.ToString(), CargoLoadFactor);
+    GTT_LOG( Log, TEXT("NATIVE_ROAD_CARGO vehicle=%s load=%.2f"), *NativeVehicleId.ToString(), CargoLoadFactor);
 }
 
 float AGTTRoadVehicleNativePawn::GetCargoPowerLimit(float SpeedKmh) const { return 1.0f; }

@@ -21,11 +21,13 @@ if (Test-Path $runtimeLog) { Remove-Item -Force $runtimeLog }
 $arguments = @(
     '-unattended', '-nosplash', '-nullrhi', '-NoSound',
     '-GTTDemoSmokeScenario', '-GTTFarmCargoRuntimeScenario', '-GTTFarmCargoRecoveryScenario', '-GTTFarmCargoBreakdownScenario', '-GTTFarmCargoDispatchScenario', '-GTTFarmCargoDispatchPersistenceScenario', '-GTTFarmCargoWorkshopRecoveryScenario', '-GTTWorkshopHoursRuntimeScenario', '-GTTWorkshopQueueRuntimeScenario', '-GTTWorkshopCapacityRuntimeScenario', '-GTTWorkshopPriorityPickupRuntimeScenario',
-    '-log', "-abslog=$runtimeLog"
+    '-log', "-abslog=$runtimeLog", "-GTTRuntimeEvidenceLog=$runtimeLog"
 )
 $startedUtc = (Get-Date).ToUniversalTime()
 $process = $null
 $survivedSeconds = 0
+$previousRuntimeEvidenceLog = $env:GTT_RUNTIME_EVIDENCE_LOG
+$env:GTT_RUNTIME_EVIDENCE_LOG = $runtimeLog
 
 try {
     Write-Host "[GTT] Starting deterministic packaged runtime smoke test: $($exe.FullName)"
@@ -61,5 +63,18 @@ try {
 finally {
     if ($process) {
         try { $process.Refresh(); if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue; Wait-Process -Id $process.Id -Timeout 10 -ErrorAction SilentlyContinue } } catch { }
+    }
+    $packagePrefix = $PackageDirectory.TrimEnd('\') + '\'
+    $runtimeProcesses = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -eq 'GTT-Win64-Shipping.exe' -and $_.ExecutablePath -like "$packagePrefix*"
+    })
+    foreach ($runtimeProcess in $runtimeProcesses) {
+        Stop-Process -Id $runtimeProcess.ProcessId -Force -ErrorAction SilentlyContinue
+        Wait-Process -Id $runtimeProcess.ProcessId -Timeout 10 -ErrorAction SilentlyContinue
+    }
+    if ($null -eq $previousRuntimeEvidenceLog) {
+        Remove-Item Env:GTT_RUNTIME_EVIDENCE_LOG -ErrorAction SilentlyContinue
+    } else {
+        $env:GTT_RUNTIME_EVIDENCE_LOG = $previousRuntimeEvidenceLog
     }
 }

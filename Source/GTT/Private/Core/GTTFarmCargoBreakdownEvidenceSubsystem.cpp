@@ -67,7 +67,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Initialize(FSubsystemCollectionBas
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoBreakdownScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME_BEGIN version=2 route=feed-breakdown-patch-tow-hill-wood start_delay=%.1f deadline=%.1f native_mulebox=required exact_vehicle=required emergency_patch=required paid_tow=required wrong_vehicle_probe=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
@@ -190,7 +190,7 @@ bool UGTTFarmCargoBreakdownEvidenceSubsystem::ResolveScenarioActors()
 void UGTTFarmCargoBreakdownEvidenceSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
@@ -234,7 +234,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::FinishScenario(const TCHAR* Reason
         && bWrongVehicleRejected && bHillHandoff && bFinalHandoff && bSaveVerified && bAuthorityCleared
         && PatchCostDelta > 0 && TowCostDelta > 0 && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("FARM_CARGO_BREAKDOWN_RUNTIME_COMPLETE result=%s route=feed-breakdown-patch-tow-hill-wood accepted=%d pickup=%d patch_breakdown=%d patch_requested=%d patch_complete=%d patch_identity_preserved=%d patch_body_preserved=%d patch_timer_continued=%d patch_integrity_not_improved=%d patch_workshop_required=%d breakdown=%d tow_requested=%d tow_complete=%d identity_preserved=%d timer_continued=%d integrity_not_improved=%d damage_preserved=%d wrong_vehicle_rejected=%d hill=%d final=%d save=%d authority_cleared=%d patch_cost_delta=%d tow_cost_delta=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bAccepted ? 1 : 0, bPickupBound ? 1 : 0,
         bPatchBreakdownProven ? 1 : 0, bPatchRequested ? 1 : 0, bPatchCompleted ? 1 : 0,
@@ -338,7 +338,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
         }
         EvidenceCargoRunsBefore = Logistics->GetCargoCompletedRuns();
         EvidenceReputationBefore = Logistics->GetReputation();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=PREPARE result=PASS native_ready=1 takeover=1 route_tier=%d active_order_tier=%d cash_seeded=%d hour=%.2f"),
             Logistics->GetCargoRouteTier(), Logistics->GetActiveCargoOrderTier(), Economy->GetCash(), DayNight->GetTimeOfDayHours());
         Phase = EBreakdownEvidencePhase::AcceptContract;
@@ -348,7 +348,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
     case EBreakdownEvidencePhase::AcceptContract:
         StartTerminal->Interact_Implementation(PlayerPawn.Get());
         bAccepted = Director->GetStage() == EGTTFarmJobStage::ReachPickup;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=ACCEPT result=%s stage=%s"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=ACCEPT result=%s stage=%s"),
             bAccepted ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()));
         if (!bAccepted)
         {
@@ -374,7 +374,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
         bPickupBound = Director->GetStage() == EGTTFarmJobStage::DeliverCargo
             && Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
             && LoadedVehicleId == NativeMulebox->GetPersistentVehicleId();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=PICKUP result=%s stage=%s native_controlled=%d vehicle=%s timer=%.2f integrity=%.4f"),
             bPickupBound ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()),
             UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get() ? 1 : 0,
@@ -409,7 +409,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
             && Assessment.bEmergencyPatchPossible && Assessment.EmergencyPatchEstimate > 0;
         bPatchRequested = bPatchBreakdownProven && Roadside->RequestEmergencyRoadsidePatch(NativeMulebox.Get());
         PatchRequestedAt = Elapsed;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=BREAKDOWN_PATCH_REQUEST result=%s breakdown=%d patch_requested=%d severity=%.4f condition=%.4f tire_integrity=%.4f fuel=%.3f patch_quote=%d tow_quote=%d timer_before=%.2f integrity_before=%.4f cash_before=%d vehicle=%s"),
             (bPatchBreakdownProven && bPatchRequested) ? TEXT("PASS") : TEXT("FAIL"), bPatchBreakdownProven ? 1 : 0,
             bPatchRequested ? 1 : 0, Assessment.Severity, Staged.ConditionPercent, Staged.TireIntegrity, Staged.FuelLiters,
@@ -458,7 +458,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
         bPatchIntegrityNotImproved = IntegrityAfterPatch <= IntegrityBeforePatch + KINDA_SMALL_NUMBER;
         bPatchWorkshopStillRequired = AfterPatch.ConditionPercent < 0.999f || AfterPatch.TireIntegrity < 0.999f
             || BodyAfterPatch.DetachedPanelCount > 0 || !BodyDamageEqual(BodyAfterPatch, FGTTRoadBodyDamageSnapshot());
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=PATCH_COMPLETE result=%s patch_complete=%d identity_preserved=%d body_preserved=%d timer_continued=%d integrity_not_improved=%d workshop_still_required=%d patch_cost_delta=%d timer_before=%.2f timer_after=%.2f integrity_before=%.4f integrity_after=%.4f condition_after=%.4f tire_after=%.4f fuel_after=%.3f vehicle=%s"),
             (bPatchCompleted && bPatchIdentityPreserved && bPatchBodyPreserved && bPatchTimerContinued && bPatchIntegrityNotImproved && bPatchWorkshopStillRequired) ? TEXT("PASS") : TEXT("FAIL"),
             bPatchCompleted ? 1 : 0, bPatchIdentityPreserved ? 1 : 0, bPatchBodyPreserved ? 1 : 0,
@@ -487,7 +487,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
             FinishScenario(TEXT("patch-cooldown-failed"));
             return;
         }
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=PATCH_COOLDOWN result=PASS waited=%.2f stage=%s timer=%.2f integrity=%.4f vehicle=%s"),
             Elapsed - PatchCompletedAt, StageLabel(Director->GetStage()), Director->GetTimeRemaining(), Director->GetCargoIntegrity(),
             *LoadedVehicleId.ToString());
@@ -509,7 +509,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
             && (Assessment.bTowRecommended || Assessment.Recommendation == EGTTBreakdownRecommendation::Immobilized);
         bTowRequested = bBreakdownProven && Roadside->RequestRoadsideTow(NativeMulebox.Get());
         TowRequestedAt = Elapsed;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=BREAKDOWN_TOW_REQUEST result=%s breakdown=%d tow_requested=%d severity=%.4f tire_integrity=%.4f tow_quote=%d timer_before=%.2f integrity_before=%.4f cash_before=%d vehicle=%s"),
             (bBreakdownProven && bTowRequested) ? TEXT("PASS") : TEXT("FAIL"), bBreakdownProven ? 1 : 0,
             bTowRequested ? 1 : 0, Assessment.Severity, TireIntegrityAfterDamage, Assessment.TowEstimate,
@@ -550,7 +550,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
         bTimerContinued = TimerAfterTow < TimerBeforeTow;
         bIntegrityNotImproved = IntegrityAfterTow <= IntegrityBeforeTow + KINDA_SMALL_NUMBER;
         bDamagePreserved = AfterTow.TireIntegrity <= TireIntegrityAfterDamage + 0.001f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=TOW_COMPLETE result=%s tow_complete=%d identity_preserved=%d timer_continued=%d integrity_not_improved=%d damage_preserved=%d tow_cost_delta=%d moved_cm=%.1f timer_before=%.2f timer_after=%.2f integrity_before=%.4f integrity_after=%.4f tire_after=%.4f vehicle=%s"),
             (bTowCompleted && bIdentityPreserved && bTimerContinued && bIntegrityNotImproved && bDamagePreserved) ? TEXT("PASS") : TEXT("FAIL"),
             bTowCompleted ? 1 : 0, bIdentityPreserved ? 1 : 0, bTimerContinued ? 1 : 0,
@@ -579,7 +579,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
             && Director->GetStage() == EGTTFarmJobStage::DeliverCargo
             && Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=WRONG_VEHICLE_AFTER_TOW result=%s wrong_vehicle_rejected=%d stage=%s vehicle=%s"),
             bWrongVehicleRejected ? TEXT("PASS") : TEXT("FAIL"), bWrongVehicleRejected ? 1 : 0,
             StageLabel(Director->GetStage()), *LoadedVehicleId.ToString());
@@ -606,7 +606,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
         HillTerminal->Interact_Implementation(PlayerPawn.Get());
         bHillHandoff = Director->GetStage() == EGTTFarmJobStage::DeliverFinalStop
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=HILL_HANDOFF result=%s hill=%d stage=%s same_vehicle=%d timer=%.2f integrity=%.4f"),
             bHillHandoff ? TEXT("PASS") : TEXT("FAIL"), bHillHandoff ? 1 : 0, StageLabel(Director->GetStage()),
             Authority->GetBoundCargoVehicleId() == LoadedVehicleId ? 1 : 0, Director->GetTimeRemaining(), Director->GetCargoIntegrity());
@@ -630,7 +630,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
         CargoRunsDelta = Logistics->GetCargoCompletedRuns() - EvidenceCargoRunsBefore;
         ReputationDelta = Logistics->GetReputation() - EvidenceReputationBefore;
         const bool bAuthorityCleared = !Authority->HasBoundCargoVehicle() && Authority->GetBoundCargoVehicleId().IsNone();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=FINAL_HANDOFF result=%s final=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d authority_cleared=%d"),
             (bFinalHandoff && bAuthorityCleared && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0) ? TEXT("PASS") : TEXT("FAIL"),
             bFinalHandoff ? 1 : 0, PayoutDelta, CargoRunsDelta, ReputationDelta, bAuthorityCleared ? 1 : 0);
@@ -646,7 +646,7 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
 
     case EBreakdownEvidencePhase::VerifyPersistence:
         bSaveVerified = GameMode && GameMode->SaveProgress();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_BREAKDOWN_RUNTIME phase=PERSISTENCE result=%s explicit_save=%d recovery_state=%s"),
             bSaveVerified ? TEXT("PASS") : TEXT("FAIL"), bSaveVerified ? 1 : 0,
             CargoRecovery.IsValid() ? *CargoRecovery->GetRecoveryStateLabel() : TEXT("unavailable"));

@@ -70,7 +70,7 @@ void AGTTFarmJobDirector::RestoreActiveCargoFromSave(const UGTTSaveGame* Save)
     const uint8 LastActiveStage = static_cast<uint8>(EGTTFarmJobStage::DeliverFinalStop);
     if (Save->FarmCargoStage < FirstActiveStage || Save->FarmCargoStage > LastActiveStage)
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("FARM_CARGO_RECOVERY event=RESTORE result=REJECT reason=invalid_stage stage=%u"),
             Save->FarmCargoStage);
         Stage = EGTTFarmJobStage::Idle;
@@ -97,7 +97,7 @@ void AGTTFarmJobDirector::RestoreActiveCargoFromSave(const UGTTSaveGame* Save)
     CargoPriorityAtStart = Save->FarmCargoPriority.IsEmpty() ? TEXT("HILL FARM DIRECT") : Save->FarmCargoPriority;
     bPoliceIncidentDuringRun = Save->bFarmCargoPoliceIncident;
 
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("FARM_CARGO_RECOVERY event=RESTORE result=PASS stage=%u time=%.1f integrity=%.3f tier=%d units=%d vehicle=%s"),
         Save->FarmCargoStage,
         TimeRemaining,
@@ -120,7 +120,7 @@ void AGTTFarmJobDirector::AdoptRestoredCargoVehicle(APawn* Vehicle)
     if (LoadedNativeMulebox.IsValid()) LoadedNativeMulebox->SetCargoLoadFactor(CargoLoadFactor);
     if (LoadedMulebox.IsValid()) LoadedMulebox->SetCargoLoadFactor(CargoLoadFactor);
 
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("FARM_CARGO_RECOVERY event=ADOPT_VEHICLE actor=%s native_mulebox=%d legacy_mulebox=%d load_factor=%.2f"),
         *Vehicle->GetName(),
         LoadedNativeMulebox.IsValid() ? 1 : 0,

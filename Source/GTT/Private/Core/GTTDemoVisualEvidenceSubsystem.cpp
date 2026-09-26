@@ -52,7 +52,7 @@ void UGTTDemoVisualEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Colle
         return;
     }
 
-    UE_LOG(LogGTT, Display, TEXT("DEMO_VISUAL_CAPTURE_PLAN scenes=%d directory=\"%s\" show_ui=1 rendered_rhi_required=1"), GTTVisualEvidence::SceneCount, *EvidenceDirectory);
+    GTT_LOG( Display, TEXT("DEMO_VISUAL_CAPTURE_PLAN scenes=%d directory=\"%s\" show_ui=1 rendered_rhi_required=1"), GTTVisualEvidence::SceneCount, *EvidenceDirectory);
 }
 
 bool UGTTDemoVisualEvidenceSubsystem::IsTickable() const
@@ -83,7 +83,7 @@ void UGTTDemoVisualEvidenceSubsystem::Tick(float DeltaTime)
 
     if (NextSceneIndex >= GTTVisualEvidence::SceneCount)
     {
-        UE_LOG(LogGTT, Display, TEXT("DEMO_VISUAL_CAPTURE_COMPLETE scenes=%d elapsed=%.2f directory=\"%s\""), GTTVisualEvidence::SceneCount, ElapsedSeconds, *EvidenceDirectory);
+        GTT_LOG( Display, TEXT("DEMO_VISUAL_CAPTURE_COMPLETE scenes=%d elapsed=%.2f directory=\"%s\""), GTTVisualEvidence::SceneCount, ElapsedSeconds, *EvidenceDirectory);
         bFinished = true;
         return;
     }
@@ -110,7 +110,7 @@ void UGTTDemoVisualEvidenceSubsystem::RequestNextCapture()
     IFileManager::Get().Delete(*PendingPath, false, true, true);
     FScreenshotRequest::RequestScreenshot(PendingPath, true, false, false, FIntRect(), true);
 
-    UE_LOG(LogGTT, Display, TEXT("DEMO_VISUAL_CAPTURE_REQUEST scene=%s elapsed=%.2f file=\"%s\" show_ui=1"), *PendingScene, ElapsedSeconds, *PendingPath);
+    GTT_LOG( Display, TEXT("DEMO_VISUAL_CAPTURE_REQUEST scene=%s elapsed=%.2f file=\"%s\" show_ui=1"), *PendingScene, ElapsedSeconds, *PendingPath);
 }
 
 void UGTTDemoVisualEvidenceSubsystem::PollPendingCapture()
@@ -118,7 +118,7 @@ void UGTTDemoVisualEvidenceSubsystem::PollPendingCapture()
     const int64 Size = IFileManager::Get().FileSize(*PendingPath);
     if (Size > 0)
     {
-        UE_LOG(LogGTT, Display, TEXT("DEMO_VISUAL_CAPTURE_WRITTEN scene=%s elapsed=%.2f bytes=%lld file=\"%s\""), *PendingScene, ElapsedSeconds, static_cast<long long>(Size), *PendingPath);
+        GTT_LOG( Display, TEXT("DEMO_VISUAL_CAPTURE_WRITTEN scene=%s elapsed=%.2f bytes=%lld file=\"%s\""), *PendingScene, ElapsedSeconds, static_cast<long long>(Size), *PendingPath);
         ++NextSceneIndex;
         PendingScene.Reset();
         PendingPath.Reset();
@@ -134,6 +134,6 @@ void UGTTDemoVisualEvidenceSubsystem::PollPendingCapture()
 
 void UGTTDemoVisualEvidenceSubsystem::FailCapture(const TCHAR* Reason)
 {
-    UE_LOG(LogGTT, Error, TEXT("DEMO_VISUAL_CAPTURE_FAIL reason=%s scene=%s elapsed=%.2f file=\"%s\""), Reason, PendingScene.IsEmpty() ? TEXT("none") : *PendingScene, ElapsedSeconds, PendingPath.IsEmpty() ? TEXT("") : *PendingPath);
+    GTT_LOG( Error, TEXT("DEMO_VISUAL_CAPTURE_FAIL reason=%s scene=%s elapsed=%.2f file=\"%s\""), Reason, PendingScene.IsEmpty() ? TEXT("none") : *PendingScene, ElapsedSeconds, PendingPath.IsEmpty() ? TEXT("") : *PendingPath);
     bFinished = true;
 }

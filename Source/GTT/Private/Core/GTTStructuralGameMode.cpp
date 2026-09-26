@@ -38,7 +38,7 @@ bool AGTTStructuralGameMode::SaveProgress()
     UGTTSaveGame* Save = Cast<UGTTSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
     if (!Save)
     {
-        UE_LOG(LogGTT, Error, TEXT("STRUCTURAL_SAVE failed: primary save could not be reopened."));
+        GTT_LOG( Error, TEXT("STRUCTURAL_SAVE failed: primary save could not be reopened."));
         return false;
     }
 
@@ -83,14 +83,14 @@ bool AGTTStructuralGameMode::SaveProgress()
     const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, SaveSlotName, 0);
     if (bSaved)
     {
-        UE_LOG(LogGTT, Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d preferred=%s loadouts=T:%s R:%s C:%s logistics_rep=%d streak=%d"),
+        GTT_LOG( Log, TEXT("STRUCTURAL_SAVE result=PASS version=%d vehicles=%d preferred=%s loadouts=T:%s R:%s C:%s logistics_rep=%d streak=%d"),
             Save->SaveVersion, Save->RoadStructuralDamage.Num(), *Save->PreferredGarageVehicleId.ToString(),
             *Save->PreferredTractorVehicleId.ToString(), *Save->PreferredRoadVehicleId.ToString(), *Save->PreferredCargoVehicleId.ToString(),
             Save->LogisticsReputation, Save->LogisticsCleanStreak);
     }
     else
     {
-        UE_LOG(LogGTT, Error, TEXT("STRUCTURAL_SAVE result=FAIL version=%d vehicles=%d preferred=%s"),
+        GTT_LOG( Error, TEXT("STRUCTURAL_SAVE result=FAIL version=%d vehicles=%d preferred=%s"),
             Save->SaveVersion, Save->RoadStructuralDamage.Num(), *Save->PreferredGarageVehicleId.ToString());
     }
     return bSaved;
@@ -121,7 +121,7 @@ bool AGTTStructuralGameMode::LoadProgress()
     const UGTTSaveGame* Save = Cast<UGTTSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
     if (!Save)
     {
-        UE_LOG(LogGTT, Error, TEXT("STRUCTURAL_LOAD failed: primary save unavailable after base load."));
+        GTT_LOG( Error, TEXT("STRUCTURAL_LOAD failed: primary save unavailable after base load."));
         return false;
     }
 
@@ -178,7 +178,7 @@ bool AGTTStructuralGameMode::LoadProgress()
 
     const UGTTGarageFleetSubsystem* Fleet = GetWorld() ? GetWorld()->GetSubsystem<UGTTGarageFleetSubsystem>() : nullptr;
     const UGTTLogisticsReputationSubsystem* Logistics = GetWorld() ? GetWorld()->GetSubsystem<UGTTLogisticsReputationSubsystem>() : nullptr;
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("STRUCTURAL_LOAD result=PASS version=%d records=%d restored=%d preferred=%s loadouts=T:%s R:%s C:%s logistics_rep=%d streak=%d"),
         Save->SaveVersion, Save->RoadStructuralDamage.Num(), RestoredCount,
         Fleet ? *Fleet->GetPreferredVehicleId().ToString() : TEXT("None"),

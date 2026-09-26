@@ -166,7 +166,7 @@ void UGTTNativeChaosAcceptanceMatrixSubsystem::EvaluatePawn(
     if (State.EvidenceSeconds >= EvidenceIntervalSeconds)
     {
         State.EvidenceSeconds = 0.0f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_CHAOS_ACCEPTANCE_MATRIX vehicle=%s ready=%s wheels_cfg=%s powertrain_cfg=%s physics_asset=%s movement=%s wheels=%d/4 contacts=%d suspension=%d/4 observed_travel=%.3f stable_seconds=%.1f accepted=%s smoke_ready=%s"),
             *VehicleId.ToString(), bPawnReady ? TEXT("YES") : TEXT("NO"),
             bWheelConfig ? TEXT("PASS") : TEXT("FAIL"), bPowertrainConfig ? TEXT("PASS") : TEXT("FAIL"),
@@ -178,7 +178,7 @@ void UGTTNativeChaosAcceptanceMatrixSubsystem::EvaluatePawn(
     if (bRuntimeSmokeReady && !State.bSmokeReadyReported)
     {
         State.bSmokeReadyReported = true;
-        UE_LOG(LogGTT, Display,
+        GTT_LOG( Display,
             TEXT("NATIVE_CHAOS_SMOKE_READY vehicle=%s stable_seconds=%.1f peak_contacts=%d suspension_travel=%.3f wheels=%s powertrain=%s"),
             *VehicleId.ToString(), State.ConsecutiveAcceptedSeconds, State.PeakGroundContacts, ObservedTravel,
             *WheelSummary, *PowertrainSummary);

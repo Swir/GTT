@@ -85,7 +85,7 @@ void AGTTTrafficCarPawn::RegisterCollisionIncident(float ImpactSpeedKmh, FVector
         }
     }
 
-    UE_LOG(LogGTT, Warning,
+    GTT_LOG( Warning,
         TEXT("TRAFFIC_CRASH_RESPONSE car=%s impact_speed_kmh=%.1f severity=%.2f stop_s=%.1f limp_s=%.1f disabled=%s condition=%.2f"),
         *GetName(), ImpactSpeedKmh, Severity, IncidentStopRemaining, IncidentLimpRemaining,
         bIncidentDisabled ? TEXT("YES") : TEXT("NO"), GetConditionPercent());
@@ -145,7 +145,7 @@ bool AGTTTrafficCarPawn::BeginRoadsideAssistance(AActor* Helper)
         HornText->SetText(NSLOCTEXT("GTT", "TrafficAssist", "ASSIST"));
         HornVisualRemaining = FMath::Max(HornVisualRemaining, RoadsideAssistanceDurationSeconds);
     }
-    UE_LOG(LogGTT, Log, TEXT("TRAFFIC_ROADSIDE_ASSIST_START car=%s helper=%s severity=%.2f"), *GetName(), *Helper->GetName(), LastIncidentSeverity);
+    GTT_LOG( Log, TEXT("TRAFFIC_ROADSIDE_ASSIST_START car=%s helper=%s severity=%.2f"), *GetName(), *Helper->GetName(), LastIncidentSeverity);
     return true;
 }
 
@@ -159,7 +159,7 @@ void AGTTTrafficCarPawn::CancelRoadsideAssistance(const TCHAR* Reason)
             Economy->PushMessage(TEXT("Roadside assist paused - return to the vehicle to restart."), 3.0f);
         }
     }
-    UE_LOG(LogGTT, Log, TEXT("TRAFFIC_ROADSIDE_ASSIST_CANCEL car=%s reason=%s"), *GetName(), Reason);
+    GTT_LOG( Log, TEXT("TRAFFIC_ROADSIDE_ASSIST_CANCEL car=%s reason=%s"), *GetName(), Reason);
     bRoadsideAssistanceActive = false;
     RoadsideAssistanceRemaining = 0.0f;
     RoadsideHelper.Reset();
@@ -201,7 +201,7 @@ void AGTTTrafficCarPawn::CompleteRoadsideAssistance()
         HornText->SetText(NSLOCTEXT("GTT", "TrafficAssistThanks", "THANKS"));
         HornVisualRemaining = 2.5f;
     }
-    UE_LOG(LogGTT, Log, TEXT("TRAFFIC_ROADSIDE_ASSIST_COMPLETE car=%s payout=%d condition=%.2f limp_s=%.1f"),
+    GTT_LOG( Log, TEXT("TRAFFIC_ROADSIDE_ASSIST_COMPLETE car=%s payout=%d condition=%.2f limp_s=%.1f"),
         *GetName(), Payout, GetConditionPercent(), IncidentLimpRemaining);
 }
 
@@ -231,7 +231,7 @@ bool AGTTTrafficCarPawn::CompleteRoadsideResponderRecovery()
     bIncidentDisabled = GetConditionPercent() <= DisableConditionThreshold;
     if (bIncidentDisabled)
     {
-        UE_LOG(LogGTT, Warning, TEXT("TRAFFIC_RESPONDER_RECOVERY_RETRY car=%s condition=%.2f"), *GetName(), GetConditionPercent());
+        GTT_LOG( Warning, TEXT("TRAFFIC_RESPONDER_RECOVERY_RETRY car=%s condition=%.2f"), *GetName(), GetConditionPercent());
         return false;
     }
 
@@ -249,7 +249,7 @@ bool AGTTTrafficCarPawn::CompleteRoadsideResponderRecovery()
         HornVisualRemaining = 2.5f;
     }
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("TRAFFIC_RESPONDER_RECOVERY_COMPLETE car=%s condition=%.2f limp_s=%.1f payout=NONE"),
         *GetName(), GetConditionPercent(), IncidentLimpRemaining);
     return true;

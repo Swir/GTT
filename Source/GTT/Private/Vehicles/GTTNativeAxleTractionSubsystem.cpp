@@ -168,7 +168,7 @@ void UGTTNativeAxleTractionSubsystem::EvaluateVehicle(
     if ((Snapshot.bTorqueCut || Snapshot.BrakeAssist > 0.0f) && State.InterventionCooldown <= 0.0f)
     {
         State.InterventionCooldown = InterventionLogCooldownSeconds;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_AXLE_TRACTION_RECOMMENDATION vehicle=%s speed_kmh=%.1f risk=%.2f torque_cut=%s brake=%.2f contacts=%d suspension_ready=%s"),
             *VehicleId.ToString(), SpeedKmh, Risk, Snapshot.bTorqueCut ? TEXT("YES") : TEXT("NO"), Snapshot.BrakeAssist,
             Snapshot.ContactWheels, Snapshot.bSuspensionRuntimeReady ? TEXT("YES") : TEXT("NO"));
@@ -177,7 +177,7 @@ void UGTTNativeAxleTractionSubsystem::EvaluateVehicle(
     if (State.EvidenceSeconds >= EvidenceIntervalSeconds)
     {
         State.EvidenceSeconds = 0.0f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_AXLE_TRACTION_EVIDENCE vehicle=%s valid=%d contacts=%d front=%d rear=%d left=%d right=%d front_slip=%.2f rear_slip=%.2f imbalance=%.2f authority=%.2f torque_cut=%s brake=%.2f suspension_ready=%s suspension_samples=%d suspension_range=%.2f..%.2f tire=%.2f tire_level=%d"),
             *VehicleId.ToString(), Snapshot.ValidWheels, Snapshot.ContactWheels, Snapshot.FrontContacts, Snapshot.RearContacts,
             Snapshot.LeftContacts, Snapshot.RightContacts, Snapshot.FrontSlipRisk, Snapshot.RearSlipRisk, Snapshot.AxleImbalance,
