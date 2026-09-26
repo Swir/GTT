@@ -22,6 +22,7 @@ required = {
     'continuous legacy mirror': 'RestorePersistentState(GetActorTransform()' in source,
     'safe runtime fallback': 'NATIVE_ROAD_FALLBACK' in source and 'DeactivateLegacyTakeover();' in source,
     'acceptance-gated boot subsystem': 'UGTTNativeFleetTakeoverSubsystem' in sub_h and 'NATIVE_FLEET_TAKEOVER_BOOT' in sub_cpp,
+    'collision-safe complete fleet bootstrap': 'SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn' in sub_cpp and 'spawned=%d/3' in sub_cpp,
     'boot rattleback and mulebox': 'AGTTRattlebackNativePawn::StaticClass()' in sub_cpp and 'AGTTMuleboxNativePawn::StaticClass()' in sub_cpp,
     'native cargo job integration': 'LoadedNativeMulebox' in job_h and 'NATIVE MULEBOX LOADED' in job_cpp,
     'native cargo condition consequence': 'ResolveCargoVehicleConditionRatio' in job_cpp and 'GetMigrationSnapshot().ConditionPercent' in job_cpp,

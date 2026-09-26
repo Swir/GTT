@@ -19,10 +19,12 @@ public:
     virtual bool IsTickable() const override { return bEnabled && !bFinished; }
 private:
     void Pass(const TCHAR* Step);
+    void PrepareAcceptanceFleet();
     void DriveNativeRoadblockCrossing();
     bool bEnabled = false;
     bool bFinished = false;
     bool bCrimeInjected = false;
+    bool bAcceptanceFleetPrepared = false;
     bool bControlActionLogged = false;
     bool bRoadblockCrossingStaged = false;
     bool bPostSpikeEscapeStarted = false;

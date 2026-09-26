@@ -18,6 +18,7 @@
 #include "UI/GTTGameHUD.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
+#include "Vehicles/GTTVehicleBase.h"
 #include "Wanted/GTTWantedComponent.h"
 
 namespace
@@ -48,6 +49,25 @@ void UGTTDemoSmokeScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collec
     Super::Initialize(Collection);bEnabled=FParse::Param(FCommandLine::Get(),TEXT("GTTDemoSmokeScenario"));if(bEnabled)GTT_LOG(Display,TEXT("DEMO_SCENARIO_BEGIN version=8 mode=post-spike-escape-dynamics"));
 }
 void UGTTDemoSmokeScenarioSubsystem::Pass(const TCHAR* Step){const FName Key(Step);if(Passed.Contains(Key))return;Passed.Add(Key);GTT_LOG(Display,TEXT("DEMO_SCENARIO_STEP step=%s result=PASS elapsed=%.2f"),Step,Elapsed);}
+
+void UGTTDemoSmokeScenarioSubsystem::PrepareAcceptanceFleet()
+{
+    if(bAcceptanceFleetPrepared)return;
+    UWorld* World=GetWorld();if(!World)return;
+    static const TSet<FName> RequiredVehicleIds={TEXT("RustyFieldmaster60"),TEXT("Rattleback82"),TEXT("Mulebox1200")};
+    TSet<FName> PreparedIds;
+    for(TActorIterator<AGTTVehicleBase> It(World);It;++It)
+    {
+        AGTTVehicleBase* Vehicle=*It;if(!Vehicle||!RequiredVehicleIds.Contains(Vehicle->GetPersistentVehicleId()))continue;
+        if(!Vehicle->IsOwnedByPlayer())Vehicle->MarkOwnedByPlayer();
+        PreparedIds.Add(Vehicle->GetPersistentVehicleId());
+    }
+    if(PreparedIds.Num()==RequiredVehicleIds.Num())
+    {
+        bAcceptanceFleetPrepared=true;
+        GTT_LOG(Display,TEXT("DEMO_SCENARIO_FLEET_PREP result=PASS owned=RustyFieldmaster60,Rattleback82,Mulebox1200"));
+    }
+}
 
 void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
 {
@@ -93,7 +113,7 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
 
 void UGTTDemoSmokeScenarioSubsystem::Tick(float DeltaTime)
 {
-    Elapsed+=DeltaTime;UWorld* World=GetWorld();if(!World)return;AGTTGameMode* GM=World->GetAuthGameMode<AGTTGameMode>();APlayerController* PC=World->GetFirstPlayerController();APawn* PlayerPawn=PC?PC->GetPawn():nullptr;
+    Elapsed+=DeltaTime;UWorld* World=GetWorld();if(!World)return;PrepareAcceptanceFleet();AGTTGameMode* GM=World->GetAuthGameMode<AGTTGameMode>();APlayerController* PC=World->GetFirstPlayerController();APawn* PlayerPawn=PC?PC->GetPawn():nullptr;
     if(GM)Pass(TEXT("WORLD"));if(PC&&Cast<AGTTGameHUD>(PC->GetHUD()))Pass(TEXT("HUD"));if(GM)if(UGTTMissionComponent* Mission=GM->GetMissionComponent())if(!Mission->GetActiveMissionId().IsNone())Pass(TEXT("MISSION"));
     for(TActorIterator<AGTTTrafficDirector> It(World);It;++It){Pass(TEXT("TRAFFIC"));break;}for(TActorIterator<AGTTCitizenPawn> It(World);It;++It){Pass(TEXT("NPC"));break;}if(PlayerPawn&&PlayerPawn->FindComponentByClass<UGTTCombatComponent>())Pass(TEXT("COMBAT"));
     for(TActorIterator<AGTTFieldmasterNativePawn> It(World);It;++It){if(It->IsNativeFieldmasterReady()&&It->IsLegacyTakeoverActive())Pass(TEXT("FIELDMASTER"));if(HasLiveNativeMotion(*It))Pass(TEXT("FIELDMASTER_MOTION"));if(Elapsed>=4.f&&ExerciseNativeControls(*It,Elapsed,TEXT("Fieldmaster")))Pass(TEXT("FIELDMASTER_CONTROL"));break;}
