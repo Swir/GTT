@@ -384,12 +384,22 @@ bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
         LegacyVehicle->SetActorTickEnabled(false);
         SetActorHiddenInGame(false);
         SetActorEnableCollision(true);
-        // BeginPlay configured Chaos while this standby pawn still had collision disabled.
-        // Enabling collision recreates the skeletal body, so rebuild the vehicle simulation
-        // here as well; otherwise the movement component remains active with zero live wheels.
+        // Standby keeps this pawn non-physical. Build the skeletal rigid body first,
+        // then create the Chaos vehicle against that live body and its four wheel setups.
+        if (USkeletalMeshComponent* VehicleMesh = GetMesh())
+        {
+            VehicleMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            VehicleMesh->SetSimulatePhysics(true);
+            VehicleMesh->RecreatePhysicsState();
+            VehicleMesh->WakeAllRigidBodies();
+        }
         if (UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement())
         {
             Movement->RecreatePhysicsState();
+            if (!Movement->HasValidPhysicsState())
+            {
+                Movement->CreatePhysicsState();
+            }
         }
         bTakeoverActive = true;
         MirrorSyncAccumulator = 0.0f;

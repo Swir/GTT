@@ -385,11 +385,22 @@ bool AGTTRoadVehicleNativePawn::TryActivateLegacyTakeover()
         LegacyVehicle->SetActorTickEnabled(false);
         SetActorHiddenInGame(false);
         SetActorEnableCollision(true);
-        // The standby pawn was configured with collision disabled. Rebuild after the
-        // takeover enables collision so Chaos instantiates the canonical four wheels.
+        // Standby keeps this pawn non-physical. Build the skeletal rigid body first,
+        // then create the Chaos vehicle against that live body and its four wheel setups.
+        if (USkeletalMeshComponent* VehicleMesh = GetMesh())
+        {
+            VehicleMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            VehicleMesh->SetSimulatePhysics(true);
+            VehicleMesh->RecreatePhysicsState();
+            VehicleMesh->WakeAllRigidBodies();
+        }
         if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
         {
             Movement->RecreatePhysicsState();
+            if (!Movement->HasValidPhysicsState())
+            {
+                Movement->CreatePhysicsState();
+            }
         }
         bTakeoverActive = true;
         MirrorSyncAccumulator = 0.0f;
