@@ -385,6 +385,12 @@ bool AGTTRoadVehicleNativePawn::TryActivateLegacyTakeover()
         LegacyVehicle->SetActorTickEnabled(false);
         SetActorHiddenInGame(false);
         SetActorEnableCollision(true);
+        // The standby pawn was configured with collision disabled. Rebuild after the
+        // takeover enables collision so Chaos instantiates the canonical four wheels.
+        if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
+        {
+            Movement->RecreatePhysicsState();
+        }
         bTakeoverActive = true;
         MirrorSyncAccumulator = 0.0f;
         WheelEvidenceAccumulator = 0.0f;
