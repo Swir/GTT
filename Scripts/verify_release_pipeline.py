@@ -34,15 +34,18 @@ for token in (
     "-pak",
     "-iostore",
     "-archive",
-    "-IgnoreCookErrors",
-    "UnexpectedErrorLines",
-    "FBodyInstance::GetSimplePhysicalMaterial : GEngine not initialized!",
+    "$ErrorLines",
+    "UAT emitted Error/Fatal log lines",
     "validate_windows_package.ps1",
     "SHA256SUMS.txt",
     "BUILD_INFO.json",
     "Compress-Archive",
 ):
     assert token in package, f"package_windows.ps1 missing {token}"
+assert "-IgnoreCookErrors" not in package, "Win64 packaging must not suppress cook errors"
+assert "KnownUE58CookError" not in package, "legacy UE cook-error allowlist must not return"
+assert "'(?i)\\\\b(?:Error|Fatal):'" not in package, "PowerShell Error/Fatal regex must not be double-escaped"
+assert "'(?i)\\b(?:Error|Fatal):'" in package, "PowerShell Error/Fatal regex must use a real word boundary"
 
 for token in (
     "GTT.exe",

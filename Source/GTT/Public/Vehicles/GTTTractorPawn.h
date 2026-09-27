@@ -19,6 +19,8 @@ public:
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 protected:
+    virtual void BeginPlay() override;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="GTT|Tractor|Chaos")
     TObjectPtr<UGTTChaosVehicleBridgeComponent> ChaosVehicleBridge;
 

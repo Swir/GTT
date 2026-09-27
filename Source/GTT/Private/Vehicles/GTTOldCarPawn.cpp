@@ -63,8 +63,6 @@ AGTTOldCarPawn::AGTTOldCarPawn()
     {
         VehicleMesh->SetStaticMesh(CubeMesh);
         VehicleMesh->SetRelativeScale3D(FVector(2.2f, 1.0f, 0.38f));
-        VehicleMesh->SetMassOverrideInKg(NAME_None, 980.0f, true);
-        VehicleMesh->SetCenterOfMass(FVector(0.0f, 0.0f, -35.0f));
     }
 
     CabinMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CabinMesh"));
@@ -137,6 +135,16 @@ AGTTOldCarPawn::AGTTOldCarPawn()
     RegisterBreakablePart(TrunkMesh, 0.35f, TEXT("trunk lid"));
     RegisterBreakablePart(RearBumperMesh, 0.26f, TEXT("rear bumper"));
     RegisterBreakablePart(RightRearWheel, 0.14f, TEXT("right rear wheel"));
+}
+
+void AGTTOldCarPawn::BeginPlay()
+{
+    Super::BeginPlay();
+    if (VehicleMesh)
+    {
+        VehicleMesh->SetMassOverrideInKg(NAME_None, 980.0f, true);
+        VehicleMesh->SetCenterOfMass(FVector(0.0f, 0.0f, -35.0f));
+    }
 }
 
 void AGTTOldCarPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

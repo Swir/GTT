@@ -104,7 +104,7 @@ try {
     $UATOutput = @(& $RunUAT @UATArgs 2>&1 | Tee-Object -FilePath $UATLog)
 
     $uatExit = $LASTEXITCODE
-    $ErrorLines = [string[]]@($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match '(?i)\\b(?:Error|Fatal):' })
+    $ErrorLines = [string[]]@($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match '(?i)\b(?:Error|Fatal):' })
     $ErrorLineCount = ($ErrorLines | Measure-Object).Count
     if ($ErrorLineCount -gt 0) {
         throw "UAT emitted Error/Fatal log lines. First error: $($ErrorLines[0])"
