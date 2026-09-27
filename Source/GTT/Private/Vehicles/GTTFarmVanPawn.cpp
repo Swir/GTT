@@ -64,8 +64,6 @@ AGTTFarmVanPawn::AGTTFarmVanPawn()
     {
         VehicleMesh->SetStaticMesh(CubeMesh);
         VehicleMesh->SetRelativeScale3D(FVector(2.45f, 1.08f, 0.52f));
-        VehicleMesh->SetMassOverrideInKg(NAME_None, 1680.0f, true);
-        VehicleMesh->SetCenterOfMass(FVector(-10.0f, 0.0f, -48.0f));
     }
 
     CabinMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CabinMesh"));
@@ -137,6 +135,17 @@ AGTTFarmVanPawn::AGTTFarmVanPawn()
     RegisterBreakablePart(RearDoorLeftMesh, 0.34f, TEXT("left rear door"));
     RegisterBreakablePart(RearDoorRightMesh, 0.24f, TEXT("right rear door"));
     RegisterBreakablePart(LeftRearWheel, 0.12f, TEXT("left rear wheel"));
+}
+
+void AGTTFarmVanPawn::BeginPlay()
+{
+    Super::BeginPlay();
+    // BodyInstance mass/material queries are unsafe while the native CDO is being constructed.
+    if (VehicleMesh)
+    {
+        VehicleMesh->SetMassOverrideInKg(NAME_None, 1680.0f, true);
+        VehicleMesh->SetCenterOfMass(FVector(-10.0f, 0.0f, -48.0f));
+    }
 }
 
 void AGTTFarmVanPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
