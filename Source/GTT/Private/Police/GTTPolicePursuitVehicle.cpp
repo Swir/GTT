@@ -88,7 +88,13 @@ void AGTTPolicePursuitVehicle::DriveTowardPlayer(APawn* PlayerPawn, int32 Wanted
     if (Distance < BrakeDistance) Throttle = FMath::Min(Throttle, 0.25f);
     if (Facing < -0.25f) Throttle = -0.25f;
 
-    VehicleMesh->AddForce(Forward * Throttle * PursuitAcceleration, NAME_None, true);
+    // The simplified patrol chassis may spawn across the target bearing. Blend
+    // force toward the player while steering catches up so an active pursuit
+    // always produces measurable closing motion instead of orbiting in place.
+    const float Alignment = FMath::Clamp((Facing + 1.0f) * 0.5f, 0.0f, 1.0f);
+    const FVector DriveDirection = FMath::Lerp(DesiredDir, Forward, Alignment * 0.55f).GetSafeNormal2D();
+    const float ClosingThrottle = FMath::Max(FMath::Abs(Throttle), 0.35f);
+    VehicleMesh->AddForce(DriveDirection * ClosingThrottle * PursuitAcceleration, NAME_None, true);
     VehicleMesh->AddTorqueInRadians(FVector::UpVector * Steering * PursuitSteeringTorque, NAME_None, true);
 
     const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;

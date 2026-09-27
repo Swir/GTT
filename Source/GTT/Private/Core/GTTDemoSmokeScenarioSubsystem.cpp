@@ -95,15 +95,15 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
     UChaosWheeledVehicleMovementComponent* Movement=Cast<UChaosWheeledVehicleMovementComponent>(Vehicle->GetVehicleMovementComponent());if(!Movement||!Movement->IsActive())return;
     if(!bRoadblockCrossingStaged)
     {
-        const FVector Approach=Roadblock->GetSpikeApproachDirection();const FVector Spike=Roadblock->GetSpikeStripWorldLocation();FVector Stage=Spike-Approach*900.f;
+        const FVector Approach=Roadblock->GetSpikeApproachDirection();const FVector Spike=Roadblock->GetSpikeStripWorldLocation();constexpr float StageDistanceCm=500.f;FVector Stage=Spike-Approach*StageDistanceCm;
         FHitResult GroundHit;FCollisionObjectQueryParams GroundObjects;GroundObjects.AddObjectTypesToQuery(ECC_WorldStatic);FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(GTTRoadblockAcceptanceGround),false,Vehicle);GroundQuery.AddIgnoredActor(Roadblock);
         if(World->LineTraceSingleByObjectType(GroundHit,Stage+FVector(0,0,500.f),Stage-FVector(0,0,1200.f),GroundObjects,GroundQuery))Stage.Z=GroundHit.ImpactPoint.Z+2.f;else Stage.Z=Spike.Z;
         FGTTRoadVehicleMigrationSnapshot CleanState=Vehicle->GetMigrationSnapshot();CleanState.ConditionPercent=1.f;CleanState.TireIntegrity=1.f;Vehicle->RestorePersistentMigrationSnapshot(CleanState);Vehicle->RestorePersistentBodyDamage(FGTTRoadBodyDamageSnapshot(),0);
-        Vehicle->SetActorLocation(Stage,false,nullptr,ETeleportType::TeleportPhysics);Vehicle->SetActorRotation(Approach.Rotation(),ETeleportType::TeleportPhysics);
-        if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh()){Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);Mesh->WakeAllRigidBodies();}
+        Vehicle->SetActorTransform(FTransform(Approach.Rotation(),Stage),false,nullptr,ETeleportType::TeleportPhysics);
+        if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh()){Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);Mesh->SetPhysicsLinearVelocity(Approach*1000.f);Mesh->WakeAllRigidBodies();}
         Vehicle->ApplyAcceptanceDriveCommand(0.85f,0.f,0.f);
         RoadblockBaselineTires=Vehicle->GetMigrationSnapshot().TireIntegrity;RoadblockBaselineWheelRisk=Vehicle->GetRuntimeWheelRisk();RoadblockBaselineThrottleLimit=Vehicle->GetRuntimeThrottleLimit();RoadblockBaselineSteeringLimit=Vehicle->GetRuntimeSteeringLimit();RoadblockCrossingStartSeconds=Elapsed;bRoadblockCrossingStaged=true;
-        GTT_LOG(Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s phase=STAGED tire_before=%.3f wheel_risk_before=%.3f throttle_limit_before=%.3f steering_limit_before=%.3f distance_cm=900"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,RoadblockBaselineWheelRisk,RoadblockBaselineThrottleLimit,RoadblockBaselineSteeringLimit);return;
+        GTT_LOG(Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s phase=STAGED tire_before=%.3f wheel_risk_before=%.3f throttle_limit_before=%.3f steering_limit_before=%.3f distance_cm=%.0f entry_speed_cm_s=1000"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,RoadblockBaselineWheelRisk,RoadblockBaselineThrottleLimit,RoadblockBaselineSteeringLimit,StageDistanceCm);return;
     }
     Vehicle->ApplyAcceptanceDriveCommand(0.85f,0.f,0.f);
     if(Roadblock->HasProvenSpikeConsequence()&&Roadblock->GetLastSpikedVehicleId()==Vehicle->GetPersistentVehicleId())

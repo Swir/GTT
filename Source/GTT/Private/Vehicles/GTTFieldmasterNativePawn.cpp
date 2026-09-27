@@ -46,6 +46,7 @@ namespace
         FVector GroundedLocation = SourceLocation;
         GroundedLocation.Z = Hit.ImpactPoint.Z + 2.0f;
         Grounded.SetLocation(GroundedLocation);
+        Grounded.SetRotation(FRotator(0.0f, SourceTransform.Rotator().Yaw, 0.0f).Quaternion());
         return Grounded;
     }
 }
