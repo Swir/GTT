@@ -10,7 +10,7 @@ trailer = read("Source/GTT/Private/Core/GTTTrailerEvidenceScenarioSubsystem.cpp"
 recovery = read("Source/GTT/Private/Vehicles/GTTRecoveryChoiceEvidenceSubsystem.cpp")
 fieldmaster = read("Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp")
 road_vehicle = read("Source/GTT/Private/Vehicles/GTTRoadVehicleNativePawn.cpp")
-physical = read("Scripts/verify_physical_roadblock_crossing.py")
+physical = read("Scripts/verify_physical_roadblock_crossing.py")\nattestor = read("Scripts/write_win64_candidate_attestation.ps1")\nworkflow = read(".github/workflows/gtt-v0.1.61-win64-attested-candidate.yml")
 roadmap = read("Docs/ROADMAP.md")
 
 errors = []
@@ -38,6 +38,12 @@ for source_name, source in [("Fieldmaster", fieldmaster), ("road vehicle", road_
     for token in ["GTTDemoSmokeScenario", "GTTDrivetrainRuntimeScenario", "GTTTrailerRuntimeScenario"]:
         if token not in source:
             errors.append(f"{source_name} acceptance guard missing: {token}")
+
+for token in ["GTT_RUNTIME_CORE.log", "GTT_RUNTIME_NATIVE.log", "GTT_RUNTIME_SERVICES.log"]:
+    if token not in attestor:
+        errors.append(f"sealed attestor missing isolated runtime log: {token}")
+if "GTT_RUNTIME*.log" not in workflow:
+    errors.append("candidate failure diagnostics do not preserve all isolated runtime logs")
 
 if "SetActorTransform" not in physical:
     errors.append("physical roadblock verifier is not aligned with transform-based staging")

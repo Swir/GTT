@@ -99,7 +99,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: |
-            ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME.log
+            ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME*.log
             ${{ env.GTT_PACKAGE_DIR }}\RUNTIME_SMOKE.json
             ${{ env.GTT_PACKAGE_DIR }}\DEMO_SCENARIO.json
             ${{ env.GTT_PACKAGE_DIR }}\*.attempt.json

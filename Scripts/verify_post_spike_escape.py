@@ -14,7 +14,7 @@ checks={
  'runtime limits exposed': all(x in header for x in ('GetRuntimeThrottleLimit','GetRuntimeSteeringLimit','GetRuntimeBrakeAssist')),
  'core scenario v8': 'DEMO_SCENARIO_BEGIN version=8 mode=post-spike-escape-dynamics' in scenario,
  'handling authority proof': all(x in scenario for x in ('throttle_limit_before','throttle_limit_after','steering_limit_before','steering_limit_after')),
- 'continued damaged driving': 'POST_SPIKE_ESCAPE' in scenario and 'FMath::Sin(Phase*2.2f)*0.65f' in scenario and 'Phase>=3.f' in scenario,
+ 'continued damaged driving': all(x in scenario for x in ('POST_SPIKE_ESCAPE','bPostSpikeEscapeStaged','SetPhysicsLinearVelocity(Approach*520.f)','FMath::Sin(Phase*2.2f)*0.35f','EscapeDistance>=150.f','Vehicle->GetVelocity().Size2D()>10.f','Phase>=3.f')),
  '26 core step completion': 'DEMO_SCENARIO_COMPLETE result=PASS steps=26' in scenario,
  'evaluator schema v11 retains post spike': 'gtt.demo-scenario.v11' in eval_ps and "'POST_SPIKE_ESCAPE'" in eval_ps,
  'evaluator hard gates control authority': 'Native handling consequence did not prove reduced control authority' in eval_ps,

@@ -13,6 +13,9 @@ FORBIDDEN = (
     "SetCenterOfMass(",
     "GetSimplePhysicalMaterial(",
     "SetPhysMaterialOverride(",
+    "SetMassScale(",
+    "GetBodyInstance(",
+    "BodyInstance.",
 )
 
 constructor_re = re.compile(

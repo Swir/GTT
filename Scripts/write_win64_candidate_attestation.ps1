@@ -199,6 +199,9 @@ $criticalNames = @(
     "VISUAL_RUNTIME_SMOKE.json",
     "DEMO_VISUAL_EVIDENCE.json",
     "WIN64_ACCEPTANCE_SUMMARY.json",
+    "GTT_RUNTIME_CORE.log",
+    "GTT_RUNTIME_NATIVE.log",
+    "GTT_RUNTIME_SERVICES.log",
     "GTT_RUNTIME.log",
     "GTT_VISUAL_RUNTIME.log"
 )
