@@ -48,10 +48,11 @@ def add_box(vertices, joints, indices, center, size, joint):
 
 def add_wheel(vertices, joints, indices, center, radius, width, joint, segments=12):
     cx,cy,cz=center; base=len(vertices)
-    for y in (cy-width/2, cy+width/2):
+    # glTF is Y-up; its Z axis becomes UE Y, so the wheel axle is authored on Z.
+    for z in (cz-width/2, cz+width/2):
         for i in range(segments):
             angle=2*math.pi*i/segments
-            vertices.append((cx+radius*math.cos(angle),y,cz+radius*math.sin(angle))); joints.append(joint)
+            vertices.append((cx+radius*math.cos(angle),cy+radius*math.sin(angle),z)); joints.append(joint)
     for i in range(segments):
         nxt=(i+1)%segments; a=base+i; b=base+nxt; c=base+segments+nxt; d=base+segments+i
         indices.extend((a,b,c,a,c,d))
@@ -74,11 +75,15 @@ def inverse_translation(x,y,z): return [1,0,0,0,0,1,0,0,0,0,1,0,-x,-y,-z,1]
 
 def generate(name, spec):
     length,width,height=spec["size"]; wheelbase=spec["wheelbase"]; track=spec["track"]; radius=spec["wheel"]
-    front_x=wheelbase/2; rear_x=-wheelbase/2; side=track/2; wheel_z=radius
-    positions=((front_x,-side,wheel_z),(front_x,side,wheel_z),(rear_x,-side,wheel_z),(rear_x,side,wheel_z))
+    front_x=wheelbase/2; rear_x=-wheelbase/2; side=track/2; wheel_y=radius
+    # UE's glTF conversion is (X, Z, Y): keep forward on glTF X, author up on
+    # glTF Y, and put vehicle width on glTF Z. The old source authored up on Z,
+    # so its imported physics body entered play on its side even though the
+    # wheel and powertrain contracts were valid.
+    positions=((front_x,wheel_y,-side),(front_x,wheel_y,side),(rear_x,wheel_y,-side),(rear_x,wheel_y,side))
     buffer=Buffer(); body_v=[]; body_j=[]; body_i=[]
-    add_box(body_v,body_j,body_i,(0,0,radius+height/2),(length,width,height),0)
-    add_box(body_v,body_j,body_i,(length*.12,0,radius+height*.90),(length*.38,width*.86,height*.42),0)
+    add_box(body_v,body_j,body_i,(0,radius+height/2,0),(length,height,width),0)
+    add_box(body_v,body_j,body_i,(length*.12,radius+height*.90,0),(length*.38,height*.42,width*.86),0)
     primitives=[primitive(buffer,body_v,body_j,body_i,0)]
     for index,position in enumerate(positions,1):
         vertices=[]; joints=[]; indices=[]; add_wheel(vertices,joints,indices,position,radius,radius*.46,index)
@@ -86,9 +91,9 @@ def generate(name, spec):
     nodes=[{"name":f"GTT_{name}_Rig","children":[1],"mesh":0,"skin":0},
            {"name":"root","children":[2,3,4,5,6,7] + ([8] if spec["hitch"] else [])}]
     for bone,position in zip(JOINTS[1:],positions): nodes.append({"name":bone,"translation":list(position)})
-    nodes.append({"name":"SOCKET_driver_seat","translation":[0,0,radius+height*.72]})
-    nodes.append({"name":"SOCKET_driver_exit","translation":[0,width*.72,radius+height*.45]})
-    if spec["hitch"]: nodes.append({"name":"SOCKET_rear_hitch","translation":[-length*.56,0,radius*.75]})
+    nodes.append({"name":"SOCKET_driver_seat","translation":[0,radius+height*.72,0]})
+    nodes.append({"name":"SOCKET_driver_exit","translation":[0,radius+height*.45,width*.72]})
+    if spec["hitch"]: nodes.append({"name":"SOCKET_rear_hitch","translation":[-length*.56,radius*.75,0]})
     matrices=[]
     for position in ((0,0,0),)+positions: matrices.extend(inverse_translation(*position))
     ibm=buffer.accessor(floats(matrices),5126,"MAT4",5)
