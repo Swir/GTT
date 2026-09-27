@@ -2,6 +2,7 @@
 """Import and validate the three project-owned Native Chaos vehicle rigs in UE 5.8."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -55,6 +56,8 @@ def stabilize_physics_asset(name, physics):
 def import_vehicle(name, spec):
     source=root()/"Intermediate"/"GTT"/"NativeVehicles"/f"GTT_{name}_Rig.gltf"
     if not source.is_file(): fail(f"SOURCE_MISSING_{name}")
+    source_bytes=source.read_bytes()
+    source_sha256=hashlib.sha256(source_bytes).hexdigest()
     destination=spec["destination"]; asset_name=f"SK_GTT_{name}"; asset_path=f"{destination}/{asset_name}"
     manager=unreal.InterchangeManager.get_interchange_manager_scripted()
     source_data=unreal.InterchangeManager.create_source_data(os.fspath(source))
@@ -90,7 +93,8 @@ def import_vehicle(name, spec):
     physics_summary=stabilize_physics_asset(name,physics)
     if not unreal.EditorAssetLibrary.save_loaded_asset(mesh,False): fail(f"SAVE_FAILED_{name}")
     if not unreal.EditorAssetLibrary.save_loaded_asset(physics,False): fail(f"PHYSICS_SAVE_FAILED_{name}")
-    return {"vehicle":name,"skeletal_mesh":mesh.get_path_name(),"physics_asset":physics.get_path_name(),
+    return {"vehicle":name,"source_gltf":source.name,"source_gltf_bytes":len(source_bytes),"source_gltf_sha256":source_sha256,
+        "skeletal_mesh":mesh.get_path_name(),"physics_asset":physics.get_path_name(),
         "physics_body_bones":["root"],"physics_summary":physics_summary,"bones":list(REQUIRED_BONES),"sockets":desired}
 
 
