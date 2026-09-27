@@ -41,7 +41,9 @@ namespace
 void UGTTRecoveryChoiceEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEvidenceEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
+    const TCHAR* CommandLine = FCommandLine::Get();
+    bEvidenceEnabled = FParse::Param(CommandLine, TEXT("GTTRecoveryChoiceRuntimeScenario")) ||
+        (FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) && !FParse::Param(CommandLine, TEXT("GTTDisableRecoveryChoiceScenario")));
     if (bEvidenceEnabled) GTT_LOG( Display, TEXT("DEMO_SCENARIO_RECOVERY_CHOICE_BEGIN version=1 route=stranded-offer-manual-tow-paid-repair"));
 }
 

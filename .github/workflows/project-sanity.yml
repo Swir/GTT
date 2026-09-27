@@ -21,7 +21,7 @@ jobs:
       - { name: Verify world performance milestone, run: 'python Scripts/verify_world_performance.py' }
       - { name: Verify player experience milestone, run: 'python Scripts/verify_player_experience.py' }
       - { name: Verify release pipeline milestone, run: 'python Scripts/verify_release_pipeline.py' }
-      - { name: Verify native CDO physics safety and fail-closed cook, run: 'python Scripts/verify_cdo_physics_safety.py' }
+      - { name: Verify native CDO physics safety and fail-closed cook, run: 'python Scripts/verify_cdo_physics_safety.py' }\n      - { name: Verify isolated packaged runtime scenarios, run: 'python Scripts/verify_runtime_scenario_isolation.py' }
       - { name: Verify social venues milestone, run: 'python Scripts/verify_social_venues.py' }
       - { name: Verify vehicle customization milestone, run: 'python Scripts/verify_vehicle_customization.py' }
       - { name: Verify Chaos migration foundation, run: 'python Scripts/verify_chaos_migration.py' }

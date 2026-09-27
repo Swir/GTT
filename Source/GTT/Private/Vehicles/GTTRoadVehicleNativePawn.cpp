@@ -864,7 +864,11 @@ void AGTTRoadVehicleNativePawn::StopNativeDriveForBreakdown()
 
 bool AGTTRoadVehicleNativePawn::ApplyAcceptanceDriveCommand(float Throttle, float Steering, float Brake)
 {
-    if (!FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario")) || !bNativeReady || !bTakeoverActive)
+    const TCHAR* CommandLine = FCommandLine::Get();
+    const bool bAcceptanceScenario = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+    if (!bAcceptanceScenario || !bNativeReady || !bTakeoverActive)
     {
         return false;
     }

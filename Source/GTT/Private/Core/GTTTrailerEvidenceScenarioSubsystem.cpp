@@ -34,7 +34,9 @@ namespace
 void UGTTTrailerEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
+    const TCHAR* CommandLine = FCommandLine::Get();
+    bEnabled = FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario")) ||
+        (FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) && !FParse::Param(CommandLine, TEXT("GTTDisableTrailerScenario")));
     if (bEnabled)
     {
         GTT_LOG( Log,

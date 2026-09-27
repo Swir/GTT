@@ -29,7 +29,9 @@ namespace
 void UGTTDrivetrainEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
+    const TCHAR* CommandLine = FCommandLine::Get();
+    bEnabled = FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario")) ||
+        (FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) && !FParse::Param(CommandLine, TEXT("GTTDisableDrivetrainScenario")));
     if (bEnabled)
     {
         GTT_LOG( Log,

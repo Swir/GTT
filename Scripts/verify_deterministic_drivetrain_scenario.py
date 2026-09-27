@@ -9,6 +9,7 @@ scenario_cpp = (ROOT / "Source/GTT/Private/Core/GTTDrivetrainEvidenceScenarioSub
 evaluator = (ROOT / "Scripts/evaluate_drivetrain_scenario.ps1").read_text(encoding="utf-8")
 win64 = (ROOT / ".github/workflows/win64-package-evidence.yml").read_text(encoding="utf-8")
 runner = (ROOT / "Scripts/run_win64_candidate_acceptance.ps1").read_text(encoding="utf-8")
+smoke = (ROOT / "Scripts/smoke_test_windows.ps1").read_text(encoding="utf-8")
 attestor = (ROOT / "Scripts/write_win64_candidate_attestation.ps1").read_text(encoding="utf-8")
 project = (ROOT / ".github/workflows/project-sanity.yml").read_text(encoding="utf-8")
 dedicated = (ROOT / ".github/workflows/deterministic-drivetrain-sanity.yml").read_text(encoding="utf-8")
@@ -19,8 +20,11 @@ errors = []
 
 for token in ["UGTTDrivetrainEvidenceScenarioSubsystem","ForwardAcceleration","BrakeForReverse","ReverseAcceleration","BrakeForForward","ForwardReturn","bAutomaticUpshiftObserved","bSafeReverseCommitObserved","bSafeForwardCommitObserved"]:
     if token not in scenario_h: errors.append(f"drivetrain evidence subsystem header missing: {token}")
-for token in ["StartDelaySeconds = 76.0f","GlobalDeadlineSeconds = 122.0f","ShiftReleaseSpeedKmh = 3.5f","ForwardEvidenceSpeedKmh = 6.0f","ReverseEvidenceSpeedKmh = 5.0f","NATIVE_DRIVETRAIN_SCENARIO_BEGIN","phase=AUTOMATIC_UPSHIFT","phase=REVERSE_INTERLOCK","phase=REVERSE_COMMIT","phase=REVERSE_MOTION","phase=FORWARD_COMMIT","phase=FORWARD_MOTION","NATIVE_DRIVETRAIN_SCENARIO_COMPLETE","route=forward-auto-reverse-forward"]:
+for token in ["GTTDrivetrainRuntimeScenario","GTTDisableDrivetrainScenario","StartDelaySeconds = 76.0f","GlobalDeadlineSeconds = 122.0f","ShiftReleaseSpeedKmh = 3.5f","ForwardEvidenceSpeedKmh = 6.0f","ReverseEvidenceSpeedKmh = 5.0f","NATIVE_DRIVETRAIN_SCENARIO_BEGIN","phase=AUTOMATIC_UPSHIFT","phase=REVERSE_INTERLOCK","phase=REVERSE_COMMIT","phase=REVERSE_MOTION","phase=FORWARD_COMMIT","phase=FORWARD_MOTION","NATIVE_DRIVETRAIN_SCENARIO_COMPLETE","route=forward-auto-reverse-forward"]:
     if token not in scenario_cpp: errors.append(f"deterministic drivetrain source missing: {token}")
+for token in ["GTTDrivetrainRuntimeScenario","GTTTrailerRuntimeScenario","GTT_RUNTIME_NATIVE.log","-UserDir=$userDir","isolated_user_dirs = $true"]:
+    if token not in smoke: errors.append(f"isolated native runtime smoke contract missing: {token}")
+if "-Name 'NATIVE'" not in smoke: errors.append("isolated native runtime pass is missing")
 start_match = re.search(r"StartDelaySeconds\s*=\s*([0-9.]+)f", scenario_cpp)
 deadline_match = re.search(r"GlobalDeadlineSeconds\s*=\s*([0-9.]+)f", scenario_cpp)
 if not start_match or float(start_match.group(1)) < 75.0: errors.append("drivetrain evidence starts before the core 75-second demo scenario is guaranteed finished")

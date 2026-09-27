@@ -13,7 +13,7 @@
 #include "Save/GTTSaveGame.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
-#include "World/GTTServiceTerminal.h"
+#include "World/GTTServiceTerminal.h"\n#include "World/GTTDayNightCycle.h"\n#include "World/GTTWorkshopHoursPolicy.h"
 #include "GTT.h"
 
 namespace
@@ -252,6 +252,18 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             {
                 Fail(TEXT("workshop/economy integration unavailable"));
                 return;
+            }
+
+            // Spike damage uses the ordinary workshop route, so stage the real world clock
+            // inside official opening hours instead of bypassing the terminal policy.
+            for (TActorIterator<AGTTDayNightCycle> It(World); It; ++It)
+            {
+                AGTTDayNightCycle* Clock = *It;
+                if (!IsValid(Clock)) continue;
+                const float EvidenceHour = GTTWorkshopHoursPolicy::OpeningHour + 1.0f;
+                Clock->RestoreTime(Clock->GetDayNumber(), EvidenceHour);
+                GTT_LOG( Display, TEXT("DEMO_SCENARIO_ACTION action=WORKSHOP_OPEN_WINDOW hour=%.2f"), EvidenceHour);
+                break;
             }
 
             // Keep the test deterministic while still exercising the real paid workshop path.
