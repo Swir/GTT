@@ -38,6 +38,18 @@ bool UGTTChaosPowertrainSetupLibrary::ConfigureCanonicalPowertrain(UChaosWheeled
     }
 
     Movement->bMechanicalSimEnabled = true;
+    Movement->Mass = Spec.MassKg;
+    Movement->bEnableCenterOfMassOverride = true;
+    // The generated rig root sits at road height. Keep the fixed COM near the
+    // axles instead of allowing the tall authored cab/body mesh to place it
+    // high enough to tip the chassis before suspension settles.
+    Movement->CenterOfMassOverride = FVector(0.0f, 0.0f,
+        FMath::Min(Spec.FrontWheel.RadiusCm, Spec.RearWheel.RadiusCm) * 0.72f);
+    if (VehicleId == TEXT("RustyFieldmaster60")) { Movement->ChassisWidth = 225.0f; Movement->ChassisHeight = 175.0f; }
+    else if (VehicleId == TEXT("Mulebox1200")) { Movement->ChassisWidth = 205.0f; Movement->ChassisHeight = 215.0f; }
+    else { Movement->ChassisWidth = 186.0f; Movement->ChassisHeight = 135.0f; }
+    Movement->DragCoefficient = 0.30f;
+    Movement->DownforceCoefficient = 0.35f;
     Movement->EngineSetup.MaxTorque = Spec.EngineMaxTorqueNm;
     Movement->EngineSetup.MaxRPM = Spec.EngineMaxRpm;
     Movement->EngineSetup.EngineIdleRPM = Spec.EngineIdleRpm;
@@ -89,6 +101,9 @@ bool UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(const UChaosWh
 
     TArray<FString> Problems;
     if (!Movement->bMechanicalSimEnabled) Problems.Add(TEXT("mechanical-sim"));
+    if (!PowertrainNearlyEqual(Movement->Mass, Spec.MassKg, 0.5f)) Problems.Add(TEXT("chassis-mass"));
+    if (!Movement->bEnableCenterOfMassOverride || Movement->CenterOfMassOverride.Z > Spec.FrontWheel.RadiusCm)
+        Problems.Add(TEXT("stable-center-of-mass"));
     if (Movement->EngineSetup.TorqueCurve.GetRichCurveConst()->IsEmpty()) Problems.Add(TEXT("torque-curve"));
     if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxTorque, Spec.EngineMaxTorqueNm)) Problems.Add(TEXT("engine-torque"));
     if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxRPM, Spec.EngineMaxRpm)) Problems.Add(TEXT("engine-max-rpm"));

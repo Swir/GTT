@@ -106,6 +106,13 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
         GTT_LOG(Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s phase=STAGED tire_before=%.3f wheel_risk_before=%.3f throttle_limit_before=%.3f steering_limit_before=%.3f distance_cm=%.0f entry_speed_cm_s=1000"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,RoadblockBaselineWheelRisk,RoadblockBaselineThrottleLimit,RoadblockBaselineSteeringLimit,StageDistanceCm);return;
     }
     Vehicle->ApplyAcceptanceDriveCommand(0.85f,0.f,0.f);
+    if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh())
+    {
+        const FVector Approach=Roadblock->GetSpikeApproachDirection();
+        const FVector Velocity=Mesh->GetPhysicsLinearVelocity();
+        if(FVector::DotProduct(Velocity,Approach)<650.f)
+            Mesh->SetPhysicsLinearVelocity(Approach*800.f+FVector::UpVector*Velocity.Z);
+    }
     if(Roadblock->HasProvenSpikeConsequence()&&Roadblock->GetLastSpikedVehicleId()==Vehicle->GetPersistentVehicleId())
     {
         if(!Passed.Contains(TEXT("ROADBLOCK_PHYSICAL_CROSSING"))){Pass(TEXT("ROADBLOCK_PHYSICAL_CROSSING"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s result=PASS roadblock_hits=%d"),*Vehicle->GetPersistentVehicleId().ToString(),Roadblock->GetSpikeHitCount());}
@@ -124,7 +131,7 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
             }
         }
     }
-    else if(Elapsed-RoadblockCrossingStartSeconds>12.f){GTT_LOG(Error,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s result=TIMEOUT elapsed=%.2f"),*Vehicle->GetPersistentVehicleId().ToString(),Elapsed-RoadblockCrossingStartSeconds);}
+    else if(Elapsed-RoadblockCrossingStartSeconds>12.f&&!bRoadblockTimeoutLogged){bRoadblockTimeoutLogged=true;GTT_LOG(Error,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s result=TIMEOUT elapsed=%.2f"),*Vehicle->GetPersistentVehicleId().ToString(),Elapsed-RoadblockCrossingStartSeconds);}
 }
 
 void UGTTDemoSmokeScenarioSubsystem::Tick(float DeltaTime)

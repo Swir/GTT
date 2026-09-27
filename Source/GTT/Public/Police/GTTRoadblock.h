@@ -5,6 +5,7 @@
 #include "GTTRoadblock.generated.h"
 
 class UPrimitiveComponent;
+class UBoxComponent;
 class USceneComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
@@ -31,11 +32,16 @@ private:
     UFUNCTION()
     void HandleSpikeHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
         FVector NormalImpulse, const FHitResult& Hit);
+    UFUNCTION()
+    void HandleSpikeOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+        int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+    void ApplySpikeConsequence(AActor* OtherActor);
 
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> SceneRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> LeftBarrier;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> RightBarrier;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> SpikeStrip;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UBoxComponent> SpikeTrigger;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UTextRenderComponent> Sign;
 
     int32 ResponseTier = 1;

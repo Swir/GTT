@@ -27,6 +27,7 @@ private:
     bool bAcceptanceFleetPrepared = false;
     bool bControlActionLogged = false;
     bool bRoadblockCrossingStaged = false;
+    bool bRoadblockTimeoutLogged = false;
     bool bPostSpikeEscapeStarted = false;
     float Elapsed = 0.0f;
     float PursuitStartDistance = -1.0f;

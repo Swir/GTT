@@ -94,7 +94,10 @@ void AGTTPolicePursuitVehicle::DriveTowardPlayer(APawn* PlayerPawn, int32 Wanted
     const float Alignment = FMath::Clamp((Facing + 1.0f) * 0.5f, 0.0f, 1.0f);
     const FVector DriveDirection = FMath::Lerp(DesiredDir, Forward, Alignment * 0.55f).GetSafeNormal2D();
     const float ClosingThrottle = FMath::Max(FMath::Abs(Throttle), 0.35f);
-    VehicleMesh->AddForce(DriveDirection * ClosingThrottle * PursuitAcceleration, NAME_None, true);
+    const FVector CurrentVelocity = VehicleMesh->GetPhysicsLinearVelocity();
+    const float ClosingSpeed = FVector::DotProduct(CurrentVelocity, DesiredDir);
+    const float ClosingAssist = Distance > BrakeDistance ? FMath::Max(0.0f, 900.0f - ClosingSpeed) * 3.5f : 0.0f;
+    VehicleMesh->AddForce(DriveDirection * ClosingThrottle * PursuitAcceleration + DesiredDir * ClosingAssist, NAME_None, true);
     VehicleMesh->AddTorqueInRadians(FVector::UpVector * Steering * PursuitSteeringTorque, NAME_None, true);
 
     const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
