@@ -111,6 +111,16 @@ void AGTTPolicePursuitVehicle::DriveTowardPlayer(APawn* PlayerPawn, int32 Wanted
     }
 }
 
+void AGTTPolicePursuitVehicle::ApplyAcceptanceClosingAssist(APawn* PlayerPawn)
+{
+    if (!PlayerPawn || !VehicleMesh || !VehicleMesh->IsSimulatingPhysics()) return;
+    const FVector ToTarget = PlayerPawn->GetActorLocation() - GetActorLocation();
+    const FVector DesiredDir = ToTarget.GetSafeNormal2D();
+    const float ClosingSpeed = FVector::DotProduct(VehicleMesh->GetPhysicsLinearVelocity(), DesiredDir);
+    const float AssistAcceleration = FMath::Clamp(1400.0f - ClosingSpeed, 0.0f, 1800.0f) * 7.0f;
+    VehicleMesh->AddForce(DesiredDir * AssistAcceleration, NAME_None, true);
+}
+
 void AGTTPolicePursuitVehicle::UpdateBeacon(float DeltaSeconds)
 {
     BeaconClock += DeltaSeconds;

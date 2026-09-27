@@ -21,6 +21,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="GTT|Police")
     void SetResponseTier(int32 InTier);
+    void ApplyAcceptanceClosingAssist(APawn* PlayerPawn);
 
 protected:
     virtual void BeginPlay() override;

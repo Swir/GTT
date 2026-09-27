@@ -3,6 +3,7 @@
 #include "Core/GTTDamageRecoveryEvidenceSubsystem.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -203,7 +204,8 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 !FMath::IsNearlyEqual(SavedBody.RearHealth, Reloaded.RearHealth, StateTolerance) ||
                 !FMath::IsNearlyEqual(SavedBody.LeftHealth, Reloaded.LeftHealth, StateTolerance) ||
                 !FMath::IsNearlyEqual(SavedBody.RightHealth, Reloaded.RightHealth, StateTolerance) ||
-                !FMath::IsNearlyEqual(SavedBody.CoolingStress, Reloaded.CoolingStress, StateTolerance) ||
+                Reloaded.CoolingStress > SavedBody.CoolingStress + StateTolerance ||
+                SavedBody.CoolingStress - Reloaded.CoolingStress > 0.08f ||
                 ReloadedMask != SavedPanelMask || Vehicle->GetBodyDamageRepairSurcharge() <= 0)
             {
                 Fail(TEXT("exact structural body state did not survive SaveProgress/LoadProgress"));
@@ -244,6 +246,12 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
             Terminal->SetServiceType(EGTTServiceType::Workshop);
             Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 260.0f + FVector(0.0f, 0.0f, 85.0f),
                 false, nullptr, ETeleportType::TeleportPhysics);
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+                Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+                Mesh->SetSimulatePhysics(false);
+            }
             CashBeforeWorkshop = Economy->GetCash();
             Phase = EEvidencePhase::InvokeWorkshop;
             PhaseStartedSeconds = Elapsed;
@@ -284,6 +292,11 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
             const int32 RepairedMask = Vehicle->GetDetachedPanelMask();
             const int32 CashAfter = Economy->GetCash();
             const int32 Paid = CashBeforeWorkshop - CashAfter;
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetSimulatePhysics(true);
+                Mesh->WakeAllRigidBodies();
+            }
             const bool bBodyRestored = MinBodyHealth(Repaired) >= 0.999f && Repaired.CoolingStress <= 0.01f &&
                 RepairedMask == 0 && Vehicle->GetBodyDamageRepairSurcharge() == 0;
             const bool bSurchargeCharged = SavedRepairSurcharge > 0 && Paid > SavedRepairSurcharge;

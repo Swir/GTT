@@ -29,6 +29,7 @@ private:
     bool bRoadblockCrossingStaged = false;
     bool bRoadblockTimeoutLogged = false;
     bool bPostSpikeEscapeStarted = false;
+    bool bPostSpikeEscapeStaged = false;
     float Elapsed = 0.0f;
     float PursuitStartDistance = -1.0f;
     float RoadblockCrossingStartSeconds = -1.0f;

@@ -308,6 +308,12 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
             Terminal->SetServiceType(EGTTServiceType::Workshop);
             Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 260.0f + FVector(0.0f, 0.0f, 85.0f),
                 false, nullptr, ETeleportType::TeleportPhysics);
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+                Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+                Mesh->SetSimulatePhysics(false);
+            }
             CashBeforeWorkshop = Economy->GetCash();
             EvidencePhase = EEvidencePhase::InvokeWorkshop;
             EvidencePhaseStarted = EvidenceElapsed;
@@ -345,6 +351,11 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
             const FGTTStructuralDriveState Recovered = GetDriveStateForVehicle(Vehicle);
             const FGTTRoadBodyDamageSnapshot Body = Vehicle->GetBodyDamageSnapshot();
             const int32 Paid = CashBeforeWorkshop - Economy->GetCash();
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetSimulatePhysics(true);
+                Mesh->WakeAllRigidBodies();
+            }
             if (Recovered.bLimpHomeActive || Recovered.DamageSeverity > 0.015f ||
                 Recovered.DragRatePerSecond > 0.01f || FMath::Abs(Recovered.LateralPullRate) > 0.01f ||
                 Recovered.PowerRetention < 0.995f || Recovered.SteeringRetention < 0.995f ||
