@@ -23,6 +23,7 @@ public:
     float GetCargoLoadFactor() const { return CargoLoadFactor; }
 
 protected:
+    virtual void BeginPlay() override;
     void CaptureChaosThrottle(float Value);
     void CaptureChaosSteering(float Value);
 
