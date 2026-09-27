@@ -43,7 +43,13 @@ function Invoke-GTTRuntimePass {
     )
     if ($TimeoutSeconds -le $RequiredAliveSeconds) { throw "Runtime pass $Name timeout must exceed its minimum alive time." }
 
-    $passLog = Join-Path $PackageDirectory ("GTT_RUNTIME_{0}.log" -f $Name)
+    $passLogName = switch ($Name) {
+        'CORE' { 'GTT_RUNTIME_CORE.log' }
+        'NATIVE' { 'GTT_RUNTIME_NATIVE.log' }
+        'SERVICES' { 'GTT_RUNTIME_SERVICES.log' }
+        default { throw "Unknown isolated runtime pass: $Name" }
+    }
+    $passLog = Join-Path $PackageDirectory $passLogName
     $userDir = Join-Path $runtimeUserRoot $Name
     if (Test-Path $passLog) { Remove-Item -Force $passLog }
     if (Test-Path $userDir) { Remove-Item -Recurse -Force $userDir }
@@ -100,7 +106,7 @@ function Invoke-GTTRuntimePass {
     }
 }
 
-$corePass = Invoke-GTTRuntimePass -Name 'CORE' -RequiredAliveSeconds 180 -TimeoutSeconds 210 -ScenarioArguments @(
+$smokeStartedUtc = (Get-Date).ToUniversalTime()\n$corePass = Invoke-GTTRuntimePass -Name 'CORE' -RequiredAliveSeconds 180 -TimeoutSeconds 210 -ScenarioArguments @(
     '-GTTDemoSmokeScenario',
     '-GTTDisableDrivetrainScenario',
     '-GTTDisableTrailerScenario',
@@ -142,7 +148,7 @@ $evidence = [ordered]@{
     launch_arguments = $allLaunchArguments
     minimum_alive_seconds = $MinimumAliveSeconds
     survived_seconds = $totalSurvivedSeconds
-    started_utc = (Get-Date).ToUniversalTime().ToString('o')
+    started_utc = $smokeStartedUtc.ToString('o')
     observed_utc = (Get-Date).ToUniversalTime().ToString('o')
     runner = $env:RUNNER_NAME
     git_sha = $env:GITHUB_SHA
