@@ -190,7 +190,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
 
         case EEvidencePhase::VerifyStructuralReload:
         {
-            if (Elapsed - PhaseStartedSeconds < 0.75f) return;
+            if (Elapsed - PhaseStartedSeconds < 0.10f) return;
             AGTTRoadVehicleNativePawn* Vehicle = TargetVehicle.Get();
             if (!Vehicle || !Vehicle->IsLegacyTakeoverActive())
             {
@@ -204,8 +204,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 !FMath::IsNearlyEqual(SavedBody.RearHealth, Reloaded.RearHealth, StateTolerance) ||
                 !FMath::IsNearlyEqual(SavedBody.LeftHealth, Reloaded.LeftHealth, StateTolerance) ||
                 !FMath::IsNearlyEqual(SavedBody.RightHealth, Reloaded.RightHealth, StateTolerance) ||
-                Reloaded.CoolingStress > SavedBody.CoolingStress + StateTolerance ||
-                SavedBody.CoolingStress - Reloaded.CoolingStress > 0.08f ||
+                !FMath::IsNearlyEqual(SavedBody.CoolingStress, Reloaded.CoolingStress, StateTolerance) ||
                 ReloadedMask != SavedPanelMask || Vehicle->GetBodyDamageRepairSurcharge() <= 0)
             {
                 Fail(TEXT("exact structural body state did not survive SaveProgress/LoadProgress"));

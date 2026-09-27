@@ -133,13 +133,16 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
                 if(World->LineTraceSingleByObjectType(GroundHit,Escape+FVector(0,0,500.f),Escape-FVector(0,0,1200.f),GroundObjects,GroundQuery))Escape.Z=GroundHit.ImpactPoint.Z+2.f;
                 Vehicle->SetActorTransform(FTransform(Approach.Rotation(),Escape),false,nullptr,ETeleportType::TeleportPhysics);
                 if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh()){Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);Mesh->SetPhysicsLinearVelocity(Approach*520.f);Mesh->WakeAllRigidBodies();}
+                PostSpikeStartLocation=Vehicle->GetActorLocation();
                 bPostSpikeEscapeStaged=true;
                 GTT_LOG(Display,TEXT("DEMO_SCENARIO_POST_SPIKE_ESCAPE vehicle=%s phase=STAGED entry_speed_cm_s=520 tire=%.3f"),*Vehicle->GetPersistentVehicleId().ToString(),Vehicle->GetMigrationSnapshot().TireIntegrity);
             }
             Vehicle->ApplyAcceptanceDriveCommand(1.f,FMath::Sin(Phase*2.2f)*0.35f,0.f);
-            if(Phase>=3.f&&HasLiveNativeMotion(Vehicle))
+            UChaosWheeledVehicleMovementComponent* EscapeMovement=Cast<UChaosWheeledVehicleMovementComponent>(Vehicle->GetVehicleMovementComponent());
+            const float EscapeDistance=FVector::Dist2D(PostSpikeStartLocation,Vehicle->GetActorLocation());
+            if(Phase>=3.f&&EscapeMovement&&EscapeMovement->IsActive()&&EscapeMovement->GetNumWheels()>=4&&EscapeDistance>=150.f&&Vehicle->GetVelocity().Size2D()>10.f)
             {
-                Pass(TEXT("POST_SPIKE_ESCAPE"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_POST_SPIKE_ESCAPE vehicle=%s result=PASS duration=%.2f start_speed_cm_s=%.1f current_speed_cm_s=%.1f wheel_risk=%.3f throttle_limit=%.3f steering_limit=%.3f"),*Vehicle->GetPersistentVehicleId().ToString(),Phase,PostSpikeStartSpeedCmS,Vehicle->GetVelocity().Size2D(),Vehicle->GetRuntimeWheelRisk(),Vehicle->GetRuntimeThrottleLimit(),Vehicle->GetRuntimeSteeringLimit());Vehicle->ApplyAcceptanceDriveCommand(0.f,0.f,1.f);
+                Pass(TEXT("POST_SPIKE_ESCAPE"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_POST_SPIKE_ESCAPE vehicle=%s result=PASS duration=%.2f start_speed_cm_s=%.1f current_speed_cm_s=%.1f wheel_risk=%.3f throttle_limit=%.3f steering_limit=%.3f distance_cm=%.1f"),*Vehicle->GetPersistentVehicleId().ToString(),Phase,PostSpikeStartSpeedCmS,Vehicle->GetVelocity().Size2D(),Vehicle->GetRuntimeWheelRisk(),Vehicle->GetRuntimeThrottleLimit(),Vehicle->GetRuntimeSteeringLimit(),EscapeDistance);Vehicle->ApplyAcceptanceDriveCommand(0.f,0.f,1.f);
             }
         }
     }

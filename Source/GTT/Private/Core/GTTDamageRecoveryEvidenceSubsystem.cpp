@@ -3,6 +3,7 @@
 #include "Core/GTTDemoSmokeScenarioSubsystem.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -262,8 +263,14 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
             }
 
             Terminal->SetServiceType(EGTTServiceType::Workshop);
-            Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 260.0f + FVector(0.0f, 0.0f, 85.0f),
+            Vehicle->SetActorLocation(Terminal->GetActorLocation() + FVector(0.0f, 0.0f, 85.0f),
                 false, nullptr, ETeleportType::TeleportPhysics);
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+                Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+                Mesh->SetSimulatePhysics(false);
+            }
             CashBeforeWorkshop = Economy->GetCash();
             Phase = EEvidencePhase::InvokeWorkshop;
             PhaseStartedSeconds = Elapsed;
@@ -324,6 +331,12 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
                 (RepairedRisk + RecoveryEpsilon < DamagedWheelRisk ||
                  RepairedThrottle > DamagedThrottleLimit + RecoveryEpsilon ||
                  RepairedSteering > DamagedSteeringLimit + RecoveryEpsilon);
+
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetSimulatePhysics(true);
+                Mesh->WakeAllRigidBodies();
+            }
 
             if (!bStateRecovered || !bControlNonRegressed || !bMeasuredRecovery)
             {
