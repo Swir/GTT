@@ -99,22 +99,15 @@ try {
         "-nodebuginfo"
         "-archive"
         "-archivedirectory=$ArchiveDirectory"
-        "-IgnoreCookErrors"
         "-utf8output"
     )
     $UATOutput = @(& $RunUAT @UATArgs 2>&1 | Tee-Object -FilePath $UATLog)
 
     $uatExit = $LASTEXITCODE
-    $KnownUE58CookError = "FBodyInstance::GetSimplePhysicalMaterial : GEngine not initialized! Cannot call this during native CDO construction"
-    $ErrorLines = [string[]]@($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match '(?i)\b(?:Error|Fatal):' })
-    $UnexpectedErrorLines = [string[]]@($ErrorLines | Where-Object { $_ -notlike "*$KnownUE58CookError*" })
-    $UnexpectedErrorCount = ($UnexpectedErrorLines | Measure-Object).Count
-    if ($UnexpectedErrorCount -gt 0) {
-        throw "UAT emitted unexpected error lines despite -IgnoreCookErrors. First unexpected line: $($UnexpectedErrorLines[0])"
-    }
-    $KnownErrorCount = ($ErrorLines | Where-Object { $_ -like "*$KnownUE58CookError*" } | Measure-Object).Count
-    if ($KnownErrorCount -gt 0) {
-        Write-Host "[GTT] Accepted $KnownErrorCount occurrence(s) of the verified UE 5.8.3 native-CDO physical-material cook defect; no other Error/Fatal log lines were present."
+    $ErrorLines = [string[]]@($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match '(?i)\\b(?:Error|Fatal):' })
+    $ErrorLineCount = ($ErrorLines | Measure-Object).Count
+    if ($ErrorLineCount -gt 0) {
+        throw "UAT emitted Error/Fatal log lines. First error: $($ErrorLines[0])"
     }
     if ($uatExit -ne 0) { throw "Unreal Automation Tool failed with exit code $uatExit" }
     $attempt.result = "PASS"
