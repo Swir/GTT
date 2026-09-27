@@ -10,7 +10,9 @@ trailer = read("Source/GTT/Private/Core/GTTTrailerEvidenceScenarioSubsystem.cpp"
 recovery = read("Source/GTT/Private/Vehicles/GTTRecoveryChoiceEvidenceSubsystem.cpp")
 fieldmaster = read("Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp")
 road_vehicle = read("Source/GTT/Private/Vehicles/GTTRoadVehicleNativePawn.cpp")
-physical = read("Scripts/verify_physical_roadblock_crossing.py")\nattestor = read("Scripts/write_win64_candidate_attestation.ps1")\nworkflow = read(".github/workflows/gtt-v0.1.61-win64-attested-candidate.yml")
+physical = read("Scripts/verify_physical_roadblock_crossing.py")
+attestor = read("Scripts/write_win64_candidate_attestation.ps1")
+workflow = read(".github/workflows/gtt-v0.1.61-win64-attested-candidate.yml")
 roadmap = read("Docs/ROADMAP.md")
 
 errors = []

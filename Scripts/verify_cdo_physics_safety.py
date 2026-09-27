@@ -19,7 +19,7 @@ FORBIDDEN = (
 )
 
 constructor_re = re.compile(
-    r"(?m)^\\s*([AU][A-Za-z0-9_]*)::\\1\\s*\\([^;{}]*\\)\\s*(?::[^{}]+)?\\{"
+    r"(?m)^\s*([AU][A-Za-z0-9_]*)::\1\s*\([^;{}]*\)\s*(?::[^{}]+)?\{"
 )
 
 def matching_brace(text: str, open_pos: int) -> int:

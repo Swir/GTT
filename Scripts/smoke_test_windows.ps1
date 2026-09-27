@@ -106,7 +106,8 @@ function Invoke-GTTRuntimePass {
     }
 }
 
-$smokeStartedUtc = (Get-Date).ToUniversalTime()\n$corePass = Invoke-GTTRuntimePass -Name 'CORE' -RequiredAliveSeconds 180 -TimeoutSeconds 210 -ScenarioArguments @(
+$smokeStartedUtc = (Get-Date).ToUniversalTime()
+$corePass = Invoke-GTTRuntimePass -Name 'CORE' -RequiredAliveSeconds 180 -TimeoutSeconds 210 -ScenarioArguments @(
     '-GTTDemoSmokeScenario',
     '-GTTDisableDrivetrainScenario',
     '-GTTDisableTrailerScenario',
