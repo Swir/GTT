@@ -18,6 +18,8 @@ roadmap = read("Docs/ROADMAP.md")
 playtest = read("Docs/PLAYTEST_0.0.35.md")
 workflow = read(".github/workflows/project-sanity.yml")
 editor_import = read("Scripts/Unreal/import_gtt_vehicle_rigs.py")
+native_setup_h = read("Source/GTT/Public/Vehicles/GTTChaosNativeSetupLibrary.h")
+native_setup_cpp = read("Source/GTT/Private/Vehicles/GTTChaosNativeSetupLibrary.cpp")
 
 # The source rig must use glTF's Y-up coordinate system. Interchange maps it to
 # UE Z-up. A Z-up glTF can still import and pass the bone/wheel contract while
@@ -54,13 +56,18 @@ for vehicle_name, vehicle_spec in generator.VEHICLES.items():
 # generic PhysicsAsset generator fight the suspension traces and destabilize the
 # vehicle, so the editor import must reduce every generated asset to root only.
 for token in (
-    'get_editor_property("skeletal_body_setups")',
-    'get_editor_property("bone_name")) == "root"',
-    'set_editor_property("skeletal_body_setups",[root_body])',
-    'set_editor_property("constraint_setup",[])',
+    'GTTChaosNativeSetupLibrary.stabilize_generated_physics_asset(physics)',
     '"physics_body_bones":["root"]',
 ):
     assert token in editor_import, f"editor import does not enforce root-only chassis physics: {token}"
+for token in (
+    "StabilizeGeneratedPhysicsAsset",
+    'BodySetup->BoneName == TEXT("root")',
+    "SkeletalBodySetups.Reset(1)",
+    "ConstraintSetup.Reset()",
+    "UpdateBodySetupIndexMap()",
+):
+    assert token in native_setup_h + native_setup_cpp, f"native setup does not enforce root-only chassis physics: {token}"
 
 wheel_classes = [
     "UGTTFieldmasterFrontWheel", "UGTTFieldmasterRearWheel",

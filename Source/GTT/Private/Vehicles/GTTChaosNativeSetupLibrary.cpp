@@ -1,6 +1,8 @@
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsEngine/SkeletalBodySetup.h"
 #include "Vehicles/GTTChaosRigContract.h"
 #include "Vehicles/GTTChaosVehicleSpec.h"
 #include "Vehicles/GTTChaosVehicleWheels.h"
@@ -190,5 +192,54 @@ bool UGTTChaosNativeSetupLibrary::ValidateCanonicalWheelSetups(const UChaosWheel
         RearWheel ? RearWheel->SuspensionMaxDrop : -1.0f,
         RearWheel ? RearWheel->SpringRate : -1.0f,
         RearWheel ? RearWheel->SuspensionDampingRatio : -1.0f);
+    return true;
+}
+
+bool UGTTChaosNativeSetupLibrary::StabilizeGeneratedPhysicsAsset(UPhysicsAsset* PhysicsAsset, FString& OutSummary)
+{
+    if (!PhysicsAsset)
+    {
+        OutSummary = TEXT("No PhysicsAsset");
+        return false;
+    }
+
+    USkeletalBodySetup* RootBody = nullptr;
+    int32 RootBodyCount = 0;
+    for (USkeletalBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+    {
+        if (BodySetup && BodySetup->BoneName == TEXT("root"))
+        {
+            RootBody = BodySetup;
+            ++RootBodyCount;
+        }
+    }
+    if (RootBodyCount != 1 || !RootBody)
+    {
+        OutSummary = FString::Printf(TEXT("Expected one root chassis body, found %d"), RootBodyCount);
+        return false;
+    }
+
+    const int32 ShapeCount = RootBody->AggGeom.GetElementCount();
+    if (ShapeCount < 1)
+    {
+        OutSummary = TEXT("Root chassis body has no collision shape");
+        return false;
+    }
+
+    PhysicsAsset->Modify();
+    RootBody->Modify();
+    PhysicsAsset->SkeletalBodySetups.Reset(1);
+    PhysicsAsset->SkeletalBodySetups.Add(RootBody);
+    PhysicsAsset->ConstraintSetup.Reset();
+    PhysicsAsset->BoundsBodies.Reset();
+    PhysicsAsset->UpdateBodySetupIndexMap();
+    PhysicsAsset->UpdateBoundsBodiesArray();
+    RootBody->InvalidatePhysicsData();
+    RootBody->CreatePhysicsMeshes();
+#if WITH_EDITOR
+    PhysicsAsset->RefreshPhysicsAssetChange();
+#endif
+    PhysicsAsset->MarkPackageDirty();
+    OutSummary = FString::Printf(TEXT("Root-only chassis physics with %d collision shapes"), ShapeCount);
     return true;
 }

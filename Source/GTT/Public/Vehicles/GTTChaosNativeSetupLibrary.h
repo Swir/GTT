@@ -5,6 +5,7 @@
 #include "GTTChaosNativeSetupLibrary.generated.h"
 
 class UChaosWheeledVehicleMovementComponent;
+class UPhysicsAsset;
 
 UCLASS()
 class GTT_API UGTTChaosNativeSetupLibrary : public UBlueprintFunctionLibrary
@@ -19,4 +20,8 @@ public:
     /** Validate that a movement component is wired to the expected wheel classes and rig bones. */
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Chaos")
     static bool ValidateCanonicalWheelSetups(const UChaosWheeledVehicleMovementComponent* Movement, FName VehicleId, FString& OutSummary);
+
+    /** Reduce an imported vehicle PhysicsAsset to its single root chassis body. */
+    UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Chaos")
+    static bool StabilizeGeneratedPhysicsAsset(UPhysicsAsset* PhysicsAsset, FString& OutSummary);
 };
