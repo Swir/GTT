@@ -43,6 +43,23 @@ def socket_names(mesh):
     return {str(mesh.get_socket_by_index(i).get_editor_property("socket_name")) for i in range(mesh.num_sockets()) if mesh.get_socket_by_index(i)}
 
 
+def stabilize_physics_asset(name, physics):
+    """Keep one simulated chassis body; wheel collision comes from Chaos wheel traces."""
+    bodies=list(physics.get_editor_property("skeletal_body_setups"))
+    root_bodies=[body for body in bodies if str(body.get_editor_property("bone_name")) == "root"]
+    if len(root_bodies) != 1: fail(f"PHYSICS_ROOT_BODY_COUNT_{name}_{len(root_bodies)}")
+    root_body=root_bodies[0]
+    geometry=root_body.get_editor_property("agg_geom")
+    shape_count=sum(len(geometry.get_editor_property(prop)) for prop in
+        ("sphere_elems","box_elems","sphyl_elems","convex_elems","tapered_capsule_elems"))
+    if shape_count < 1: fail(f"PHYSICS_ROOT_SHAPE_MISSING_{name}")
+    # Auto-generation creates dynamic bodies and constraints for every wheel bone.
+    # Those fight Chaos Vehicles' suspension and make the rig flip or lose contacts.
+    physics.set_editor_property("skeletal_body_setups",[root_body])
+    physics.set_editor_property("constraint_setup",[])
+    return shape_count
+
+
 def import_vehicle(name, spec):
     source=root()/"Intermediate"/"GTT"/"NativeVehicles"/f"GTT_{name}_Rig.gltf"
     if not source.is_file(): fail(f"SOURCE_MISSING_{name}")
@@ -78,9 +95,11 @@ def import_vehicle(name, spec):
         unreal.SkeletalMeshEditorSubsystem.create_physics_asset(mesh,True,0)
         physics=mesh.get_editor_property("physics_asset")
     if physics is None: fail(f"PHYSICS_ASSET_MISSING_{name}")
+    root_shape_count=stabilize_physics_asset(name,physics)
     if not unreal.EditorAssetLibrary.save_loaded_asset(mesh,False): fail(f"SAVE_FAILED_{name}")
-    unreal.EditorAssetLibrary.save_loaded_asset(physics,False)
-    return {"vehicle":name,"skeletal_mesh":mesh.get_path_name(),"physics_asset":physics.get_path_name(),"bones":list(REQUIRED_BONES),"sockets":desired}
+    if not unreal.EditorAssetLibrary.save_loaded_asset(physics,False): fail(f"PHYSICS_SAVE_FAILED_{name}")
+    return {"vehicle":name,"skeletal_mesh":mesh.get_path_name(),"physics_asset":physics.get_path_name(),
+        "physics_body_bones":["root"],"root_shape_count":root_shape_count,"bones":list(REQUIRED_BONES),"sockets":desired}
 
 
 def main():

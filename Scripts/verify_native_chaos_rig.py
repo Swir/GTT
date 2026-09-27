@@ -17,6 +17,7 @@ spec_h = read("Source/GTT/Public/Vehicles/GTTChaosVehicleSpec.h")
 roadmap = read("Docs/ROADMAP.md")
 playtest = read("Docs/PLAYTEST_0.0.35.md")
 workflow = read(".github/workflows/project-sanity.yml")
+editor_import = read("Scripts/Unreal/import_gtt_vehicle_rigs.py")
 
 # The source rig must use glTF's Y-up coordinate system. Interchange maps it to
 # UE Z-up. A Z-up glTF can still import and pass the bone/wheel contract while
@@ -48,6 +49,18 @@ for vehicle_name, vehicle_spec in generator.VEHICLES.items():
     assert body_bounds["max"][1] >= radius + height - 1e-6, f"{vehicle_name} body height must use glTF Y"
     assert body_bounds["min"][0] <= -length / 2 + 1e-6 and body_bounds["max"][0] >= length / 2 - 1e-6, \
         f"{vehicle_name} length must use glTF X"
+
+# Chaos Vehicles expects one chassis rigid body. Simulated wheel bodies from the
+# generic PhysicsAsset generator fight the suspension traces and destabilize the
+# vehicle, so the editor import must reduce every generated asset to root only.
+for token in (
+    'get_editor_property("skeletal_body_setups")',
+    'get_editor_property("bone_name")) == "root"',
+    'set_editor_property("skeletal_body_setups",[root_body])',
+    'set_editor_property("constraint_setup",[])',
+    '"physics_body_bones":["root"]',
+):
+    assert token in editor_import, f"editor import does not enforce root-only chassis physics: {token}"
 
 wheel_classes = [
     "UGTTFieldmasterFrontWheel", "UGTTFieldmasterRearWheel",
