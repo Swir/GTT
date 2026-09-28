@@ -206,6 +206,11 @@ int32 AGTTServiceTerminal::GetNativeRoadCheckoutQuote(const AGTTRoadVehicleNativ
         : BaseQuote;
 }
 
+AGTTRoadVehicleNativePawn* AGTTServiceTerminal::ResolveNativeRoadServiceTarget() const
+{
+    return FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius);
+}
+
 void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
 {
     APawn* Pawn = Cast<APawn>(Interactor);
@@ -222,7 +227,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     const bool bWorkshopOpen = IsWorkshopOpenNow();
     const FString WorkshopSchedule = GTTWorkshopHoursPolicy::GetScheduleText();
 
-    if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
+    if (AGTTRoadVehicleNativePawn* NativeRoad = ResolveNativeRoadServiceTarget())
     {
         const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
         FGTTGarageFleetSnapshot FleetSnapshot;
@@ -401,7 +406,7 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
     const bool bWorkshopOpen = IsWorkshopOpenNow();
     const FString WorkshopSchedule = GTTWorkshopHoursPolicy::GetScheduleText();
 
-    if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
+    if (AGTTRoadVehicleNativePawn* NativeRoad = ResolveNativeRoadServiceTarget())
     {
         const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
         FGTTGarageFleetSnapshot FleetSnapshot;

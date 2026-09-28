@@ -32,8 +32,21 @@ function Write-Fixture {
         version = $Version
     } | ConvertTo-Json | Set-Content -Encoding UTF8 $runtime
 
+    $rigSources = @(
+        [ordered]@{ vehicle="Fieldmaster60"; source_gltf="GTT_Fieldmaster60_Rig.gltf"; source_gltf_bytes=101; source_gltf_sha256=("1" * 64) },
+        [ordered]@{ vehicle="Rattleback82"; source_gltf="GTT_Rattleback82_Rig.gltf"; source_gltf_bytes=102; source_gltf_sha256=("2" * 64) },
+        [ordered]@{ vehicle="Mulebox1200"; source_gltf="GTT_Mulebox1200_Rig.gltf"; source_gltf_bytes=103; source_gltf_sha256=("3" * 64) }
+    )
+    $rigEvidence = Join-Path $package "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json"
+    [ordered]@{
+        schema = "gtt.native-vehicle-rig-editor-acceptance.v1"
+        result = "PASS"
+        git_sha = $Sha
+        assets = $rigSources
+    } | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 $rigEvidence
+
     $evidence = @()
-    foreach ($path in @($exe, $runtime)) {
+    foreach ($path in @($exe, $runtime, $rigEvidence)) {
         $file = Get-Item $path
         $evidence += [ordered]@{
             path = Get-RelativeSlashPath -Root $package -Path $file.FullName
@@ -55,6 +68,7 @@ function Write-Fixture {
         evidence_hash_algorithm = "SHA256"
         evidence_file_count = $evidence.Count
         evidence_files = $evidence
+        native_vehicle_rig_sources = $rigSources
         native_chaos_tractor_movement = "PASS"
         native_chaos_movement_samples = 2
         native_chaos_max_speed_kmh = 1.0
@@ -132,6 +146,27 @@ try {
     [void](Seal-Fixture -Package $passPackage)
     Invoke-Pass -Package $passPackage
 
+    $rigMismatchPackage = Write-Fixture -Name "bad-rig-provenance"
+    $rigMismatchAttPath = Join-Path $rigMismatchPackage "WIN64_CANDIDATE_ATTESTATION.json"
+    $rigMismatchAtt = Get-Content -Raw $rigMismatchAttPath | ConvertFrom-Json
+    $rigMismatchAtt.native_vehicle_rig_sources[0].source_gltf_sha256 = ("f" * 64)
+    $rigMismatchAtt | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $rigMismatchAttPath
+    [void](Seal-Fixture -Package $rigMismatchPackage)
+    Invoke-ExpectedFailure -Needle "provenance mismatch" -Action {
+        & $Verifier -PackageDirectory $rigMismatchPackage -Version $Version -Configuration $Configuration -ExpectedGitSha $Sha
+    }
+
+    $rigBindingPackage = Write-Fixture -Name "missing-rig-binding"
+    $rigBindingAttPath = Join-Path $rigBindingPackage "WIN64_CANDIDATE_ATTESTATION.json"
+    $rigBindingAtt = Get-Content -Raw $rigBindingAttPath | ConvertFrom-Json
+    $rigBindingAtt.evidence_files = @($rigBindingAtt.evidence_files | Where-Object { [string]$_.path -ne "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json" })
+    $rigBindingAtt.evidence_file_count = @($rigBindingAtt.evidence_files).Count
+    $rigBindingAtt | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $rigBindingAttPath
+    [void](Seal-Fixture -Package $rigBindingPackage)
+    Invoke-ExpectedFailure -Needle "not hash/byte-bound" -Action {
+        & $Verifier -PackageDirectory $rigBindingPackage -Version $Version -Configuration $Configuration -ExpectedGitSha $Sha
+    }
+
     $hashPackage = Write-Fixture -Name "bad-sidecar"
     $hashZip = Seal-Fixture -Package $hashPackage
     Set-Content -Encoding ASCII -Path "$hashZip.sha256" -Value ("0" * 64 + "  " + [IO.Path]::GetFileName($hashZip))
@@ -183,7 +218,7 @@ try {
         & $Verifier -PackageDirectory $boundaryPackage -Version $Version -Configuration $Configuration -ExpectedGitSha $Sha
     }
 
-    Write-Host "[GTT][ARCHIVE-TEST] PASS: positive round-trip plus sidecar/full-tree/current-gate/human-boundary negative cases."
+    Write-Host "[GTT][ARCHIVE-TEST] PASS: positive round-trip plus rig-provenance/rig-binding/sidecar/full-tree/current-gate/human-boundary negative cases."
 }
 finally {
     if (Test-Path $TestRoot) { Remove-Item -Recurse -Force $TestRoot }

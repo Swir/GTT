@@ -62,6 +62,10 @@ for token in (
     "fieldmaster_hill_haul_runtime",
     "technical_gate_schema",
     "rendered_screenshot_count",
+    "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json",
+    "native_vehicle_rig_sources",
+    "source_gltf_sha256",
+    "hash/byte-bound",
     'human_visual_review -ne "REQUIRED"',
     "demo_release_authorized",
     "$ZipPath.verify.json",
@@ -73,6 +77,10 @@ for token in (
     'Write-Fixture -Name "bad-sidecar"',
     'Write-Fixture -Name "unmanifested"',
     'Write-Fixture -Name "bad-boundary"',
+    'Write-Fixture -Name "bad-rig-provenance"',
+    'Write-Fixture -Name "missing-rig-binding"',
+    'Native vehicle rig source provenance does not match editor evidence',
+    'Native vehicle rig editor acceptance evidence is not hash/byte-bound',
     'sidecar hash does not match',
     'does not exactly match',
     'human visual review / Demo Release boundary',
@@ -111,6 +119,7 @@ for token in (
     require(token in sanity_workflow, f"0.1.68 sanity workflow missing: {token}")
 
 require("gtt.win64-candidate-attestation.v1" in attestor, "0.1.68 must retain the established exact-candidate attestation")
+require("NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json" in attestor and "native_vehicle_rig_sources" in attestor, "attestor must seal Native vehicle rig source provenance")
 require("FINAL_SHA256SUMS.txt" in attestor and "Compress-Archive" in attestor, "attestor must still create sealed manifest + ZIP")
 
 require("version_tuple" in regression and ">= (0, 1, 67)" in regression, "0.1.67 verifier must remain a forward-compatible regression guard")

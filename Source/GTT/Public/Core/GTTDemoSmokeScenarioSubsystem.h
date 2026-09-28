@@ -17,12 +17,15 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UGTTDemoSmokeScenarioSubsystem, STATGROUP_Tickables); }
     virtual bool IsTickable() const override { return bEnabled && !bFinished; }
+    bool DidCompleteSuccessfully() const { return bEnabled && bFinished && bScenarioPassed; }
+    FName GetProvenRoadblockVehicleId() const { return ProvenRoadblockVehicleId; }
 private:
     void Pass(const TCHAR* Step);
     void PrepareAcceptanceFleet();
     void DriveNativeRoadblockCrossing();
     bool bEnabled = false;
     bool bFinished = false;
+    bool bScenarioPassed = false;
     bool bCrimeInjected = false;
     bool bAcceptanceFleetPrepared = false;
     bool bControlActionLogged = false;
@@ -42,6 +45,7 @@ private:
     float RoadblockBaselineSteeringLimit = 1.0f;
     TWeakObjectPtr<AGTTPolicePursuitVehicle> ObservedPursuitVehicle;
     TWeakObjectPtr<AGTTRoadVehicleNativePawn> RoadblockTestVehicle;
+    FName ProvenRoadblockVehicleId = NAME_None;
     TWeakObjectPtr<AGTTRoadblock> RoadblockTestActor;
     TSet<FName> Passed;
 };

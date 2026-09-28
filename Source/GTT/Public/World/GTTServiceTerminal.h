@@ -28,6 +28,7 @@ public:
     int32 GetNativeRoadRepairQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
     int32 GetNativeRoadFuelQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
     int32 GetNativeRoadCheckoutQuote(const AGTTRoadVehicleNativePawn* Vehicle) const;
+    AGTTRoadVehicleNativePawn* ResolveNativeRoadServiceTarget() const;
 
     UFUNCTION(BlueprintPure, Category="GTT|Service|Workshop")
     bool IsWorkshopOpenNow() const;

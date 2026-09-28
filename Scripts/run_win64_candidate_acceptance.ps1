@@ -123,6 +123,208 @@ try {
         throw "Native vehicle rig editor acceptance evidence is not bound to this exact candidate."
     }
 
+    $nativeRigSourceRoot = Join-Path $ProjectRoot "Intermediate\GTT\NativeVehicles"
+    $expectedNativeRigSources = [ordered]@{
+        "Fieldmaster60" = "GTT_Fieldmaster60_Rig.gltf"
+        "Rattleback82" = "GTT_Rattleback82_Rig.gltf"
+        "Mulebox1200" = "GTT_Mulebox1200_Rig.gltf"
+    }
+    foreach ($vehicleName in $expectedNativeRigSources.Keys) {
+        $records = @($nativeRigEvidence.assets | Where-Object { [string]$_.vehicle -eq $vehicleName })
+        if ($records.Count -ne 1) {
+            throw "Native rig evidence must contain exactly one source record for $vehicleName."
+        }
+        $record = $records[0]
+        $expectedSourceName = [string]$expectedNativeRigSources[$vehicleName]
+        $sourceName = [string]$record.source_gltf
+        $sourceBytes = [int64]$record.source_gltf_bytes
+        $sourceHash = ([string]$record.source_gltf_sha256).ToLowerInvariant()
+        if ($sourceName -ne $expectedSourceName -or $sourceBytes -le 0 -or $sourceHash -notmatch '^[0-9a-f]{64}
+    $editorImportEvidence = Get-Content -Raw $EditorImportEvidenceFile | ConvertFrom-Json
+    if ($editorImportEvidence.schema -ne "gtt.authored-trailer-editor-acceptance.v1" -or
+        $editorImportEvidence.result -ne "PASS" -or
+        [string]$editorImportEvidence.git_sha -ne $GitSha) {
+        throw "Authored trailer editor acceptance evidence is not bound to this exact candidate."
+    }
+    if ([string]$editorImportEvidence.source_gltf_sha256 -notmatch '^[0-9a-f]{64}$') {
+        throw "Authored trailer editor acceptance source hash is invalid."
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$editorImportEvidence.physics_asset_object_path)) {
+        throw "Authored trailer editor acceptance is missing the PhysicsAsset object path."
+    }
+
+    $importEvidence = [ordered]@{
+        schema = "gtt.authored-trailer-import.v1"
+        result = "PASS"
+        git_sha = $GitSha
+        version = $Version
+        asset = "Content/GTT/Vehicles/Trailer/SK_GTT_FarmTrailer.uasset"
+        engine = "Unreal Engine 5.8"
+        editor_acceptance = $editorImportEvidence
+        generated_utc = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    $importEvidence | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $ImportFile
+
+    Invoke-GTTScript "package_windows.ps1" @(
+        "-EngineRoot", $EngineRoot,
+        "-Configuration", $Configuration,
+        "-ArchiveDirectory", $PackageDirectory,
+        "-Version", $Version,
+        "-SkipZip"
+    )
+    Copy-Item -Force $ImportFile (Join-Path $PackageDirectory "AUTHORED_TRAILER_IMPORT.json")
+    Copy-Item -Force $EditorImportEvidenceFile (Join-Path $PackageDirectory "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json")
+    Copy-Item -Force $NativeRigEvidenceFile (Join-Path $PackageDirectory "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json")
+
+    Invoke-GTTScript "smoke_test_windows.ps1" @(
+        "-PackageDirectory", $PackageDirectory,
+        "-Version", $Version,
+        "-MinimumAliveSeconds", 472,
+        "-LaunchTimeoutSeconds", 505
+    )
+
+    $runtimeEvaluators = @(
+        "evaluate_demo_scenario.ps1",
+        "evaluate_packaged_gameplay_smoke.ps1",
+        "evaluate_native_chaos_runtime.ps1",
+        "evaluate_native_authority_runtime.ps1",
+        "evaluate_drivetrain_scenario.ps1",
+        "evaluate_authored_trailer_runtime.ps1",
+        "evaluate_farm_cargo_runtime.ps1",
+        "evaluate_farm_cargo_recovery_runtime.ps1",
+        "evaluate_farm_cargo_breakdown_runtime.ps1",
+        "evaluate_farm_cargo_dispatch_runtime.ps1",
+        "evaluate_farm_cargo_dispatch_persistence_runtime.ps1",
+        "evaluate_farm_cargo_workshop_recovery_runtime.ps1",
+        "evaluate_workshop_hours_runtime.ps1",
+        "evaluate_workshop_queue_runtime.ps1",
+        "evaluate_workshop_capacity_runtime.ps1",
+        "evaluate_workshop_priority_pickup_runtime.ps1"
+    )
+    foreach ($script in $runtimeEvaluators) {
+        $args = @("-PackageDirectory", $PackageDirectory, "-RuntimeLog", $RuntimeLog, "-ExpectedGitSha", $GitSha)
+        if ($script -eq "evaluate_packaged_gameplay_smoke.ps1") { $args += @("-MinimumRuntimeSeconds", 472) }
+        Invoke-GTTScript $script $args
+    }
+
+    Invoke-GTTScript "validate_windows_package.ps1" @(
+        "-PackageDirectory", $PackageDirectory,
+        "-Configuration", $Configuration,
+        "-Version", $Version
+    )
+
+    $import = Get-Content -Raw (Join-Path $PackageDirectory "AUTHORED_TRAILER_IMPORT.json") | ConvertFrom-Json
+    if ($import.schema -ne "gtt.authored-trailer-import.v1" -or $import.result -ne "PASS" -or
+        $import.git_sha -ne $GitSha -or $import.version -ne $Version -or
+        $import.editor_acceptance.schema -ne "gtt.authored-trailer-editor-acceptance.v1" -or
+        $import.editor_acceptance.result -ne "PASS" -or
+        [string]$import.editor_acceptance.git_sha -ne $GitSha) {
+        throw "Authored trailer import evidence is not bound to this exact candidate."
+    }
+
+    $packagedEditorEvidence = Get-Content -Raw (Join-Path $PackageDirectory "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json") | ConvertFrom-Json
+    if ($packagedEditorEvidence.schema -ne "gtt.authored-trailer-editor-acceptance.v1" -or
+        $packagedEditorEvidence.result -ne "PASS" -or
+        [string]$packagedEditorEvidence.git_sha -ne $GitSha) {
+        throw "Packaged authored trailer editor acceptance evidence is not bound to this exact candidate."
+    }
+
+    Invoke-GTTScript "evaluate_demo_candidate.ps1" @(
+        "-PackageDirectory", $PackageDirectory,
+        "-RuntimeLog", $RuntimeLog,
+        "-ExpectedGitSha", $GitSha
+    )
+
+    foreach ($promotion in @(
+        "promote_demo_gate_workshop_recovery.ps1",
+        "promote_demo_gate_workshop_hours.ps1",
+        "promote_demo_gate_workshop_queue.ps1",
+        "promote_demo_gate_workshop_capacity.ps1",
+        "promote_demo_gate_workshop_priority_pickup.ps1"
+    )) {
+        Invoke-GTTScript $promotion @("-PackageDirectory", $PackageDirectory, "-ExpectedGitSha", $GitSha)
+    }
+
+    $gatePath = Join-Path $PackageDirectory "DEMO_TECHNICAL_GATE.json"
+    if (-not (Test-Path $gatePath -PathType Leaf)) { throw "DEMO_TECHNICAL_GATE.json missing." }
+    $gate = Get-Content -Raw $gatePath | ConvertFrom-Json
+    if ([int]$gate.schema -ne 17 -or $gate.result -ne "PASS") {
+        throw "Demo technical gate is not a PASS schema-17 candidate."
+    }
+
+    Invoke-GTTScript "capture_demo_visual_evidence.ps1" @(
+        "-PackageDirectory", $PackageDirectory,
+        "-Version", $Version,
+        "-MinimumAliveSeconds", 178,
+        "-LaunchTimeoutSeconds", 205
+    )
+    Invoke-GTTScript "evaluate_demo_visual_evidence.ps1" @(
+        "-PackageDirectory", $PackageDirectory,
+        "-RuntimeLog", $VisualRuntimeLog,
+        "-ExpectedGitSha", $GitSha
+    )
+
+    $visualEvidencePath = Join-Path $PackageDirectory "DEMO_VISUAL_EVIDENCE.json"
+    if (-not (Test-Path $visualEvidencePath -PathType Leaf)) { throw "DEMO_VISUAL_EVIDENCE.json missing." }
+    $visual = Get-Content -Raw $visualEvidencePath | ConvertFrom-Json
+    if ($visual.result -ne "PASS") { throw "Rendered visual evidence did not PASS automated validation." }
+
+    $shots = @(Get-ChildItem (Join-Path $PackageDirectory "DemoVisualEvidence") -File -Filter "GTT_visual_*.png")
+    if ($shots.Count -ne 5) { throw "Expected exactly five rendered review screenshots, found $($shots.Count)." }
+
+    $summary = [ordered]@{
+        schema = "gtt.win64-candidate-acceptance.v1"
+        result = "PASS"
+        game = "Grand Theft Tractor"
+        git_sha = $GitSha
+        version = $Version
+        configuration = $Configuration
+        engine = "Unreal Engine 5.8"
+        authored_trailer_import = "PASS"
+        packaged_exe_smoke = "PASS"
+        native_chaos_runtime = "PASS"
+        native_authority_runtime = "PASS"
+        authored_trailer_runtime = "PASS"
+        technical_gate_schema = 17
+        technical_gate = "PASS"
+        rendered_visual_evidence = "PASS"
+        rendered_screenshot_count = $shots.Count
+        human_visual_review = "REQUIRED"
+        demo_release_authorized = $false
+        generated_utc = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    $summaryPath = Join-Path $PackageDirectory "WIN64_ACCEPTANCE_SUMMARY.json"
+    $summary | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $summaryPath
+
+    $zipPath = "$PackageDirectory.zip"
+    if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
+    Compress-Archive -Path (Join-Path $PackageDirectory "*") -DestinationPath $zipPath -CompressionLevel Optimal
+    $zipHash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLowerInvariant()
+    Set-Content -Encoding ASCII -Path "$zipPath.sha256" -Value "$zipHash  $([IO.Path]::GetFileName($zipPath))"
+
+    Write-Host "[GTT][ACCEPTANCE] PASS: exact candidate is technically qualified for human visual review."
+    Write-Host "[GTT][ACCEPTANCE] Human visual review is still REQUIRED; Demo Release is NOT authorized by this script."
+    Write-Host "[GTT][ACCEPTANCE] Summary: $summaryPath"
+    Write-Host "[GTT][ACCEPTANCE] Candidate ZIP: $zipPath"
+}
+finally {
+    $env:GITHUB_SHA = $PreviousGithubSha
+}
+) {
+            throw "Native rig source provenance is invalid for $vehicleName."
+        }
+
+        $sourcePath = Join-Path $nativeRigSourceRoot $sourceName
+        if (-not (Test-Path $sourcePath -PathType Leaf)) {
+            throw "Native rig source file missing for provenance verification: $sourcePath"
+        }
+        $actualBytes = (Get-Item -LiteralPath $sourcePath).Length
+        $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourcePath).Hash.ToLowerInvariant()
+        if ($actualBytes -ne $sourceBytes -or $actualHash -ne $sourceHash) {
+            throw "Native rig source provenance mismatch for $vehicleName."
+        }
+    }
+
     $editorImportEvidence = Get-Content -Raw $EditorImportEvidenceFile | ConvertFrom-Json
     if ($editorImportEvidence.schema -ne "gtt.authored-trailer-editor-acceptance.v1" -or
         $editorImportEvidence.result -ne "PASS" -or
