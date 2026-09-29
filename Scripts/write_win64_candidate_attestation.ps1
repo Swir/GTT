@@ -67,7 +67,15 @@ foreach ($vehicle in $expectedNativeRigSources.Keys) {
     }
     if ([int64]$record.source_gltf_bytes -le 0) { throw "Native rig '$vehicle' source byte length is invalid." }
     $sourceHash = ([string]$record.source_gltf_sha256).ToLowerInvariant()
-    if ($sourceHash -notmatch '^[0-9a-f]{64}
+    if ($sourceHash -notmatch '^[0-9a-f]{64}$') { throw "Native rig '$vehicle' source SHA-256 is invalid." }
+    $nativeVehicleRigSources += [ordered]@{
+        vehicle = $vehicle
+        source_gltf = [string]$record.source_gltf
+        source_gltf_bytes = [int64]$record.source_gltf_bytes
+        source_gltf_sha256 = $sourceHash
+    }
+}
+
 $runtime = Read-JsonRequired "RUNTIME_SMOKE.json"
 Assert-ExactIdentity $runtime "RUNTIME_SMOKE.json"
 if ([string]$runtime.result -ne "PASS") { throw "RUNTIME_SMOKE.json is not PASS." }

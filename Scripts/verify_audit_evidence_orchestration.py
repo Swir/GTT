@@ -38,7 +38,8 @@ project_sanity = read(".github/workflows/project-sanity.yml")
 
 for token in ("DidCompleteSuccessfully()", "GetProvenRoadblockVehicleId()", "bScenarioPassed", "ProvenRoadblockVehicleId"):
     require(core_h + core_cpp, token, "core demo scenario")
-if re.search(r"ProvenRoadblockVehicleId\\s*=\\s*Vehicle->GetPersistentVehicleId\\(\\)\\s*;", core_cpp) is None:\n    raise SystemExit("FAIL: core exact roadblock vehicle handoff missing")
+if re.search(r"ProvenRoadblockVehicleId\s*=\s*Vehicle->GetPersistentVehicleId\(\)\s*;", core_cpp) is None:
+    raise SystemExit("FAIL: core exact roadblock vehicle handoff missing")
 require(core_cpp, "bScenarioPassed=true", "core explicit PASS state")
 
 for token in ("ResolveNativeRoadServiceTarget()", "FindActiveNativeRoadVehicle"):

@@ -173,7 +173,18 @@ try {
         $sourceName = [string]$evidenceRecord.source_gltf
         $sourceBytes = [int64]$evidenceRecord.source_gltf_bytes
         $sourceHash = ([string]$evidenceRecord.source_gltf_sha256).ToLowerInvariant()
-        if ($sourceName -ne [string]$expectedRigSources[$vehicle] -or $sourceBytes -le 0 -or $sourceHash -notmatch '^[0-9a-f]{64}    if ($evidenceFiles.Count -ne [int]$attestation.evidence_file_count) {
+        if ($sourceName -ne [string]$expectedRigSources[$vehicle] -or $sourceBytes -le 0 -or $sourceHash -notmatch '^[0-9a-f]{64}$') {
+            throw "Native rig '$vehicle' evidence source provenance is invalid."
+        }
+        if ([string]$attestedRecord.source_gltf -ne $sourceName -or
+            [int64]$attestedRecord.source_gltf_bytes -ne $sourceBytes -or
+            ([string]$attestedRecord.source_gltf_sha256).ToLowerInvariant() -ne $sourceHash) {
+            throw "Native rig '$vehicle' attestation provenance does not match editor evidence."
+        }
+    }
+
+    $evidenceFiles = @($attestation.evidence_files)
+    if ($evidenceFiles.Count -ne [int]$attestation.evidence_file_count) {
         throw "Candidate attestation evidence_file_count does not match evidence_files."
     }
     $seenEvidence = @{}
@@ -185,7 +196,6 @@ try {
         if ($seenEvidence.ContainsKey($relative)) { throw "Candidate attestation contains duplicate evidence path: $relative" }
         $seenEvidence[$relative] = $true
         if (-not $manifest.ContainsKey($relative)) { throw "Attested evidence is absent from final manifest: $relative" }
-
         $filePath = Join-Path $tempRoot ($relative.Replace('/', [IO.Path]::DirectorySeparatorChar))
         if (-not (Test-Path $filePath -PathType Leaf)) { throw "Attested evidence is absent from archive: $relative" }
         $file = Get-Item $filePath
