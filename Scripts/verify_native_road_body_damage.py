@@ -47,7 +47,14 @@ if re.search(r'[█▓▒░]{3,}', progress_block):
 
 if road_cpp.find('UpdateNativeWheelRuntime(DeltaSeconds);') > road_cpp.find('UpdateDamageConsequences(DeltaSeconds);'):
     raise SystemExit('Damage consequences must run after wheel-state refresh so both control layers compose predictably.')
-native_service_pos = service_cpp.find('if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle')
+resolver_start = service_cpp.find('AGTTRoadVehicleNativePawn* AGTTServiceTerminal::ResolveNativeRoadServiceTarget() const')
+resolver_end = service_cpp.find('void AGTTServiceTerminal::Interact_Implementation', resolver_start)
+if resolver_start < 0 or resolver_end < 0:
+    raise SystemExit('Native road workshop resolver must exist before interaction handling.')
+resolver_body = service_cpp[resolver_start:resolver_end]
+if 'FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius)' not in resolver_body:
+    raise SystemExit('Native road workshop resolver must delegate to the active Native road vehicle lookup.')
+native_service_pos = service_cpp.find('if (AGTTRoadVehicleNativePawn* NativeRoad = ResolveNativeRoadServiceTarget())')
 legacy_service_pos = service_cpp.find('AGTTVehicleBase* Vehicle = FindNearestVehicle();')
 if native_service_pos < 0 or legacy_service_pos < 0 or native_service_pos > legacy_service_pos:
     raise SystemExit('Native road workshop handling must precede generic legacy vehicle servicing.')

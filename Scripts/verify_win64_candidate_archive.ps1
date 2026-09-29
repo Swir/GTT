@@ -179,7 +179,7 @@ try {
         if ([string]$attestedRecord.source_gltf -ne $sourceName -or
             [int64]$attestedRecord.source_gltf_bytes -ne $sourceBytes -or
             ([string]$attestedRecord.source_gltf_sha256).ToLowerInvariant() -ne $sourceHash) {
-            throw "Native rig '$vehicle' attestation provenance does not match editor evidence."
+            throw "Native rig '$vehicle' attestation provenance mismatch: does not match editor evidence."
         }
     }
 
