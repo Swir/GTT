@@ -125,9 +125,17 @@ def main() -> int:
         "WORKSHOP_QUEUE_TERMINAL_GUARD", "queue_authority=YES", "direct_service=BLOCKED",
         "!bWorkshopHold && ResolveQueuedWorkshopAppointment", "Queue lifecycle owns this exact vehicle",
     ], "workshop terminal queue authority")
+    resolver_body = block(
+        service_terminal_cpp,
+        "AGTTRoadVehicleNativePawn* AGTTServiceTerminal::ResolveNativeRoadServiceTarget() const",
+        "void AGTTServiceTerminal::Interact_Implementation",
+    )
+    require(resolver_body, [
+        "FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius)",
+    ], "native road service target resolver")
     native_terminal = block(
         service_terminal_cpp,
-        "if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle",
+        "if (AGTTRoadVehicleNativePawn* NativeRoad = ResolveNativeRoadServiceTarget())",
         "if (AGTTFieldmasterNativePawn* Native = FindActiveNativeFieldmaster",
     )
     guard = native_terminal.index("ResolveQueuedWorkshopAppointment")
