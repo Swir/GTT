@@ -1,10 +1,11 @@
 #include "Vehicles/GTTTrailerAuthoredRuntimeSubsystem.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Vehicles/GTTFarmTrailer.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
@@ -60,12 +61,12 @@ void UGTTTrailerAuthoredRuntimeSubsystem::Tick(float DeltaSeconds)
     }
 }
 
-USkeletalMeshComponent* UGTTTrailerAuthoredRuntimeSubsystem::FindAuthoredRig(AGTTFarmTrailer* Trailer) const
+USkinnedMeshComponent* UGTTTrailerAuthoredRuntimeSubsystem::FindAuthoredRig(AGTTFarmTrailer* Trailer) const
 {
     if (!Trailer) return nullptr;
-    TArray<USkeletalMeshComponent*> Meshes;
-    Trailer->GetComponents<USkeletalMeshComponent>(Meshes);
-    for (USkeletalMeshComponent* Mesh : Meshes)
+    TArray<USkinnedMeshComponent*> Meshes;
+    Trailer->GetComponents<USkinnedMeshComponent>(Meshes);
+    for (USkinnedMeshComponent* Mesh : Meshes)
     {
         if (Mesh && (Mesh->ComponentHasTag(AuthoredTrailerTag) || Mesh->GetFName() == TEXT("AuthoredTrailerMesh")))
         {
@@ -75,9 +76,10 @@ USkeletalMeshComponent* UGTTTrailerAuthoredRuntimeSubsystem::FindAuthoredRig(AGT
     return nullptr;
 }
 
-bool UGTTTrailerAuthoredRuntimeSubsystem::ValidateRig(USkeletalMeshComponent* Rig) const
+bool UGTTTrailerAuthoredRuntimeSubsystem::ValidateRig(USkinnedMeshComponent* Rig) const
 {
-    if (!Rig || !Rig->GetPhysicsAsset()) return false;
+    const USkeletalMesh* MeshAsset = Rig ? Cast<USkeletalMesh>(Rig->GetSkinnedAsset()) : nullptr;
+    if (!MeshAsset || !MeshAsset->GetPhysicsAsset()) return false;
     const bool bBones = Rig->GetBoneIndex(RequiredRootBone) != INDEX_NONE &&
         Rig->GetBoneIndex(RequiredLeftWheelBone) != INDEX_NONE &&
         Rig->GetBoneIndex(RequiredRightWheelBone) != INDEX_NONE;
@@ -85,7 +87,7 @@ bool UGTTTrailerAuthoredRuntimeSubsystem::ValidateRig(USkeletalMeshComponent* Ri
     return bBones && bSockets;
 }
 
-void UGTTTrailerAuthoredRuntimeSubsystem::SetAuthoredPresentation(AGTTFarmTrailer* Trailer, USkeletalMeshComponent* Rig, bool bActive, FRuntimeState& State) const
+void UGTTTrailerAuthoredRuntimeSubsystem::SetAuthoredPresentation(AGTTFarmTrailer* Trailer, USkinnedMeshComponent* Rig, bool bActive, FRuntimeState& State) const
 {
     if (!Trailer || State.bPresentationTakeover == bActive) return;
 
@@ -132,7 +134,7 @@ bool UGTTTrailerAuthoredRuntimeSubsystem::TraceWheelContact(AGTTFarmTrailer* Tra
     return OutGroundClearanceCm <= GroundContactSlackCm;
 }
 
-void UGTTTrailerAuthoredRuntimeSubsystem::ApplyAuthoredDynamics(AGTTFarmTrailer* Trailer, USkeletalMeshComponent* Rig, FRuntimeState& State, float DeltaSeconds) const
+void UGTTTrailerAuthoredRuntimeSubsystem::ApplyAuthoredDynamics(AGTTFarmTrailer* Trailer, USkinnedMeshComponent* Rig, FRuntimeState& State, float DeltaSeconds) const
 {
     if (!Trailer || !Rig || !Trailer->IsAttachedToNativeFieldmaster()) return;
 
@@ -175,7 +177,7 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
 {
     if (!Trailer) return;
     FRuntimeState& State = RuntimeByTrailer.FindOrAdd(Trailer);
-    USkeletalMeshComponent* Rig = FindAuthoredRig(Trailer);
+    USkinnedMeshComponent* Rig = FindAuthoredRig(Trailer);
     const bool bRigValid = ValidateRig(Rig);
     State.Rig = Rig;
     State.Snapshot = FGTTAuthoredTrailerRuntimeSnapshot{};

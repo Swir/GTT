@@ -1,7 +1,7 @@
 #include "Core/GTTTrailerEvidenceScenarioSubsystem.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/CommandLine.h"
@@ -9,6 +9,7 @@
 #include "Vehicles/GTTFarmTrailer.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTTrailerAuthoredRuntimeSubsystem.h"
+#include "Vehicles/GTTVehicleBase.h"
 #include "GTT.h"
 
 namespace
@@ -65,8 +66,29 @@ AGTTFieldmasterNativePawn* UGTTTrailerEvidenceScenarioSubsystem::ResolveFieldmas
     for (TActorIterator<AGTTFieldmasterNativePawn> It(World); It; ++It)
     {
         AGTTFieldmasterNativePawn* Candidate = *It;
-        if (Candidate && Candidate->IsNativeFieldmasterReady() && Candidate->IsLegacyTakeoverActive())
+        if (!Candidate || !Candidate->IsNativeFieldmasterReady()) continue;
+        if (!Candidate->IsLegacyTakeoverActive())
         {
+            for (TActorIterator<AGTTVehicleBase> LegacyIt(World); LegacyIt; ++LegacyIt)
+            {
+                AGTTVehicleBase* Legacy = *LegacyIt;
+                if (!Legacy || Legacy->GetPersistentVehicleId() != TEXT("RustyFieldmaster60")) continue;
+                if (!Legacy->IsOwnedByPlayer()) Legacy->MarkOwnedByPlayer();
+                Legacy->RepairVehicle(100000.0f);
+                Legacy->RefuelVehicle(100000.0f);
+                Legacy->RepairTires();
+                break;
+            }
+            Candidate->TryActivateLegacyTakeover();
+        }
+        if (Candidate->IsLegacyTakeoverActive())
+        {
+            FGTTVehicleMigrationSnapshot State = Candidate->GetMigrationSnapshot();
+            State.ConditionPercent = 1.0f;
+            State.FuelLiters = FMath::Max(State.FuelLiters, 10.0f);
+            State.bOwnedByPlayer = true;
+            State.TireIntegrity = 1.0f;
+            Candidate->ApplyMigrationSnapshot(State);
             Fieldmaster = Candidate;
             return Candidate;
         }
@@ -114,10 +136,10 @@ bool UGTTTrailerEvidenceScenarioSubsystem::StageTrailerAtHitch(AGTTFieldmasterNa
     FTransform StageTransform(Pawn->GetActorRotation(), InitialLocation, FVector::OneVector);
     FarmTrailer->ResetTrailer(StageTransform);
 
-    TArray<USkeletalMeshComponent*> SkeletalMeshes;
-    FarmTrailer->GetComponents<USkeletalMeshComponent>(SkeletalMeshes);
-    USkeletalMeshComponent* AuthoredRig = nullptr;
-    for (USkeletalMeshComponent* Mesh : SkeletalMeshes)
+    TArray<USkinnedMeshComponent*> SkeletalMeshes;
+    FarmTrailer->GetComponents<USkinnedMeshComponent>(SkeletalMeshes);
+    USkinnedMeshComponent* AuthoredRig = nullptr;
+    for (USkinnedMeshComponent* Mesh : SkeletalMeshes)
     {
         if (Mesh && (Mesh->ComponentHasTag(AuthoredTrailerTag) || Mesh->GetFName() == TEXT("AuthoredTrailerMesh")))
         {

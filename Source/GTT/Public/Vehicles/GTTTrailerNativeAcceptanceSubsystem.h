@@ -6,7 +6,7 @@
 
 class AGTTFarmTrailer;
 class AGTTFieldmasterNativePawn;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
 USTRUCT()
 struct FGTTTrailerNativeAcceptanceState
@@ -38,8 +38,8 @@ public:
 
 private:
     void EvaluateTrailer(AGTTFarmTrailer* Trailer, float DeltaSeconds);
-    USkeletalMeshComponent* FindAuthoredRig(AGTTFarmTrailer* Trailer) const;
-    bool ValidateAuthoredRig(USkeletalMeshComponent* Rig, FString& OutReason) const;
+    USkinnedMeshComponent* FindAuthoredRig(AGTTFarmTrailer* Trailer) const;
+    bool ValidateAuthoredRig(USkinnedMeshComponent* Rig, FString& OutReason) const;
     bool EvaluateNativeHitch(AGTTFarmTrailer* Trailer, AGTTFieldmasterNativePawn* NativeTow, FGTTTrailerNativeAcceptanceState& State, FString& OutReason) const;
     void EmitEvidence(AGTTFarmTrailer* Trailer, const FGTTTrailerNativeAcceptanceState& State, const FString& Reason) const;
 

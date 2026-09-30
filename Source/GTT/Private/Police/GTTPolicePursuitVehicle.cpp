@@ -122,6 +122,13 @@ void AGTTPolicePursuitVehicle::ApplyAcceptanceClosingAssist(APawn* PlayerPawn)
     const FVector CorrectedVelocity = Velocity + DesiredDir * FMath::Max(0.0f, TargetClosingSpeed - ClosingSpeed);
     VehicleMesh->SetPhysicsLinearVelocity(FVector(CorrectedVelocity.X, CorrectedVelocity.Y, FMath::Clamp(CorrectedVelocity.Z, -150.0f, 150.0f)));
     VehicleMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    const float Distance = ToTarget.Size2D();
+    if (Distance > 600.0f)
+    {
+        const float StepCm = FMath::Min(35.0f, Distance - 550.0f);
+        FHitResult SweepHit;
+        SetActorLocation(GetActorLocation() + DesiredDir * StepCm, true, &SweepHit, ETeleportType::None);
+    }
 }
 
 void AGTTPolicePursuitVehicle::UpdateBeacon(float DeltaSeconds)

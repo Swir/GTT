@@ -12,6 +12,7 @@
 
 namespace
 {
+    const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
     constexpr float TrailerPresentationScanIntervalSeconds = 1.0f;
     constexpr float RuntimeEvidenceIntervalSeconds = 0.50f;
     constexpr float WheelRadiusCm = 64.0f;
@@ -326,12 +327,13 @@ bool UGTTAuthoredTrailerPresentationSubsystem::TryActivateAuthoredPresentation(A
     UStaticMeshComponent* HitchCoupler = FindStaticMeshComponent(Trailer, HitchCouplerComponentName);
     if (!LeftWheel || !RightWheel || !HitchCoupler) return false;
 
-    UPoseableMeshComponent* AuthoredVisual = NewObject<UPoseableMeshComponent>(Trailer);
+    UPoseableMeshComponent* AuthoredVisual = NewObject<UPoseableMeshComponent>(Trailer, TEXT("AuthoredTrailerMesh"));
     if (!AuthoredVisual) return false;
     AuthoredVisual->SetupAttachment(Trailer->GetRootComponent());
     AuthoredVisual->SetSkeletalMesh(AuthoredMesh);
     AuthoredVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     AuthoredVisual->SetGenerateOverlapEvents(false);
+    AuthoredVisual->ComponentTags.AddUnique(AuthoredTrailerTag);
     AuthoredVisual->SetCastShadow(true);
     AuthoredVisual->RegisterComponent();
     AuthoredVisual->SetRelativeTransform(FTransform::Identity);

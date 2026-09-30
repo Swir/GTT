@@ -6,6 +6,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
+#include "Vehicles/GTTVehicleBase.h"
 #include "GTT.h"
 
 namespace
@@ -60,8 +61,29 @@ AGTTFieldmasterNativePawn* UGTTDrivetrainEvidenceScenarioSubsystem::ResolveField
     for (TActorIterator<AGTTFieldmasterNativePawn> It(World); It; ++It)
     {
         AGTTFieldmasterNativePawn* Candidate = *It;
-        if (Candidate && Candidate->IsNativeFieldmasterReady() && Candidate->IsLegacyTakeoverActive())
+        if (!Candidate || !Candidate->IsNativeFieldmasterReady()) continue;
+        if (!Candidate->IsLegacyTakeoverActive())
         {
+            for (TActorIterator<AGTTVehicleBase> LegacyIt(World); LegacyIt; ++LegacyIt)
+            {
+                AGTTVehicleBase* Legacy = *LegacyIt;
+                if (!Legacy || Legacy->GetPersistentVehicleId() != TEXT("RustyFieldmaster60")) continue;
+                if (!Legacy->IsOwnedByPlayer()) Legacy->MarkOwnedByPlayer();
+                Legacy->RepairVehicle(100000.0f);
+                Legacy->RefuelVehicle(100000.0f);
+                Legacy->RepairTires();
+                break;
+            }
+            Candidate->TryActivateLegacyTakeover();
+        }
+        if (Candidate->IsLegacyTakeoverActive())
+        {
+            FGTTVehicleMigrationSnapshot State = Candidate->GetMigrationSnapshot();
+            State.ConditionPercent = 1.0f;
+            State.FuelLiters = FMath::Max(State.FuelLiters, 10.0f);
+            State.bOwnedByPlayer = true;
+            State.TireIntegrity = 1.0f;
+            Candidate->ApplyMigrationSnapshot(State);
             Fieldmaster = Candidate;
             return Candidate;
         }

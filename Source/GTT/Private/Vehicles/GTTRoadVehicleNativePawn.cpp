@@ -49,10 +49,20 @@ namespace
             return SourceTransform;
         }
         FTransform Grounded = SourceTransform;
+        const FQuat UprightRotation = FRotator(0.0f, SourceTransform.Rotator().Yaw, 0.0f).Quaternion();
         FVector GroundedLocation = SourceLocation;
-        GroundedLocation.Z = Hit.ImpactPoint.Z + 2.0f;
+        float LocalBottomZ = 0.0f;
+        if (const AWheeledVehiclePawn* VehiclePawn = Cast<AWheeledVehiclePawn>(NativeVehicle))
+        {
+            if (const USkeletalMeshComponent* Mesh = VehiclePawn->GetMesh())
+            {
+                const FBoxSphereBounds Bounds = Mesh->CalcBounds(FTransform(UprightRotation, FVector::ZeroVector, SourceTransform.GetScale3D()));
+                LocalBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+            }
+        }
+        GroundedLocation.Z = Hit.ImpactPoint.Z - LocalBottomZ + 4.0f;
         Grounded.SetLocation(GroundedLocation);
-        Grounded.SetRotation(FRotator(0.0f, SourceTransform.Rotator().Yaw, 0.0f).Quaternion());
+        Grounded.SetRotation(UprightRotation);
         return Grounded;
     }
 

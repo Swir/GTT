@@ -7,6 +7,9 @@ read = lambda p: (ROOT / p).read_text(encoding="utf-8")
 smoke = read("Scripts/smoke_test_windows.ps1")
 drivetrain = read("Source/GTT/Private/Core/GTTDrivetrainEvidenceScenarioSubsystem.cpp")
 trailer = read("Source/GTT/Private/Core/GTTTrailerEvidenceScenarioSubsystem.cpp")
+trailer_runtime = read("Source/GTT/Private/Vehicles/GTTTrailerAuthoredRuntimeSubsystem.cpp")
+trailer_acceptance = read("Source/GTT/Private/Vehicles/GTTTrailerNativeAcceptanceSubsystem.cpp")
+trailer_presentation = read("Source/GTT/Private/Vehicles/GTTAuthoredTrailerPresentationSubsystem.cpp")
 recovery = read("Source/GTT/Private/Vehicles/GTTRecoveryChoiceEvidenceSubsystem.cpp")
 fieldmaster = read("Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp")
 road_vehicle = read("Source/GTT/Private/Vehicles/GTTRoadVehicleNativePawn.cpp")
@@ -34,6 +37,16 @@ for token in ["GTTDrivetrainRuntimeScenario", "GTTDisableDrivetrainScenario"]:
 for token in ["GTTTrailerRuntimeScenario", "GTTDisableTrailerScenario"]:
     if token not in trailer:
         errors.append(f"trailer activation contract missing: {token}")
+for source_name, source in [("drivetrain", drivetrain), ("trailer", trailer)]:
+    for token in ["MarkOwnedByPlayer", "RepairVehicle", "RefuelVehicle", "RepairTires", "TryActivateLegacyTakeover"]:
+        if token not in source:
+            errors.append(f"{source_name} isolated fieldmaster preparation missing: {token}")
+for source_name, source in [("authored runtime", trailer_runtime), ("native trailer acceptance", trailer_acceptance), ("trailer scenario", trailer)]:
+    if "USkinnedMeshComponent" not in source or "GetComponents<USkinnedMeshComponent>" not in source:
+        errors.append(f"{source_name} does not discover poseable authored rigs through the skinned component base")
+for token in ['TEXT("AuthoredTrailerMesh")', "ComponentTags.AddUnique(AuthoredTrailerTag)"]:
+    if token not in trailer_presentation:
+        errors.append(f"authored trailer presentation identity missing: {token}")
 for token in ["GTTRecoveryChoiceRuntimeScenario", "GTTDisableRecoveryChoiceScenario"]:
     if token not in recovery:
         errors.append(f"recovery activation contract missing: {token}")

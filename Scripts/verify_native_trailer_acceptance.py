@@ -13,6 +13,8 @@ trailer = (root / 'Source/GTT/Private/Vehicles/GTTFarmTrailer.cpp').read_text(en
 
 required = [
     (header + cpp, 'UGTTTrailerNativeAcceptanceSubsystem'),
+    (header + cpp, 'USkinnedMeshComponent'),
+    (cpp, 'GetSkinnedAsset'),
     (cpp, 'GTT.AuthoredTrailerRig'),
     (cpp, 'AuthoredTrailerMesh'),
     (cpp, 'MISSING_PHYSICS_ASSET'),
@@ -61,5 +63,8 @@ if '- [ ] Authored skeletal trailer wheel assets and final hitch sockets' not in
 
 if 'JackknifeDetachYawDeg = 76.0f' not in header or 'InvalidGraceSeconds = 0.75f' not in header:
     raise SystemExit('Native trailer jackknife/fail-safe thresholds drifted unexpectedly.')
+
+if 'GetComponents<USkeletalMeshComponent>' in cpp:
+    raise SystemExit('Poseable authored trailer rigs must not be filtered out by a skeletal-component-only lookup.')
 
 print('[OK] Native trailer authored-rig contract, hitch safety, fail-safe evidence and SVG-only roadmap lock verified.')

@@ -15,7 +15,8 @@ candidate_version=tuple(int(part) for part in version_match.groups()) if version
 checks={
  'crossing state': all(x in h for x in ('DriveNativeRoadblockCrossing','RoadblockTestVehicle','RoadblockTestActor','RoadblockBaselineTires','RoadblockBaselineWheelRisk')),
  'roadblock geometry API': 'GetSpikeStripWorldLocation' in road_h and 'GetSpikeApproachDirection' in road_h,
- 'physical route': all(x in cpp for x in ('DriveNativeRoadblockCrossing','GetSpikeStripWorldLocation','GetSpikeApproachDirection','SetActorTransform','ApplyAcceptanceDriveCommand')) and all(x in road_vehicle_cpp for x in ('ApplyAcceptanceDriveCommand','SetThrottleInput','SetTargetGear')),
+ 'physical route': all(x in cpp for x in ('DriveNativeRoadblockCrossing','GetSpikeStripWorldLocation','GetSpikeApproachDirection','SetActorTransform','ApplyAcceptanceDriveCommand','ResolveNativeRootZ','CalcBounds')) and all(x in road_vehicle_cpp for x in ('ApplyAcceptanceDriveCommand','SetThrottleInput','SetTargetGear','LocalBottomZ')),
+ 'vertical launch guard': 'FMath::Clamp(Velocity.Z,-80.f,80.f)' in cpp,
  'no direct damage shortcut': 'ApplyPoliceSpikeDamage' not in cpp,
  'crossing evidence': 'DEMO_SCENARIO_ROADBLOCK_CROSSING' in cpp and 'ROADBLOCK_PHYSICAL_CROSSING' in cpp,
  'handling evidence': 'DEMO_SCENARIO_HANDLING_CONSEQUENCE' in cpp and 'HANDLING_CONSEQUENCE' in cpp and 'GetRuntimeWheelRisk' in cpp,

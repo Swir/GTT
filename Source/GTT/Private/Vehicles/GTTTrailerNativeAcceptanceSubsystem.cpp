@@ -1,6 +1,7 @@
 #include "Vehicles/GTTTrailerNativeAcceptanceSubsystem.h"
 
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -45,12 +46,12 @@ void UGTTTrailerNativeAcceptanceSubsystem::Tick(float DeltaSeconds)
     }
 }
 
-USkeletalMeshComponent* UGTTTrailerNativeAcceptanceSubsystem::FindAuthoredRig(AGTTFarmTrailer* Trailer) const
+USkinnedMeshComponent* UGTTTrailerNativeAcceptanceSubsystem::FindAuthoredRig(AGTTFarmTrailer* Trailer) const
 {
     if (!Trailer) return nullptr;
-    TArray<USkeletalMeshComponent*> Meshes;
-    Trailer->GetComponents<USkeletalMeshComponent>(Meshes);
-    for (USkeletalMeshComponent* Mesh : Meshes)
+    TArray<USkinnedMeshComponent*> Meshes;
+    Trailer->GetComponents<USkinnedMeshComponent>(Meshes);
+    for (USkinnedMeshComponent* Mesh : Meshes)
     {
         if (Mesh && (Mesh->ComponentHasTag(AuthoredTrailerTag) || Mesh->GetFName() == TEXT("AuthoredTrailerMesh")))
         {
@@ -60,14 +61,15 @@ USkeletalMeshComponent* UGTTTrailerNativeAcceptanceSubsystem::FindAuthoredRig(AG
     return nullptr;
 }
 
-bool UGTTTrailerNativeAcceptanceSubsystem::ValidateAuthoredRig(USkeletalMeshComponent* Rig, FString& OutReason) const
+bool UGTTTrailerNativeAcceptanceSubsystem::ValidateAuthoredRig(USkinnedMeshComponent* Rig, FString& OutReason) const
 {
     if (!Rig)
     {
         OutReason = TEXT("NO_AUTHORED_RIG");
         return false;
     }
-    if (!Rig->GetPhysicsAsset())
+    const USkeletalMesh* MeshAsset = Cast<USkeletalMesh>(Rig->GetSkinnedAsset());
+    if (!MeshAsset || !MeshAsset->GetPhysicsAsset())
     {
         OutReason = TEXT("MISSING_PHYSICS_ASSET");
         return false;
@@ -141,9 +143,10 @@ void UGTTTrailerNativeAcceptanceSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trai
 {
     if (!Trailer) return;
     FGTTTrailerNativeAcceptanceState& State = RuntimeByTrailer.FindOrAdd(Trailer);
-    USkeletalMeshComponent* Rig = FindAuthoredRig(Trailer);
+    USkinnedMeshComponent* Rig = FindAuthoredRig(Trailer);
     State.bAuthoredRigPresent = Rig != nullptr;
-    State.bPhysicsAssetReady = Rig && Rig->GetPhysicsAsset();
+    const USkeletalMesh* MeshAsset = Rig ? Cast<USkeletalMesh>(Rig->GetSkinnedAsset()) : nullptr;
+    State.bPhysicsAssetReady = MeshAsset && MeshAsset->GetPhysicsAsset();
     State.bRequiredBonesReady = Rig && Rig->GetBoneIndex(RequiredRootBone) != INDEX_NONE && Rig->GetBoneIndex(RequiredLeftWheelBone) != INDEX_NONE && Rig->GetBoneIndex(RequiredRightWheelBone) != INDEX_NONE;
     State.bRequiredSocketsReady = Rig && Rig->DoesSocketExist(RequiredTowEyeSocket) && Rig->DoesSocketExist(RequiredAxleSocket);
 
