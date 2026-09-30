@@ -19,6 +19,7 @@ errors = []
 for token in [
     "Invoke-GTTRuntimePass", "-Name 'CORE'", "-Name 'NATIVE'", "-Name 'SERVICES'",
     "GTT_RUNTIME_CORE.log", "GTT_RUNTIME_NATIVE.log", "GTT_RUNTIME_SERVICES.log",
+    "return [pscustomobject][ordered]@{", "Measure-Object -Property survived_seconds -Sum",
     "-UserDir=$userDir", "isolated_user_dirs = $true", "runtime_passes = $passes",
     "GTTDisableDrivetrainScenario", "GTTDisableTrailerScenario", "GTTDisableRecoveryChoiceScenario",
     "GTTDrivetrainRuntimeScenario", "GTTTrailerRuntimeScenario",

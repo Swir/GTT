@@ -76,7 +76,7 @@ function Invoke-GTTRuntimePass {
         if ($survivedSeconds -lt $RequiredAliveSeconds) { throw "GTT.exe pass $Name did not remain alive for required $RequiredAliveSeconds seconds." }
         if (-not (Test-Path $passLog -PathType Leaf)) { throw "Runtime pass $Name did not create expected log: $passLog" }
         Write-Host "[GTT][RUNTIME-PASS] PASS name=$Name survived=${survivedSeconds}s log=$passLog"
-        return [ordered]@{
+        return [pscustomobject][ordered]@{
             name = $Name
             result = 'PASS'
             minimum_alive_seconds = $RequiredAliveSeconds
