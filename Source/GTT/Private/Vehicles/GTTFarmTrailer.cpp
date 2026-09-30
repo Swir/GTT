@@ -386,9 +386,29 @@ void AGTTFarmTrailer::Tick(float DeltaSeconds)
         if (!ActiveTowActor) DetachTrailer();
         else
         {
-            const float Distance = FVector::Distance(ActiveTowActor->GetActorLocation(), GetActorLocation());
+            float Distance = FVector::Distance(ActiveTowActor->GetActorLocation(), GetActorLocation());
+            if (NativeTowVehicle && HitchConstraint)
+            {
+                FTransform TowHitchTransform;
+                if (NativeTowVehicle->TryGetRearHitchTransform(TowHitchTransform))
+                {
+                    // Actor origins are hundreds of centimetres away from the
+                    // physical hitch points. Measure the joint itself so an
+                    // intact native hitch is not detached on the next tick.
+                    Distance = FVector::Distance(
+                        TowHitchTransform.GetLocation(),
+                        HitchConstraint->GetComponentLocation());
+                }
+            }
             HitchLoad = FMath::Clamp((Distance - SafeHitchDistance) / FMath::Max(1.0f, BreakHitchDistance - SafeHitchDistance), 0.0f, 1.0f);
-            if (Distance > BreakHitchDistance) { TrailerIntegrity = FMath::Max(0.0f, TrailerIntegrity - 0.16f); DetachTrailer(); }
+            if (Distance > BreakHitchDistance)
+            {
+                GTT_LOG( Warning,
+                    TEXT("TRAILER_HITCH_DETACH reason=distance-exceeded distance_cm=%.1f break_distance_cm=%.1f native_tow=%d"),
+                    Distance, BreakHitchDistance, NativeTowVehicle ? 1 : 0);
+                TrailerIntegrity = FMath::Max(0.0f, TrailerIntegrity - 0.16f);
+                DetachTrailer();
+            }
         }
     }
     if (bCargoLoaded)

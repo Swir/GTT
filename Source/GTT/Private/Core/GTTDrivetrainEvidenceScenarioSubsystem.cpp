@@ -133,6 +133,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::CompleteScenario(
 {
     if (Movement)
     {
+        Movement->SetUseAutomaticGears(true);
         Movement->SetThrottleInput(0.0f);
         Movement->SetSteeringInput(0.0f);
         Movement->SetBrakeInput(1.0f);
@@ -235,6 +236,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
             ReverseCommitSpeedKmh = AbsoluteSpeedKmh;
             bSafeReverseCommitObserved = ReverseCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
             const int32 GearBefore = CurrentGear;
+            Movement->SetUseAutomaticGears(false);
             Movement->SetTargetGear(-1, true);
             Pawn->ApplyAcceptanceDriveCommand(ReverseThrottle, 0.0f, 0.0f);
             GTT_LOG( Log,
@@ -273,6 +275,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
             bSafeForwardCommitObserved = ForwardCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
             const int32 GearBefore = CurrentGear;
             Movement->SetTargetGear(1, true);
+            Movement->SetUseAutomaticGears(true);
             Pawn->ApplyAcceptanceDriveCommand(ReturnThrottle, 0.0f, 0.0f);
             GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=FORWARD_COMMIT result=%s speed_abs_kmh=%.2f gear_before=%d target=1 release_kmh=%.2f"),

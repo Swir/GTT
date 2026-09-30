@@ -128,7 +128,13 @@ void AGTTPolicePursuitVehicle::ApplyAcceptanceClosingAssist(APawn* PlayerPawn)
         const float StepCm = FMath::Min(35.0f, Distance - 550.0f);
         // This opt-in acceptance assist measures pursuit closing, so do not let
         // incidental spawn overlap consume the entire deterministic step.
-        SetActorLocation(GetActorLocation() + DesiredDir * StepCm, false, nullptr, ETeleportType::TeleportPhysics);
+        // The skeletal mesh is the simulated root. Move it directly so the
+        // actor transform observed later in this tick reflects the assist.
+        VehicleMesh->SetWorldLocation(
+            VehicleMesh->GetComponentLocation() + DesiredDir * StepCm,
+            false,
+            nullptr,
+            ETeleportType::TeleportPhysics);
     }
 }
 
