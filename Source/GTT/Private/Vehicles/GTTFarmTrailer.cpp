@@ -529,9 +529,13 @@ void AGTTFarmTrailer::ResetTrailer(const FTransform& Transform)
         TrailerBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
         TrailerBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     }
+    // Move the simulated body before rebuilding the independently simulated
+    // wheels. Otherwise the wheels are restored at the old body transform and
+    // the final actor teleport stretches both axle constraints far enough to
+    // break them on the next physics step.
+    SetActorTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
     RestoreWheel(LeftWheel, LeftWheelConstraint, LeftWheelHome);
     RestoreWheel(RightWheel, RightWheelConstraint, RightWheelHome);
     ConfigureHitchConstraint();
-    SetActorTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
     RefreshPresentation();
 }

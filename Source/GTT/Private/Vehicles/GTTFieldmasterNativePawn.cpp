@@ -288,7 +288,13 @@ bool AGTTFieldmasterNativePawn::ApplyAcceptanceDriveCommand(float Throttle, floa
         Movement->SetBrakeInput(FMath::Clamp(Brake, 0.0f, 1.0f));
         if (!FMath::IsNearlyZero(LastThrottleInput))
         {
-            Movement->SetTargetGear(LastThrottleInput < 0.0f ? -1 : 1, true);
+            const int32 RequestedDirection = LastThrottleInput < 0.0f ? -1 : 1;
+            const int32 CurrentGear = Movement->GetCurrentGear();
+            if (RequestedDirection != AcceptanceDriveDirection || (RequestedDirection < 0 ? CurrentGear >= 0 : CurrentGear <= 0))
+            {
+                Movement->SetTargetGear(RequestedDirection, true);
+                AcceptanceDriveDirection = RequestedDirection;
+            }
         }
         return true;
     }

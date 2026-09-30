@@ -115,10 +115,8 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::BeginForwardAcceleration(
 {
     if (!Pawn || !Movement) return;
 
-    Movement->SetBrakeInput(0.0f);
-    Movement->SetSteeringInput(0.0f);
     Movement->SetTargetGear(1, true);
-    Movement->SetThrottleInput(ForwardThrottle);
+    Pawn->ApplyAcceptanceDriveCommand(ForwardThrottle, 0.0f, 0.0f);
     Phase = EDrivetrainEvidencePhase::ForwardAcceleration;
     PhaseStartedSeconds = Elapsed;
     MaxForwardGearObserved = FMath::Max(MaxForwardGearObserved, Movement->GetCurrentGear());
@@ -194,9 +192,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EDrivetrainEvidencePhase::ForwardAcceleration:
     {
-        Movement->SetBrakeInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetThrottleInput(ForwardThrottle);
+        Pawn->ApplyAcceptanceDriveCommand(ForwardThrottle, 0.0f, 0.0f);
 
         if (!bAutomaticUpshiftObserved && CurrentGear >= 2 && SignedSpeedKmh >= ForwardEvidenceSpeedKmh)
         {
@@ -225,9 +221,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
                 bReverseInterlockObserved ? TEXT("PASS") : TEXT("FAIL"), AbsoluteSpeedKmh, CurrentGear, ShiftReleaseSpeedKmh);
             if (!bReverseInterlockObserved) MarkFailure(TEXT("forward-speed-too-low-for-reverse-interlock-evidence"));
 
-            Movement->SetThrottleInput(0.0f);
-            Movement->SetBrakeInput(ShiftBrake);
-            Movement->SetSteeringInput(0.0f);
+            Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
             Phase = EDrivetrainEvidencePhase::BrakeForReverse;
             PhaseStartedSeconds = Elapsed;
         }
@@ -235,21 +229,18 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
     }
 
     case EDrivetrainEvidencePhase::BrakeForReverse:
-        Movement->SetThrottleInput(0.0f);
-        Movement->SetBrakeInput(ShiftBrake);
-        Movement->SetSteeringInput(0.0f);
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
         if (AbsoluteSpeedKmh <= ShiftReleaseSpeedKmh)
         {
             ReverseCommitSpeedKmh = AbsoluteSpeedKmh;
             bSafeReverseCommitObserved = ReverseCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
             const int32 GearBefore = CurrentGear;
             Movement->SetTargetGear(-1, true);
+            Pawn->ApplyAcceptanceDriveCommand(ReverseThrottle, 0.0f, 0.0f);
             GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=REVERSE_COMMIT result=%s speed_abs_kmh=%.2f gear_before=%d target=-1 release_kmh=%.2f"),
                 bSafeReverseCommitObserved ? TEXT("PASS") : TEXT("FAIL"), ReverseCommitSpeedKmh, GearBefore, ShiftReleaseSpeedKmh);
             if (!bSafeReverseCommitObserved) MarkFailure(TEXT("reverse-commit-above-safe-window"));
-            Movement->SetBrakeInput(0.0f);
-            Movement->SetThrottleInput(ReverseThrottle);
             Phase = EDrivetrainEvidencePhase::ReverseAcceleration;
             PhaseStartedSeconds = Elapsed;
         }
@@ -257,9 +248,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EDrivetrainEvidencePhase::ReverseAcceleration:
     {
-        Movement->SetBrakeInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetThrottleInput(ReverseThrottle);
+        Pawn->ApplyAcceptanceDriveCommand(ReverseThrottle, 0.0f, 0.0f);
         const bool bReverseProven = CurrentGear < 0 && SignedSpeedKmh <= -ReverseEvidenceSpeedKmh;
         const bool bTimedOut = Elapsed - PhaseStartedSeconds >= ReverseAccelerationTimeoutSeconds;
         if (bReverseProven || bTimedOut)
@@ -269,8 +258,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=REVERSE_MOTION result=%s signed_speed_kmh=%.2f gear=%d target_speed_kmh=-%.2f"),
                 bReverseProven ? TEXT("PASS") : TEXT("FAIL"), SignedSpeedKmh, CurrentGear, ReverseEvidenceSpeedKmh);
             if (!bReverseProven) MarkFailure(TEXT("reverse-motion-not-observed"));
-            Movement->SetThrottleInput(0.0f);
-            Movement->SetBrakeInput(ShiftBrake);
+            Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
             Phase = EDrivetrainEvidencePhase::BrakeForForward;
             PhaseStartedSeconds = Elapsed;
         }
@@ -278,21 +266,18 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
     }
 
     case EDrivetrainEvidencePhase::BrakeForForward:
-        Movement->SetThrottleInput(0.0f);
-        Movement->SetBrakeInput(ShiftBrake);
-        Movement->SetSteeringInput(0.0f);
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
         if (AbsoluteSpeedKmh <= ShiftReleaseSpeedKmh)
         {
             ForwardCommitSpeedKmh = AbsoluteSpeedKmh;
             bSafeForwardCommitObserved = ForwardCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
             const int32 GearBefore = CurrentGear;
             Movement->SetTargetGear(1, true);
+            Pawn->ApplyAcceptanceDriveCommand(ReturnThrottle, 0.0f, 0.0f);
             GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=FORWARD_COMMIT result=%s speed_abs_kmh=%.2f gear_before=%d target=1 release_kmh=%.2f"),
                 bSafeForwardCommitObserved ? TEXT("PASS") : TEXT("FAIL"), ForwardCommitSpeedKmh, GearBefore, ShiftReleaseSpeedKmh);
             if (!bSafeForwardCommitObserved) MarkFailure(TEXT("forward-commit-above-safe-window"));
-            Movement->SetBrakeInput(0.0f);
-            Movement->SetThrottleInput(ReturnThrottle);
             Phase = EDrivetrainEvidencePhase::ForwardReturn;
             PhaseStartedSeconds = Elapsed;
         }
@@ -300,9 +285,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EDrivetrainEvidencePhase::ForwardReturn:
     {
-        Movement->SetBrakeInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetThrottleInput(ReturnThrottle);
+        Pawn->ApplyAcceptanceDriveCommand(ReturnThrottle, 0.0f, 0.0f);
         const bool bForwardProven = CurrentGear > 0 && SignedSpeedKmh >= ForwardReturnEvidenceSpeedKmh;
         const bool bTimedOut = Elapsed - PhaseStartedSeconds >= ForwardReturnTimeoutSeconds;
         if (bForwardProven || bTimedOut)

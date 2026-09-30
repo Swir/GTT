@@ -274,10 +274,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
         {
             bAuthoredRuntimeProven = true;
             MotionStartLocation = Pawn->GetActorLocation();
-            Movement->SetBrakeInput(0.0f);
-            Movement->SetSteeringInput(0.0f);
-            Movement->SetTargetGear(1, true);
-            Movement->SetThrottleInput(TowThrottle);
+            Pawn->ApplyAcceptanceDriveCommand(TowThrottle, 0.0f, 0.0f);
             Phase = ETrailerEvidencePhase::LoadedMotion;
             PhaseStartedSeconds = Elapsed;
             SampleAccumulator = 0.0f;
@@ -296,9 +293,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
     case ETrailerEvidencePhase::LoadedMotion:
     {
         const float MotionElapsed = Elapsed - PhaseStartedSeconds;
-        Movement->SetBrakeInput(0.0f);
-        Movement->SetThrottleInput(TowThrottle);
-        Movement->SetSteeringInput(FMath::Sin(MotionElapsed * 0.75f) * MaxSteering);
+        Pawn->ApplyAcceptanceDriveCommand(TowThrottle, FMath::Sin(MotionElapsed * 0.75f) * MaxSteering, 0.0f);
 
         const float SpeedKmh = Pawn->GetVelocity().Size2D() * 0.036f;
         const float DistanceCm = FVector::Dist2D(MotionStartLocation, Pawn->GetActorLocation());
@@ -344,9 +339,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
                 bEvidenceReady ? TEXT("PASS") : TEXT("FAIL"), MaxTowSpeedKmh, MaxTowDistanceCm,
                 MovingDualContactSamples, SafeMovingSamples, FarmTrailer->GetTowLoadFactor());
             if (!bEvidenceReady) MarkFailure(TEXT("loaded-motion-evidence-incomplete"));
-            Movement->SetThrottleInput(0.0f);
-            Movement->SetSteeringInput(0.0f);
-            Movement->SetBrakeInput(0.90f);
+            Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 0.90f);
             Phase = ETrailerEvidencePhase::ControlledStop;
             PhaseStartedSeconds = Elapsed;
         }
@@ -355,9 +348,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case ETrailerEvidencePhase::ControlledStop:
     {
-        Movement->SetThrottleInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetBrakeInput(0.90f);
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 0.90f);
         const float SpeedKmh = Pawn->GetVelocity().Size2D() * 0.036f;
         const bool bStopped = SpeedKmh <= StopSpeedKmh;
         const bool bTimedOut = Elapsed - PhaseStartedSeconds >= ControlledStopTimeoutSeconds;

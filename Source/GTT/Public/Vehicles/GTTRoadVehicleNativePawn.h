@@ -183,6 +183,7 @@ private:
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bTakeoverActive = false;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") bool bOccupied = false;
     bool bAcceptanceDriveCommandActive = false;
+    int32 AcceptanceDriveDirection = 0;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fleet") FString NativeAcceptanceSummary = TEXT("Not validated");
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Migration") FGTTRoadVehicleMigrationSnapshot MigrationSnapshot;
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Vehicle|Cargo") float CargoLoadFactor = 0.0f;

@@ -159,6 +159,7 @@ private:
     bool bTakeoverActive = false;
     bool bOccupied = false;
     bool bAcceptanceDriveCommandActive = false;
+    int32 AcceptanceDriveDirection = 0;
     float LastThrottleInput = 0.0f;
     float LastSteeringInput = 0.0f;
     float MirrorSyncAccumulator = 0.0f;
