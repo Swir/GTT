@@ -56,7 +56,7 @@ for vehicle_name, vehicle_spec in generator.VEHICLES.items():
 # generic PhysicsAsset generator fight the suspension traces and destabilize the
 # vehicle, so the editor import must reduce every generated asset to root only.
 for token in (
-    'GTTChaosNativeSetupLibrary.stabilize_generated_physics_asset(physics)',
+    'GTTChaosNativeSetupLibrary.stabilize_generated_physics_asset(physics,unreal.Name(name))',
     '"physics_body_bones":["root"]',
 ):
     assert token in editor_import, f"editor import does not enforce root-only chassis physics: {token}"
@@ -66,6 +66,8 @@ for token in (
     "SkeletalBodySetups.Reset(1)",
     "ConstraintSetup.Reset()",
     "UpdateBodySetupIndexMap()",
+    "RootBody->AggGeom = FKAggregateGeom()",
+    "RootBody->AggGeom.BoxElems.Add(ChassisBox)",
 ):
     assert token in native_setup_h + native_setup_cpp, f"native setup does not enforce root-only chassis physics: {token}"
 

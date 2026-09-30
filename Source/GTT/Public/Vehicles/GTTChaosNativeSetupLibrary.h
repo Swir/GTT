@@ -23,5 +23,5 @@ public:
 
     /** Reduce an imported vehicle PhysicsAsset to its single root chassis body. */
     UFUNCTION(BlueprintCallable, Category="GTT|Vehicle|Chaos")
-    static bool StabilizeGeneratedPhysicsAsset(UPhysicsAsset* PhysicsAsset, FString& OutSummary);
+    static bool StabilizeGeneratedPhysicsAsset(UPhysicsAsset* PhysicsAsset, FName VehicleId, FString& OutSummary);
 };

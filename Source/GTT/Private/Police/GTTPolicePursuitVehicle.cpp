@@ -127,7 +127,7 @@ void AGTTPolicePursuitVehicle::ApplyAcceptanceClosingAssist(APawn* PlayerPawn)
     {
         const float StepCm = FMath::Min(35.0f, Distance - 550.0f);
         FHitResult SweepHit;
-        SetActorLocation(GetActorLocation() + DesiredDir * StepCm, true, &SweepHit, ETeleportType::None);
+        SetActorLocation(GetActorLocation() + DesiredDir * StepCm, true, &SweepHit, ETeleportType::TeleportPhysics);
     }
 }
 

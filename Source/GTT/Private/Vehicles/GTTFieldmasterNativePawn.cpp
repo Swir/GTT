@@ -45,16 +45,7 @@ namespace
         FTransform Grounded = SourceTransform;
         const FQuat UprightRotation = FRotator(0.0f, SourceTransform.Rotator().Yaw, 0.0f).Quaternion();
         FVector GroundedLocation = SourceLocation;
-        float LocalBottomZ = 0.0f;
-        if (const AWheeledVehiclePawn* VehiclePawn = Cast<AWheeledVehiclePawn>(NativeVehicle))
-        {
-            if (const USkeletalMeshComponent* Mesh = VehiclePawn->GetMesh())
-            {
-                const FBoxSphereBounds Bounds = Mesh->CalcBounds(FTransform(UprightRotation, FVector::ZeroVector, SourceTransform.GetScale3D()));
-                LocalBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
-            }
-        }
-        GroundedLocation.Z = Hit.ImpactPoint.Z - LocalBottomZ + 4.0f;
+        GroundedLocation.Z = Hit.ImpactPoint.Z + 4.0f;
         Grounded.SetLocation(GroundedLocation);
         Grounded.SetRotation(UprightRotation);
         return Grounded;

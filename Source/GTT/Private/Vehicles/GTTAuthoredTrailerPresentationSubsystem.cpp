@@ -329,8 +329,9 @@ bool UGTTAuthoredTrailerPresentationSubsystem::TryActivateAuthoredPresentation(A
 
     UPoseableMeshComponent* AuthoredVisual = NewObject<UPoseableMeshComponent>(Trailer, TEXT("AuthoredTrailerMesh"));
     if (!AuthoredVisual) return false;
+    Trailer->AddInstanceComponent(AuthoredVisual);
     AuthoredVisual->SetupAttachment(Trailer->GetRootComponent());
-    AuthoredVisual->SetSkeletalMesh(AuthoredMesh);
+    AuthoredVisual->SetSkinnedAssetAndUpdate(AuthoredMesh);
     AuthoredVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     AuthoredVisual->SetGenerateOverlapEvents(false);
     AuthoredVisual->ComponentTags.AddUnique(AuthoredTrailerTag);

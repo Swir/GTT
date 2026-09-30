@@ -12,11 +12,12 @@
 namespace
 {
     const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
-    const FName RequiredRootBone(TEXT("root"));
+    const FName RequiredRootBone(TEXT("body"));
     const FName RequiredLeftWheelBone(TEXT("wheel_l"));
     const FName RequiredRightWheelBone(TEXT("wheel_r"));
-    const FName RequiredTowEyeSocket(TEXT("tow_eye"));
-    const FName RequiredAxleSocket(TEXT("axle_center"));
+    const FName RequiredTowEyeSocket(TEXT("socket_hitch"));
+    const FName RequiredLeftAxleSocket(TEXT("socket_axle_l"));
+    const FName RequiredRightAxleSocket(TEXT("socket_axle_r"));
     constexpr float EvidenceIntervalSeconds = 2.0f;
 }
 
@@ -84,7 +85,8 @@ bool UGTTTrailerNativeAcceptanceSubsystem::ValidateAuthoredRig(USkinnedMeshCompo
         return false;
     }
 
-    const bool bSockets = Rig->DoesSocketExist(RequiredTowEyeSocket) && Rig->DoesSocketExist(RequiredAxleSocket);
+    const bool bSockets = Rig->DoesSocketExist(RequiredTowEyeSocket) &&
+        Rig->DoesSocketExist(RequiredLeftAxleSocket) && Rig->DoesSocketExist(RequiredRightAxleSocket);
     if (!bSockets)
     {
         OutReason = TEXT("MISSING_TOW_EYE_OR_AXLE_SOCKET");
@@ -148,7 +150,8 @@ void UGTTTrailerNativeAcceptanceSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trai
     const USkeletalMesh* MeshAsset = Rig ? Cast<USkeletalMesh>(Rig->GetSkinnedAsset()) : nullptr;
     State.bPhysicsAssetReady = MeshAsset && MeshAsset->GetPhysicsAsset();
     State.bRequiredBonesReady = Rig && Rig->GetBoneIndex(RequiredRootBone) != INDEX_NONE && Rig->GetBoneIndex(RequiredLeftWheelBone) != INDEX_NONE && Rig->GetBoneIndex(RequiredRightWheelBone) != INDEX_NONE;
-    State.bRequiredSocketsReady = Rig && Rig->DoesSocketExist(RequiredTowEyeSocket) && Rig->DoesSocketExist(RequiredAxleSocket);
+    State.bRequiredSocketsReady = Rig && Rig->DoesSocketExist(RequiredTowEyeSocket) &&
+        Rig->DoesSocketExist(RequiredLeftAxleSocket) && Rig->DoesSocketExist(RequiredRightAxleSocket);
 
     FString RigReason;
     const bool bRigAccepted = ValidateAuthoredRig(Rig, RigReason);

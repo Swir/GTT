@@ -29,7 +29,7 @@ namespace
     constexpr float HardHitchErrorCm = 110.0f;
     constexpr int32 MinimumMovingDualContactSamples = 8;
     const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
-    const FName TowEyeSocket(TEXT("tow_eye"));
+    const FName TowEyeSocket(TEXT("socket_hitch"));
 }
 
 void UGTTTrailerEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collection)

@@ -39,6 +39,7 @@ private:
     float PostSpikeEscapeStartSeconds = -1.0f;
     float PostSpikeStartSpeedCmS = 0.0f;
     FVector PostSpikeStartLocation = FVector::ZeroVector;
+    FVector RoadblockStageLocation = FVector::ZeroVector;
     float RoadblockBaselineTires = 1.0f;
     float RoadblockBaselineWheelRisk = 0.0f;
     float RoadblockBaselineThrottleLimit = 1.0f;

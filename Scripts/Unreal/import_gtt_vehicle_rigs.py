@@ -48,7 +48,7 @@ def stabilize_physics_asset(name, physics):
     """Keep one simulated chassis body; wheel collision comes from Chaos wheel traces."""
     # Auto-generation creates dynamic bodies and constraints for every wheel bone.
     # Those fight Chaos Vehicles' suspension and make the rig flip or lose contacts.
-    result=unreal.GTTChaosNativeSetupLibrary.stabilize_generated_physics_asset(physics)
+    result=unreal.GTTChaosNativeSetupLibrary.stabilize_generated_physics_asset(physics,unreal.Name(name))
     if not result or not result[0]: fail(f"PHYSICS_STABILIZATION_FAILED_{name}_{result}")
     return str(result[1])
 

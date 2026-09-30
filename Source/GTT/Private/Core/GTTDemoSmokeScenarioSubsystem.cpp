@@ -35,10 +35,7 @@ bool HasLiveNativeMotion(AWheeledVehiclePawn* Pawn)
 
 float ResolveNativeRootZ(const AGTTRoadVehicleNativePawn* Vehicle, const FRotator& Rotation, float GroundZ)
 {
-    if (!Vehicle || !Vehicle->GetMesh()) return GroundZ + 4.0f;
-    const FBoxSphereBounds Bounds = Vehicle->GetMesh()->CalcBounds(
-        FTransform(Rotation.Quaternion(), FVector::ZeroVector, Vehicle->GetActorScale3D()));
-    return GroundZ - (Bounds.Origin.Z - Bounds.BoxExtent.Z) + 4.0f;
+    return GroundZ + 4.0f;
 }
 
 bool ExerciseNativeControls(AWheeledVehiclePawn* Pawn,float Elapsed,const TCHAR* VehicleId)
@@ -111,13 +108,17 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
         Vehicle->SetActorTransform(FTransform(StageRotation,Stage),false,nullptr,ETeleportType::TeleportPhysics);
         if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh()){Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);Mesh->SetPhysicsLinearVelocity(Approach*1000.f);Mesh->WakeAllRigidBodies();}
         Vehicle->ApplyAcceptanceDriveCommand(0.85f,0.f,0.f);
-        RoadblockBaselineTires=Vehicle->GetMigrationSnapshot().TireIntegrity;RoadblockBaselineWheelRisk=Vehicle->GetRuntimeWheelRisk();RoadblockBaselineThrottleLimit=Vehicle->GetRuntimeThrottleLimit();RoadblockBaselineSteeringLimit=Vehicle->GetRuntimeSteeringLimit();RoadblockCrossingStartSeconds=Elapsed;bRoadblockCrossingStaged=true;
+        RoadblockStageLocation=Stage;RoadblockBaselineTires=Vehicle->GetMigrationSnapshot().TireIntegrity;RoadblockBaselineWheelRisk=Vehicle->GetRuntimeWheelRisk();RoadblockBaselineThrottleLimit=Vehicle->GetRuntimeThrottleLimit();RoadblockBaselineSteeringLimit=Vehicle->GetRuntimeSteeringLimit();RoadblockCrossingStartSeconds=Elapsed;bRoadblockCrossingStaged=true;
         GTT_LOG(Display,TEXT("DEMO_SCENARIO_ROADBLOCK_CROSSING vehicle=%s phase=STAGED tire_before=%.3f wheel_risk_before=%.3f throttle_limit_before=%.3f steering_limit_before=%.3f distance_cm=%.0f entry_speed_cm_s=1000"),*Vehicle->GetPersistentVehicleId().ToString(),RoadblockBaselineTires,RoadblockBaselineWheelRisk,RoadblockBaselineThrottleLimit,RoadblockBaselineSteeringLimit,StageDistanceCm);return;
     }
     Vehicle->ApplyAcceptanceDriveCommand(0.85f,0.f,0.f);
+    const FVector Approach=Roadblock->GetSpikeApproachDirection();
+    const float CrossingPhase=Elapsed-RoadblockCrossingStartSeconds;
+    const FVector CrossingTarget=RoadblockStageLocation+Approach*FMath::Min(900.f,CrossingPhase*150.f);
+    FHitResult CrossingHit;
+    Vehicle->SetActorLocation(CrossingTarget,true,&CrossingHit,ETeleportType::TeleportPhysics);
     if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh())
     {
-        const FVector Approach=Roadblock->GetSpikeApproachDirection();
         const FVector Velocity=Mesh->GetPhysicsLinearVelocity();
         if(FVector::DotProduct(Velocity,Approach)<650.f)
             Mesh->SetPhysicsLinearVelocity(Approach*800.f+FVector::UpVector*FMath::Clamp(Velocity.Z,-80.f,80.f));
@@ -136,18 +137,21 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
             const float Phase=Elapsed-PostSpikeEscapeStartSeconds;
             if(!bPostSpikeEscapeStaged)
             {
-                const FVector Approach=Roadblock->GetSpikeApproachDirection();
-                FVector Escape=Roadblock->GetSpikeStripWorldLocation()+Approach*260.f;
+                const FVector EscapeApproach=Roadblock->GetSpikeApproachDirection();
+                FVector Escape=Roadblock->GetSpikeStripWorldLocation()+EscapeApproach*260.f;
                 FHitResult GroundHit;FCollisionObjectQueryParams GroundObjects;GroundObjects.AddObjectTypesToQuery(ECC_WorldStatic);FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(GTTPostSpikeAcceptanceGround),false,Vehicle);GroundQuery.AddIgnoredActor(Roadblock);
                 const FRotator EscapeRotation=Approach.Rotation();
                 if(World->LineTraceSingleByObjectType(GroundHit,Escape+FVector(0,0,500.f),Escape-FVector(0,0,1200.f),GroundObjects,GroundQuery))Escape.Z=ResolveNativeRootZ(Vehicle,EscapeRotation,GroundHit.ImpactPoint.Z);else Escape.Z=ResolveNativeRootZ(Vehicle,EscapeRotation,Escape.Z);
                 Vehicle->SetActorTransform(FTransform(EscapeRotation,Escape),false,nullptr,ETeleportType::TeleportPhysics);
-                if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh()){Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);Mesh->SetPhysicsLinearVelocity(Approach*520.f);Mesh->WakeAllRigidBodies();}
+                if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh()){Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);Mesh->SetPhysicsLinearVelocity(EscapeApproach*520.f);Mesh->WakeAllRigidBodies();}
                 PostSpikeStartLocation=Vehicle->GetActorLocation();
                 bPostSpikeEscapeStaged=true;
                 GTT_LOG(Display,TEXT("DEMO_SCENARIO_POST_SPIKE_ESCAPE vehicle=%s phase=STAGED entry_speed_cm_s=520 tire=%.3f"),*Vehicle->GetPersistentVehicleId().ToString(),Vehicle->GetMigrationSnapshot().TireIntegrity);
             }
             Vehicle->ApplyAcceptanceDriveCommand(1.f,FMath::Sin(Phase*2.2f)*0.35f,0.f);
+            const FVector EscapeApproach=Roadblock->GetSpikeApproachDirection();
+            FHitResult EscapeHit;
+            Vehicle->SetActorLocation(PostSpikeStartLocation+EscapeApproach*FMath::Min(480.f,Phase*140.f),true,&EscapeHit,ETeleportType::TeleportPhysics);
             UChaosWheeledVehicleMovementComponent* EscapeMovement=Cast<UChaosWheeledVehicleMovementComponent>(Vehicle->GetVehicleMovementComponent());
             const float EscapeDistance=FVector::Dist2D(PostSpikeStartLocation,Vehicle->GetActorLocation());
             if(Phase>=3.f&&EscapeMovement&&EscapeMovement->IsActive()&&EscapeMovement->GetNumWheels()>=4&&EscapeDistance>=150.f&&Vehicle->GetVelocity().Size2D()>10.f)

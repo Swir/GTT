@@ -14,11 +14,12 @@
 namespace
 {
     const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
-    const FName RequiredRootBone(TEXT("root"));
+    const FName RequiredRootBone(TEXT("body"));
     const FName RequiredLeftWheelBone(TEXT("wheel_l"));
     const FName RequiredRightWheelBone(TEXT("wheel_r"));
-    const FName RequiredTowEyeSocket(TEXT("tow_eye"));
-    const FName RequiredAxleSocket(TEXT("axle_center"));
+    const FName RequiredTowEyeSocket(TEXT("socket_hitch"));
+    const FName RequiredLeftAxleSocket(TEXT("socket_axle_l"));
+    const FName RequiredRightAxleSocket(TEXT("socket_axle_r"));
     constexpr float EvidenceIntervalSeconds = 2.0f;
 
     bool IsLegacyPresentationComponent(const UStaticMeshComponent* Component)
@@ -83,7 +84,8 @@ bool UGTTTrailerAuthoredRuntimeSubsystem::ValidateRig(USkinnedMeshComponent* Rig
     const bool bBones = Rig->GetBoneIndex(RequiredRootBone) != INDEX_NONE &&
         Rig->GetBoneIndex(RequiredLeftWheelBone) != INDEX_NONE &&
         Rig->GetBoneIndex(RequiredRightWheelBone) != INDEX_NONE;
-    const bool bSockets = Rig->DoesSocketExist(RequiredTowEyeSocket) && Rig->DoesSocketExist(RequiredAxleSocket);
+    const bool bSockets = Rig->DoesSocketExist(RequiredTowEyeSocket) &&
+        Rig->DoesSocketExist(RequiredLeftAxleSocket) && Rig->DoesSocketExist(RequiredRightAxleSocket);
     return bBones && bSockets;
 }
 
@@ -150,7 +152,8 @@ void UGTTTrailerAuthoredRuntimeSubsystem::ApplyAuthoredDynamics(AGTTFarmTrailer*
     const float LateralSpan = FMath::Max(1.0f, FVector::Distance(FVector(LeftWheelWorld.X, LeftWheelWorld.Y, 0.0f), FVector(RightWheelWorld.X, RightWheelWorld.Y, 0.0f)));
     State.Snapshot.AxleTiltDeg = FMath::RadiansToDegrees(FMath::Atan2(RightWheelWorld.Z - LeftWheelWorld.Z, LateralSpan));
 
-    const FVector AxleWorld = Rig->GetSocketTransform(RequiredAxleSocket, RTS_World).GetLocation();
+    const FVector AxleWorld = (Rig->GetSocketTransform(RequiredLeftAxleSocket, RTS_World).GetLocation() +
+        Rig->GetSocketTransform(RequiredRightAxleSocket, RTS_World).GetLocation()) * 0.5f;
     const FVector VelocityAtAxle = Body->GetPhysicsLinearVelocityAtPoint(AxleWorld);
     const FVector Right = Trailer->GetActorRightVector().GetSafeNormal();
     const float LateralSpeed = FVector::DotProduct(VelocityAtAxle, Right);
