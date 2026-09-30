@@ -84,20 +84,19 @@ Write-Host "[GTT] Output: $ArchiveDirectory"
 $uatExit = -1
 $startedZen = $false
 try {
-    $zenReady = $false
-    try {
-        $zenHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8558/health/ready" -TimeoutSec 3
-        $zenReady = ($zenHealth.StatusCode -eq 200)
-    } catch { }
-    if (-not $zenReady) {
-        $ZenInstallRoot = Join-Path $env:LOCALAPPDATA "UnrealEngine\Common\Zen\Install"
-        Write-Host "[GTT] Starting the local UE 5.8 Zen server explicitly for cook/stage..."
-        & $ZenTool up --port 8558 --base-dir $ZenInstallRoot
-        if ($LASTEXITCODE -ne 0) { throw "Failed to start the local Zen server on 127.0.0.1:8558." }
-        $startedZen = $true
-        $zenHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8558/health/ready" -TimeoutSec 10
-        if ($zenHealth.StatusCode -ne 200) { throw "The local Zen server did not become ready on 127.0.0.1:8558." }
-    }
+    # Editor import commandlets auto-launch a sponsored Zen instance which exits
+    # as soon as its sponsor process ends. A health probe can race that shutdown:
+    # the cooker sees a ready server and then loses it while deleting its oplog.
+    # Always replace any inherited instance with an explicitly managed server.
+    $ZenInstallRoot = Join-Path $env:LOCALAPPDATA "UnrealEngine\Common\Zen\Install"
+    Write-Host "[GTT] Restarting a dedicated local UE 5.8 Zen server for cook/stage..."
+    & $ZenTool down 2>&1 | ForEach-Object { Write-Host "[Zen] $_" }
+    Start-Sleep -Seconds 2
+    & $ZenTool up --port 8558 --base-dir $ZenInstallRoot
+    if ($LASTEXITCODE -ne 0) { throw "Failed to start the dedicated Zen server on 127.0.0.1:8558." }
+    $startedZen = $true
+    $zenHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8558/health/ready" -TimeoutSec 10
+    if ($zenHealth.StatusCode -ne 200) { throw "The dedicated Zen server did not become ready on 127.0.0.1:8558." }
 
     $UATLog = Join-Path $ProjectRoot "Saved\Logs\GTT-Package-UAT.log"
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $UATLog) | Out-Null
