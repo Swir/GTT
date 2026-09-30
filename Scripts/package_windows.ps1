@@ -123,7 +123,11 @@ try {
     $UATOutput = @(& $RunUAT @UATArgs 2>&1 | Tee-Object -FilePath $UATLog)
 
     $uatExit = $LASTEXITCODE
-    $ErrorLines = [string[]]@($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match '(?i)\b(?:Error|Fatal):' })
+    # Treat only the Unreal log severity field as an error. Warning messages can
+    # legitimately contain transport diagnostics such as "ErrorCode" or
+    # "Error:" in their body while UAT still completes successfully.
+    $ErrorSeverityPattern = '(?i)(?:^|\]\s*)(?:Log[^:\r\n]+:\s+)?(?:Error|Fatal):'
+    $ErrorLines = [string[]]@($UATOutput | ForEach-Object { [string]$_ } | Where-Object { $_ -match $ErrorSeverityPattern })
     $ErrorLineCount = ($ErrorLines | Measure-Object).Count
     if ($ErrorLineCount -gt 0) {
         throw "UAT emitted Error/Fatal log lines. First error: $($ErrorLines[0])"

@@ -38,6 +38,7 @@ for token in (
     "health/ready",
     "-archive",
     "$ErrorLines",
+    "$ErrorSeverityPattern",
     "UAT emitted Error/Fatal log lines",
     "validate_windows_package.ps1",
     "SHA256SUMS.txt",
@@ -47,8 +48,8 @@ for token in (
     assert token in package, f"package_windows.ps1 missing {token}"
 assert "-IgnoreCookErrors" not in package, "Win64 packaging must not suppress cook errors"
 assert "KnownUE58CookError" not in package, "legacy UE cook-error allowlist must not return"
-assert "'(?i)\\\\b(?:Error|Fatal):'" not in package, "PowerShell Error/Fatal regex must not be double-escaped"
-assert "'(?i)\\b(?:Error|Fatal):'" in package, "PowerShell Error/Fatal regex must use a real word boundary"
+assert "(?:Log[^:\\r\\n]+:\\s+)?(?:Error|Fatal):" in package, "PowerShell must classify the Unreal severity field"
+assert "\\b(?:Error|Fatal):" not in package, "Error words inside Warning message bodies must not fail a successful UAT run"
 
 for token in (
     "GTT.exe",
