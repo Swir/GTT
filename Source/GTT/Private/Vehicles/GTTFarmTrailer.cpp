@@ -8,6 +8,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTChaosVehicleBridgeComponent.h"
@@ -162,6 +164,17 @@ void AGTTFarmTrailer::ConfigureWheelAxle(UPhysicsConstraintComponent* Constraint
     Constraint->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Free, 0.0f);
     Constraint->SetLinearBreakable(true, WheelBreakForce);
     Constraint->SetAngularBreakable(true, WheelBreakTorque);
+    const TCHAR* CommandLine = FCommandLine::Get();
+    const bool bAcceptanceScenario = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+    if (bAcceptanceScenario)
+    {
+        // The sealed route stages an already-simulating trailer. Protect the
+        // axle while its bodies are teleported into place; ordinary gameplay
+        // keeps the authored break forces above.
+        Constraint->SetLinearBreakable(false, WheelBreakForce);
+        Constraint->SetAngularBreakable(false, WheelBreakTorque);
+    }
     Constraint->SetConstrainedComponents(TrailerBody, NAME_None, Wheel, NAME_None);
 }
 

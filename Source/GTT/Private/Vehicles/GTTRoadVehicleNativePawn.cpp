@@ -881,6 +881,8 @@ bool AGTTRoadVehicleNativePawn::ApplyAcceptanceDriveCommand(float Throttle, floa
     {
         return false;
     }
+    Movement->SetRequiresControllerForInputs(false);
+    if (USkeletalMeshComponent* VehicleBody = GetMesh()) VehicleBody->WakeAllRigidBodies();
 
     const float SpeedKmh = GetVelocity().Size() * 0.036f;
     const float TunePower = 1.0f + FMath::Clamp(MigrationSnapshot.EngineUpgradeLevel, 0, 3) * 0.08f;

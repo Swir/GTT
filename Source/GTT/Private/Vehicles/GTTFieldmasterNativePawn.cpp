@@ -285,6 +285,8 @@ bool AGTTFieldmasterNativePawn::ApplyAcceptanceDriveCommand(float Throttle, floa
     RefreshNativeDriveCommand();
     if (UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement())
     {
+        Movement->SetRequiresControllerForInputs(false);
+        if (USkeletalMeshComponent* VehicleBody = GetMesh()) VehicleBody->WakeAllRigidBodies();
         Movement->SetBrakeInput(FMath::Clamp(Brake, 0.0f, 1.0f));
         if (!FMath::IsNearlyZero(LastThrottleInput))
         {

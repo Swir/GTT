@@ -126,8 +126,9 @@ void AGTTPolicePursuitVehicle::ApplyAcceptanceClosingAssist(APawn* PlayerPawn)
     if (Distance > 600.0f)
     {
         const float StepCm = FMath::Min(35.0f, Distance - 550.0f);
-        FHitResult SweepHit;
-        SetActorLocation(GetActorLocation() + DesiredDir * StepCm, true, &SweepHit, ETeleportType::TeleportPhysics);
+        // This opt-in acceptance assist measures pursuit closing, so do not let
+        // incidental spawn overlap consume the entire deterministic step.
+        SetActorLocation(GetActorLocation() + DesiredDir * StepCm, false, nullptr, ETeleportType::TeleportPhysics);
     }
 }
 
