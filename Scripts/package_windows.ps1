@@ -14,6 +14,7 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $ProjectFile = Join-Path $ProjectRoot "GTT.uproject"
 $GameConfig = Join-Path $ProjectRoot "Config\DefaultGame.ini"
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"
+$ZenTool = Join-Path $EngineRoot "Engine\Binaries\Win64\zen.exe"
 $Validator = Join-Path $PSScriptRoot "validate_windows_package.ps1"
 $Preflight = Join-Path $PSScriptRoot "preflight_win64_unreal.ps1"
 
@@ -46,6 +47,7 @@ Write-Host "[GTT] Running Win64/UE 5.8 build preflight before touching the archi
 $preflightExit = $LASTEXITCODE
 if ($preflightExit -ne 0) { throw "Win64 Unreal preflight failed with exit code $preflightExit. Evidence: $PreflightReport" }
 if (-not (Test-Path $RunUAT)) { throw "RunUAT.bat was not found after preflight. Expected: $RunUAT" }
+if (-not (Test-Path $ZenTool)) { throw "zen.exe was not found after preflight. Expected: $ZenTool" }
 
 if (Test-Path $ArchiveDirectory) { Remove-Item -Recurse -Force $ArchiveDirectory }
 New-Item -ItemType Directory -Force -Path $ArchiveDirectory | Out-Null
@@ -80,7 +82,23 @@ Write-Host "[GTT] Version: $Version"
 Write-Host "[GTT] Output: $ArchiveDirectory"
 
 $uatExit = -1
+$startedZen = $false
 try {
+    $zenReady = $false
+    try {
+        $zenHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8558/health/ready" -TimeoutSec 3
+        $zenReady = ($zenHealth.StatusCode -eq 200)
+    } catch { }
+    if (-not $zenReady) {
+        $ZenInstallRoot = Join-Path $env:LOCALAPPDATA "UnrealEngine\Common\Zen\Install"
+        Write-Host "[GTT] Starting the local UE 5.8 Zen server explicitly for cook/stage..."
+        & $ZenTool up --port 8558 --base-dir $ZenInstallRoot
+        if ($LASTEXITCODE -ne 0) { throw "Failed to start the local Zen server on 127.0.0.1:8558." }
+        $startedZen = $true
+        $zenHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8558/health/ready" -TimeoutSec 10
+        if ($zenHealth.StatusCode -ne 200) { throw "The local Zen server did not become ready on 127.0.0.1:8558." }
+    }
+
     $UATLog = Join-Path $ProjectRoot "Saved\Logs\GTT-Package-UAT.log"
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $UATLog) | Out-Null
     $UATArgs = @(
@@ -95,6 +113,7 @@ try {
         "-stage"
         "-pak"
         "-iostore"
+        "-NoZenAutoLaunch=127.0.0.1:8558"
         "-prereqs"
         "-nodebuginfo"
         "-archive"
@@ -118,6 +137,11 @@ try {
     $attempt.completed_utc = (Get-Date).ToUniversalTime().ToString("o")
     $attempt | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 $AttemptReport
     throw
+} finally {
+    if ($startedZen) {
+        Write-Host "[GTT] Stopping the local Zen server started for this package run..."
+        & $ZenTool down
+    }
 }
 
 $attempt.uat_exit_code = $uatExit
