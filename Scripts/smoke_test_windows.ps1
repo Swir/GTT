@@ -118,6 +118,7 @@ $nativePass = Invoke-GTTRuntimePass -Name 'NATIVE' -RequiredAliveSeconds 180 -Ti
     '-GTTTrailerRuntimeScenario'
 )
 $servicesPass = Invoke-GTTRuntimePass -Name 'SERVICES' -RequiredAliveSeconds $MinimumAliveSeconds -TimeoutSeconds $LaunchTimeoutSeconds -ScenarioArguments @(
+    '-GTTServicesRuntimeScenario',
     '-GTTFarmCargoRuntimeScenario',
     '-GTTFarmCargoRecoveryScenario',
     '-GTTFarmCargoBreakdownScenario',

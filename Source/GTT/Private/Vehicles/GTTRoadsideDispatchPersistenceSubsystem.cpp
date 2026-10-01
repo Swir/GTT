@@ -72,10 +72,19 @@ bool UGTTRoadsideDispatchPersistenceSubsystem::ReloadCheckpointForRuntimeEvidenc
     CheckpointAccumulator = 0.0f;
     LoadCheckpointOnce();
 
+    const bool bCheckpointAccepted = bRestorePending;
+    if (bRestorePending)
+    {
+        // Runtime evidence recreates the same load boundary without restarting the world.
+        // Restore immediately when the exact driver/vehicle is ready so other subsystems
+        // never observe a false one-frame gap between the loaded sidecar and live dispatch.
+        TryRestoreLoadedCheckpoint();
+    }
+
     GTT_LOG( Display,
         TEXT("NATIVE_ROADSIDE_DISPATCH_EVIDENCE_RELOAD result=%s checkpoint_pending=%s charged=NO"),
-        bRestorePending ? TEXT("PASS") : TEXT("REJECTED"), bRestorePending ? TEXT("YES") : TEXT("NO"));
-    return bRestorePending;
+        bCheckpointAccepted ? TEXT("PASS") : TEXT("REJECTED"), bCheckpointAccepted ? TEXT("YES") : TEXT("NO"));
+    return bCheckpointAccepted;
 }
 
 void UGTTRoadsideDispatchPersistenceSubsystem::LoadCheckpointOnce()

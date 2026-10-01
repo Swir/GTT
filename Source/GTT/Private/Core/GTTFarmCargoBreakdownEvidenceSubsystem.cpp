@@ -61,7 +61,8 @@ bool BodyDamageEqual(const FGTTRoadBodyDamageSnapshot& A, const FGTTRoadBodyDama
 void UGTTFarmCargoBreakdownEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRuntimeScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRecoveryScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoBreakdownScenario"));
@@ -150,11 +151,15 @@ bool UGTTFarmCargoBreakdownEvidenceSubsystem::EnsureNativeDriver()
 {
     UWorld* World = GetWorld();
     if (!World || !NativeMulebox.IsValid() || !PlayerPawn.IsValid()) return false;
-    if (UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()) return true;
-    if (!NativeMulebox->IsLegacyTakeoverActive() && !NativeMulebox->TryActivateLegacyTakeover()) return false;
-    NativeMulebox->Interact_Implementation(PlayerPawn.Get());
-    return UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()
+    if (UGameplayStatics::GetPlayerPawn(World, 0) != NativeMulebox.Get())
+    {
+        if (!NativeMulebox->IsLegacyTakeoverActive() && !NativeMulebox->TryActivateLegacyTakeover()) return false;
+        NativeMulebox->Interact_Implementation(PlayerPawn.Get());
+    }
+    const bool bReady = UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()
         && NativeMulebox->GetDriverPawn() == PlayerPawn.Get();
+    if (bReady) NativeMulebox->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    return bReady;
 }
 
 bool UGTTFarmCargoBreakdownEvidenceSubsystem::ResolveScenarioActors()
@@ -501,7 +506,9 @@ void UGTTFarmCargoBreakdownEvidenceSubsystem::Tick(float DeltaTime)
         CashBeforeTow = Economy->GetCash();
         PreTowLocation = NativeMulebox->GetActorLocation();
 
-        const bool bDamageApplied = NativeMulebox->ApplyPoliceSpikeDamage(0.96f, 0.30f);
+        // Keep a non-zero condition sliver so the driver can re-enter after a damage-preserving tow;
+        // the fully depleted tires still prove the immobilized/tow-required state.
+        const bool bDamageApplied = NativeMulebox->ApplyPoliceSpikeDamage(0.96f, 0.29f);
         const FGTTRoadVehicleMigrationSnapshot DamagedState = NativeMulebox->GetMigrationSnapshot();
         TireIntegrityAfterDamage = DamagedState.TireIntegrity;
         const FGTTBreakdownAssessment Assessment = Breakdown->AssessVehicle(NativeMulebox.Get());

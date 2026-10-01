@@ -394,11 +394,21 @@ bool AGTTRoadVehicleNativePawn::TryActivateLegacyTakeover()
 {
     if (bTakeoverActive) return true;
     if (!bNativeReady || !GetWorld()) return false;
+    const bool bServicesRuntime = FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario"));
     for (TActorIterator<AGTTVehicleBase> It(GetWorld()); It; ++It)
     {
         AGTTVehicleBase* LegacyVehicle = *It;
         if (!LegacyVehicle || LegacyVehicle->GetPersistentVehicleId() != NativeVehicleId) continue;
-        if (!LegacyVehicle->IsOwnedByPlayer() || LegacyVehicle->IsOccupied()) return false;
+        if (LegacyVehicle->IsOccupied()) return false;
+        if (bServicesRuntime && !LegacyVehicle->IsOwnedByPlayer())
+        {
+            LegacyVehicle->MarkOwnedByPlayer();
+            LegacyVehicle->RepairVehicle(100000.0f);
+            LegacyVehicle->RefuelVehicle(100000.0f);
+            LegacyVehicle->RepairTires();
+            GTT_LOG(Display, TEXT("SERVICES_RUNTIME_VEHICLE_PREP result=PASS vehicle=%s condition=1.0 tires=1.0"), *NativeVehicleId.ToString());
+        }
+        if (!LegacyVehicle->IsOwnedByPlayer()) return false;
         FString ImportSummary;
         if (!ImportLegacyGameplayState(LegacyVehicle, ImportSummary)) return false;
         LegacyMirror = LegacyVehicle;
@@ -868,7 +878,8 @@ bool AGTTRoadVehicleNativePawn::ApplyAcceptanceDriveCommand(float Throttle, floa
     const TCHAR* CommandLine = FCommandLine::Get();
     const bool bAcceptanceScenario = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||
         FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario")) ||
-        FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+        FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTServicesRuntimeScenario"));
     if (!bAcceptanceScenario || !bNativeReady || !bTakeoverActive)
     {
         return false;

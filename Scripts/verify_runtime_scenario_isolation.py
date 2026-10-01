@@ -26,6 +26,7 @@ for token in [
     "-UserDir=$userDir", "isolated_user_dirs = $true", "runtime_passes = $passes",
     "GTTDisableDrivetrainScenario", "GTTDisableTrailerScenario", "GTTDisableRecoveryChoiceScenario",
     "GTTDrivetrainRuntimeScenario", "GTTTrailerRuntimeScenario",
+    "GTTServicesRuntimeScenario",
     "GTTFarmCargoRuntimeScenario", "GTTWorkshopPriorityPickupRuntimeScenario",
 ]:
     if token not in smoke:
@@ -54,6 +55,9 @@ for source_name, source in [("Fieldmaster", fieldmaster), ("road vehicle", road_
     for token in ["GTTDemoSmokeScenario", "GTTDrivetrainRuntimeScenario", "GTTTrailerRuntimeScenario"]:
         if token not in source:
             errors.append(f"{source_name} acceptance guard missing: {token}")
+    for token in ["GTTServicesRuntimeScenario", "SERVICES_RUNTIME_VEHICLE_PREP", "MarkOwnedByPlayer", "RepairVehicle", "RefuelVehicle", "RepairTires"]:
+        if token not in source:
+            errors.append(f"{source_name} SERVICES preparation missing: {token}")
 
 for token in ["GTT_RUNTIME_CORE.log", "GTT_RUNTIME_NATIVE.log", "GTT_RUNTIME_SERVICES.log"]:
     if token not in attestor:
@@ -75,7 +79,7 @@ if not native or not all(x in native.group(0) for x in ["GTTDrivetrainRuntimeSce
     errors.append("NATIVE pass does not own drivetrain+trailer evidence")
 if native and "GTTDemoSmokeScenario" in native.group(0):
     errors.append("NATIVE pass must not start the destructive core chain")
-if not services or "GTTDemoSmokeScenario" in services.group(0):
+if not services or "GTTDemoSmokeScenario" in services.group(0) or "GTTServicesRuntimeScenario" not in services.group(0):
     errors.append("SERVICES pass must be isolated from the core chain")
 if "-RequiredAliveSeconds 180" not in smoke:
     errors.append("CORE/NATIVE 180-second acceptance window missing")

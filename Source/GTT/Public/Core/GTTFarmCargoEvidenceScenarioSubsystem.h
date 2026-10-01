@@ -18,7 +18,8 @@ class UGTTWantedComponent;
  * Deterministic packaged-runtime exercise for the 0.1.27/0.1.28 Farm Cargo vertical slice.
  *
  * This subsystem is inert in normal play. It only runs when the packaged smoke command line
- * explicitly contains both -GTTDemoSmokeScenario and -GTTFarmCargoRuntimeScenario. The route
+ * explicitly contains either -GTTDemoSmokeScenario or -GTTServicesRuntimeScenario together with
+ * -GTTFarmCargoRuntimeScenario. The route
  * uses the real FarmJobDirector, terminals, cargo authority, economy, logistics and save path.
  */
 UCLASS()

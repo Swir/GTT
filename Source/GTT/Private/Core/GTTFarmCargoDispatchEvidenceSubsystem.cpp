@@ -49,7 +49,8 @@ const TCHAR* StageLabel(EGTTFarmJobStage Stage)
 void UGTTFarmCargoDispatchEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRuntimeScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRecoveryScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoBreakdownScenario"))
@@ -136,11 +137,15 @@ bool UGTTFarmCargoDispatchEvidenceSubsystem::EnsureNativeDriver()
 {
     UWorld* World = GetWorld();
     if (!World || !NativeMulebox.IsValid() || !PlayerPawn.IsValid()) return false;
-    if (UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()) return true;
-    if (!NativeMulebox->IsLegacyTakeoverActive() && !NativeMulebox->TryActivateLegacyTakeover()) return false;
-    NativeMulebox->Interact_Implementation(PlayerPawn.Get());
-    return UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()
+    if (UGameplayStatics::GetPlayerPawn(World, 0) != NativeMulebox.Get())
+    {
+        if (!NativeMulebox->IsLegacyTakeoverActive() && !NativeMulebox->TryActivateLegacyTakeover()) return false;
+        NativeMulebox->Interact_Implementation(PlayerPawn.Get());
+    }
+    const bool bReady = UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()
         && NativeMulebox->GetDriverPawn() == PlayerPawn.Get();
+    if (bReady) NativeMulebox->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    return bReady;
 }
 
 bool UGTTFarmCargoDispatchEvidenceSubsystem::ResolveScenarioActors()

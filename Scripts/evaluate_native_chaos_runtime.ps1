@@ -49,7 +49,7 @@ if ($ExpectedGitSha -and $ExpectedGitSha -ne 'unknown' -and $build.git_sha -ne $
 $telemetry = @($lines | Where-Object { $_ -match 'NATIVE_FIELDMASTER_RUNTIME_TELEMETRY\s+vehicle=RustyFieldmaster60' })
 $physicsAccepted = @($lines | Where-Object { $_ -match 'NATIVE_PHYSICS_EVIDENCE\s+vehicle=RustyFieldmaster60.*accepted=YES' }).Count -gt 0
 $wheelSetupObserved = @($lines | Where-Object { $_ -match 'NATIVE_WHEEL_SETUP_EVIDENCE\s+vehicle=RustyFieldmaster60' }).Count -gt 0
-$nativeReady = @($lines | Where-Object { $_ -match 'NATIVE_CHAOS_SMOKE_READY.*vehicle=Fieldmaster' }).Count -gt 0
+$nativeReady = @($lines | Where-Object { $_ -match 'NATIVE_CHAOS_SMOKE_READY.*vehicle=(?:RustyFieldmaster60|Fieldmaster)(?:\s|$)' }).Count -gt 0
 $fieldmasterMotion = @($lines | Where-Object { $_ -match 'DEMO_SCENARIO_STEP\s+step=FIELDMASTER_MOTION\s+result=PASS' }).Count -gt 0
 $fieldmasterControl = @($lines | Where-Object { $_ -match 'DEMO_SCENARIO_STEP\s+step=FIELDMASTER_CONTROL\s+result=PASS' }).Count -gt 0
 $physicsFallback = @($lines | Where-Object { $_ -match 'NATIVE_PHYSICS_FALLBACK\s+vehicle=RustyFieldmaster60' }).Count -gt 0

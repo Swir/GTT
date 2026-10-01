@@ -53,7 +53,8 @@ const TCHAR* StageLabel(EGTTFarmJobStage Stage)
 void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRuntimeScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRecoveryScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoBreakdownScenario"))
@@ -144,11 +145,15 @@ bool UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::EnsureNativeDriver()
 {
     UWorld* World = GetWorld();
     if (!World || !NativeMulebox.IsValid() || !PlayerPawn.IsValid()) return false;
-    if (UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()) return true;
-    if (!NativeMulebox->IsLegacyTakeoverActive() && !NativeMulebox->TryActivateLegacyTakeover()) return false;
-    NativeMulebox->Interact_Implementation(PlayerPawn.Get());
-    return UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()
+    if (UGameplayStatics::GetPlayerPawn(World, 0) != NativeMulebox.Get())
+    {
+        if (!NativeMulebox->IsLegacyTakeoverActive() && !NativeMulebox->TryActivateLegacyTakeover()) return false;
+        NativeMulebox->Interact_Implementation(PlayerPawn.Get());
+    }
+    const bool bReady = UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()
         && NativeMulebox->GetDriverPawn() == PlayerPawn.Get();
+    if (bReady) NativeMulebox->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    return bReady;
 }
 
 void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::StageTowRecommendedState()
@@ -447,7 +452,8 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             MarkFailure(TEXT("tow-pre-reload-cancel-failed")); FinishScenario(TEXT("tow-reload-failed")); return;
         }
         bTowPrimaryLoaded = GameMode && GameMode->LoadProgress();
-        bTowReloadRearmed = bTowPrimaryLoaded && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
+        bTowReloadRearmed = bTowPrimaryLoaded && EnsureNativeDriver()
+            && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
         GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=TOW_RELOAD result=%s checkpoint=%d primary_save=%d primary_load=%d rearm=%d saved_eta=%.3f locked_quote=%d charged=NO"),
             (bTowPrimarySaved && bTowPrimaryLoaded && bTowReloadRearmed) ? TEXT("PASS") : TEXT("FAIL"),
@@ -523,8 +529,9 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             MarkFailure(TEXT("wanted-tow-pre-reload-cancel-failed")); FinishScenario(TEXT("wanted-reload-failed")); return;
         }
         bWantedPrimaryLoaded = GameMode && GameMode->LoadProgress();
+        bWantedRestoreRearmed = bWantedPrimaryLoaded && EnsureNativeDriver();
         Wanted->AddHeat(WantedEvidenceHeat);
-        bWantedRestoreRearmed = bWantedPrimaryLoaded && Wanted->GetWantedLevel() > 0
+        bWantedRestoreRearmed = bWantedRestoreRearmed && Wanted->GetWantedLevel() > 0
             && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
         GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=WANTED_RELOAD result=%s checkpoint=%d primary_save=%d primary_load=%d rearm=%d wanted=%d locked_quote=%d charged=NO"),
@@ -592,7 +599,8 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             MarkFailure(TEXT("patch-pre-reload-cancel-failed")); FinishScenario(TEXT("patch-reload-failed")); return;
         }
         bPatchPrimaryLoaded = GameMode && GameMode->LoadProgress();
-        bPatchReloadRearmed = bPatchPrimaryLoaded && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
+        bPatchReloadRearmed = bPatchPrimaryLoaded && EnsureNativeDriver()
+            && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
         GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=PATCH_RELOAD result=%s checkpoint=%d primary_save=%d primary_load=%d rearm=%d saved_eta=%.3f locked_quote=%d charged=NO"),
             (bPatchPrimarySaved && bPatchPrimaryLoaded && bPatchReloadRearmed) ? TEXT("PASS") : TEXT("FAIL"),

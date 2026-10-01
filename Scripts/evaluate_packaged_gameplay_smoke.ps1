@@ -29,6 +29,7 @@ $coverage=[ordered]@{
  police_or_wanted_runtime=($log -match 'Police|Wanted|wanted');
 }
 $result=if($errors.Count -eq 0){'PASS'}else{'FAIL'}
-$manifest=[ordered]@{schema='gtt.packaged-gameplay-smoke.v1';game='Grand Theft Tractor';result=$result;git_sha=$smoke.git_sha;runtime_seconds=[int]$smoke.survived_seconds;fatal_scan_passed=($fatalPatterns|Where-Object{$log.Contains($_)}).Count -eq 0;native_fleet=$vehicleEvidence;representative_coverage=$coverage;coverage_note='Coverage booleans are diagnostic until dedicated deterministic scenario markers are emitted; fleet Native Chaos evidence and fatal scan are hard gates.';errors=$errors;observed_utc=(Get-Date).ToUniversalTime().ToString('o')}
+$fatalMatches=@($fatalPatterns|Where-Object{$log.Contains($_)})
+$manifest=[ordered]@{schema='gtt.packaged-gameplay-smoke.v1';game='Grand Theft Tractor';result=$result;git_sha=$smoke.git_sha;runtime_seconds=[int]$smoke.survived_seconds;fatal_scan_passed=($fatalMatches.Count -eq 0);native_fleet=$vehicleEvidence;representative_coverage=$coverage;coverage_note='Coverage booleans are diagnostic until dedicated deterministic scenario markers are emitted; fleet Native Chaos evidence and fatal scan are hard gates.';errors=$errors;observed_utc=(Get-Date).ToUniversalTime().ToString('o')}
 $out=Join-Path $PackageDirectory 'GAMEPLAY_SMOKE.json'; $manifest|ConvertTo-Json -Depth 8|Set-Content -Encoding UTF8 $out
 Write-Host "[GTT] Packaged gameplay smoke: $result -> $out"; if($errors.Count){throw ('Packaged gameplay smoke failed: '+($errors -join '; '))}

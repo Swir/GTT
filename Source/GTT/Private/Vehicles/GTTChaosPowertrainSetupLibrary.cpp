@@ -43,6 +43,10 @@ bool UGTTChaosPowertrainSetupLibrary::ConfigureCanonicalPowertrain(UChaosWheeled
     }
 
     Movement->bMechanicalSimEnabled = true;
+    // GTT chooses the signed gear explicitly. Chaos' default reverse-as-brake policy
+    // would otherwise force a positive throttle command back into first gear.
+    Movement->bReverseAsBrake = false;
+    Movement->bThrottleAsBrake = false;
     Movement->Mass = Spec.MassKg;
     Movement->bEnableCenterOfMassOverride = true;
     // The generated rig root sits at road height. Keep the fixed COM near the
@@ -106,6 +110,8 @@ bool UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(const UChaosWh
 
     TArray<FString> Problems;
     if (!Movement->bMechanicalSimEnabled) Problems.Add(TEXT("mechanical-sim"));
+    if (Movement->bReverseAsBrake) Problems.Add(TEXT("reverse-as-brake"));
+    if (Movement->bThrottleAsBrake) Problems.Add(TEXT("throttle-as-brake"));
     if (!PowertrainNearlyEqual(Movement->Mass, Spec.MassKg, 0.5f)) Problems.Add(TEXT("chassis-mass"));
     if (!Movement->bEnableCenterOfMassOverride || Movement->CenterOfMassOverride.Z > Spec.FrontWheel.RadiusCm)
         Problems.Add(TEXT("stable-center-of-mass"));
@@ -114,6 +120,8 @@ bool UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(const UChaosWh
     if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxRPM, Spec.EngineMaxRpm)) Problems.Add(TEXT("engine-max-rpm"));
     if (!PowertrainNearlyEqual(Movement->EngineSetup.EngineIdleRPM, Spec.EngineIdleRpm)) Problems.Add(TEXT("engine-idle-rpm"));
     if (!PowertrainNearlyEqual(Movement->TransmissionSetup.FinalRatio, Spec.FinalDriveRatio)) Problems.Add(TEXT("final-drive"));
+    if (!Movement->TransmissionSetup.bUseAutomaticGears) Problems.Add(TEXT("automatic-gears"));
+    if (Movement->TransmissionSetup.bUseAutoReverse) Problems.Add(TEXT("auto-reverse"));
     if (Movement->TransmissionSetup.ForwardGearRatios.Num() != Spec.ForwardGearRatios.Num()) Problems.Add(TEXT("forward-gear-count"));
     else
     {

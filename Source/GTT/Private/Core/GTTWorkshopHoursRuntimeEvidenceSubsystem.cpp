@@ -29,7 +29,8 @@ constexpr int32 MinimumEvidenceCash = 6000;
 void UGTTWorkshopHoursRuntimeEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoWorkshopRecoveryScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopHoursRuntimeScenario"));
     if (bEnabled)
@@ -113,11 +114,15 @@ bool UGTTWorkshopHoursRuntimeEvidenceSubsystem::EnsureNativeDriver()
 {
     UWorld* World = GetWorld();
     if (!World || !Vehicle.IsValid() || !PlayerPawn.IsValid()) return false;
-    if (UGameplayStatics::GetPlayerPawn(World, 0) == Vehicle.Get()) return true;
-    if (!Vehicle->IsLegacyTakeoverActive() && !Vehicle->TryActivateLegacyTakeover()) return false;
-    Vehicle->Interact_Implementation(PlayerPawn.Get());
-    return UGameplayStatics::GetPlayerPawn(World, 0) == Vehicle.Get()
+    if (UGameplayStatics::GetPlayerPawn(World, 0) != Vehicle.Get())
+    {
+        if (!Vehicle->IsLegacyTakeoverActive() && !Vehicle->TryActivateLegacyTakeover()) return false;
+        Vehicle->Interact_Implementation(PlayerPawn.Get());
+    }
+    const bool bReady = UGameplayStatics::GetPlayerPawn(World, 0) == Vehicle.Get()
         && Vehicle->GetDriverPawn() == PlayerPawn.Get();
+    if (bReady) Vehicle->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    return bReady;
 }
 
 void UGTTWorkshopHoursRuntimeEvidenceSubsystem::StageVehicle(const FVector& Location) const

@@ -1,6 +1,7 @@
 #include "Core/GTTWorkshopQueueRuntimeEvidenceSubsystem.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -25,7 +26,7 @@ constexpr int32 SaveUserIndex = 0;
 constexpr float StartDelaySeconds = 410.0f;
 constexpr float GlobalDeadlineSeconds = 434.0f;
 constexpr float QueueTickProofSeconds = 1.35f;
-constexpr float WorkshopStageOffsetCm = 140.0f;
+constexpr float WorkshopStageOffsetCm = 420.0f;
 constexpr float ExactVehicleAwayOffsetCm = 2600.0f;
 constexpr int32 MinimumEvidenceCash = 6000;
 }
@@ -33,7 +34,8 @@ constexpr int32 MinimumEvidenceCash = 6000;
 void UGTTWorkshopQueueRuntimeEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopHoursRuntimeScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopQueueRuntimeScenario"));
     if (bEnabled)
@@ -140,6 +142,12 @@ void UGTTWorkshopQueueRuntimeEvidenceSubsystem::StageVehicle(AGTTRoadVehicleNati
             RootPrimitive->SetPhysicsLinearVelocity(FVector::ZeroVector);
             RootPrimitive->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
         }
+    }
+    if (USkeletalMeshComponent* VehicleMesh = Target->GetMesh())
+    {
+        VehicleMesh->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
+        VehicleMesh->SetAllPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+        VehicleMesh->PutAllRigidBodiesToSleep();
     }
 }
 
@@ -347,12 +355,37 @@ void UGTTWorkshopQueueRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         }
         StageVehicle(Vehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 0.0f, 80.0f));
         PhaseStartedAt = Elapsed;
+        Phase = EPhase::AwaitExactCheckIn;
+        break;
+    }
+
+    case EPhase::AwaitExactCheckIn:
+    {
+        StageVehicle(Vehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 0.0f, 80.0f));
+        if (Elapsed - PhaseStartedAt < QueueTickProofSeconds) break;
+        const FGTTWorkshopRepairQueueSnapshot Snapshot = Queue->GetQueueSnapshot();
+        const bool bExactCheckedIn = Snapshot.bQueued && Snapshot.PersistentVehicleId == VehicleId
+            && Snapshot.bCheckedIn && !Snapshot.bReadyForPickup
+            && Snapshot.ServiceCompleteDay > 0 && Snapshot.ServiceCompleteHour >= 0.0f;
+        GTT_LOG( Log,
+            TEXT("WORKSHOP_QUEUE_RUNTIME phase=EXACT_CHECKIN result=%s checked_in=%d exact_id=%d complete_day=%d complete_hour=%.2f no_charge=%d vehicle=%s"),
+            bExactCheckedIn ? TEXT("PASS") : TEXT("FAIL"), Snapshot.bCheckedIn ? 1 : 0,
+            Snapshot.PersistentVehicleId == VehicleId ? 1 : 0, Snapshot.ServiceCompleteDay,
+            Snapshot.ServiceCompleteHour, Economy->GetCash() == CashBeforeBooking ? 1 : 0,
+            *VehicleId.ToString());
+        if (!bExactCheckedIn || Economy->GetCash() != CashBeforeBooking)
+        {
+            MarkFailure(TEXT("exact-vehicle-checkin-failed")); FinishScenario(TEXT("checkin-failed")); return;
+        }
+        DayNight->RestoreTime(Snapshot.ServiceCompleteDay, Snapshot.ServiceCompleteHour);
+        PhaseStartedAt = Elapsed;
         Phase = EPhase::AwaitExactExecution;
         break;
     }
 
     case EPhase::AwaitExactExecution:
     {
+        StageVehicle(Vehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 0.0f, 80.0f));
         if (Elapsed - PhaseStartedAt < QueueTickProofSeconds) break;
         const FGTTRoadVehicleMigrationSnapshot After = Vehicle->GetMigrationSnapshot();
         const int32 Charged = CashBeforeBooking - Economy->GetCash();

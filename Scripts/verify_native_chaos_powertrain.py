@@ -17,6 +17,12 @@ for symbol in [
     "TransmissionSetup.FinalRatio",
     "TransmissionSetup.ForwardGearRatios",
     "TransmissionSetup.ReverseGearRatios",
+    "bReverseAsBrake = false",
+    "bThrottleAsBrake = false",
+    "TransmissionSetup.bUseAutomaticGears = true",
+    "TransmissionSetup.bUseAutoReverse = false",
+    "Problems.Add(TEXT(\"reverse-as-brake\"))",
+    "Problems.Add(TEXT(\"auto-reverse\"))",
     "DifferentialSetup.DifferentialType",
 ]:
     assert symbol in header + impl, f"missing canonical powertrain contract: {symbol}"

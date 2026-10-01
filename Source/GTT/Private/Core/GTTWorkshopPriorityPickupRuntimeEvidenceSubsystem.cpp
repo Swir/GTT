@@ -1,6 +1,7 @@
 #include "Core/GTTWorkshopPriorityPickupRuntimeEvidenceSubsystem.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -25,7 +26,7 @@ constexpr int32 SaveUserIndex = 0;
 constexpr float StartDelaySeconds = 451.0f;
 constexpr float GlobalDeadlineSeconds = 468.0f;
 constexpr float QueueTickProofSeconds = 0.80f;
-constexpr float WorkshopStageOffsetCm = 150.0f;
+constexpr float WorkshopStageOffsetCm = 420.0f;
 constexpr int32 MinimumEvidenceCash = 12000;
 constexpr float ExpectedUrgentMultiplier = 0.80f;
 constexpr int32 ExpectedUrgentSurchargePercent = 20;
@@ -34,7 +35,8 @@ constexpr int32 ExpectedUrgentSurchargePercent = 20;
 void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopPriorityPickupRuntimeScenario"));
     if (bEnabled)
     {
@@ -123,6 +125,12 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::StageVehicle(
             RootPrimitive->SetPhysicsLinearVelocity(FVector::ZeroVector);
             RootPrimitive->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
         }
+    }
+    if (USkeletalMeshComponent* VehicleMesh = Target->GetMesh())
+    {
+        VehicleMesh->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
+        VehicleMesh->SetAllPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+        VehicleMesh->PutAllRigidBodiesToSleep();
     }
 }
 
@@ -363,6 +371,7 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::Tick(float DeltaTime)
 
     case EPhase::AwaitCheckIn:
     {
+        StageVehicle(Vehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 0.0f, 80.0f));
         if (Elapsed - PhaseStartedAt < QueueTickProofSeconds) break;
         const TArray<FGTTWorkshopRepairQueueSnapshot> Snapshots = Queue->GetQueueSnapshots();
         const FGTTWorkshopRepairQueueSnapshot* Active = Snapshots.FindByPredicate(
@@ -399,6 +408,7 @@ void UGTTWorkshopPriorityPickupRuntimeEvidenceSubsystem::Tick(float DeltaTime)
 
     case EPhase::AwaitCheckout:
     {
+        StageVehicle(Vehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 0.0f, 80.0f));
         if (Elapsed - PhaseStartedAt < QueueTickProofSeconds) break;
         const TArray<FGTTWorkshopRepairQueueSnapshot> Snapshots = Queue->GetQueueSnapshots();
         const FGTTWorkshopRepairQueueSnapshot* Paid = Snapshots.FindByPredicate(

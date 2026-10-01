@@ -190,7 +190,9 @@ void UGTTWorkshopRepairQueueSubsystem::ResolveNextAppointment(
 
     for (const FGTTWorkshopRepairQueueSnapshot& Existing : QueueEntries)
     {
-        if (!IsLaterSlot(Existing.ReadyDay, Existing.ReadyHour, OutReadyDay, OutReadyHour)) continue;
+        // An equal timestamp is already occupied. Append after it as well as after any
+        // later reservation so two vehicles can never receive the same capacity slot.
+        if (!IsAtOrAfter(Existing.ReadyDay, Existing.ReadyHour, OutReadyDay, OutReadyHour)) continue;
         OutReadyDay = Existing.ReadyDay;
         OutReadyHour = Existing.ReadyHour + AppointmentSpacingHours;
     }

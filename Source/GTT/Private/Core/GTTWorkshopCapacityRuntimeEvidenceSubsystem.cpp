@@ -1,6 +1,7 @@
 #include "Core/GTTWorkshopCapacityRuntimeEvidenceSubsystem.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
@@ -25,7 +26,7 @@ constexpr int32 SaveUserIndex = 0;
 constexpr float StartDelaySeconds = 438.0f;
 constexpr float GlobalDeadlineSeconds = 468.0f;
 constexpr float QueueTickProofSeconds = 1.65f;
-constexpr float WorkshopStageOffsetCm = 140.0f;
+constexpr float WorkshopStageOffsetCm = 420.0f;
 constexpr float AwayOffsetCm = 2600.0f;
 constexpr int32 MinimumEvidenceCash = 12000;
 constexpr float ExpectedSpacingHours = 0.75f;
@@ -34,7 +35,8 @@ constexpr float ExpectedSpacingHours = 0.75f;
 void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopCapacityRuntimeScenario"));
     if (bEnabled)
     {
@@ -123,6 +125,12 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::StageVehicle(AGTTRoadVehicleN
             RootPrimitive->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
         }
     }
+    if (USkeletalMeshComponent* VehicleMesh = Target->GetMesh())
+    {
+        VehicleMesh->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
+        VehicleMesh->SetAllPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+        VehicleMesh->PutAllRigidBodiesToSleep();
+    }
 }
 
 void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::StageDamage(AGTTRoadVehicleNativePawn* Target, bool bSevere) const
@@ -201,16 +209,17 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::FinishScenario(const TCHAR* R
     const bool bPass = bSequenceHealthy && bTwoBookingsAccepted && bNoPrecharge && bCapacitySpacing
         && bDiskRoundtrip && bIndependentCancel && bRebookPreserved && bUnderfundedNonBlocking
         && bLaterSingleDebit && bEarlierReservationPreserved && bLaterExactService
-        && bIdentityPreserved && bCargoContinuity && FirstLockedQuote > SecondLockedQuote
+        && bIdentityPreserved && bCargoContinuity && bQueueCleanForHandoff
+        && FirstLockedQuote > SecondLockedQuote
         && SecondLockedQuote > 0 && !FirstVehicleId.IsNone() && !SecondVehicleId.IsNone();
 
     GTT_LOG( Log,
-        TEXT("WORKSHOP_CAPACITY_RUNTIME_COMPLETE result=%s two_bookings=%d no_precharge=%d spacing_45m=%d disk_roundtrip=%d independent_cancel=%d rebook_preserved=%d underfunded_nonblocking=%d later_single_debit=%d earlier_preserved=%d later_exact_service=%d identity_preserved=%d cargo_continuity=%d first_quote=%d second_quote=%d first_vehicle=%s second_vehicle=%s reason=%s elapsed=%.2f"),
+        TEXT("WORKSHOP_CAPACITY_RUNTIME_COMPLETE result=%s two_bookings=%d no_precharge=%d spacing_45m=%d disk_roundtrip=%d independent_cancel=%d rebook_preserved=%d underfunded_nonblocking=%d later_single_debit=%d earlier_preserved=%d later_exact_service=%d identity_preserved=%d cargo_continuity=%d handoff_clean=%d first_quote=%d second_quote=%d first_vehicle=%s second_vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bTwoBookingsAccepted ? 1 : 0, bNoPrecharge ? 1 : 0,
         bCapacitySpacing ? 1 : 0, bDiskRoundtrip ? 1 : 0, bIndependentCancel ? 1 : 0,
         bRebookPreserved ? 1 : 0, bUnderfundedNonBlocking ? 1 : 0, bLaterSingleDebit ? 1 : 0,
         bEarlierReservationPreserved ? 1 : 0, bLaterExactService ? 1 : 0, bIdentityPreserved ? 1 : 0,
-        bCargoContinuity ? 1 : 0, FirstLockedQuote, SecondLockedQuote,
+        bCargoContinuity ? 1 : 0, bQueueCleanForHandoff ? 1 : 0, FirstLockedQuote, SecondLockedQuote,
         *FirstVehicleId.ToString(), *SecondVehicleId.ToString(), Reason ? Reason : TEXT("unknown"), Elapsed);
 
     RestoreBaselineState();
@@ -366,9 +375,41 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         }
 
         Economy->RestoreState(SecondLockedQuote, BaselineFishCount, BaselineFishWeightKg);
-        StageVehicle(FirstVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, -160.0f, 80.0f));
-        StageVehicle(SecondVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 160.0f, 80.0f));
+        StageVehicle(FirstVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, -240.0f, 80.0f));
+        StageVehicle(SecondVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 240.0f, 80.0f));
         DayNight->RestoreTime(SecondReadyDay, SecondReadyHour);
+        PhaseStartedAt = Elapsed;
+        Phase = EPhase::AwaitCapacityCheckIn;
+        break;
+    }
+
+    case EPhase::AwaitCapacityCheckIn:
+    {
+        StageVehicle(FirstVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, -240.0f, 80.0f));
+        StageVehicle(SecondVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 240.0f, 80.0f));
+        if (Elapsed - PhaseStartedAt < QueueTickProofSeconds) break;
+        const TArray<FGTTWorkshopRepairQueueSnapshot> Snapshots = Queue->GetQueueSnapshots();
+        const FGTTWorkshopRepairQueueSnapshot* First = Snapshots.FindByPredicate(
+            [this](const FGTTWorkshopRepairQueueSnapshot& S){ return S.PersistentVehicleId == FirstVehicleId; });
+        const FGTTWorkshopRepairQueueSnapshot* Second = Snapshots.FindByPredicate(
+            [this](const FGTTWorkshopRepairQueueSnapshot& S){ return S.PersistentVehicleId == SecondVehicleId; });
+        const bool bBothCheckedIn = First && Second && First->bCheckedIn && Second->bCheckedIn
+            && !First->bReadyForPickup && !Second->bReadyForPickup
+            && Second->ServiceCompleteDay > 0 && Second->ServiceCompleteHour >= 0.0f;
+        const bool bNoCheckInCharge = Economy->GetCash() == SecondLockedQuote;
+        GTT_LOG( Log,
+            TEXT("WORKSHOP_CAPACITY_RUNTIME phase=CHECKIN result=%s first_checked_in=%d second_checked_in=%d no_charge=%d second_complete_day=%d second_complete_hour=%.2f remaining=%d"),
+            (bBothCheckedIn && bNoCheckInCharge) ? TEXT("PASS") : TEXT("FAIL"),
+            First && First->bCheckedIn ? 1 : 0, Second && Second->bCheckedIn ? 1 : 0,
+            bNoCheckInCharge ? 1 : 0, Second ? Second->ServiceCompleteDay : 0,
+            Second ? Second->ServiceCompleteHour : 0.0f, Snapshots.Num());
+        if (!bBothCheckedIn || !bNoCheckInCharge)
+        {
+            MarkFailure(TEXT("capacity-checkin-contract-failed")); FinishScenario(TEXT("checkin-failed")); return;
+        }
+        FirstServiceCompleteDay = First->ServiceCompleteDay;
+        FirstServiceCompleteHour = First->ServiceCompleteHour;
+        DayNight->RestoreTime(Second->ServiceCompleteDay, Second->ServiceCompleteHour);
         PhaseStartedAt = Elapsed;
         Phase = EPhase::AwaitCapacityExecution;
         break;
@@ -376,6 +417,8 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Tick(float DeltaTime)
 
     case EPhase::AwaitCapacityExecution:
     {
+        StageVehicle(FirstVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, -240.0f, 80.0f));
+        StageVehicle(SecondVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, 240.0f, 80.0f));
         if (Elapsed - PhaseStartedAt < QueueTickProofSeconds) break;
         const FGTTRoadVehicleMigrationSnapshot FirstAfter = FirstVehicle->GetMigrationSnapshot();
         const FGTTRoadVehicleMigrationSnapshot SecondAfter = SecondVehicle->GetMigrationSnapshot();
@@ -401,6 +444,34 @@ void UGTTWorkshopCapacityRuntimeEvidenceSubsystem::Tick(float DeltaTime)
         if (!bPass)
         {
             MarkFailure(TEXT("capacity-execution-contract-failed")); FinishScenario(TEXT("execution-failed")); return;
+        }
+        Economy->RestoreState(FirstLockedQuote, BaselineFishCount, BaselineFishWeightKg);
+        StageVehicle(FirstVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, -240.0f, 80.0f));
+        DayNight->RestoreTime(FirstServiceCompleteDay, FirstServiceCompleteHour);
+        PhaseStartedAt = Elapsed;
+        Phase = EPhase::AwaitCapacityCleanup;
+        break;
+    }
+
+    case EPhase::AwaitCapacityCleanup:
+    {
+        StageVehicle(FirstVehicle.Get(), Workshop->GetActorLocation() + FVector(WorkshopStageOffsetCm, -240.0f, 80.0f));
+        if (Elapsed - PhaseStartedAt < QueueTickProofSeconds) break;
+        bool bReleased = true;
+        if (Queue->IsVehicleAwaitingPickup(FirstVehicleId))
+        {
+            FString PickupSummary;
+            bReleased = Queue->ReleaseCompletedRepairForPickup(FirstVehicleId, PickupSummary);
+        }
+        bQueueCleanForHandoff = bReleased && !Queue->HasQueuedRepairForVehicle(FirstVehicleId)
+            && Queue->GetQueuedRepairCount() == 0;
+        GTT_LOG( Log,
+            TEXT("WORKSHOP_CAPACITY_RUNTIME phase=HANDOFF_CLEANUP result=%s first_settled=%d queue_empty=%d remaining=%d"),
+            bQueueCleanForHandoff ? TEXT("PASS") : TEXT("FAIL"), bReleased ? 1 : 0,
+            Queue->GetQueuedRepairCount() == 0 ? 1 : 0, Queue->GetQueuedRepairCount());
+        if (!bQueueCleanForHandoff)
+        {
+            MarkFailure(TEXT("capacity-handoff-cleanup-failed")); FinishScenario(TEXT("cleanup-failed")); return;
         }
         FinishScenario(TEXT("complete"));
         break;

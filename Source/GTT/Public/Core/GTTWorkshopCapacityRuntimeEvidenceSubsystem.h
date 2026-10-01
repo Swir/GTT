@@ -37,7 +37,9 @@ private:
         PrepareBookings,
         VerifyDiskAndCancel,
         VerifyRebook,
+        AwaitCapacityCheckIn,
         AwaitCapacityExecution,
+        AwaitCapacityCleanup,
         Complete
     };
 
@@ -69,6 +71,7 @@ private:
     bool bLaterExactService = false;
     bool bIdentityPreserved = false;
     bool bCargoContinuity = false;
+    bool bQueueCleanForHandoff = false;
 
     float Elapsed = 0.0f;
     float PhaseStartedAt = 0.0f;
@@ -82,8 +85,10 @@ private:
     int32 SecondLockedQuote = 0;
     int32 FirstReadyDay = 0;
     int32 SecondReadyDay = 0;
+    int32 FirstServiceCompleteDay = 0;
     float FirstReadyHour = 0.0f;
     float SecondReadyHour = 0.0f;
+    float FirstServiceCompleteHour = 0.0f;
     FName FirstVehicleId = NAME_None;
     FName SecondVehicleId = NAME_None;
 
