@@ -150,12 +150,18 @@ foreach($e in @($scenario,$gameplay,$native,$drive,$trailer,$farmCargo,$farmCarg
     if($e.git_sha -and $ExpectedGitSha -and $e.git_sha -ne $ExpectedGitSha){throw 'Runtime evidence SHA mismatch.'}
 }
 
-$vehicles=@('Fieldmaster','Rattleback82','Mulebox1200')
+$vehiclePatterns=[ordered]@{
+    Fieldmaster='(?:RustyFieldmaster60|Fieldmaster)'
+    Rattleback82='Rattleback82'
+    Mulebox1200='Mulebox1200'
+}
 $missing=@()
-foreach($vehicle in $vehicles){
-    if($log -notmatch "NATIVE_CHAOS_SMOKE_READY.*vehicle=$vehicle"){$missing+=$vehicle}
+foreach($vehicle in $vehiclePatterns.Keys){
+    $pattern=$vehiclePatterns[$vehicle]
+    if($log -notmatch "NATIVE_CHAOS_SMOKE_READY.*vehicle=$pattern(?:\s|$)"){$missing+=$vehicle}
 }
 if($missing.Count){throw "Native Chaos packaged evidence missing for: $($missing -join ', ')"}
+$vehicles=@($vehiclePatterns.Keys)
 
 $recoveryStatus='NOT_REQUIRED_FOR_VERSION'
 if($build.version -eq '0.0.96'){

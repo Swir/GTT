@@ -6,7 +6,7 @@
 
 class AGTTFarmTrailer;
 class AGTTFieldmasterNativePawn;
-class UChaosWheeledVehicleMovementComponent;
+class UGTTFieldmasterChaosMovementComponent;
 class UGTTTrailerAuthoredRuntimeSubsystem;
 
 UCLASS()
@@ -27,17 +27,18 @@ private:
         StageAndAttach,
         AwaitAuthoredRuntime,
         LoadedMotion,
+        LoadedDescent,
         ControlledStop,
         Complete
     };
 
     AGTTFieldmasterNativePawn* ResolveFieldmaster();
     AGTTFarmTrailer* ResolveTrailer();
-    UChaosWheeledVehicleMovementComponent* ResolveMovement(AGTTFieldmasterNativePawn* Pawn) const;
+    UGTTFieldmasterChaosMovementComponent* ResolveMovement(AGTTFieldmasterNativePawn* Pawn) const;
     UGTTTrailerAuthoredRuntimeSubsystem* ResolveRuntime() const;
     bool StageTrailerAtHitch(AGTTFieldmasterNativePawn* Pawn, AGTTFarmTrailer* Trailer);
     void MarkFailure(const TCHAR* Reason);
-    void CompleteScenario(AGTTFieldmasterNativePawn* Pawn, AGTTFarmTrailer* Trailer, UChaosWheeledVehicleMovementComponent* Movement, const TCHAR* Reason);
+    void CompleteScenario(AGTTFieldmasterNativePawn* Pawn, AGTTFarmTrailer* Trailer, UGTTFieldmasterChaosMovementComponent* Movement, const TCHAR* Reason);
 
     bool bEnabled = false;
     bool bFinished = false;
@@ -45,6 +46,8 @@ private:
     bool bAttachmentProven = false;
     bool bAuthoredRuntimeProven = false;
     bool bLoadedTowProven = false;
+    bool bHillAssistProven = false;
+    bool bTrailerBrakeThermalProven = false;
     bool bControlledStopProven = false;
     float Elapsed = 0.0f;
     float PhaseStartedSeconds = 0.0f;

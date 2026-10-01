@@ -7,6 +7,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Vehicles/GTTFarmTrailer.h"
+#include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
 #include "Vehicles/GTTTrailerAuthoredRuntimeSubsystem.h"
 #include "Vehicles/GTTVehicleBase.h"
@@ -21,6 +22,9 @@ namespace
     constexpr float AuthoredRuntimeTimeoutSeconds = 10.0f;
     constexpr float PostAttachSettleSeconds = 1.0f;
     constexpr float LoadedMotionTimeoutSeconds = 38.0f;
+    constexpr float MinimumLoadedDescentSeconds = 2.5f;
+    constexpr float LoadedDescentTimeoutSeconds = 6.0f;
+    constexpr float AcceptanceDescentControlSpeedKmh = 18.0f;
     constexpr float ControlledStopTimeoutSeconds = 8.0f;
     constexpr float SampleIntervalSeconds = 0.25f;
     constexpr float TowThrottle = 1.0f;
@@ -31,6 +35,8 @@ namespace
     constexpr float SafeHitchErrorCm = 80.0f;
     constexpr float HardHitchErrorCm = 110.0f;
     constexpr int32 MinimumMovingDualContactSamples = 8;
+    constexpr float MinimumTrailerBrakeHeat = 0.01f;
+    constexpr float AcceptanceDescentGradeDegrees = -8.0f;
     const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
     const FName TowEyeSocket(TEXT("socket_hitch"));
     const FVector TrailerEvidencePadLocation(8500.0f, 5000.0f, 0.0f);
@@ -134,9 +140,9 @@ AGTTFarmTrailer* UGTTTrailerEvidenceScenarioSubsystem::ResolveTrailer()
     return nullptr;
 }
 
-UChaosWheeledVehicleMovementComponent* UGTTTrailerEvidenceScenarioSubsystem::ResolveMovement(AGTTFieldmasterNativePawn* Pawn) const
+UGTTFieldmasterChaosMovementComponent* UGTTTrailerEvidenceScenarioSubsystem::ResolveMovement(AGTTFieldmasterNativePawn* Pawn) const
 {
-    return Pawn ? Cast<UChaosWheeledVehicleMovementComponent>(Pawn->GetVehicleMovementComponent()) : nullptr;
+    return Pawn ? Cast<UGTTFieldmasterChaosMovementComponent>(Pawn->GetVehicleMovementComponent()) : nullptr;
 }
 
 UGTTTrailerAuthoredRuntimeSubsystem* UGTTTrailerEvidenceScenarioSubsystem::ResolveRuntime() const
@@ -186,10 +192,10 @@ bool UGTTTrailerEvidenceScenarioSubsystem::StageTrailerAtHitch(AGTTFieldmasterNa
     if (!Pawn->TryGetRearHitchTransform(HitchTransform)) return false;
 
     const FVector InitialLocation = HitchTransform.GetLocation() - Pawn->GetActorForwardVector() * 360.0f;
-    FRotator StageRotation = Pawn->GetActorRotation();
-    StageRotation.Yaw += 180.0f;
-    StageRotation.Normalize();
-    FTransform StageTransform(StageRotation, InitialLocation, FVector::OneVector);
+    FRotator TrailerStageRotation = Pawn->GetActorRotation();
+    TrailerStageRotation.Yaw += 180.0f;
+    TrailerStageRotation.Normalize();
+    FTransform StageTransform(TrailerStageRotation, InitialLocation, FVector::OneVector);
     FarmTrailer->ResetTrailer(StageTransform);
 
     TArray<USkinnedMeshComponent*> SkeletalMeshes;
@@ -236,11 +242,12 @@ void UGTTTrailerEvidenceScenarioSubsystem::MarkFailure(const TCHAR* Reason)
 void UGTTTrailerEvidenceScenarioSubsystem::CompleteScenario(
     AGTTFieldmasterNativePawn* Pawn,
     AGTTFarmTrailer* FarmTrailer,
-    UChaosWheeledVehicleMovementComponent* Movement,
+    UGTTFieldmasterChaosMovementComponent* Movement,
     const TCHAR* Reason)
 {
     if (Movement)
     {
+        Movement->SetAcceptanceHillHaulSensorOverride(false);
         Movement->SetThrottleInput(0.0f);
         Movement->SetSteeringInput(0.0f);
         Movement->SetBrakeInput(1.0f);
@@ -250,6 +257,8 @@ void UGTTTrailerEvidenceScenarioSubsystem::CompleteScenario(
         && bAttachmentProven
         && bAuthoredRuntimeProven
         && bLoadedTowProven
+        && bHillAssistProven
+        && bTrailerBrakeThermalProven
         && bControlledStopProven
         && FarmTrailer
         && FarmTrailer->IsAttachedToNativeFieldmaster()
@@ -261,11 +270,12 @@ void UGTTTrailerEvidenceScenarioSubsystem::CompleteScenario(
         && MaxHitchErrorCm <= HardHitchErrorCm;
 
     GTT_LOG( Log,
-        TEXT("NATIVE_TRAILER_SCENARIO_COMPLETE result=%s route=loaded-authored-tow attachment=%d authored=%d loaded=%d stopped=%d max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d max_hitch_error_cm=%.1f max_articulation_deg=%.1f min_cargo_integrity=%.3f final_speed_kmh=%.2f reason=%s elapsed=%.2f source=formal"),
+        TEXT("NATIVE_TRAILER_SCENARIO_COMPLETE result=%s route=loaded-authored-tow attachment=%d authored=%d loaded=%d stopped=%d max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d max_hitch_error_cm=%.1f max_articulation_deg=%.1f min_cargo_integrity=%.3f final_speed_kmh=%.2f hill_assist=%d trailer_brake_thermal=%d reason=%s elapsed=%.2f source=formal"),
         bPass ? TEXT("PASS") : TEXT("FAIL"),
         bAttachmentProven ? 1 : 0, bAuthoredRuntimeProven ? 1 : 0, bLoadedTowProven ? 1 : 0, bControlledStopProven ? 1 : 0,
         MaxTowSpeedKmh, MaxTowDistanceCm, MovingDualContactSamples, SafeMovingSamples, MaxHitchErrorCm, MaxArticulationDeg,
-        MinCargoIntegrity, Pawn ? Pawn->GetVelocity().Size2D() * 0.036f : 0.0f, Reason, Elapsed);
+        MinCargoIntegrity, Pawn ? Pawn->GetVelocity().Size2D() * 0.036f : 0.0f,
+        bHillAssistProven ? 1 : 0, bTrailerBrakeThermalProven ? 1 : 0, Reason, Elapsed);
 
     Phase = ETrailerEvidencePhase::Complete;
     bFinished = true;
@@ -278,7 +288,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     AGTTFieldmasterNativePawn* Pawn = ResolveFieldmaster();
     AGTTFarmTrailer* FarmTrailer = ResolveTrailer();
-    UChaosWheeledVehicleMovementComponent* Movement = ResolveMovement(Pawn);
+    UGTTFieldmasterChaosMovementComponent* Movement = ResolveMovement(Pawn);
     UGTTTrailerAuthoredRuntimeSubsystem* Runtime = ResolveRuntime();
 
     if (!Pawn || !FarmTrailer || !Movement || !Movement->IsActive() || !Runtime)
@@ -399,6 +409,71 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
                 bEvidenceReady ? TEXT("PASS") : TEXT("FAIL"), MaxTowSpeedKmh, MaxTowDistanceCm,
                 MovingDualContactSamples, SafeMovingSamples, FarmTrailer->GetTowLoadFactor());
             if (!bEvidenceReady) MarkFailure(TEXT("loaded-motion-evidence-incomplete"));
+            if (!Movement->SetAcceptanceHillHaulSensorOverride(
+                true,
+                AcceptanceDescentGradeDegrees,
+                AcceptanceDescentControlSpeedKmh))
+            {
+                MarkFailure(TEXT("acceptance-grade-override-rejected"));
+                CompleteScenario(Pawn, FarmTrailer, Movement, TEXT("loaded-descent-setup-failed"));
+                return;
+            }
+            Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 0.0f);
+            Phase = ETrailerEvidencePhase::LoadedDescent;
+            PhaseStartedSeconds = Elapsed;
+            SampleAccumulator = 0.0f;
+            GTT_LOG( Log,
+                TEXT("NATIVE_TRAILER_SCENARIO phase=DESCENT_CONTROL result=PASS live_speed_kmh=%.2f controlled_grade_deg=%.2f controlled_speed_kmh=%.2f tow_load=%.2f sensor=acceptance-only source=formal"),
+                SpeedKmh, AcceptanceDescentGradeDegrees, AcceptanceDescentControlSpeedKmh, FarmTrailer->GetTowLoadFactor());
+        }
+        break;
+    }
+
+    case ETrailerEvidencePhase::LoadedDescent:
+    {
+        const float DescentElapsed = Elapsed - PhaseStartedSeconds;
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 0.0f);
+
+        bHillAssistProven = bHillAssistProven
+            || Movement->IsDownhillTowBrakeActive()
+            || Movement->IsHillHoldActive();
+        bTrailerBrakeThermalProven = bTrailerBrakeThermalProven
+            || Movement->GetTrailerBrakeHeat01() >= MinimumTrailerBrakeHeat;
+
+        SampleAccumulator += DeltaTime;
+        if (SampleAccumulator >= SampleIntervalSeconds)
+        {
+            SampleAccumulator = 0.0f;
+            GTT_LOG( Log,
+                TEXT("NATIVE_TRAILER_HILL_HAUL_SAMPLE speed_kmh=%.2f travel_grade_deg=%.2f tow_load=%.3f hill_haul_brake=%.3f hill_hold=%s downhill_tow_brake=%s trailer_brake_heat=%.3f trailer_brake_authority=%.3f source=formal"),
+                Pawn->GetVelocity().Size() * 0.036f,
+                Movement->GetTravelGradeDegrees(),
+                FarmTrailer->GetTowLoadFactor(),
+                Movement->GetHillHaulBrake(),
+                Movement->IsHillHoldActive() ? TEXT("YES") : TEXT("NO"),
+                Movement->IsDownhillTowBrakeActive() ? TEXT("YES") : TEXT("NO"),
+                Movement->GetTrailerBrakeHeat01(),
+                Movement->GetTrailerBrakeAuthority());
+        }
+
+        const bool bMinimumWindowComplete = DescentElapsed >= MinimumLoadedDescentSeconds;
+        const bool bTimedOut = DescentElapsed >= LoadedDescentTimeoutSeconds;
+        if ((bMinimumWindowComplete && bHillAssistProven && bTrailerBrakeThermalProven) || bTimedOut)
+        {
+            const bool bDescentPass = bHillAssistProven
+                && bTrailerBrakeThermalProven
+                && FarmTrailer->IsAttachedToNativeFieldmaster()
+                && FarmTrailer->HasCargo();
+            GTT_LOG( Log,
+                TEXT("NATIVE_TRAILER_SCENARIO phase=LOADED_DESCENT result=%s grade_deg=%.2f hill_assist=%d trailer_brake_heat=%.3f thermal=%d elapsed=%.2f source=formal"),
+                bDescentPass ? TEXT("PASS") : TEXT("FAIL"),
+                Movement->GetTravelGradeDegrees(),
+                bHillAssistProven ? 1 : 0,
+                Movement->GetTrailerBrakeHeat01(),
+                bTrailerBrakeThermalProven ? 1 : 0,
+                DescentElapsed);
+            if (!bDescentPass) MarkFailure(TEXT("loaded-descent-hill-or-thermal-evidence-incomplete"));
+            Movement->SetAcceptanceHillHaulSensorOverride(false);
             Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 0.90f);
             Phase = ETrailerEvidencePhase::ControlledStop;
             PhaseStartedSeconds = Elapsed;

@@ -56,9 +56,11 @@ if($firstQuote -le $secondQuote -or $secondQuote -le 0){throw "Quote ordering in
 if($charged -ne $secondQuote){throw "Later appointment debit mismatch: charged=$charged locked=$secondQuote"}
 $acceptFirst=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_ACCEPTED vehicle=$([regex]::Escape($firstVehicle)) .*charged=NO exact_id=YES.*$").Count
 $acceptSecond=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_ACCEPTED vehicle=$([regex]::Escape($secondVehicle)) .*charged=NO exact_id=YES.*$").Count
-$completeSecond=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_COMPLETED vehicle=$([regex]::Escape($secondVehicle)) charged=$secondQuote locked_quote_match=YES exact_id=YES saved=YES.*$").Count
+$readySecond=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_READY_FOR_PICKUP vehicle=$([regex]::Escape($secondVehicle)) priority=STANDARD charged=$secondQuote locked_quote_match=YES exact_id=YES timed_service=YES saved=YES fleet_release=PENDING.*$").Count
+$pickupSecond=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_PICKUP_RELEASED vehicle=$([regex]::Escape($secondVehicle)) paid_amount=$secondQuote exact_id=YES repair_complete=YES fleet_return=YES.*$").Count
 if($acceptFirst -lt 1 -or $acceptSecond -lt 2){throw 'Expected production appointment acceptance markers are missing.'}
-if($completeSecond -ne 1){throw "Expected exactly one completed marker for later vehicle, found $completeSecond."}
+if($readySecond -ne 1){throw "Expected exactly one ready-for-pickup marker for later vehicle, found $readySecond."}
+if($pickupSecond -ne 1){throw "Expected exactly one pickup-release marker for later vehicle, found $pickupSecond."}
 $diagnosticFailures=[regex]::Matches($log,'(?m)^.*WORKSHOP_CAPACITY_RUNTIME phase=DIAGNOSTIC result=FAIL.*$').Count
 if($diagnosticFailures -ne 0){throw "Workshop-capacity route reported $diagnosticFailures diagnostic failures."}
 
@@ -95,7 +97,9 @@ $evidence=[ordered]@{
     identity_preserved=$true
     farm_cargo_authority_preserved=$true
     production_accept_markers=($acceptFirst+$acceptSecond)
-    production_complete_markers=$completeSecond
+    production_ready_markers=$readySecond
+    production_pickup_markers=$pickupSecond
+    production_complete_markers=$pickupSecond
     diagnostic_failure_count=$diagnosticFailures
     evaluated_utc=(Get-Date).ToUniversalTime().ToString('o')
 }

@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 telemetry = (ROOT / "Source/GTT/Private/Vehicles/GTTNativeRuntimeTelemetrySubsystem.cpp").read_text(encoding="utf-8")
 movement = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterChaosMovementComponent.cpp").read_text(encoding="utf-8")
+scenario = (ROOT / "Source/GTT/Private/Core/GTTTrailerEvidenceScenarioSubsystem.cpp").read_text(encoding="utf-8")
 evaluator = (ROOT / "Scripts/evaluate_fieldmaster_hill_haul_runtime.ps1").read_text(encoding="utf-8")
 acceptance = (ROOT / "Scripts/run_win64_attested_candidate_acceptance.ps1").read_text(encoding="utf-8")
 attestation = (ROOT / "Scripts/write_win64_candidate_attestation.ps1").read_text(encoding="utf-8")
@@ -34,6 +35,8 @@ for token in [
     "GetTrailerRunawaySafetyBrake()",
     "terrain_throttle_authority=%.3f",
     "travel_grade_deg=%.2f",
+    "hill_control_speed_kmh=%.2f",
+    "hill_sensor_override=%s",
     "hill_haul_brake=%.3f",
     "hill_hold=%s",
     "downhill_tow_brake=%s",
@@ -57,6 +60,30 @@ for token in [
     assert token in movement, f"0.1.65 runtime evidence thresholds drifted from production movement: {token}"
 
 for token in [
+    "ETrailerEvidencePhase::LoadedDescent",
+    "AcceptanceDescentGradeDegrees = -8.0f",
+    "AcceptanceDescentControlSpeedKmh = 18.0f",
+    "SetAcceptanceHillHaulSensorOverride",
+    "SetAcceptanceHillHaulSensorOverride(false)",
+    "sensor=acceptance-only",
+    "NATIVE_TRAILER_HILL_HAUL_SAMPLE",
+    "IsDownhillTowBrakeActive()",
+    "GetTrailerBrakeHeat01()",
+    "MinimumLoadedDescentSeconds = 2.5f",
+    "MinimumTrailerBrakeHeat = 0.01f",
+]:
+    assert token in scenario, f"0.1.65 runtime scenario does not exercise real loaded hill-haul behavior: {token}"
+
+for token in [
+    "SetAcceptanceHillHaulSensorOverride",
+    "GTTTrailerRuntimeScenario",
+    "bAcceptanceHillHaulSensorOverride",
+    "TravelGradeDegrees = AcceptanceTravelGradeDegrees",
+    "HillHaulControlSpeedKmh = AcceptanceHillHaulControlSpeedKmh",
+]:
+    assert token in movement, f"0.1.65 deterministic grade control is not guarded in production movement: {token}"
+
+for token in [
     "gtt.fieldmaster-hill-haul-runtime.v1",
     "BUILD_INFO.json",
     "RUNTIME_SMOKE.json",
@@ -66,6 +93,8 @@ for token in [
     "loaded_trailer_samples",
     "assist_samples",
     "thermal_samples",
+    "controlled_sensor_samples",
+    "no explicit acceptance-only hill sensor sample was captured",
     "runaway_samples",
     "FIELDMASTER_HILL_HAUL_RUNTIME.json",
     "fewer than two loaded-trailer telemetry samples",

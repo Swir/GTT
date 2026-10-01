@@ -78,12 +78,36 @@ $complete = @($lines | Where-Object { $_ -match 'FARM_CARGO_BREAKDOWN_RUNTIME_CO
 $diagnostics = @($lines | Where-Object { $_ -match 'FARM_CARGO_BREAKDOWN_RUNTIME\s+phase=DIAGNOSTIC\s+result=FAIL' })
 $prePatchCheckpoint = @($lines | Where-Object { $_ -match 'FARM_CARGO_BREAKDOWN_RECOVERY\s+event=PATCH_CHECKPOINT\s+vehicle=.*\s+saved=YES\s+timer_paused=NO\s+transfer_allowed=NO' }) | Select-Object -Last 1
 $postPatchRecovery = @($lines | Where-Object { $_ -match 'FARM_CARGO_BREAKDOWN_RECOVERY\s+event=POST_PATCH_VERIFY\s+result=PASS\s+vehicle=.*\s+identity_preserved=YES\s+saved=YES\s+timer_paused=NO\s+transfer_allowed=NO' }) | Select-Object -Last 1
-$nativePatchRequested = @($lines | Where-Object { $_ -match 'NATIVE_ROADSIDE_PATCH_REQUESTED\s+vehicle=.*\s+patch_quote=[0-9]+\s+player_authorized=YES' }) | Select-Object -Last 1
-$nativePatchComplete = @($lines | Where-Object { $_ -match 'NATIVE_ROADSIDE_PATCH_COMPLETE\s+vehicle=.*\s+cost=[0-9]+\s+result=PASS\s+identity_preserved=YES\s+body_preserved=YES\s+workshop_repair_still_required=YES' }) | Select-Object -Last 1
+$nativePatchRequested = @($lines | Where-Object {
+    $_ -match '^NATIVE_ROADSIDE_PATCH_REQUESTED\s+' -and
+    (Read-Token $_ 'vehicle') -and
+    $null -ne (Read-Integer $_ 'patch_quote') -and
+    (Read-Token $_ 'player_authorized') -eq 'YES'
+}) | Select-Object -Last 1
+$nativePatchComplete = @($lines | Where-Object {
+    $_ -match '^NATIVE_ROADSIDE_PATCH_COMPLETE\s+' -and
+    (Read-Token $_ 'vehicle') -and
+    $null -ne (Read-Integer $_ 'cost') -and
+    (Read-Token $_ 'result') -eq 'PASS' -and
+    (Read-Token $_ 'identity_preserved') -eq 'YES' -and
+    (Read-Token $_ 'body_preserved') -eq 'YES' -and
+    (Read-Token $_ 'workshop_repair_still_required') -eq 'YES'
+}) | Select-Object -Last 1
 $preTowCheckpoint = @($lines | Where-Object { $_ -match 'FARM_CARGO_BREAKDOWN_RECOVERY\s+event=TOW_CHECKPOINT\s+vehicle=.*\s+saved=YES\s+timer_paused=NO\s+transfer_allowed=NO' }) | Select-Object -Last 1
 $postTowRecovery = @($lines | Where-Object { $_ -match 'FARM_CARGO_BREAKDOWN_RECOVERY\s+event=POST_RECOVERY_VERIFY\s+result=PASS\s+vehicle=.*\s+.*identity_preserved=YES\s+saved=YES\s+timer_paused=NO' }) | Select-Object -Last 1
-$nativeTowRequested = @($lines | Where-Object { $_ -match 'NATIVE_ROADSIDE_TOW_REQUESTED\s+vehicle=.*\s+tow_quote=[0-9]+\s+repair_quote=[0-9]+\s+player_authorized=YES' }) | Select-Object -Last 1
-$nativeTowComplete = @($lines | Where-Object { $_ -match 'NATIVE_ROADSIDE_TOW_COMPLETE\s+vehicle=.*\s+tow_cost=[0-9]+.*damage_preserved=YES' }) | Select-Object -Last 1
+$nativeTowRequested = @($lines | Where-Object {
+    $_ -match '^NATIVE_ROADSIDE_TOW_REQUESTED\s+' -and
+    (Read-Token $_ 'vehicle') -and
+    $null -ne (Read-Integer $_ 'tow_quote') -and
+    $null -ne (Read-Integer $_ 'repair_quote') -and
+    (Read-Token $_ 'player_authorized') -eq 'YES'
+}) | Select-Object -Last 1
+$nativeTowComplete = @($lines | Where-Object {
+    $_ -match '^NATIVE_ROADSIDE_TOW_COMPLETE\s+' -and
+    (Read-Token $_ 'vehicle') -and
+    $null -ne (Read-Integer $_ 'tow_cost') -and
+    (Read-Token $_ 'damage_preserved') -eq 'YES'
+}) | Select-Object -Last 1
 
 $required = [ordered]@{
     PREPARE=$prepare; ACCEPT=$accept; PICKUP=$pickup; BREAKDOWN_PATCH_REQUEST=$patchRequest; PATCH_COMPLETE=$patchComplete;

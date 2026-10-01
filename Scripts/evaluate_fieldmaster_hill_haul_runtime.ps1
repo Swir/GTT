@@ -61,6 +61,7 @@ $samples = @($lines | Where-Object {
 $loadedSamples = 0
 $assistSamples = 0
 $thermalSamples = 0
+$controlledSensorSamples = 0
 $runawaySamples = 0
 $maxHeat = 0.0
 $minBrakeAuthority = 1.0
@@ -74,6 +75,8 @@ foreach ($line in $samples) {
         $terrainAuthority = Get-NumberToken -Line $line -Name 'terrain_throttle_authority'
         $grade = Get-NumberToken -Line $line -Name 'travel_grade_deg'
         $speed = Get-NumberToken -Line $line -Name 'speed_kmh'
+        $controlSpeed = Get-NumberToken -Line $line -Name 'hill_control_speed_kmh'
+        $sensorOverride = Get-Token -Line $line -Name 'hill_sensor_override'
         $hillBrake = Get-NumberToken -Line $line -Name 'hill_haul_brake'
         $heat = Get-NumberToken -Line $line -Name 'trailer_brake_heat'
         $brakeAuthority = Get-NumberToken -Line $line -Name 'trailer_brake_authority'
@@ -85,7 +88,7 @@ foreach ($line in $samples) {
         $cooling = Get-Token -Line $line -Name 'trailer_brake_cooling'
         $runaway = Get-Token -Line $line -Name 'runaway_mitigation'
 
-        foreach ($flag in @($hillHold, $downhillBrake, $fade, $cooling, $runaway)) {
+        foreach ($flag in @($sensorOverride, $hillHold, $downhillBrake, $fade, $cooling, $runaway)) {
             if ($flag -notin @('YES', 'NO')) { throw "invalid YES/NO telemetry token '$flag'" }
         }
         if ($thermalState -notin @('NORMAL', 'HOT', 'FADING', 'CRITICAL')) {
@@ -98,10 +101,18 @@ foreach ($line in $samples) {
         if ($heat -lt 0.0 -or $heat -gt 1.001) { throw "trailer_brake_heat out of range: $heat" }
         if ($brakeAuthority -lt 0.549 -or $brakeAuthority -gt 1.001) { throw "trailer_brake_authority out of range: $brakeAuthority" }
         if ($runawayBrake -lt 0.0 -or $runawayBrake -gt 0.201) { throw "runaway_brake out of range: $runawayBrake" }
+        if ($controlSpeed -lt 0.0 -or $controlSpeed -gt 80.001) { throw "hill_control_speed_kmh out of range: $controlSpeed" }
 
         if ($towLoad -ge 0.15) { $loadedSamples++ }
         if ($hillHold -eq 'YES' -or $downhillBrake -eq 'YES') { $assistSamples++ }
         if ($heat -gt 0.01 -or $thermalState -ne 'NORMAL' -or $fade -eq 'YES' -or $cooling -eq 'YES') { $thermalSamples++ }
+        if ($sensorOverride -eq 'YES') { $controlledSensorSamples++ }
+        if ($downhillBrake -eq 'YES' -and $controlSpeed -lt 10.0) {
+            throw "downhill assist reported below the production 10 km/h control threshold: $controlSpeed"
+        }
+        if ($hillHold -eq 'YES' -and $controlSpeed -gt 2.501) {
+            throw "hill hold reported above the production 2.5 km/h control threshold: $controlSpeed"
+        }
 
         if ($fade -eq 'YES' -and $heat -lt 0.60) {
             throw "fade reported below the production 0.62 threshold (tolerance floor 0.60): heat=$heat"
@@ -137,6 +148,9 @@ if ($assistSamples -lt 1) {
 if ($thermalSamples -lt 1) {
     $failures.Add('no trailer-brake thermal behavior sample was captured')
 }
+if ($controlledSensorSamples -lt 1) {
+    $failures.Add('no explicit acceptance-only hill sensor sample was captured')
+}
 foreach ($failure in $sampleFailures) { $failures.Add("telemetry invariant: $failure") }
 
 $result = if ($failures.Count -eq 0) { 'PASS' } else { 'FAIL' }
@@ -154,6 +168,7 @@ $evidence = [ordered]@{
     loaded_trailer_samples = $loadedSamples
     assist_samples = $assistSamples
     thermal_samples = $thermalSamples
+    controlled_sensor_samples = $controlledSensorSamples
     runaway_samples = $runawaySamples
     max_trailer_brake_heat = [Math]::Round($maxHeat, 4)
     min_trailer_brake_authority = [Math]::Round($minBrakeAuthority, 4)

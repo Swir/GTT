@@ -2,6 +2,8 @@
 
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
 #include "Vehicles/GTTChaosPowertrainSetupLibrary.h"
 #include "Vehicles/GTTFarmTrailer.h"
@@ -264,6 +266,12 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
         }
         TravelGradeDegrees = ForwardGradeDegrees * TravelDirection;
     }
+    HillHaulControlSpeedKmh = AbsoluteSpeedKmh;
+    if (bAcceptanceHillHaulSensorOverride)
+    {
+        TravelGradeDegrees = AcceptanceTravelGradeDegrees;
+        HillHaulControlSpeedKmh = AcceptanceHillHaulControlSpeedKmh;
+    }
 
     const float GradeAlpha = ResolveGradeAlpha(TravelGradeDegrees);
     const bool bTowLoaded = TowLoadFactor >= HillControlMinimumTowLoad;
@@ -273,7 +281,7 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     // Loaded hill hold prevents the trailer from pulling a stopped/near-stopped
     // tractor backwards when the driver releases the throttle on a grade.
     if (bTowLoaded && bThrottleReleased && FMath::Abs(TravelGradeDegrees) >= HillControlMinimumGradeDegrees &&
-        AbsoluteSpeedKmh <= HillHoldMaxSpeedKmh)
+        HillHaulControlSpeedKmh <= HillHoldMaxSpeedKmh)
     {
         bHillHoldActive = true;
         const float LoadScale = FMath::Lerp(0.75f, 1.0f, TowLoadFactor);
@@ -284,11 +292,11 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     // proportional tow braking. The requested value is fed through the 0.1.63
     // thermal model before it becomes final trailer-assist brake authority.
     if (bTowLoaded && bThrottleReleased && TravelGradeDegrees <= -HillControlMinimumGradeDegrees &&
-        AbsoluteSpeedKmh >= DownhillTowBrakeStartSpeedKmh)
+        HillHaulControlSpeedKmh >= DownhillTowBrakeStartSpeedKmh)
     {
         bDownhillTowBrakeActive = true;
         const float SpeedAlpha = FMath::Clamp(
-            (AbsoluteSpeedKmh - DownhillTowBrakeStartSpeedKmh) /
+            (HillHaulControlSpeedKmh - DownhillTowBrakeStartSpeedKmh) /
                 (DownhillTowBrakeFullSpeedKmh - DownhillTowBrakeStartSpeedKmh),
             0.0f,
             1.0f);
@@ -345,7 +353,7 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     // never exceeds 0.20 brake input, and cannot steal drivetrain direction.
     if (bDownhillTowBrakeActive && TrailerBrakeThermalState == EGTTTrailerBrakeThermalState::Critical &&
         TowLoadFactor >= RunawayMinimumTowLoad && TravelGradeDegrees <= -RunawayMinimumGradeDegrees &&
-        AbsoluteSpeedKmh >= RunawayMinimumSpeedKmh)
+        HillHaulControlSpeedKmh >= RunawayMinimumSpeedKmh)
     {
         const float CriticalHeatAlpha = FMath::Clamp(
             (TrailerBrakeHeat01 - TrailerBrakeCriticalEnterHeat) /
@@ -358,7 +366,7 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
             0.0f,
             1.0f);
         const float RunawaySpeedAlpha = FMath::Clamp(
-            (AbsoluteSpeedKmh - RunawayMinimumSpeedKmh) /
+            (HillHaulControlSpeedKmh - RunawayMinimumSpeedKmh) /
                 (RunawayFullSpeedKmh - RunawayMinimumSpeedKmh),
             0.0f,
             1.0f);
@@ -392,6 +400,22 @@ void UGTTFieldmasterChaosMovementComponent::ApplyFieldmasterDriveCommand(
     // upshift normally and prevents this component from bypassing the shared forward/reverse interlock.
 }
 
+bool UGTTFieldmasterChaosMovementComponent::SetAcceptanceHillHaulSensorOverride(
+    bool bEnabled,
+    float GradeDegrees,
+    float ControlSpeedKmh)
+{
+    if (!FParse::Param(FCommandLine::Get(), TEXT("GTTTrailerRuntimeScenario")))
+    {
+        return false;
+    }
+
+    bAcceptanceHillHaulSensorOverride = bEnabled;
+    AcceptanceTravelGradeDegrees = bEnabled ? FMath::Clamp(GradeDegrees, -30.0f, 30.0f) : 0.0f;
+    AcceptanceHillHaulControlSpeedKmh = bEnabled ? FMath::Clamp(ControlSpeedKmh, 0.0f, 80.0f) : 0.0f;
+    return true;
+}
+
 void UGTTFieldmasterChaosMovementComponent::HoldFieldmasterStopped()
 {
     EffectiveThrottle = 0.0f;
@@ -399,6 +423,7 @@ void UGTTFieldmasterChaosMovementComponent::HoldFieldmasterStopped()
     TerrainThrottleAuthority = 0.0f;
     HillHaulBrake = 0.0f;
     TravelGradeDegrees = 0.0f;
+    HillHaulControlSpeedKmh = 0.0f;
     bHillHoldActive = false;
     bDownhillTowBrakeActive = false;
     bTrailerBrakeFadeActive = TrailerBrakeHeat01 > TrailerBrakeFadeStartHeat;

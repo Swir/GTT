@@ -45,6 +45,15 @@ public:
     UFUNCTION(BlueprintCallable, Category="GTT|Chaos|Fieldmaster")
     void HoldFieldmasterStopped();
 
+    // Packaged acceptance can supply deterministic grade/control-speed sensor
+    // inputs while keeping the live loaded trailer and production brake model
+    // authoritative. Telemetry reports both live and controlled speed explicitly.
+    // The override is rejected unless the trailer runtime scenario is active.
+    bool SetAcceptanceHillHaulSensorOverride(
+        bool bEnabled,
+        float GradeDegrees = 0.0f,
+        float ControlSpeedKmh = 0.0f);
+
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster")
     float GetEffectiveThrottle() const { return EffectiveThrottle; }
 
@@ -62,6 +71,11 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Terrain")
     float GetTravelGradeDegrees() const { return TravelGradeDegrees; }
+
+    UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Terrain")
+    float GetHillHaulControlSpeedKmh() const { return HillHaulControlSpeedKmh; }
+
+    bool IsAcceptanceHillHaulSensorOverrideActive() const { return bAcceptanceHillHaulSensorOverride; }
 
     UFUNCTION(BlueprintPure, Category="GTT|Chaos|Fieldmaster|Terrain")
     float GetHillHaulBrake() const { return HillHaulBrake; }
@@ -135,6 +149,11 @@ private:
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Terrain")
     float TravelGradeDegrees = 0.0f;
+
+    float HillHaulControlSpeedKmh = 0.0f;
+    bool bAcceptanceHillHaulSensorOverride = false;
+    float AcceptanceTravelGradeDegrees = 0.0f;
+    float AcceptanceHillHaulControlSpeedKmh = 0.0f;
 
     UPROPERTY(VisibleInstanceOnly, Category="GTT|Chaos|Fieldmaster|Terrain")
     float HillHaulBrake = 0.0f;
