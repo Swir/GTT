@@ -22,7 +22,7 @@ namespace
     constexpr float LoadedMotionTimeoutSeconds = 22.0f;
     constexpr float ControlledStopTimeoutSeconds = 8.0f;
     constexpr float SampleIntervalSeconds = 0.25f;
-    constexpr float TowThrottle = 0.82f;
+    constexpr float TowThrottle = 1.0f;
     constexpr float MaxSteering = 0.0f;
     constexpr float MinimumEvidenceSpeedKmh = 4.0f;
     constexpr float MinimumTowDistanceCm = 900.0f;
