@@ -170,6 +170,12 @@ void UGTTDemoSmokeScenarioSubsystem::DriveNativeRoadblockCrossing()
             const FVector EscapeApproach=Roadblock->GetSpikeApproachDirection();
             FHitResult EscapeHit;
             Vehicle->SetActorLocation(PostSpikeStartLocation+EscapeApproach*FMath::Min(480.f,Phase*140.f),true,&EscapeHit,ETeleportType::TeleportPhysics);
+            if(USkeletalMeshComponent* Mesh=Vehicle->GetMesh())
+            {
+                const FVector EscapeVelocity=Mesh->GetPhysicsLinearVelocity();
+                if(FVector::DotProduct(EscapeVelocity,EscapeApproach)<120.f)
+                    Mesh->SetPhysicsLinearVelocity(EscapeApproach*260.f+FVector::UpVector*FMath::Clamp(EscapeVelocity.Z,-80.f,80.f));
+            }
             UChaosWheeledVehicleMovementComponent* EscapeMovement=Cast<UChaosWheeledVehicleMovementComponent>(Vehicle->GetVehicleMovementComponent());
             const float EscapeDistance=FVector::Dist2D(PostSpikeStartLocation,Vehicle->GetActorLocation());
             if(Phase>=3.f&&EscapeMovement&&EscapeMovement->IsActive()&&EscapeMovement->GetNumWheels()>=4&&EscapeDistance>=150.f&&Vehicle->GetVelocity().Size2D()>10.f)
