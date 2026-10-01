@@ -76,6 +76,7 @@ for token in (
     "assist_alert_samples",
     "thermal_alert_samples",
     "cooling_alert_samples",
+    "thermal_hud_eligible_samples",
     "build SHA mismatch",
 ):
     require(token in evaluator, f"0.1.67 evaluator missing: {token}")
