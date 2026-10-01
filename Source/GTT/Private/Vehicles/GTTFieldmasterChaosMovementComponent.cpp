@@ -95,6 +95,11 @@ namespace
 UGTTFieldmasterChaosMovementComponent::UGTTFieldmasterChaosMovementComponent(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
+    // GTT owns forward/reverse selection through the shared drivetrain authority.
+    // Keep Chaos from reinterpreting a positive effective throttle as a request
+    // to leave an explicitly selected reverse gear.
+    bReverseAsBrake = false;
+    bThrottleAsBrake = false;
     bMechanicalSimEnabled = true;
     bFieldmasterConfigurationValid = false;
 }

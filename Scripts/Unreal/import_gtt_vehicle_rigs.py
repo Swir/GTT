@@ -49,8 +49,18 @@ def stabilize_physics_asset(name, physics):
     # Auto-generation creates dynamic bodies and constraints for every wheel bone.
     # Those fight Chaos Vehicles' suspension and make the rig flip or lose contacts.
     result=unreal.GTTChaosNativeSetupLibrary.stabilize_generated_physics_asset(physics,unreal.Name(name))
-    if not result or not result[0]: fail(f"PHYSICS_STABILIZATION_FAILED_{name}_{result}")
-    return str(result[1])
+    # UE exposes this bool + FString& function as the output string on some
+    # Python builds, and as a (bool, string) tuple on others.  Treat both forms
+    # explicitly so evidence contains the complete chassis contract instead of
+    # the second character of the returned string.
+    if isinstance(result, str):
+        summary=result
+        succeeded=summary.startswith("Canonical root-only chassis physics")
+    else:
+        succeeded=bool(result and result[0])
+        summary=str(result[1]) if result and len(result)>1 else ""
+    if not succeeded: fail(f"PHYSICS_STABILIZATION_FAILED_{name}_{result}")
+    return summary
 
 
 def import_vehicle(name, spec):
@@ -90,11 +100,14 @@ def import_vehicle(name, spec):
         unreal.SkeletalMeshEditorSubsystem.create_physics_asset(mesh,True,0)
         physics=mesh.get_editor_property("physics_asset")
     if physics is None: fail(f"PHYSICS_ASSET_MISSING_{name}")
+    skeleton=mesh.get_editor_property("skeleton")
+    if skeleton is None: fail(f"SKELETON_MISSING_{name}")
     physics_summary=stabilize_physics_asset(name,physics)
     if not unreal.EditorAssetLibrary.save_loaded_asset(mesh,False): fail(f"SAVE_FAILED_{name}")
     if not unreal.EditorAssetLibrary.save_loaded_asset(physics,False): fail(f"PHYSICS_SAVE_FAILED_{name}")
+    if not unreal.EditorAssetLibrary.save_loaded_asset(skeleton,False): fail(f"SKELETON_SAVE_FAILED_{name}")
     return {"vehicle":name,"source_gltf":source.name,"source_gltf_bytes":len(source_bytes),"source_gltf_sha256":source_sha256,
-        "skeletal_mesh":mesh.get_path_name(),"physics_asset":physics.get_path_name(),
+        "skeletal_mesh":mesh.get_path_name(),"skeleton":skeleton.get_path_name(),"physics_asset":physics.get_path_name(),
         "physics_body_bones":["root"],"physics_summary":physics_summary,"bones":list(REQUIRED_BONES),"sockets":desired}
 
 

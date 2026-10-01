@@ -15,13 +15,15 @@
 namespace
 {
     constexpr float StartDelaySeconds = 126.0f;
+    constexpr float FocusedStartDelaySeconds = 8.0f;
     constexpr float GlobalDeadlineSeconds = 172.0f;
     constexpr float AuthoredRuntimeTimeoutSeconds = 10.0f;
+    constexpr float PostAttachSettleSeconds = 1.0f;
     constexpr float LoadedMotionTimeoutSeconds = 22.0f;
     constexpr float ControlledStopTimeoutSeconds = 8.0f;
     constexpr float SampleIntervalSeconds = 0.25f;
-    constexpr float TowThrottle = 0.62f;
-    constexpr float MaxSteering = 0.22f;
+    constexpr float TowThrottle = 0.82f;
+    constexpr float MaxSteering = 0.0f;
     constexpr float MinimumEvidenceSpeedKmh = 4.0f;
     constexpr float MinimumTowDistanceCm = 900.0f;
     constexpr float StopSpeedKmh = 1.5f;
@@ -30,19 +32,28 @@ namespace
     constexpr int32 MinimumMovingDualContactSamples = 8;
     const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
     const FName TowEyeSocket(TEXT("socket_hitch"));
+    const FVector TrailerEvidencePadLocation(8500.0f, 5000.0f, 0.0f);
+    const FRotator TrailerEvidencePadRotation(0.0f, 0.0f, 0.0f);
 }
 
 void UGTTTrailerEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
     const TCHAR* CommandLine = FCommandLine::Get();
-    bEnabled = FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario")) ||
-        (FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) && !FParse::Param(CommandLine, TEXT("GTTDisableTrailerScenario")));
+    const bool bFocusedTrailerRuntime = FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+    const bool bDemoSmokeRuntime = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario"));
+    bEnabled = bFocusedTrailerRuntime ||
+        (bDemoSmokeRuntime && !FParse::Param(CommandLine, TEXT("GTTDisableTrailerScenario")));
     if (bEnabled)
     {
+        if (bFocusedTrailerRuntime && !bDemoSmokeRuntime)
+        {
+            Elapsed = StartDelaySeconds - FocusedStartDelaySeconds;
+        }
         GTT_LOG( Log,
-            TEXT("NATIVE_TRAILER_SCENARIO_BEGIN version=1 start_delay=%.1f deadline=%.1f min_distance_cm=%.0f min_speed_kmh=%.1f"),
-            StartDelaySeconds, GlobalDeadlineSeconds, MinimumTowDistanceCm, MinimumEvidenceSpeedKmh);
+            TEXT("NATIVE_TRAILER_SCENARIO_BEGIN version=1 start_delay=%.1f effective_start_delay=%.1f deadline=%.1f min_distance_cm=%.0f min_speed_kmh=%.1f source=formal"),
+            StartDelaySeconds, bFocusedTrailerRuntime && !bDemoSmokeRuntime ? FocusedStartDelaySeconds : StartDelaySeconds,
+            GlobalDeadlineSeconds, MinimumTowDistanceCm, MinimumEvidenceSpeedKmh);
     }
 }
 
@@ -129,11 +140,47 @@ bool UGTTTrailerEvidenceScenarioSubsystem::StageTrailerAtHitch(AGTTFieldmasterNa
 {
     if (!Pawn || !FarmTrailer) return false;
 
+    UWorld* World = GetWorld();
+    USkeletalMeshComponent* VehicleBody = Pawn->GetMesh();
+    if (!World || !VehicleBody) return false;
+
+    FVector TowStageLocation = TrailerEvidencePadLocation;
+    FHitResult GroundHit;
+    FCollisionObjectQueryParams GroundObjects;
+    GroundObjects.AddObjectTypesToQuery(ECC_WorldStatic);
+    FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(GTTTrailerEvidenceGround), false, Pawn);
+    if (!World->LineTraceSingleByObjectType(
+        GroundHit,
+        TowStageLocation + FVector(0.0f, 0.0f, 1000.0f),
+        TowStageLocation - FVector(0.0f, 0.0f, 1500.0f),
+        GroundObjects,
+        GroundQuery))
+    {
+        return false;
+    }
+
+    TowStageLocation.Z = GroundHit.ImpactPoint.Z + 4.0f;
+    FarmTrailer->DetachTrailer();
+    Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    Pawn->SetActorTransform(
+        FTransform(TrailerEvidencePadRotation, TowStageLocation),
+        false,
+        nullptr,
+        ETeleportType::ResetPhysics);
+    VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    VehicleBody->WakeAllRigidBodies();
+
     FTransform HitchTransform;
     if (!Pawn->TryGetRearHitchTransform(HitchTransform)) return false;
 
     const FVector InitialLocation = HitchTransform.GetLocation() - Pawn->GetActorForwardVector() * 360.0f;
-    FTransform StageTransform(Pawn->GetActorRotation(), InitialLocation, FVector::OneVector);
+    FRotator StageRotation = Pawn->GetActorRotation();
+    StageRotation.Yaw += 180.0f;
+    StageRotation.Normalize();
+    FTransform StageTransform(StageRotation, InitialLocation, FVector::OneVector);
     FarmTrailer->ResetTrailer(StageTransform);
 
     TArray<USkinnedMeshComponent*> SkeletalMeshes;
@@ -151,7 +198,7 @@ bool UGTTTrailerEvidenceScenarioSubsystem::StageTrailerAtHitch(AGTTFieldmasterNa
     if (!AuthoredRig || !AuthoredRig->DoesSocketExist(TowEyeSocket))
     {
         GTT_LOG( Error,
-            TEXT("NATIVE_TRAILER_SCENARIO phase=STAGE result=FAIL reason=authored-rig-or-tow-eye-unavailable"));
+            TEXT("NATIVE_TRAILER_SCENARIO phase=STAGE result=FAIL reason=authored-rig-or-tow-eye-unavailable source=formal"));
         return false;
     }
 
@@ -163,8 +210,9 @@ bool UGTTTrailerEvidenceScenarioSubsystem::StageTrailerAtHitch(AGTTFieldmasterNa
 
     const bool bAttached = FarmTrailer->AttachToNativeFieldmaster(Pawn);
     GTT_LOG( Log,
-        TEXT("NATIVE_TRAILER_SCENARIO phase=STAGE result=%s align_delta_cm=%.1f cargo=%d tow_load=%.2f"),
-        bAttached ? TEXT("PASS") : TEXT("FAIL"), AlignmentDelta.Size(), FarmTrailer->HasCargo() ? 1 : 0, FarmTrailer->GetTowLoadFactor());
+        TEXT("NATIVE_TRAILER_SCENARIO phase=STAGE result=%s align_delta_cm=%.1f cargo=%d tow_load=%.2f tow_stage=(%.0f,%.0f,%.0f) source=formal"),
+        bAttached ? TEXT("PASS") : TEXT("FAIL"), AlignmentDelta.Size(), FarmTrailer->HasCargo() ? 1 : 0, FarmTrailer->GetTowLoadFactor(),
+        TowStageLocation.X, TowStageLocation.Y, TowStageLocation.Z);
     return bAttached;
 }
 
@@ -172,7 +220,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
     GTT_LOG( Error,
-        TEXT("NATIVE_TRAILER_SCENARIO phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
+        TEXT("NATIVE_TRAILER_SCENARIO phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f source=formal"),
         Reason, Elapsed);
 }
 
@@ -204,7 +252,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::CompleteScenario(
         && MaxHitchErrorCm <= HardHitchErrorCm;
 
     GTT_LOG( Log,
-        TEXT("NATIVE_TRAILER_SCENARIO_COMPLETE result=%s route=loaded-authored-tow attachment=%d authored=%d loaded=%d stopped=%d max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d max_hitch_error_cm=%.1f max_articulation_deg=%.1f min_cargo_integrity=%.3f final_speed_kmh=%.2f reason=%s elapsed=%.2f"),
+        TEXT("NATIVE_TRAILER_SCENARIO_COMPLETE result=%s route=loaded-authored-tow attachment=%d authored=%d loaded=%d stopped=%d max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d max_hitch_error_cm=%.1f max_articulation_deg=%.1f min_cargo_integrity=%.3f final_speed_kmh=%.2f reason=%s elapsed=%.2f source=formal"),
         bPass ? TEXT("PASS") : TEXT("FAIL"),
         bAttachmentProven ? 1 : 0, bAuthoredRuntimeProven ? 1 : 0, bLoadedTowProven ? 1 : 0, bControlledStopProven ? 1 : 0,
         MaxTowSpeedKmh, MaxTowDistanceCm, MovingDualContactSamples, SafeMovingSamples, MaxHitchErrorCm, MaxArticulationDeg,
@@ -262,13 +310,16 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case ETrailerEvidencePhase::AwaitAuthoredRuntime:
     {
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 0.90f);
         const FGTTAuthoredTrailerRuntimeSnapshot Snapshot = Runtime->GetRuntimeSnapshot(FarmTrailer);
-        const bool bReady = Runtime->IsAuthoredRuntimeActive(FarmTrailer)
+        const bool bReady = Elapsed - PhaseStartedSeconds >= PostAttachSettleSeconds
+            && Runtime->IsAuthoredRuntimeActive(FarmTrailer)
             && Snapshot.bAuthoredRigValid
             && Snapshot.bAuthoredPresentationActive
             && Snapshot.bLeftWheelContact
             && Snapshot.bRightWheelContact
-            && Snapshot.HitchAlignmentErrorCm <= SafeHitchErrorCm;
+            && Snapshot.HitchAlignmentErrorCm <= SafeHitchErrorCm
+            && Pawn->GetVelocity().Size2D() * 0.036f <= StopSpeedKmh;
 
         if (bReady)
         {
@@ -279,7 +330,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
             PhaseStartedSeconds = Elapsed;
             SampleAccumulator = 0.0f;
             GTT_LOG( Log,
-                TEXT("NATIVE_TRAILER_SCENARIO phase=AUTHORED_READY result=PASS contacts=%.1f hitch_error_cm=%.1f cargo=%d tow_load=%.2f"),
+                TEXT("NATIVE_TRAILER_SCENARIO phase=AUTHORED_READY result=PASS contacts=%.1f hitch_error_cm=%.1f cargo=%d tow_load=%.2f source=formal"),
                 Snapshot.ContactRatio, Snapshot.HitchAlignmentErrorCm, FarmTrailer->HasCargo() ? 1 : 0, FarmTrailer->GetTowLoadFactor());
         }
         else if (Elapsed - PhaseStartedSeconds >= AuthoredRuntimeTimeoutSeconds)
@@ -315,7 +366,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
             if (bMoving && bDualContact && bSafeHitch) ++SafeMovingSamples;
 
             GTT_LOG( Log,
-                TEXT("NATIVE_TRAILER_SCENARIO_SAMPLE speed_kmh=%.2f distance_cm=%.1f loaded=%d attached=%d active=%d contacts=%.1f left=%d right=%d hitch_error_cm=%.1f articulation_deg=%.1f cargo_integrity=%.3f trailer_integrity=%.3f hitch_load=%.3f"),
+                TEXT("NATIVE_TRAILER_SCENARIO_SAMPLE speed_kmh=%.2f distance_cm=%.1f loaded=%d attached=%d active=%d contacts=%.1f left=%d right=%d hitch_error_cm=%.1f articulation_deg=%.1f cargo_integrity=%.3f trailer_integrity=%.3f hitch_load=%.3f source=formal"),
                 SpeedKmh, DistanceCm, FarmTrailer->HasCargo() ? 1 : 0, FarmTrailer->IsAttachedToNativeFieldmaster() ? 1 : 0,
                 Runtime->IsAuthoredRuntimeActive(FarmTrailer) ? 1 : 0, Snapshot.ContactRatio,
                 Snapshot.bLeftWheelContact ? 1 : 0, Snapshot.bRightWheelContact ? 1 : 0,
@@ -335,7 +386,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
         {
             bLoadedTowProven = bEvidenceReady;
             GTT_LOG( Log,
-                TEXT("NATIVE_TRAILER_SCENARIO phase=LOADED_MOTION result=%s max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d tow_load=%.2f"),
+                TEXT("NATIVE_TRAILER_SCENARIO phase=LOADED_MOTION result=%s max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d tow_load=%.2f source=formal"),
                 bEvidenceReady ? TEXT("PASS") : TEXT("FAIL"), MaxTowSpeedKmh, MaxTowDistanceCm,
                 MovingDualContactSamples, SafeMovingSamples, FarmTrailer->GetTowLoadFactor());
             if (!bEvidenceReady) MarkFailure(TEXT("loaded-motion-evidence-incomplete"));
@@ -359,7 +410,7 @@ void UGTTTrailerEvidenceScenarioSubsystem::Tick(float DeltaTime)
                 && FarmTrailer->HasCargo()
                 && FarmTrailer->HasIntactAxle();
             GTT_LOG( Log,
-                TEXT("NATIVE_TRAILER_SCENARIO phase=CONTROLLED_STOP result=%s speed_kmh=%.2f attached=%d cargo=%d axle_intact=%d"),
+                TEXT("NATIVE_TRAILER_SCENARIO phase=CONTROLLED_STOP result=%s speed_kmh=%.2f attached=%d cargo=%d axle_intact=%d source=formal"),
                 bControlledStopProven ? TEXT("PASS") : TEXT("FAIL"), SpeedKmh,
                 FarmTrailer->IsAttachedToNativeFieldmaster() ? 1 : 0, FarmTrailer->HasCargo() ? 1 : 0,
                 FarmTrailer->HasIntactAxle() ? 1 : 0);

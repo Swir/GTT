@@ -130,7 +130,7 @@ namespace
         }
 
         const FVector TowForward = TowActor->GetActorForwardVector().GetSafeNormal2D();
-        const FVector TrailerForward = Trailer->GetActorForwardVector().GetSafeNormal2D();
+        const FVector TrailerForward = -Trailer->GetActorForwardVector().GetSafeNormal2D();
         if (TowForward.IsNearlyZero() || TrailerForward.IsNearlyZero())
         {
             return 0.0f;
@@ -502,7 +502,7 @@ void UGTTAuthoredTrailerPresentationSubsystem::EmitRuntimeEvidence(FRuntimeTrail
     UE_LOG(
         LogGTT,
         Display,
-        TEXT("NATIVE_TRAILER_SCENARIO_SAMPLE speed_kmh=%.2f distance_cm=%.1f loaded=1 attached=1 active=1 contacts=%.3f left=%d right=%d hitch_error_cm=%.2f articulation_deg=%.2f cargo_integrity=%.3f trailer_integrity=%.3f hitch_load=%.3f"),
+        TEXT("AUTHORED_TRAILER_PASSIVE_SAMPLE speed_kmh=%.2f distance_cm=%.1f loaded=1 attached=1 active=1 contacts=%.3f left=%d right=%d hitch_error_cm=%.2f articulation_deg=%.2f cargo_integrity=%.3f trailer_integrity=%.3f hitch_load=%.3f"),
         SpeedKmh,
         Runtime.ScenarioDistanceCm,
         ContactFraction,
@@ -519,7 +519,7 @@ void UGTTAuthoredTrailerPresentationSubsystem::EmitRuntimeEvidence(FRuntimeTrail
         UE_LOG(
             LogGTT,
             Warning,
-            TEXT("NATIVE_TRAILER_SCENARIO phase=DIAGNOSTIC result=FAIL reason=HITCH_ENVELOPE hitch_error_cm=%.2f hard_limit_cm=%.2f"),
+            TEXT("AUTHORED_TRAILER_PASSIVE_WARNING reason=HITCH_ENVELOPE hitch_error_cm=%.2f hard_limit_cm=%.2f"),
             HitchErrorCm,
             ScenarioHardHitchErrorCm);
     }
@@ -538,7 +538,7 @@ void UGTTAuthoredTrailerPresentationSubsystem::EmitRuntimeEvidence(FRuntimeTrail
         UE_LOG(
             LogGTT,
             Display,
-            TEXT("NATIVE_TRAILER_SCENARIO_COMPLETE result=PASS route=loaded-authored-tow attachment=1 authored=1 loaded=1 stopped=1 max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d max_hitch_error_cm=%.2f max_articulation_deg=%.2f min_cargo_integrity=%.3f final_speed_kmh=%.2f"),
+            TEXT("AUTHORED_TRAILER_PASSIVE_SUMMARY status=OBSERVED route=loaded-authored-tow attachment=1 authored=1 loaded=1 stopped=1 max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d max_hitch_error_cm=%.2f max_articulation_deg=%.2f min_cargo_integrity=%.3f final_speed_kmh=%.2f"),
             Runtime.ScenarioMaxSpeedKmh,
             Runtime.ScenarioDistanceCm,
             Runtime.ScenarioDualContactSamples,

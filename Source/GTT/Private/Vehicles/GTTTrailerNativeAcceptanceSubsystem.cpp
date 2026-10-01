@@ -122,7 +122,9 @@ bool UGTTTrailerNativeAcceptanceSubsystem::EvaluateNativeHitch(AGTTFarmTrailer* 
     State.bHitchAligned = State.HitchErrorCm <= MaxHitchAlignmentErrorCm;
 
     const FVector TowForward = NativeTow->GetActorForwardVector().GetSafeNormal2D();
-    const FVector TrailerForward = Trailer->GetActorForwardVector().GetSafeNormal2D();
+    // The authored drawbar and tow eye are on local -X, so the trailer's
+    // travel-forward direction is opposite the actor's local +X axis.
+    const FVector TrailerForward = -Trailer->GetActorForwardVector().GetSafeNormal2D();
     const float Dot = FMath::Clamp(FVector::DotProduct(TowForward, TrailerForward), -1.0f, 1.0f);
     State.ArticulationYawDeg = FMath::RadiansToDegrees(FMath::Acos(Dot));
 

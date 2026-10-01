@@ -42,7 +42,9 @@ struct GTT_API FGTTChaosVehicleSpec
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GTT|Vehicle|Chaos") FGTTChaosWheelSpec FrontWheel;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GTT|Vehicle|Chaos") FGTTChaosWheelSpec RearWheel;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GTT|Vehicle|Chaos") TArray<float> ForwardGearRatios;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GTT|Vehicle|Chaos") float ReverseGearRatio = -3.1f;
+    // Chaos stores reverse ratios as positive magnitudes and applies the
+    // negative direction when resolving a reverse gear.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GTT|Vehicle|Chaos") float ReverseGearRatio = 3.1f;
 };
 
 UCLASS()

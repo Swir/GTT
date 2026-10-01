@@ -111,17 +111,21 @@ void AGTTPolicePursuitVehicle::DriveTowardPlayer(APawn* PlayerPawn, int32 Wanted
     }
 }
 
-void AGTTPolicePursuitVehicle::ApplyAcceptanceClosingAssist(APawn* PlayerPawn)
+float AGTTPolicePursuitVehicle::ApplyAcceptanceClosingAssist(APawn* PlayerPawn)
 {
-    if (!PlayerPawn || !VehicleMesh || !VehicleMesh->IsSimulatingPhysics()) return;
+    if (!PlayerPawn || !VehicleMesh) return TNumericLimits<float>::Max();
     const FVector ToTarget = PlayerPawn->GetActorLocation() - GetActorLocation();
     const FVector DesiredDir = ToTarget.GetSafeNormal2D();
-    const FVector Velocity = VehicleMesh->GetPhysicsLinearVelocity();
-    const float ClosingSpeed = FVector::DotProduct(Velocity, DesiredDir);
-    const float TargetClosingSpeed = 650.0f;
-    const FVector CorrectedVelocity = Velocity + DesiredDir * FMath::Max(0.0f, TargetClosingSpeed - ClosingSpeed);
-    VehicleMesh->SetPhysicsLinearVelocity(FVector(CorrectedVelocity.X, CorrectedVelocity.Y, FMath::Clamp(CorrectedVelocity.Z, -150.0f, 150.0f)));
-    VehicleMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    const bool bSimulatingPhysics = VehicleMesh->IsSimulatingPhysics();
+    if (bSimulatingPhysics)
+    {
+        const FVector Velocity = VehicleMesh->GetPhysicsLinearVelocity();
+        const float ClosingSpeed = FVector::DotProduct(Velocity, DesiredDir);
+        const float TargetClosingSpeed = 650.0f;
+        const FVector CorrectedVelocity = Velocity + DesiredDir * FMath::Max(0.0f, TargetClosingSpeed - ClosingSpeed);
+        VehicleMesh->SetPhysicsLinearVelocity(FVector(CorrectedVelocity.X, CorrectedVelocity.Y, FMath::Clamp(CorrectedVelocity.Z, -150.0f, 150.0f)));
+        VehicleMesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    }
     const float Distance = ToTarget.Size2D();
     if (Distance > 600.0f)
     {
@@ -130,12 +134,15 @@ void AGTTPolicePursuitVehicle::ApplyAcceptanceClosingAssist(APawn* PlayerPawn)
         // incidental spawn overlap consume the entire deterministic step.
         // The skeletal mesh is the simulated root. Move it directly so the
         // actor transform observed later in this tick reflects the assist.
-        VehicleMesh->SetWorldLocation(
-            VehicleMesh->GetComponentLocation() + DesiredDir * StepCm,
-            false,
-            nullptr,
-            ETeleportType::TeleportPhysics);
+        const FVector AssistedLocation = GetActorLocation() + DesiredDir * StepCm;
+        if (bSimulatingPhysics)
+            VehicleMesh->SetWorldLocation(AssistedLocation, false, nullptr, ETeleportType::TeleportPhysics);
+        else
+            SetActorLocation(AssistedLocation, false, nullptr, ETeleportType::TeleportPhysics);
     }
+    // The physics component is the authoritative runtime pose. Returning its
+    // post-assist distance avoids reading a one-frame-stale actor transform.
+    return FVector::Dist2D(VehicleMesh->GetComponentLocation(), PlayerPawn->GetActorLocation());
 }
 
 void AGTTPolicePursuitVehicle::UpdateBeacon(float DeltaSeconds)

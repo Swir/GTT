@@ -30,6 +30,7 @@ private:
     enum class EDrivetrainEvidencePhase : uint8
     {
         Waiting,
+        Settling,
         ForwardAcceleration,
         BrakeForReverse,
         ReverseAcceleration,
@@ -41,6 +42,7 @@ private:
     AGTTFieldmasterNativePawn* ResolveFieldmaster();
     UChaosWheeledVehicleMovementComponent* ResolveMovement(AGTTFieldmasterNativePawn* Pawn) const;
     float GetSignedSpeedKmh(const AGTTFieldmasterNativePawn* Pawn) const;
+    bool StageFieldmaster(AGTTFieldmasterNativePawn* Pawn, UChaosWheeledVehicleMovementComponent* Movement);
     void BeginForwardAcceleration(AGTTFieldmasterNativePawn* Pawn, UChaosWheeledVehicleMovementComponent* Movement);
     void MarkFailure(const TCHAR* Reason);
     void CompleteScenario(AGTTFieldmasterNativePawn* Pawn, UChaosWheeledVehicleMovementComponent* Movement, const TCHAR* Reason);

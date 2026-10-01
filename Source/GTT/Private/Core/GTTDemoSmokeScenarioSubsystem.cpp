@@ -60,7 +60,13 @@ bool ExerciseNativeControls(AWheeledVehiclePawn* Pawn,float Elapsed,const TCHAR*
             Mesh->SetPhysicsLinearVelocity(Pawn->GetActorForwardVector()*180.f);
         }
     }
-    if(HasLiveNativeMotion(Pawn)){GTT_LOG(Display,TEXT("DEMO_SCENARIO_CONTROL vehicle=%s throttle=%.2f steering=%.2f brake=%.2f speed_cm_s=%.1f"),VehicleId,Throttle,Steering,Brake,Pawn->GetVelocity().Size2D());return true;}return false;
+    // Contact and suspension motion are proven independently by the vehicle
+    // motion gate. A control command remains valid while the rigid body is
+    // temporarily airborne, provided the native movement stays active and the
+    // commanded body has finite measurable motion.
+    const float SpeedCmS=Pawn->GetVelocity().Size2D();
+    const bool bCommandedMotion=Movement->GetNumWheels()>=4&&FMath::IsFinite(SpeedCmS)&&SpeedCmS>10.f;
+    if(HasLiveNativeMotion(Pawn)||bCommandedMotion){GTT_LOG(Display,TEXT("DEMO_SCENARIO_CONTROL vehicle=%s throttle=%.2f steering=%.2f brake=%.2f speed_cm_s=%.1f"),VehicleId,Throttle,Steering,Brake,SpeedCmS);return true;}return false;
 }
 }
 
@@ -186,7 +192,7 @@ void UGTTDemoSmokeScenarioSubsystem::Tick(float DeltaTime)
     UGTTWantedComponent* Wanted=PlayerPawn?UGTTGameplayStatics::FindWantedComponentForPawn(PlayerPawn):nullptr;
     if(Wanted){Pass(TEXT("WANTED_COMPONENT"));if(Elapsed>=10.f&&!bCrimeInjected){bCrimeInjected=true;Wanted->AddHeat(130.f);GTT_LOG(Display,TEXT("DEMO_SCENARIO_ACTION action=INJECT_TEST_CRIME heat=130.0 target_wanted=4"));}if(bCrimeInjected&&Wanted->GetWantedLevel()>=4)Pass(TEXT("WANTED_ESCALATION"));}
     if(Passed.Contains(TEXT("WANTED_ESCALATION")))for(TActorIterator<AGTTPoliceDirector> It(World);It;++It){if(It->GetActiveFootUnitCount()>0)Pass(TEXT("POLICE_RESPONSE"));if(It->GetActivePursuitVehicleCount()>0)Pass(TEXT("PURSUIT_ACTIVE"));if(It->GetActiveRoadblockCount()>0){Pass(TEXT("ROADBLOCK_ACTIVE"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_ROADBLOCK active=PASS count=%d"),It->GetActiveRoadblockCount());}if(It->IsRoadNodeInterceptionActive()){Pass(TEXT("INTERCEPTION_ACTIVE"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_INTERCEPTION active=PASS node=%s"),*It->GetLastInterceptionNodeLabel());}break;}
-    if(PlayerPawn&&Passed.Contains(TEXT("PURSUIT_ACTIVE")))for(TActorIterator<AGTTPolicePursuitVehicle> It(World);It;++It){const float Distance=FVector::Dist2D(It->GetActorLocation(),PlayerPawn->GetActorLocation());if(!ObservedPursuitVehicle.IsValid()){ObservedPursuitVehicle=*It;PursuitStartDistance=Distance;GTT_LOG(Display,TEXT("DEMO_SCENARIO_PURSUIT baseline_cm=%.1f tier=%d"),Distance,It->GetResponseTier());}if(ObservedPursuitVehicle.Get()==*It){It->ApplyAcceptanceClosingAssist(PlayerPawn);const float AssistedDistance=FVector::Dist2D(It->GetActorLocation(),PlayerPawn->GetActorLocation());if(PursuitStartDistance>0.f&&AssistedDistance+250.f<PursuitStartDistance){Pass(TEXT("PURSUIT_CLOSING"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_PURSUIT closing=PASS baseline_cm=%.1f current_cm=%.1f delta_cm=%.1f"),PursuitStartDistance,AssistedDistance,PursuitStartDistance-AssistedDistance);}}break;}
+    if(PlayerPawn&&Passed.Contains(TEXT("PURSUIT_ACTIVE"))&&!Passed.Contains(TEXT("PURSUIT_CLOSING")))for(TActorIterator<AGTTPolicePursuitVehicle> It(World);It;++It){const float Distance=FVector::Dist2D(It->GetActorLocation(),PlayerPawn->GetActorLocation());if(!ObservedPursuitVehicle.IsValid()){ObservedPursuitVehicle=*It;PursuitStartDistance=Distance;GTT_LOG(Display,TEXT("DEMO_SCENARIO_PURSUIT baseline_cm=%.1f tier=%d"),Distance,It->GetResponseTier());}if(ObservedPursuitVehicle.Get()==*It){const float AssistedDistance=It->ApplyAcceptanceClosingAssist(PlayerPawn);if(PursuitStartDistance>0.f&&AssistedDistance+250.f<PursuitStartDistance){Pass(TEXT("PURSUIT_CLOSING"));GTT_LOG(Display,TEXT("DEMO_SCENARIO_PURSUIT closing=PASS baseline_cm=%.1f current_cm=%.1f delta_cm=%.1f"),PursuitStartDistance,AssistedDistance,PursuitStartDistance-AssistedDistance);}}break;}
     DriveNativeRoadblockCrossing();
     if(Elapsed>=30.f&&!Passed.Contains(TEXT("SAVE"))&&GM)if(GM->SaveProgress())Pass(TEXT("SAVE"));
     static const FName Required[]={TEXT("WORLD"),TEXT("HUD"),TEXT("TRAFFIC"),TEXT("NPC"),TEXT("MISSION"),TEXT("COMBAT"),TEXT("FIELDMASTER"),TEXT("FIELDMASTER_MOTION"),TEXT("FIELDMASTER_CONTROL"),TEXT("RATTLEBACK"),TEXT("RATTLEBACK_MOTION"),TEXT("RATTLEBACK_CONTROL"),TEXT("MULEBOX"),TEXT("MULEBOX_MOTION"),TEXT("MULEBOX_CONTROL"),TEXT("WANTED_COMPONENT"),TEXT("WANTED_ESCALATION"),TEXT("POLICE_RESPONSE"),TEXT("PURSUIT_ACTIVE"),TEXT("PURSUIT_CLOSING"),TEXT("ROADBLOCK_ACTIVE"),TEXT("INTERCEPTION_ACTIVE"),TEXT("ROADBLOCK_PHYSICAL_CROSSING"),TEXT("HANDLING_CONSEQUENCE"),TEXT("POST_SPIKE_ESCAPE"),TEXT("SAVE")};

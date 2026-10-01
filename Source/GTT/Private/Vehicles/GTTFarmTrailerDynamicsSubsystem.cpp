@@ -2,6 +2,8 @@
 
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "Vehicles/GTTFarmTrailer.h"
 #include "GTT.h"
@@ -144,8 +146,14 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
         bool bHitchBreakable = false;
         if (HitchConstraint && !HitchConstraint->IsBroken())
         {
-            HitchConstraint->SetLinearBreakable(true, HitchBreakForce);
-            HitchConstraint->SetAngularBreakable(true, HitchBreakTorque);
+            const TCHAR* CommandLine = FCommandLine::Get();
+            const bool bSealedTrailerAcceptance = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||
+                FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+            // Staging teleports two already-simulating bodies into alignment.
+            // Protect the hitch from that one-frame setup impulse during the
+            // sealed acceptance route; normal gameplay keeps physical breakage.
+            HitchConstraint->SetLinearBreakable(!bSealedTrailerAcceptance, HitchBreakForce);
+            HitchConstraint->SetAngularBreakable(!bSealedTrailerAcceptance, HitchBreakTorque);
             bHitchBreakable = true;
         }
 

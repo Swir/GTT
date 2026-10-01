@@ -1,6 +1,7 @@
 #include "Core/GTTDrivetrainEvidenceScenarioSubsystem.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/CommandLine.h"
@@ -13,10 +14,14 @@ namespace
 {
     constexpr float StartDelaySeconds = 76.0f;
     constexpr float GlobalDeadlineSeconds = 122.0f;
+    constexpr float SettleDurationSeconds = 0.75f;
     constexpr float ForwardAccelerationTimeoutSeconds = 16.0f;
-    constexpr float ReverseAccelerationTimeoutSeconds = 12.0f;
+    // The Chaos transmission can report the committed reverse gear one or two
+    // physics frames after reverse motion has already crossed the threshold.
+    constexpr float ReverseAccelerationTimeoutSeconds = 14.0f;
     constexpr float ForwardReturnTimeoutSeconds = 10.0f;
     constexpr float ShiftReleaseSpeedKmh = 3.5f;
+    constexpr float DirectionCommitSpeedKmh = 0.5f;
     constexpr float SafeShiftEvidenceToleranceKmh = 0.25f;
     constexpr float ForwardEvidenceSpeedKmh = 6.0f;
     constexpr float ReverseEvidenceSpeedKmh = 5.0f;
@@ -25,6 +30,8 @@ namespace
     constexpr float ReverseThrottle = -0.72f;
     constexpr float ReturnThrottle = 0.72f;
     constexpr float ShiftBrake = 0.85f;
+    const FVector EvidencePadLocation(8500.0f, 5000.0f, 0.0f);
+    const FRotator EvidencePadRotation(0.0f, 180.0f, 0.0f);
 }
 
 void UGTTDrivetrainEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -99,6 +106,52 @@ UChaosWheeledVehicleMovementComponent* UGTTDrivetrainEvidenceScenarioSubsystem::
 float UGTTDrivetrainEvidenceScenarioSubsystem::GetSignedSpeedKmh(const AGTTFieldmasterNativePawn* Pawn) const
 {
     return Pawn ? FVector::DotProduct(Pawn->GetVelocity(), Pawn->GetActorForwardVector()) * 0.036f : 0.0f;
+}
+
+bool UGTTDrivetrainEvidenceScenarioSubsystem::StageFieldmaster(
+    AGTTFieldmasterNativePawn* Pawn,
+    UChaosWheeledVehicleMovementComponent* Movement)
+{
+    UWorld* World = GetWorld();
+    USkeletalMeshComponent* VehicleBody = Pawn ? Pawn->GetMesh() : nullptr;
+    if (!World || !Pawn || !Movement || !VehicleBody)
+    {
+        return false;
+    }
+
+    FVector StageLocation = EvidencePadLocation;
+    FHitResult GroundHit;
+    FCollisionObjectQueryParams GroundObjects;
+    GroundObjects.AddObjectTypesToQuery(ECC_WorldStatic);
+    FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(GTTDrivetrainEvidenceGround), false, Pawn);
+    if (!World->LineTraceSingleByObjectType(
+        GroundHit,
+        StageLocation + FVector(0.0f, 0.0f, 1000.0f),
+        StageLocation - FVector(0.0f, 0.0f, 1500.0f),
+        GroundObjects,
+        GroundQuery))
+    {
+        return false;
+    }
+
+    StageLocation.Z = GroundHit.ImpactPoint.Z + 4.0f;
+    Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    Movement->SetUseAutomaticGears(true);
+    VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    Pawn->SetActorTransform(
+        FTransform(EvidencePadRotation, StageLocation),
+        false,
+        nullptr,
+        ETeleportType::ResetPhysics);
+    VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    VehicleBody->WakeAllRigidBodies();
+
+    GTT_LOG( Log,
+        TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=STAGE result=PASS location=(%.0f,%.0f,%.0f) settle_seconds=%.2f"),
+        StageLocation.X, StageLocation.Y, StageLocation.Z, SettleDurationSeconds);
+    return true;
 }
 
 void UGTTDrivetrainEvidenceScenarioSubsystem::MarkFailure(const TCHAR* Reason)
@@ -188,7 +241,22 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
     switch (Phase)
     {
     case EDrivetrainEvidencePhase::Waiting:
-        BeginForwardAcceleration(Pawn, Movement);
+        if (!StageFieldmaster(Pawn, Movement))
+        {
+            MarkFailure(TEXT("fieldmaster-staging-failed"));
+            CompleteScenario(Pawn, Movement, TEXT("staging-failed"));
+            break;
+        }
+        Phase = EDrivetrainEvidencePhase::Settling;
+        PhaseStartedSeconds = Elapsed;
+        break;
+
+    case EDrivetrainEvidencePhase::Settling:
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+        if (Elapsed - PhaseStartedSeconds >= SettleDurationSeconds && AbsoluteSpeedKmh <= DirectionCommitSpeedKmh)
+        {
+            BeginForwardAcceleration(Pawn, Movement);
+        }
         break;
 
     case EDrivetrainEvidencePhase::ForwardAcceleration:
@@ -231,7 +299,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EDrivetrainEvidencePhase::BrakeForReverse:
         Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
-        if (AbsoluteSpeedKmh <= ShiftReleaseSpeedKmh)
+        if (AbsoluteSpeedKmh <= DirectionCommitSpeedKmh)
         {
             ReverseCommitSpeedKmh = AbsoluteSpeedKmh;
             bSafeReverseCommitObserved = ReverseCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
@@ -269,7 +337,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EDrivetrainEvidencePhase::BrakeForForward:
         Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
-        if (AbsoluteSpeedKmh <= ShiftReleaseSpeedKmh)
+        if (AbsoluteSpeedKmh <= DirectionCommitSpeedKmh)
         {
             ForwardCommitSpeedKmh = AbsoluteSpeedKmh;
             bSafeForwardCommitObserved = ForwardCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;

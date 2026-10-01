@@ -20,7 +20,22 @@ namespace
     const FName RequiredTowEyeSocket(TEXT("socket_hitch"));
     const FName RequiredLeftAxleSocket(TEXT("socket_axle_l"));
     const FName RequiredRightAxleSocket(TEXT("socket_axle_r"));
+    const FName LeftWheelComponentName(TEXT("LeftWheel"));
+    const FName RightWheelComponentName(TEXT("RightWheel"));
+    const FName HitchCouplerComponentName(TEXT("HitchCoupler"));
     constexpr float EvidenceIntervalSeconds = 2.0f;
+
+    UStaticMeshComponent* FindPhysicalComponent(AGTTFarmTrailer* Trailer, const FName ComponentName)
+    {
+        if (!Trailer) return nullptr;
+        TArray<UStaticMeshComponent*> Components;
+        Trailer->GetComponents<UStaticMeshComponent>(Components);
+        for (UStaticMeshComponent* Component : Components)
+        {
+            if (Component && Component->GetFName() == ComponentName) return Component;
+        }
+        return nullptr;
+    }
 
     bool IsLegacyPresentationComponent(const UStaticMeshComponent* Component)
     {
@@ -143,8 +158,12 @@ void UGTTTrailerAuthoredRuntimeSubsystem::ApplyAuthoredDynamics(AGTTFarmTrailer*
     UPrimitiveComponent* Body = Cast<UPrimitiveComponent>(Trailer->GetRootComponent());
     if (!Body || !Body->IsSimulatingPhysics()) return;
 
-    const FVector LeftWheelWorld = Rig->GetSocketTransform(RequiredLeftWheelBone, RTS_World).GetLocation();
-    const FVector RightWheelWorld = Rig->GetSocketTransform(RequiredRightWheelBone, RTS_World).GetLocation();
+    const UStaticMeshComponent* LeftWheel = FindPhysicalComponent(Trailer, LeftWheelComponentName);
+    const UStaticMeshComponent* RightWheel = FindPhysicalComponent(Trailer, RightWheelComponentName);
+    const FVector LeftWheelWorld = LeftWheel ? LeftWheel->GetComponentLocation()
+        : Rig->GetSocketTransform(RequiredLeftWheelBone, RTS_World).GetLocation();
+    const FVector RightWheelWorld = RightWheel ? RightWheel->GetComponentLocation()
+        : Rig->GetSocketTransform(RequiredRightWheelBone, RTS_World).GetLocation();
     State.Snapshot.bLeftWheelContact = TraceWheelContact(Trailer, LeftWheelWorld, State.Snapshot.LeftGroundClearanceCm);
     State.Snapshot.bRightWheelContact = TraceWheelContact(Trailer, RightWheelWorld, State.Snapshot.RightGroundClearanceCm);
     State.Snapshot.ContactRatio = 0.5f * (static_cast<float>(State.Snapshot.bLeftWheelContact) + static_cast<float>(State.Snapshot.bRightWheelContact));
@@ -207,9 +226,12 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
             FTransform RearHitch;
             if (NativeTow->TryGetRearHitchTransform(RearHitch))
             {
-                const FVector TowEye = Rig->GetSocketTransform(RequiredTowEyeSocket, RTS_World).GetLocation();
+                const UStaticMeshComponent* HitchCoupler = FindPhysicalComponent(Trailer, HitchCouplerComponentName);
+                const FVector TowEye = HitchCoupler ? HitchCoupler->GetComponentLocation()
+                    : Rig->GetSocketTransform(RequiredTowEyeSocket, RTS_World).GetLocation();
                 State.Snapshot.HitchAlignmentErrorCm = FVector::Distance(RearHitch.GetLocation(), TowEye);
-                const float Dot = FMath::Clamp(FVector::DotProduct(NativeTow->GetActorForwardVector().GetSafeNormal2D(), Trailer->GetActorForwardVector().GetSafeNormal2D()), -1.0f, 1.0f);
+                const FVector TrailerTravelForward = -Trailer->GetActorForwardVector().GetSafeNormal2D();
+                const float Dot = FMath::Clamp(FVector::DotProduct(NativeTow->GetActorForwardVector().GetSafeNormal2D(), TrailerTravelForward), -1.0f, 1.0f);
                 State.Snapshot.ArticulationYawDeg = FMath::RadiansToDegrees(FMath::Acos(Dot));
             }
         }
@@ -217,8 +239,12 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
     }
     else
     {
-        const FVector LeftWheelWorld = Rig->GetSocketTransform(RequiredLeftWheelBone, RTS_World).GetLocation();
-        const FVector RightWheelWorld = Rig->GetSocketTransform(RequiredRightWheelBone, RTS_World).GetLocation();
+        const UStaticMeshComponent* LeftWheel = FindPhysicalComponent(Trailer, LeftWheelComponentName);
+        const UStaticMeshComponent* RightWheel = FindPhysicalComponent(Trailer, RightWheelComponentName);
+        const FVector LeftWheelWorld = LeftWheel ? LeftWheel->GetComponentLocation()
+            : Rig->GetSocketTransform(RequiredLeftWheelBone, RTS_World).GetLocation();
+        const FVector RightWheelWorld = RightWheel ? RightWheel->GetComponentLocation()
+            : Rig->GetSocketTransform(RequiredRightWheelBone, RTS_World).GetLocation();
         State.Snapshot.bLeftWheelContact = TraceWheelContact(Trailer, LeftWheelWorld, State.Snapshot.LeftGroundClearanceCm);
         State.Snapshot.bRightWheelContact = TraceWheelContact(Trailer, RightWheelWorld, State.Snapshot.RightGroundClearanceCm);
         State.Snapshot.ContactRatio = 0.5f * (static_cast<float>(State.Snapshot.bLeftWheelContact) + static_cast<float>(State.Snapshot.bRightWheelContact));

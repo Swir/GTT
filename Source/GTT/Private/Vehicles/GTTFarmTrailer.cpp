@@ -70,7 +70,7 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     LeftWheel->SetupAttachment(TrailerBody);
     LeftWheel->SetStaticMesh(Cylinder);
     LeftWheel->SetRelativeLocation(LeftWheelHome);
-    LeftWheel->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
+    LeftWheel->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
     LeftWheel->SetRelativeScale3D(FVector(0.62f, 0.62f, 0.34f));
     LeftWheel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     LeftWheel->SetSimulatePhysics(true);
@@ -81,7 +81,7 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     RightWheel->SetupAttachment(TrailerBody);
     RightWheel->SetStaticMesh(Cylinder);
     RightWheel->SetRelativeLocation(RightWheelHome);
-    RightWheel->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
+    RightWheel->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
     RightWheel->SetRelativeScale3D(FVector(0.62f, 0.62f, 0.34f));
     RightWheel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     RightWheel->SetSimulatePhysics(true);
@@ -91,10 +91,12 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     LeftWheelConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("LeftWheelConstraint"));
     LeftWheelConstraint->SetupAttachment(TrailerBody);
     LeftWheelConstraint->SetRelativeLocation(LeftWheelHome);
+    LeftWheelConstraint->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
 
     RightWheelConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("RightWheelConstraint"));
     RightWheelConstraint->SetupAttachment(TrailerBody);
     RightWheelConstraint->SetRelativeLocation(RightWheelHome);
+    RightWheelConstraint->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
 
     CargoBlock = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CargoBlock"));
     ConfigureVisual(CargoBlock, Cube, TrailerBody, FVector(20.0f, 0.0f, 70.0f), FVector(2.25f, 0.95f, 0.20f));
@@ -197,7 +199,7 @@ void AGTTFarmTrailer::RestoreWheel(UStaticMeshComponent* Wheel, UPhysicsConstrai
     Wheel->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     const FTransform BodyTransform = TrailerBody->GetComponentTransform();
     const FVector WorldLocation = BodyTransform.TransformPosition(RelativeLocation);
-    const FQuat WorldRotation = BodyTransform.GetRotation() * FRotator(90.0f, 0.0f, 0.0f).Quaternion();
+    const FQuat WorldRotation = BodyTransform.GetRotation() * FRotator(0.0f, 0.0f, 90.0f).Quaternion();
     Wheel->SetWorldLocationAndRotation(WorldLocation, WorldRotation, false, nullptr, ETeleportType::TeleportPhysics);
     Wheel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     Wheel->SetSimulatePhysics(true);

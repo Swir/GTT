@@ -36,6 +36,11 @@ bool UGTTChaosPowertrainSetupLibrary::ConfigureCanonicalPowertrain(UChaosWheeled
         OutSummary = FString::Printf(TEXT("Unknown vehicle id: %s"), *VehicleId.ToString());
         return false;
     }
+    if (Spec.ReverseGearRatio <= 0.0f)
+    {
+        OutSummary = FString::Printf(TEXT("Invalid reverse ratio magnitude for %s: %.2f"), *VehicleId.ToString(), Spec.ReverseGearRatio);
+        return false;
+    }
 
     Movement->bMechanicalSimEnabled = true;
     Movement->Mass = Spec.MassKg;
@@ -125,6 +130,7 @@ bool UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(const UChaosWh
     {
         Problems.Add(TEXT("reverse-gear"));
     }
+    if (Spec.ReverseGearRatio <= 0.0f) Problems.Add(TEXT("reverse-gear-sign"));
     if (Movement->DifferentialSetup.DifferentialType != ToChaosDifferential(Spec.DriveLayout)) Problems.Add(TEXT("differential-layout"));
 
     if (Problems.Num() > 0)

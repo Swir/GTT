@@ -85,7 +85,7 @@ void UGTTTrailerRoadFeedbackSubsystem::Tick(const float DeltaTime)
 
         UPrimitiveComponent* Body = Cast<UPrimitiveComponent>(Trailer->GetRootComponent());
         const FVector Velocity = Body ? Body->GetPhysicsLinearVelocity() : Trailer->GetVelocity();
-        const float LongitudinalSpeedKmh = FVector::DotProduct(Velocity, Trailer->GetActorForwardVector()) * 0.036f;
+        const float LongitudinalSpeedKmh = FVector::DotProduct(Velocity, -Trailer->GetActorForwardVector()) * 0.036f;
         const float PreviousAbsSpeed = FMath::Abs(Runtime.LastLongitudinalSpeedKmh);
         const float CurrentAbsSpeed = FMath::Abs(LongitudinalSpeedKmh);
         const float DecelerationKmhPerSecond = Runtime.bHasVelocitySample
@@ -166,7 +166,7 @@ float UGTTTrailerRoadFeedbackSubsystem::ComputeJackknifeRisk(
     }
 
     const FVector TowForward = TowActor->GetActorForwardVector().GetSafeNormal2D();
-    const FVector TrailerForward = Trailer->GetActorForwardVector().GetSafeNormal2D();
+    const FVector TrailerForward = -Trailer->GetActorForwardVector().GetSafeNormal2D();
     if (TowForward.IsNearlyZero() || TrailerForward.IsNearlyZero())
     {
         return 0.0f;

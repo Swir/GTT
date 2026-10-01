@@ -30,7 +30,7 @@ FGTTChaosVehicleSpec UGTTVehicleChaosSpecLibrary::GetFieldmaster60Spec()
     Spec.FrontWheel = MakeWheel(46.0f, 27.0f, 15.0f, 24.0f, 310.0f, 0.62f, 3.05f);
     Spec.RearWheel = MakeWheel(52.0f, 38.0f, 12.0f, 22.0f, 365.0f, 0.68f, 3.35f);
     Spec.ForwardGearRatios = {5.10f, 3.20f, 2.05f, 1.35f, 0.92f};
-    Spec.ReverseGearRatio = -4.75f;
+    Spec.ReverseGearRatio = 4.75f;
     return Spec;
 }
 
@@ -48,7 +48,7 @@ FGTTChaosVehicleSpec UGTTVehicleChaosSpecLibrary::GetRattleback82Spec()
     Spec.FrontWheel = MakeWheel(34.0f, 21.0f, 10.0f, 15.0f, 270.0f, 0.58f, 2.75f);
     Spec.RearWheel = MakeWheel(35.0f, 23.0f, 10.0f, 15.0f, 285.0f, 0.60f, 2.90f);
     Spec.ForwardGearRatios = {3.20f, 2.10f, 1.42f, 1.00f, 0.78f};
-    Spec.ReverseGearRatio = -3.05f;
+    Spec.ReverseGearRatio = 3.05f;
     return Spec;
 }
 
@@ -66,7 +66,7 @@ FGTTChaosVehicleSpec UGTTVehicleChaosSpecLibrary::GetMulebox1200Spec()
     Spec.FrontWheel = MakeWheel(37.0f, 24.0f, 12.0f, 19.0f, 305.0f, 0.64f, 2.85f);
     Spec.RearWheel = MakeWheel(38.0f, 26.0f, 11.0f, 18.0f, 340.0f, 0.66f, 3.00f);
     Spec.ForwardGearRatios = {4.05f, 2.45f, 1.55f, 1.00f, 0.76f};
-    Spec.ReverseGearRatio = -3.65f;
+    Spec.ReverseGearRatio = 3.65f;
     return Spec;
 }
 
