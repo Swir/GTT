@@ -25,7 +25,10 @@ namespace
 constexpr float StartDelaySeconds = 180.0f;
 constexpr float GlobalDeadlineSeconds = 196.0f;
 constexpr float LoadedVehicleOffsetCm = 1400.0f;
-constexpr float EvidenceParkingOffsetCm = 120.0f;
+// Keep staged physics vehicles clear of terminal/player collision volumes while
+// remaining inside the production 750 cm handoff and 700 cm pickup radii.
+constexpr float EvidenceParkingOffsetCm = 600.0f;
+constexpr float EvidenceDecoySpawnOffsetCm = -1000.0f;
 constexpr int32 MinimumEvidenceRouteTier = 2;
 
 const TCHAR* StageLabel(EGTTFarmJobStage Stage)
@@ -178,6 +181,14 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::RestoreBaselineState()
     }
     if (Authority.IsValid()) Authority->ClearLoadedVehicle(TEXT("runtime-evidence-cleanup"));
 
+    if (APlayerController* Controller = World->GetFirstPlayerController())
+    {
+        if (PlayerPawn.IsValid() && Controller->GetPawn() != PlayerPawn.Get())
+        {
+            Controller->Possess(PlayerPawn.Get());
+        }
+    }
+
     if (SpawnedPickupVan.IsValid()) SpawnedPickupVan->Destroy();
     if (SpawnedDecoyVan.IsValid()) SpawnedDecoyVan->Destroy();
 
@@ -292,8 +303,8 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
         }
 
         const FVector PlayerLocation = PlayerPawn->GetActorLocation();
-        SpawnedPickupVan = SpawnEvidenceVan(TEXT("GTTFarmCargoEvidencePrimary"), PlayerLocation + FVector(120.0f, 0.0f, 80.0f));
-        SpawnedDecoyVan = SpawnEvidenceVan(TEXT("GTTFarmCargoEvidenceDecoy"), PlayerLocation + FVector(420.0f, 0.0f, 80.0f));
+        SpawnedPickupVan = SpawnEvidenceVan(TEXT("GTTFarmCargoEvidencePrimary"), PlayerLocation + FVector(EvidenceParkingOffsetCm, 0.0f, 80.0f));
+        SpawnedDecoyVan = SpawnEvidenceVan(TEXT("GTTFarmCargoEvidenceDecoy"), PlayerLocation + FVector(EvidenceDecoySpawnOffsetCm, 0.0f, 80.0f));
         if (!SpawnedPickupVan.IsValid() || !SpawnedDecoyVan.IsValid())
         {
             MarkFailure(TEXT("evidence-vehicle-spawn-failed"));
@@ -328,12 +339,21 @@ void UGTTFarmCargoEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EFarmCargoEvidencePhase::PickupCargo:
     {
-        StagePawn(SpawnedPickupVan.Get(), PlayerPawn->GetActorLocation() + FVector(120.0f, 0.0f, 80.0f));
+        StagePawn(SpawnedPickupVan.Get(), PlayerPawn->GetActorLocation() + FVector(EvidenceParkingOffsetCm, 0.0f, 80.0f));
+        APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
+        if (!Controller || !SpawnedPickupVan.IsValid())
+        {
+            MarkFailure(TEXT("evidence-vehicle-possession-unavailable"));
+            FinishScenario(TEXT("pickup-failed"));
+            return;
+        }
+        Controller->Possess(SpawnedPickupVan.Get());
         PickupTerminal->Interact_Implementation(PlayerPawn.Get());
         LoadedVehicle = Authority->GetBoundCargoVehicle();
         LoadedVehicleId = Authority->GetBoundCargoVehicleId();
         bPickupBound = Director->GetStage() == EGTTFarmJobStage::DeliverCargo
-            && LoadedVehicle.IsValid() && !LoadedVehicleId.IsNone();
+            && LoadedVehicle.Get() == SpawnedPickupVan.Get()
+            && !LoadedVehicleId.IsNone();
         GTT_LOG( Log,
             TEXT("FARM_CARGO_RUNTIME phase=PICKUP result=%s stage=%s bound_vehicle=%s actor=%s timer=%.1f cargo_integrity=%.3f"),
             bPickupBound ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()), *LoadedVehicleId.ToString(),
