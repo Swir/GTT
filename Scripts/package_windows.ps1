@@ -15,6 +15,7 @@ $ProjectFile = Join-Path $ProjectRoot "GTT.uproject"
 $GameConfig = Join-Path $ProjectRoot "Config\DefaultGame.ini"
 $RunUAT = Join-Path $EngineRoot "Engine\Build\BatchFiles\RunUAT.bat"
 $ZenTool = Join-Path $EngineRoot "Engine\Binaries\Win64\zen.exe"
+$ZenServer = Join-Path $EngineRoot "Engine\Binaries\Win64\zenserver.exe"
 $Validator = Join-Path $PSScriptRoot "validate_windows_package.ps1"
 $Preflight = Join-Path $PSScriptRoot "preflight_win64_unreal.ps1"
 
@@ -48,6 +49,7 @@ $preflightExit = $LASTEXITCODE
 if ($preflightExit -ne 0) { throw "Win64 Unreal preflight failed with exit code $preflightExit. Evidence: $PreflightReport" }
 if (-not (Test-Path $RunUAT)) { throw "RunUAT.bat was not found after preflight. Expected: $RunUAT" }
 if (-not (Test-Path $ZenTool)) { throw "zen.exe was not found after preflight. Expected: $ZenTool" }
+if (-not (Test-Path $ZenServer)) { throw "zenserver.exe was not found after preflight. Expected: $ZenServer" }
 
 if (Test-Path $ArchiveDirectory) { Remove-Item -Recurse -Force $ArchiveDirectory }
 New-Item -ItemType Directory -Force -Path $ArchiveDirectory | Out-Null
@@ -83,20 +85,50 @@ Write-Host "[GTT] Output: $ArchiveDirectory"
 
 $uatExit = -1
 $startedZen = $false
+$zenProcess = $null
 try {
     # Editor import commandlets auto-launch a sponsored Zen instance which exits
     # as soon as its sponsor process ends. A health probe can race that shutdown:
     # the cooker sees a ready server and then loses it while deleting its oplog.
     # Always replace any inherited instance with an explicitly managed server.
-    $ZenInstallRoot = Join-Path $env:LOCALAPPDATA "UnrealEngine\Common\Zen\Install"
+    # Launch the engine-bundled server directly. The zen.exe launcher uses a
+    # per-user installed copy and ProgramData state, which is unavailable to a
+    # locked-down self-hosted runner even though the project workspace is
+    # writable. Project-local state also keeps the exact-candidate run isolated.
+    $ZenRoot = Join-Path $ProjectRoot "Saved\Zen\Package"
+    $ZenDataRoot = Join-Path $ZenRoot "Data"
+    $ZenSystemRoot = Join-Path $ZenRoot "System"
+    $ZenLog = Join-Path $ZenRoot "zenserver.log"
+    New-Item -ItemType Directory -Force -Path $ZenDataRoot, $ZenSystemRoot | Out-Null
     Write-Host "[GTT] Restarting a dedicated local UE 5.8 Zen server for cook/stage..."
     & $ZenTool down 2>&1 | ForEach-Object { Write-Host "[Zen] $_" }
     Start-Sleep -Seconds 2
-    & $ZenTool up --port 8558 --base-dir $ZenInstallRoot
-    if ($LASTEXITCODE -ne 0) { throw "Failed to start the dedicated Zen server on 127.0.0.1:8558." }
+    $ZenArgs = @(
+        "--data-dir=`"$ZenDataRoot`""
+        "--system-dir=`"$ZenSystemRoot`""
+        "--port=8558"
+        "--http=asio"
+        "--http-forceloopback"
+        "--detach=false"
+        "--no-sentry"
+        "--quiet"
+        "--abslog=`"$ZenLog`""
+    )
+    $zenProcess = Start-Process -FilePath $ZenServer -ArgumentList $ZenArgs -PassThru -WindowStyle Hidden
     $startedZen = $true
-    $zenHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8558/health/ready" -TimeoutSec 10
-    if ($zenHealth.StatusCode -ne 200) { throw "The dedicated Zen server did not become ready on 127.0.0.1:8558." }
+    $zenReady = $false
+    for ($probe = 0; $probe -lt 20; $probe++) {
+        Start-Sleep -Milliseconds 500
+        if ($zenProcess.HasExited) { break }
+        try {
+            $zenHealth = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8558/health/ready" -TimeoutSec 2
+            if ($zenHealth.StatusCode -eq 200) {
+                $zenReady = $true
+                break
+            }
+        } catch { }
+    }
+    if (-not $zenReady) { throw "The dedicated Zen server did not become ready on 127.0.0.1:8558. See $ZenLog" }
 
     $UATLog = Join-Path $ProjectRoot "Saved\Logs\GTT-Package-UAT.log"
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $UATLog) | Out-Null
@@ -144,6 +176,12 @@ try {
     if ($startedZen) {
         Write-Host "[GTT] Stopping the local Zen server started for this package run..."
         & $ZenTool down
+        if ($null -ne $zenProcess -and -not $zenProcess.HasExited) {
+            Wait-Process -Id $zenProcess.Id -Timeout 15 -ErrorAction SilentlyContinue
+        }
+        if ($null -ne $zenProcess -and -not $zenProcess.HasExited) {
+            Stop-Process -Id $zenProcess.Id -Force
+        }
     }
 }
 
