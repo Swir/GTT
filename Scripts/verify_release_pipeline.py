@@ -37,7 +37,7 @@ for token in (
     "zen.exe",
     "Restarting a dedicated local UE 5.8 Zen server",
     "& $ZenTool down",
-    "& $ZenTool up --port 8558",
+    "$zenProcess = Start-Process -FilePath $ZenServer",
     "health/ready",
     "-archive",
     "$ErrorLines",
