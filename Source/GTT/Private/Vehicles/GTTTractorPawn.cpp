@@ -65,8 +65,6 @@ AGTTTractorPawn::AGTTTractorPawn()
     {
         VehicleMesh->SetStaticMesh(CubeMesh);
         VehicleMesh->SetRelativeScale3D(FVector(2.75f, 1.25f, 0.55f));
-        VehicleMesh->SetMassOverrideInKg(NAME_None, 1850.0f, true);
-        VehicleMesh->SetCenterOfMass(FVector(-20.0f, 0.0f, -55.0f));
     }
 
     HoodMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HoodMesh"));
@@ -131,6 +129,16 @@ AGTTTractorPawn::AGTTTractorPawn()
     RegisterBreakablePart(RightFenderMesh, 0.44f, TEXT("right fender"));
     RegisterBreakablePart(ExhaustMesh, 0.28f, TEXT("exhaust stack"));
     RegisterBreakablePart(HoodMesh, 0.16f, TEXT("hood"));
+}
+
+void AGTTTractorPawn::BeginPlay()
+{
+    Super::BeginPlay();
+    if (VehicleMesh)
+    {
+        VehicleMesh->SetMassOverrideInKg(NAME_None, 1850.0f, true);
+        VehicleMesh->SetCenterOfMass(FVector(-20.0f, 0.0f, -55.0f));
+    }
 }
 
 void AGTTTractorPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

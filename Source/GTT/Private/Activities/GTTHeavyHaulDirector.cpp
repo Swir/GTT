@@ -95,7 +95,7 @@ void AGTTHeavyHaulDirector::UpdateDrivingQuality(float DeltaSeconds)
         PushMessage(PlayerPawn, FString::Printf(
             TEXT("SMOOTH HAUL READY: +$%d handling bonus is armed. Keep rough-driving exposure under %.0fs and protect the cargo."),
             SmoothHaulBonus, RoughHaulAllowanceSeconds), 6.5f);
-        UE_LOG(LogGTT, Display,
+        GTT_LOG( Display,
             TEXT("HEAVY_HAUL_DRIVING_QUALITY event=BONUS_ARMED smooth=%.2f rough=%.2f cargo=%.3f trailer=%.3f"),
             SmoothHaulSeconds, RoughHaulSeconds, Trailer->GetCargoIntegrity(), Trailer->GetTrailerIntegrity());
     }
@@ -104,7 +104,7 @@ void AGTTHeavyHaulDirector::UpdateDrivingQuality(float DeltaSeconds)
     {
         bRoughDrivingWarningIssued = true;
         PushMessage(PlayerPawn, TEXT("HEAVY HAUL WARNING: rough-driving allowance exceeded. Smooth-haul bonus lost; protect the remaining cargo."), 6.0f);
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("HEAVY_HAUL_DRIVING_QUALITY event=ROUGH_LIMIT_EXCEEDED smooth=%.2f rough=%.2f speed_kmh=%.2f hitch=%.3f roll=%.2f pitch=%.2f"),
             SmoothHaulSeconds, RoughHaulSeconds, SpeedKmh, HitchLoad, RollDegrees, PitchDegrees);
     }
@@ -304,7 +304,7 @@ bool AGTTHeavyHaulDirector::TryDeliverTimber(APawn* PlayerPawn)
             bSmoothHaul ? TEXT(" | SMOOTH HAUL BONUS") : TEXT("")), 8.0f);
     }
 
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("HEAVY_HAUL_DRIVING_QUALITY event=DELIVER reward=%d fast=%s smooth_bonus=%s smooth=%.2f rough=%.2f cargo=%.3f trailer=%.3f"),
         Reward, bFast ? TEXT("YES") : TEXT("NO"), bSmoothHaul ? TEXT("YES") : TEXT("NO"),
         SmoothHaulSeconds, RoughHaulSeconds, Trailer->GetCargoIntegrity(), Trailer->GetTrailerIntegrity());

@@ -5,6 +5,10 @@ public class GTT : ModuleRules
     public GTT(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+        bUseUnity = false;
+
+        // GTT.h is the module's public logging header and lives at the module root.
+        PublicIncludePaths.Add(ModuleDirectory);
 
         PublicDependencyModuleNames.AddRange(new string[]
         {

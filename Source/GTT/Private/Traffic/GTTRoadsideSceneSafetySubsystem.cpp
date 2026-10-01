@@ -30,7 +30,7 @@ void UGTTRoadsideSceneSafetySubsystem::Tick(float DeltaSeconds)
             : NAME_None;
         if (bSafetyCorridorActive || TrackedResponder.IsValid())
         {
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("ROADSIDE_SAFETY_CORRIDOR_CLEARED incident=%s"),
                 *PreviousIncidentId.ToString());
         }
@@ -46,7 +46,7 @@ void UGTTRoadsideSceneSafetySubsystem::Tick(float DeltaSeconds)
     {
         LastYieldTimeByCar.Reset();
         TrackedResponder = Responder;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("ROADSIDE_SAFETY_CORRIDOR_ACTIVE incident=%s location=%s"),
             *Responder->GetAssignedIncidentId().ToString(),
             *Responder->GetActorLocation().ToCompactString());
@@ -124,7 +124,7 @@ void UGTTRoadsideSceneSafetySubsystem::ApplySafetyCorridor(AGTTRoadsideResponder
     LastYieldCount = Yielded;
     if (Yielded > 0)
     {
-        UE_LOG(LogGTT, Verbose,
+        GTT_LOG( Verbose,
             TEXT("ROADSIDE_SAFETY_CORRIDOR_YIELD incident=%s drivers=%d mode=%s radius_cm=%.0f cooldown_s=%.1f"),
             *Responder->GetAssignedIncidentId().ToString(),
             Yielded,

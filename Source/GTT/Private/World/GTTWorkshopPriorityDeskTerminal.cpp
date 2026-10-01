@@ -102,7 +102,7 @@ void AGTTWorkshopPriorityDeskTerminal::Interact_Implementation(AActor* Interacto
         PendingVehicleId = NAME_None;
         PendingExpiresAt = -1.0f;
         Economy->PushMessage(Summary, 9.0f);
-        UE_LOG(LogGTT, Display,
+        GTT_LOG( Display,
             TEXT("WORKSHOP_PRIORITY_DESK_CONFIRMED vehicle=%s success=%s charged=NO repair_mutation=NO"),
             *VehicleId.ToString(), bPromoted ? TEXT("YES") : TEXT("NO"));
         return;
@@ -116,7 +116,7 @@ void AGTTWorkshopPriorityDeskTerminal::Interact_Implementation(AActor* Interacto
         UGTTWorkshopRepairQueueSubsystem::UrgentQuoteSurchargePercent,
         UGTTWorkshopRepairQueueSubsystem::UrgentServiceDurationMultiplier,
         ConfirmationSeconds), 10.0f);
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("WORKSHOP_PRIORITY_DESK_ARMED vehicle=%s standard_quote=%d urgent_quote=%d timeout=%.1f exact_id=YES charged=NO mutation=NO"),
         *VehicleId.ToString(), Snapshot->LockedQuote, UrgentQuote, ConfirmationSeconds);
 }

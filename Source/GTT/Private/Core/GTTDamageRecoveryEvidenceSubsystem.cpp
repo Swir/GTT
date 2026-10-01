@@ -3,6 +3,7 @@
 #include "Core/GTTDemoSmokeScenarioSubsystem.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -13,6 +14,8 @@
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "Vehicles/GTTVehicleBase.h"
 #include "World/GTTServiceTerminal.h"
+#include "World/GTTDayNightCycle.h"
+#include "World/GTTWorkshopHoursPolicy.h"
 #include "GTT.h"
 
 namespace
@@ -28,30 +31,22 @@ void UGTTDamageRecoveryEvidenceSubsystem::Initialize(FSubsystemCollectionBase& C
     bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY_BEGIN version=9 route=save-load-workshop"));
+        GTT_LOG( Display, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY_BEGIN version=9 route=save-load-workshop"));
     }
 }
 
-AGTTRoadVehicleNativePawn* UGTTDamageRecoveryEvidenceSubsystem::FindDamagedNativeRoadVehicle() const
+AGTTRoadVehicleNativePawn* UGTTDamageRecoveryEvidenceSubsystem::FindRoadVehicleById(FName VehicleId) const
 {
     UWorld* World = GetWorld();
-    if (!World) return nullptr;
-
-    AGTTRoadVehicleNativePawn* Best = nullptr;
-    float LowestTireIntegrity = 1.0f;
+    if (!World || VehicleId.IsNone()) return nullptr;
     for (TActorIterator<AGTTRoadVehicleNativePawn> It(World); It; ++It)
     {
         AGTTRoadVehicleNativePawn* Vehicle = *It;
         if (!IsValid(Vehicle) || !Vehicle->IsNativeReady() || !Vehicle->IsLegacyTakeoverActive()) continue;
-        const FGTTRoadVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
-        if (!State.bOwnedByPlayer || State.TireIntegrity >= 0.995f) continue;
-        if (State.TireIntegrity < LowestTireIntegrity)
-        {
-            LowestTireIntegrity = State.TireIntegrity;
-            Best = Vehicle;
-        }
+        if (!Vehicle->GetMigrationSnapshot().bOwnedByPlayer) continue;
+        if (Vehicle->GetPersistentVehicleId() == VehicleId) return Vehicle;
     }
-    return Best;
+    return nullptr;
 }
 
 AGTTVehicleBase* UGTTDamageRecoveryEvidenceSubsystem::FindLegacyVehicle(FName VehicleId) const
@@ -79,7 +74,7 @@ AGTTServiceTerminal* UGTTDamageRecoveryEvidenceSubsystem::FindWorkshopTerminal()
 
 void UGTTDamageRecoveryEvidenceSubsystem::Fail(const FString& Reason)
 {
-    UE_LOG(LogGTT, Error, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY result=FAIL phase=%d reason=%s elapsed=%.2f"),
+    GTT_LOG( Error, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY result=FAIL phase=%d reason=%s elapsed=%.2f"),
         static_cast<int32>(Phase), *Reason, Elapsed);
     bFinished = true;
     Phase = EEvidencePhase::Complete;
@@ -102,24 +97,34 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
         {
             UGTTDemoSmokeScenarioSubsystem* CoreScenario = World->GetSubsystem<UGTTDemoSmokeScenarioSubsystem>();
             if (!CoreScenario || CoreScenario->IsTickable()) return;
+            if (!CoreScenario->DidCompleteSuccessfully())
+            {
+                Fail(TEXT("core scenario predecessor did not PASS"));
+                return;
+            }
 
-            AGTTRoadVehicleNativePawn* Vehicle = FindDamagedNativeRoadVehicle();
+            TargetVehicleId = CoreScenario->GetProvenRoadblockVehicleId();
+            AGTTRoadVehicleNativePawn* Vehicle = FindRoadVehicleById(TargetVehicleId);
             if (!Vehicle)
             {
-                if (Elapsed > 90.0f) Fail(TEXT("core scenario finished without a damaged owned Native road vehicle"));
+                Fail(TEXT("proven roadblock vehicle is unavailable for damage persistence evidence"));
                 return;
             }
 
             TargetVehicle = Vehicle;
-            TargetVehicleId = Vehicle->GetPersistentVehicleId();
             const FGTTRoadVehicleMigrationSnapshot State = Vehicle->GetMigrationSnapshot();
+            if (!State.bOwnedByPlayer || State.TireIntegrity >= 0.995f)
+            {
+                Fail(TEXT("proven roadblock vehicle no longer carries owned spike damage"));
+                return;
+            }
             DamagedTireIntegrity = State.TireIntegrity;
             DamagedCondition = State.ConditionPercent;
             DamagedWheelRisk = Vehicle->GetRuntimeWheelRisk();
             DamagedThrottleLimit = Vehicle->GetRuntimeThrottleLimit();
             DamagedSteeringLimit = Vehicle->GetRuntimeSteeringLimit();
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_DAMAGE_PERSISTENCE vehicle=%s phase=CAPTURE tire=%.3f condition=%.3f wheel_risk=%.3f throttle_limit=%.3f steering_limit=%.3f"),
                 *TargetVehicleId.ToString(), DamagedTireIntegrity, DamagedCondition, DamagedWheelRisk,
                 DamagedThrottleLimit, DamagedSteeringLimit);
@@ -220,7 +225,7 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_DAMAGE_PERSISTENCE vehicle=%s result=PASS tire_saved=%.3f tire_reloaded=%.3f condition_saved=%.3f condition_reloaded=%.3f"),
                 *TargetVehicleId.ToString(), DamagedTireIntegrity, NativeState.TireIntegrity,
                 DamagedCondition, NativeState.ConditionPercent);
@@ -253,17 +258,49 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            // Keep the test deterministic while still exercising the real paid workshop path.
-            if (Economy->GetCash() < 250)
+            // Spike damage uses the ordinary workshop route, so stage the real world clock
+            // inside official opening hours instead of bypassing the terminal policy.
+            for (TActorIterator<AGTTDayNightCycle> It(World); It; ++It)
             {
-                const int32 Reserve = 250 - Economy->GetCash();
-                Economy->AddCash(Reserve, TEXT("Demo workshop recovery evidence reserve"));
-                UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=WORKSHOP_TEST_RESERVE amount=%d"), Reserve);
+                AGTTDayNightCycle* Clock = *It;
+                if (!IsValid(Clock)) continue;
+                const float EvidenceHour = GTTWorkshopHoursPolicy::OpeningHour + 1.0f;
+                Clock->RestoreTime(Clock->GetDayNumber(), EvidenceHour);
+                GTT_LOG( Display, TEXT("DEMO_SCENARIO_ACTION action=WORKSHOP_OPEN_WINDOW hour=%.2f"), EvidenceHour);
+                break;
             }
 
             Terminal->SetServiceType(EGTTServiceType::Workshop);
-            Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 260.0f + FVector(0.0f, 0.0f, 85.0f),
+            Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 100.0f + FVector(0.0f, 0.0f, 85.0f),
                 false, nullptr, ETeleportType::TeleportPhysics);
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+                Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+                Mesh->SetSimulatePhysics(false);
+            }
+            if (Terminal->ResolveNativeRoadServiceTarget() != Vehicle)
+            {
+                Fail(TEXT("workshop production target does not match proven roadblock vehicle"));
+                return;
+            }
+            if (!Vehicle->NeedsNativeWorkshopService())
+            {
+                Fail(TEXT("proven spike-damaged vehicle unexpectedly reports no mechanical workshop need"));
+                return;
+            }
+            ExpectedWorkshopQuote = Terminal->GetNativeRoadCheckoutQuote(Vehicle);
+            if (ExpectedWorkshopQuote <= 0)
+            {
+                Fail(TEXT("workshop returned a non-positive checkout quote"));
+                return;
+            }
+            if (Economy->GetCash() < ExpectedWorkshopQuote)
+            {
+                const int32 Reserve = ExpectedWorkshopQuote - Economy->GetCash();
+                Economy->AddCash(Reserve, TEXT("Demo workshop recovery exact-quote reserve"));
+                GTT_LOG( Display, TEXT("DEMO_SCENARIO_ACTION action=WORKSHOP_TEST_RESERVE amount=%d expected_quote=%d"), Reserve, ExpectedWorkshopQuote);
+            }
             CashBeforeWorkshop = Economy->GetCash();
             Phase = EEvidencePhase::InvokeWorkshop;
             PhaseStartedSeconds = Elapsed;
@@ -282,18 +319,24 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
                 Fail(TEXT("workshop invocation actors unavailable"));
                 return;
             }
-            if (!Vehicle->NeedsNativeWorkshopService())
+            if (Terminal->ResolveNativeRoadServiceTarget() != Vehicle || !Vehicle->NeedsNativeWorkshopService())
             {
-                Fail(TEXT("damaged vehicle unexpectedly reports no workshop need"));
+                Fail(TEXT("workshop production target/mechanical need drifted before interaction"));
+                return;
+            }
+            if (Terminal->GetNativeRoadCheckoutQuote(Vehicle) != ExpectedWorkshopQuote)
+            {
+                Fail(TEXT("workshop checkout quote drifted before interaction"));
                 return;
             }
 
             Terminal->SetServiceType(EGTTServiceType::Workshop);
             Terminal->Interact_Implementation(PlayerPawn);
             CashAfterWorkshop = Economy->GetCash();
-            if (CashAfterWorkshop >= CashBeforeWorkshop)
+            const int32 Paid = CashBeforeWorkshop - CashAfterWorkshop;
+            if (Paid != ExpectedWorkshopQuote)
             {
-                Fail(TEXT("paid workshop route did not charge the economy"));
+                Fail(TEXT("paid workshop route did not charge the exact production checkout quote"));
                 return;
             }
 
@@ -325,20 +368,28 @@ void UGTTDamageRecoveryEvidenceSubsystem::Tick(float DeltaTime)
                  RepairedThrottle > DamagedThrottleLimit + RecoveryEpsilon ||
                  RepairedSteering > DamagedSteeringLimit + RecoveryEpsilon);
 
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetSimulatePhysics(true);
+                Mesh->WakeAllRigidBodies();
+            }
+
             if (!bStateRecovered || !bControlNonRegressed || !bMeasuredRecovery)
             {
                 Fail(TEXT("workshop did not produce measurable repaired handling state"));
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
-                TEXT("DEMO_SCENARIO_WORKSHOP_RECOVERY vehicle=%s result=PASS cash_before=%d cash_after=%d tire_before=%.3f tire_after=%.3f wheel_risk_before=%.3f wheel_risk_after=%.3f throttle_limit_before=%.3f throttle_limit_after=%.3f steering_limit_before=%.3f steering_limit_after=%.3f"),
-                *TargetVehicleId.ToString(), CashBeforeWorkshop, CashAfterWorkshop,
+            const int32 Paid = CashBeforeWorkshop - CashAfterWorkshop;
+            GTT_LOG( Display,
+                TEXT("DEMO_SCENARIO_WORKSHOP_RECOVERY vehicle=%s result=PASS cash_before=%d cash_after=%d expected_quote=%d paid=%d tire_before=%.3f tire_after=%.3f wheel_risk_before=%.3f wheel_risk_after=%.3f throttle_limit_before=%.3f throttle_limit_after=%.3f steering_limit_before=%.3f steering_limit_after=%.3f"),
+                *TargetVehicleId.ToString(), CashBeforeWorkshop, CashAfterWorkshop, ExpectedWorkshopQuote, Paid,
                 ReloadedTireIntegrity, Repaired.TireIntegrity, DamagedWheelRisk, RepairedRisk,
                 DamagedThrottleLimit, RepairedThrottle, DamagedSteeringLimit, RepairedSteering);
-            UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY result=PASS vehicle=%s route=spike-save-load-workshop"), *TargetVehicleId.ToString());
+            GTT_LOG( Display, TEXT("DEMO_SCENARIO_DAMAGE_RECOVERY result=PASS vehicle=%s route=spike-save-load-workshop"), *TargetVehicleId.ToString());
 
             Phase = EEvidencePhase::Complete;
+            bSucceeded = true;
             bFinished = true;
             return;
         }

@@ -53,7 +53,8 @@ const TCHAR* StageLabel(EGTTFarmJobStage Stage)
 void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRuntimeScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRecoveryScenario"))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoBreakdownScenario"))
@@ -61,7 +62,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Initialize(FSubsystemCol
         && FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoDispatchPersistenceScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME_BEGIN version=1 route=feed-tow-reload-wanted-reject-patch-reload-hill-wood start_delay=%.1f deadline=%.1f savegame_roundtrip=required exact_vehicle=required locked_quote=required eta=required single_charge=required"),
             StartDelaySeconds, GlobalDeadlineSeconds);
     }
@@ -144,11 +145,15 @@ bool UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::EnsureNativeDriver()
 {
     UWorld* World = GetWorld();
     if (!World || !NativeMulebox.IsValid() || !PlayerPawn.IsValid()) return false;
-    if (UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()) return true;
-    if (!NativeMulebox->IsLegacyTakeoverActive() && !NativeMulebox->TryActivateLegacyTakeover()) return false;
-    NativeMulebox->Interact_Implementation(PlayerPawn.Get());
-    return UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()
+    if (UGameplayStatics::GetPlayerPawn(World, 0) != NativeMulebox.Get())
+    {
+        if (!NativeMulebox->IsLegacyTakeoverActive() && !NativeMulebox->TryActivateLegacyTakeover()) return false;
+        NativeMulebox->Interact_Implementation(PlayerPawn.Get());
+    }
+    const bool bReady = UGameplayStatics::GetPlayerPawn(World, 0) == NativeMulebox.Get()
         && NativeMulebox->GetDriverPawn() == PlayerPawn.Get();
+    if (bReady) NativeMulebox->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    return bReady;
 }
 
 void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::StageTowRecommendedState()
@@ -212,7 +217,7 @@ bool UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::ResolveScenarioActors()
 void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason ? Reason : TEXT("unknown"), Elapsed);
 }
@@ -268,7 +273,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::FinishScenario(const TCH
         && TowLockedQuote > 0 && WantedTowLockedQuote > 0 && PatchLockedQuote > 0
         && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME_COMPLETE result=%s route=feed-tow-reload-wanted-reject-patch-reload-hill-wood accepted=%d pickup=%d tow_checkpoint=%d tow_primary_save=%d tow_primary_load=%d tow_rearm=%d tow_restored=%d tow_quote_preserved=%d tow_eta_preserved=%d tow_exact_vehicle=%d tow_cancel_no_charge=%d wanted_checkpoint=%d wanted_primary_save=%d wanted_primary_load=%d wanted_rearm=%d wanted_rejected_no_charge=%d patch_checkpoint=%d patch_primary_save=%d patch_primary_load=%d patch_rearm=%d patch_restored=%d patch_quote_preserved=%d patch_eta_preserved=%d patch_exact_vehicle=%d patch_no_charge_before_arrival=%d patch_completed=%d patch_single_charge=%d timer_continued=%d integrity_not_improved=%d wrong_vehicle_rejected=%d hill=%d final=%d save=%d authority_cleared=%d tow_quote=%d wanted_tow_quote=%d patch_quote=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d vehicle=%s reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), bAccepted ? 1 : 0, bPickupBound ? 1 : 0,
         bTowCheckpointSaved ? 1 : 0, bTowPrimarySaved ? 1 : 0, bTowPrimaryLoaded ? 1 : 0,
@@ -374,7 +379,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
         }
         EvidenceCargoRunsBefore = Logistics->GetCargoCompletedRuns();
         EvidenceReputationBefore = Logistics->GetReputation();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=PREPARE result=PASS route_tier=%d cash_seeded=%d"),
             Logistics->GetCargoRouteTier(), Economy->GetCash());
         Phase = EPersistenceEvidencePhase::AcceptContract;
@@ -384,7 +389,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
     case EPersistenceEvidencePhase::AcceptContract:
         StartTerminal->Interact_Implementation(PlayerPawn.Get());
         bAccepted = Director->GetStage() == EGTTFarmJobStage::ReachPickup;
-        UE_LOG(LogGTT, Log, TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=ACCEPT result=%s stage=%s"),
+        GTT_LOG( Log, TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=ACCEPT result=%s stage=%s"),
             bAccepted ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()));
         if (!bAccepted) { MarkFailure(TEXT("contract-acceptance-failed")); FinishScenario(TEXT("accept-failed")); return; }
         Phase = EPersistenceEvidencePhase::EnterAndPickup;
@@ -401,7 +406,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             && LoadedVehicleId == NativeMulebox->GetPersistentVehicleId();
         TimerBeforePersistence = Director->GetTimeRemaining();
         IntegrityBeforePersistence = Director->GetCargoIntegrity();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=PICKUP result=%s stage=%s vehicle=%s timer=%.2f integrity=%.4f"),
             bPickupBound ? TEXT("PASS") : TEXT("FAIL"), StageLabel(Director->GetStage()), *LoadedVehicleId.ToString(),
             TimerBeforePersistence, IntegrityBeforePersistence);
@@ -423,7 +428,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             && Roadside->GetPendingRecoveryMode(NativeMulebox.Get()) == EGTTRoadsideRecoveryMode::RoadsideAssistance
             && Roadside->GetPendingRecoveryVehicleId(NativeMulebox.Get()) == LoadedVehicleId
             && Economy->GetCash() == CashBeforeTow;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=TOW_REQUEST result=%s locked_quote=%d target_pinned=%d charged=NO"),
             bLocked ? TEXT("PASS") : TEXT("FAIL"), TowLockedQuote,
             Roadside->GetPendingRecoveryVehicleId(NativeMulebox.Get()) == LoadedVehicleId ? 1 : 0);
@@ -447,8 +452,9 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             MarkFailure(TEXT("tow-pre-reload-cancel-failed")); FinishScenario(TEXT("tow-reload-failed")); return;
         }
         bTowPrimaryLoaded = GameMode && GameMode->LoadProgress();
-        bTowReloadRearmed = bTowPrimaryLoaded && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
-        UE_LOG(LogGTT, Log,
+        bTowReloadRearmed = bTowPrimaryLoaded && EnsureNativeDriver()
+            && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=TOW_RELOAD result=%s checkpoint=%d primary_save=%d primary_load=%d rearm=%d saved_eta=%.3f locked_quote=%d charged=NO"),
             (bTowPrimarySaved && bTowPrimaryLoaded && bTowReloadRearmed) ? TEXT("PASS") : TEXT("FAIL"),
             bTowCheckpointSaved ? 1 : 0, bTowPrimarySaved ? 1 : 0, bTowPrimaryLoaded ? 1 : 0,
@@ -471,7 +477,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
         {
             const float RestoredEta = Roadside->GetPendingRecoverySecondsRemaining(NativeMulebox.Get());
             bTowEtaPreserved = RestoredEta > 0.0f && RestoredEta <= TowCheckpointEta + 0.40f;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=TOW_RESTORED result=%s restored=%d quote_preserved=%d eta_preserved=%d exact_vehicle=%d saved_eta=%.3f restored_eta=%.3f charged=NO"),
                 (bTowRestored && bTowQuotePreserved && bTowEtaPreserved && bTowExactVehicle && Economy->GetCash() == CashBeforeTow) ? TEXT("PASS") : TEXT("FAIL"),
                 bTowRestored ? 1 : 0, bTowQuotePreserved ? 1 : 0, bTowEtaPreserved ? 1 : 0, bTowExactVehicle ? 1 : 0,
@@ -487,7 +493,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
     case EPersistenceEvidencePhase::CancelRestoredTow:
         bTowCancelledNoCharge = Roadside->CancelPendingRoadsideService(NativeMulebox.Get())
             && Economy->GetCash() == CashBeforeTow;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=TOW_CANCEL_AFTER_RESTORE result=%s cancel_no_charge=%d cash_delta=%d"),
             bTowCancelledNoCharge ? TEXT("PASS") : TEXT("FAIL"), bTowCancelledNoCharge ? 1 : 0,
             CashBeforeTow - Economy->GetCash());
@@ -523,10 +529,11 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             MarkFailure(TEXT("wanted-tow-pre-reload-cancel-failed")); FinishScenario(TEXT("wanted-reload-failed")); return;
         }
         bWantedPrimaryLoaded = GameMode && GameMode->LoadProgress();
+        bWantedRestoreRearmed = bWantedPrimaryLoaded && EnsureNativeDriver();
         Wanted->AddHeat(WantedEvidenceHeat);
-        bWantedRestoreRearmed = bWantedPrimaryLoaded && Wanted->GetWantedLevel() > 0
+        bWantedRestoreRearmed = bWantedRestoreRearmed && Wanted->GetWantedLevel() > 0
             && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=WANTED_RELOAD result=%s checkpoint=%d primary_save=%d primary_load=%d rearm=%d wanted=%d locked_quote=%d charged=NO"),
             (bWantedPrimarySaved && bWantedPrimaryLoaded && bWantedRestoreRearmed) ? TEXT("PASS") : TEXT("FAIL"),
             bWantedCheckpointSaved ? 1 : 0, bWantedPrimarySaved ? 1 : 0, bWantedPrimaryLoaded ? 1 : 0,
@@ -546,7 +553,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             && Economy->GetCash() == CashBeforeWantedTow
             && Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=WANTED_REJECT result=%s rejected_no_charge=%d sidecar_cleared=%d exact_cargo_vehicle=%d cash_delta=%d"),
             bWantedRestoreRejectedNoCharge ? TEXT("PASS") : TEXT("FAIL"), bWantedRestoreRejectedNoCharge ? 1 : 0,
             !UGameplayStatics::DoesSaveGameExist(DispatchCheckpointSlot, 0) ? 1 : 0,
@@ -568,7 +575,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             && Roadside->GetPendingRecoveryMode(NativeMulebox.Get()) == EGTTRoadsideRecoveryMode::EmergencyPatch
             && Roadside->GetPendingRecoveryVehicleId(NativeMulebox.Get()) == LoadedVehicleId
             && Economy->GetCash() == CashBeforePatch;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=PATCH_REQUEST result=%s locked_quote=%d target_pinned=%d charged=NO"),
             bLocked ? TEXT("PASS") : TEXT("FAIL"), PatchLockedQuote,
             Roadside->GetPendingRecoveryVehicleId(NativeMulebox.Get()) == LoadedVehicleId ? 1 : 0);
@@ -592,8 +599,9 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             MarkFailure(TEXT("patch-pre-reload-cancel-failed")); FinishScenario(TEXT("patch-reload-failed")); return;
         }
         bPatchPrimaryLoaded = GameMode && GameMode->LoadProgress();
-        bPatchReloadRearmed = bPatchPrimaryLoaded && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
-        UE_LOG(LogGTT, Log,
+        bPatchReloadRearmed = bPatchPrimaryLoaded && EnsureNativeDriver()
+            && DispatchPersistence->ReloadCheckpointForRuntimeEvidence();
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=PATCH_RELOAD result=%s checkpoint=%d primary_save=%d primary_load=%d rearm=%d saved_eta=%.3f locked_quote=%d charged=NO"),
             (bPatchPrimarySaved && bPatchPrimaryLoaded && bPatchReloadRearmed) ? TEXT("PASS") : TEXT("FAIL"),
             bPatchCheckpointSaved ? 1 : 0, bPatchPrimarySaved ? 1 : 0, bPatchPrimaryLoaded ? 1 : 0,
@@ -617,7 +625,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             const float RestoredEta = Roadside->GetPendingRecoverySecondsRemaining(NativeMulebox.Get());
             bPatchEtaPreserved = RestoredEta > 0.0f && RestoredEta <= PatchCheckpointEta + 0.40f;
             bPatchNoChargeBeforeArrival = Economy->GetCash() == CashBeforePatch;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=PATCH_RESTORED result=%s restored=%d quote_preserved=%d eta_preserved=%d exact_vehicle=%d no_charge_before_arrival=%d saved_eta=%.3f restored_eta=%.3f"),
                 (bPatchRestored && bPatchQuotePreserved && bPatchEtaPreserved && bPatchExactVehicle && bPatchNoChargeBeforeArrival) ? TEXT("PASS") : TEXT("FAIL"),
                 bPatchRestored ? 1 : 0, bPatchQuotePreserved ? 1 : 0, bPatchEtaPreserved ? 1 : 0,
@@ -645,7 +653,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             && Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId
             && NativeMulebox->GetPersistentVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=PATCH_COMPLETE result=%s completed=%d single_charge=%d charged=%d locked_quote=%d exact_vehicle=%d timer_continued=%d integrity_not_improved=%d"),
             (bPatchCompleted && bPatchSingleCharge && bPatchExactVehicle && bTimerContinued && bIntegrityNotImproved) ? TEXT("PASS") : TEXT("FAIL"),
             bPatchCompleted ? 1 : 0, bPatchSingleCharge ? 1 : 0, CashBeforePatch - Economy->GetCash(), PatchLockedQuote,
@@ -668,7 +676,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
             && Director->GetStage() == EGTTFarmJobStage::DeliverCargo
             && Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=WRONG_VEHICLE result=%s rejected=%d bound_vehicle=%s stage=%s"),
             bWrongVehicleRejected ? TEXT("PASS") : TEXT("FAIL"), bWrongVehicleRejected ? 1 : 0,
             *Authority->GetBoundCargoVehicleId().ToString(), StageLabel(Director->GetStage()));
@@ -685,7 +693,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
         bHillHandoff = Director->GetStage() == EGTTFarmJobStage::DeliverFinalStop
             && Authority->GetBoundCargoVehicle() == NativeMulebox.Get()
             && Authority->GetBoundCargoVehicleId() == LoadedVehicleId;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=HILL_HANDOFF result=%s same_vehicle=%d stage=%s"),
             bHillHandoff ? TEXT("PASS") : TEXT("FAIL"), bHillHandoff ? 1 : 0, StageLabel(Director->GetStage()));
         if (!bHillHandoff) { MarkFailure(TEXT("hill-handoff-after-dispatch-persistence-failed")); FinishScenario(TEXT("hill-failed")); return; }
@@ -703,7 +711,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
         PayoutDelta = Economy->GetCash() - CashBeforeFinal;
         CargoRunsDelta = Logistics->GetCargoCompletedRuns() - EvidenceCargoRunsBefore;
         ReputationDelta = Logistics->GetReputation() - EvidenceReputationBefore;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=FINAL_HANDOFF result=%s final=%d payout_delta=%d cargo_runs_delta=%d reputation_delta=%d authority_cleared=%d"),
             (bFinalHandoff && PayoutDelta > 0 && CargoRunsDelta == 1 && ReputationDelta > 0) ? TEXT("PASS") : TEXT("FAIL"),
             bFinalHandoff ? 1 : 0, PayoutDelta, CargoRunsDelta, ReputationDelta,
@@ -718,7 +726,7 @@ void UGTTFarmCargoDispatchPersistenceEvidenceSubsystem::Tick(float DeltaTime)
 
     case EPersistenceEvidencePhase::VerifyPersistence:
         bSaveVerified = GameMode && GameMode->SaveProgress();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("FARM_CARGO_DISPATCH_PERSISTENCE_RUNTIME phase=PERSISTENCE result=%s explicit_save=%d sidecar_present=%d"),
             bSaveVerified ? TEXT("PASS") : TEXT("FAIL"), bSaveVerified ? 1 : 0,
             UGameplayStatics::DoesSaveGameExist(DispatchCheckpointSlot, 0) ? 1 : 0);

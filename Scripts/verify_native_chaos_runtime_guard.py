@@ -3,6 +3,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 header = (ROOT / "Source/GTT/Public/Vehicles/GTTNativeChaosRuntimeGuardSubsystem.h").read_text(encoding="utf-8")
 cpp = (ROOT / "Source/GTT/Private/Vehicles/GTTNativeChaosRuntimeGuardSubsystem.cpp").read_text(encoding="utf-8")
+fieldmaster_cpp = (ROOT / "Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp").read_text(encoding="utf-8")
+road_vehicle_cpp = (ROOT / "Source/GTT/Private/Vehicles/GTTRoadVehicleNativePawn.cpp").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/project-sanity.yml").read_text(encoding="utf-8")
 roadmap = (ROOT / "Docs/ROADMAP.md").read_text(encoding="utf-8")
 playtest = (ROOT / "Docs/PLAYTEST_0.0.52.md").read_text(encoding="utf-8")
@@ -30,6 +32,9 @@ for token in required_header:
     assert token in header, f"missing runtime-guard header token: {token}"
 for token in required_cpp:
     assert token in cpp, f"missing runtime-guard implementation token: {token}"
+
+assert "RecreatePhysicsState" in fieldmaster_cpp, "Fieldmaster must rebuild Chaos after runtime wheel authoring"
+assert "RecreatePhysicsState" in road_vehicle_cpp, "road vehicles must rebuild Chaos after runtime wheel authoring"
 
 assert "python Scripts/verify_native_chaos_runtime_guard.py" in workflow
 assert "0.0.52" in playtest

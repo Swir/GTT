@@ -29,7 +29,7 @@ EGTTRoadsideRecoveryRestoreResult UGTTRoadsideRecoverySubsystem::RestorePendingR
         || LockedQuote <= 0
         || SecondsRemaining <= 0.0f)
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_RESTORE_REJECTED vehicle=%s mode=%d quote=%d eta=%.2f reason=INVALID_CHECKPOINT charged=NO"),
             *PersistentVehicleId.ToString(), static_cast<int32>(Mode), LockedQuote, SecondsRemaining);
         return EGTTRoadsideRecoveryRestoreResult::Rejected;
@@ -53,7 +53,7 @@ EGTTRoadsideRecoveryRestoreResult UGTTRoadsideRecoverySubsystem::RestorePendingR
 
     if (ExactMatchCount > 1)
     {
-        UE_LOG(LogGTT, Error,
+        GTT_LOG( Error,
             TEXT("NATIVE_ROADSIDE_DISPATCH_RESTORE_REJECTED vehicle=%s reason=DUPLICATE_PERSISTENT_ID matches=%d charged=NO"),
             *PersistentVehicleId.ToString(), ExactMatchCount);
         return EGTTRoadsideRecoveryRestoreResult::Rejected;
@@ -71,7 +71,7 @@ EGTTRoadsideRecoveryRestoreResult UGTTRoadsideRecoverySubsystem::RestorePendingR
     const int32 WantedLevel = Wanted ? Wanted->GetWantedLevel() : 0;
     if (WantedLevel > 0)
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_RESTORE_REJECTED vehicle=%s reason=WANTED wanted=%d charged=NO"),
             *PersistentVehicleId.ToString(), WantedLevel);
         return EGTTRoadsideRecoveryRestoreResult::Rejected;
@@ -79,7 +79,7 @@ EGTTRoadsideRecoveryRestoreResult UGTTRoadsideRecoverySubsystem::RestorePendingR
 
     if (!IsPlayerRecoveryChoiceEligible(TargetVehicle))
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_RESTORE_REJECTED vehicle=%s reason=NO_LONGER_ELIGIBLE charged=NO"),
             *PersistentVehicleId.ToString());
         return EGTTRoadsideRecoveryRestoreResult::Rejected;
@@ -90,7 +90,7 @@ EGTTRoadsideRecoveryRestoreResult UGTTRoadsideRecoverySubsystem::RestorePendingR
         const UGTTBreakdownDecisionSubsystem* Decision = World->GetSubsystem<UGTTBreakdownDecisionSubsystem>();
         if (!Decision || !Decision->CanEmergencyPatch(TargetVehicle))
         {
-            UE_LOG(LogGTT, Warning,
+            GTT_LOG( Warning,
                 TEXT("NATIVE_ROADSIDE_DISPATCH_RESTORE_REJECTED vehicle=%s reason=PATCH_NO_LONGER_VALID charged=NO"),
                 *PersistentVehicleId.ToString());
             return EGTTRoadsideRecoveryRestoreResult::Rejected;
@@ -100,7 +100,7 @@ EGTTRoadsideRecoveryRestoreResult UGTTRoadsideRecoverySubsystem::RestorePendingR
     FGTTRoadsideRecoveryRuntime& Runtime = RuntimeByVehicle.FindOrAdd(TargetVehicle);
     if (Runtime.CooldownSeconds > 0.0f)
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_RESTORE_REJECTED vehicle=%s reason=RECOVERY_COOLDOWN charged=NO"),
             *PersistentVehicleId.ToString());
         return EGTTRoadsideRecoveryRestoreResult::Rejected;
@@ -121,7 +121,7 @@ EGTTRoadsideRecoveryRestoreResult UGTTRoadsideRecoverySubsystem::RestorePendingR
             return EGTTRoadsideRecoveryRestoreResult::Restored;
         }
 
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_ROADSIDE_DISPATCH_RESTORE_REJECTED vehicle=%s reason=LIVE_DISPATCH_CONFLICT charged=NO"),
             *PersistentVehicleId.ToString());
         return EGTTRoadsideRecoveryRestoreResult::Rejected;
@@ -148,7 +148,7 @@ EGTTRoadsideRecoveryRestoreResult UGTTRoadsideRecoverySubsystem::RestorePendingR
         Runtime.PendingTowQuote = LockedQuote;
     }
 
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("NATIVE_ROADSIDE_DISPATCH_RESTORED vehicle=%s mode=%s locked_quote=%d eta=%.2f exact_id=YES charged=NO"),
         *PersistentVehicleId.ToString(),
         Mode == EGTTRoadsideRecoveryMode::EmergencyPatch ? TEXT("PATCH") : TEXT("TOW"),

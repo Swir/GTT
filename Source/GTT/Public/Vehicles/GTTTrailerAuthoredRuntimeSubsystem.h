@@ -5,7 +5,7 @@
 #include "GTTTrailerAuthoredRuntimeSubsystem.generated.h"
 
 class AGTTFarmTrailer;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
 USTRUCT(BlueprintType)
 struct FGTTAuthoredTrailerRuntimeSnapshot
@@ -44,18 +44,18 @@ public:
 private:
     struct FRuntimeState
     {
-        TWeakObjectPtr<USkeletalMeshComponent> Rig;
+        TWeakObjectPtr<USkinnedMeshComponent> Rig;
         FGTTAuthoredTrailerRuntimeSnapshot Snapshot;
         float EvidenceCooldown = 0.0f;
         bool bPresentationTakeover = false;
     };
 
     void EvaluateTrailer(AGTTFarmTrailer* Trailer, float DeltaSeconds);
-    USkeletalMeshComponent* FindAuthoredRig(AGTTFarmTrailer* Trailer) const;
-    bool ValidateRig(USkeletalMeshComponent* Rig) const;
-    void SetAuthoredPresentation(AGTTFarmTrailer* Trailer, USkeletalMeshComponent* Rig, bool bActive, FRuntimeState& State) const;
+    USkinnedMeshComponent* FindAuthoredRig(AGTTFarmTrailer* Trailer) const;
+    bool ValidateRig(USkinnedMeshComponent* Rig) const;
+    void SetAuthoredPresentation(AGTTFarmTrailer* Trailer, USkinnedMeshComponent* Rig, bool bActive, FRuntimeState& State) const;
     bool TraceWheelContact(AGTTFarmTrailer* Trailer, const FVector& WheelWorld, float& OutGroundClearanceCm) const;
-    void ApplyAuthoredDynamics(AGTTFarmTrailer* Trailer, USkeletalMeshComponent* Rig, FRuntimeState& State, float DeltaSeconds) const;
+    void ApplyAuthoredDynamics(AGTTFarmTrailer* Trailer, USkinnedMeshComponent* Rig, FRuntimeState& State, float DeltaSeconds) const;
 
     TMap<TWeakObjectPtr<AGTTFarmTrailer>, FRuntimeState> RuntimeByTrailer;
     float ScanAccumulator = 0.0f;

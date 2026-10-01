@@ -16,7 +16,7 @@ EVehicleDifferential ToChaosDifferential(EGTTChaosDriveLayout Layout)
     }
 }
 
-bool NearlyEqual(float A, float B, float Tolerance = 0.01f)
+bool PowertrainNearlyEqual(float A, float B, float Tolerance = 0.01f)
 {
     return FMath::IsNearlyEqual(A, B, Tolerance);
 }
@@ -36,14 +36,44 @@ bool UGTTChaosPowertrainSetupLibrary::ConfigureCanonicalPowertrain(UChaosWheeled
         OutSummary = FString::Printf(TEXT("Unknown vehicle id: %s"), *VehicleId.ToString());
         return false;
     }
+    if (Spec.ReverseGearRatio <= 0.0f)
+    {
+        OutSummary = FString::Printf(TEXT("Invalid reverse ratio magnitude for %s: %.2f"), *VehicleId.ToString(), Spec.ReverseGearRatio);
+        return false;
+    }
 
     Movement->bMechanicalSimEnabled = true;
+    // GTT chooses the signed gear explicitly. Chaos' default reverse-as-brake policy
+    // would otherwise force a positive throttle command back into first gear.
+    Movement->bReverseAsBrake = false;
+    Movement->bThrottleAsBrake = false;
+    Movement->Mass = Spec.MassKg;
+    Movement->bEnableCenterOfMassOverride = true;
+    // The generated rig root sits at road height. Keep the fixed COM near the
+    // axles instead of allowing the tall authored cab/body mesh to place it
+    // high enough to tip the chassis before suspension settles.
+    Movement->CenterOfMassOverride = FVector(0.0f, 0.0f,
+        FMath::Min(Spec.FrontWheel.RadiusCm, Spec.RearWheel.RadiusCm) * 0.72f);
+    if (VehicleId == TEXT("RustyFieldmaster60")) { Movement->ChassisWidth = 225.0f; Movement->ChassisHeight = 175.0f; }
+    else if (VehicleId == TEXT("Mulebox1200")) { Movement->ChassisWidth = 205.0f; Movement->ChassisHeight = 215.0f; }
+    else { Movement->ChassisWidth = 186.0f; Movement->ChassisHeight = 135.0f; }
+    Movement->DragCoefficient = 0.30f;
+    Movement->DownforceCoefficient = 0.35f;
     Movement->EngineSetup.MaxTorque = Spec.EngineMaxTorqueNm;
     Movement->EngineSetup.MaxRPM = Spec.EngineMaxRpm;
     Movement->EngineSetup.EngineIdleRPM = Spec.EngineIdleRpm;
     Movement->EngineSetup.EngineBrakeEffect = 0.12f;
     Movement->EngineSetup.EngineRevUpMOI = 5.0f;
     Movement->EngineSetup.EngineRevDownRate = 600.0f;
+    // Chaos disables the entire mechanical simulation when the authored curve is empty.
+    // Runtime-created native vehicles therefore need a real RPM-domain torque curve,
+    // even though MaxTorque and MaxRPM are configured separately.
+    FRichCurve* TorqueCurve = Movement->EngineSetup.TorqueCurve.GetRichCurve();
+    TorqueCurve->Reset();
+    TorqueCurve->AddKey(0.0f, 0.55f);
+    TorqueCurve->AddKey(Spec.EngineIdleRpm, 0.72f);
+    TorqueCurve->AddKey(Spec.EngineMaxRpm * 0.45f, 1.0f);
+    TorqueCurve->AddKey(Spec.EngineMaxRpm, 0.72f);
 
     Movement->TransmissionSetup.bUseAutomaticGears = true;
     Movement->TransmissionSetup.bUseAutoReverse = false;
@@ -80,26 +110,35 @@ bool UGTTChaosPowertrainSetupLibrary::ValidateCanonicalPowertrain(const UChaosWh
 
     TArray<FString> Problems;
     if (!Movement->bMechanicalSimEnabled) Problems.Add(TEXT("mechanical-sim"));
-    if (!NearlyEqual(Movement->EngineSetup.MaxTorque, Spec.EngineMaxTorqueNm)) Problems.Add(TEXT("engine-torque"));
-    if (!NearlyEqual(Movement->EngineSetup.MaxRPM, Spec.EngineMaxRpm)) Problems.Add(TEXT("engine-max-rpm"));
-    if (!NearlyEqual(Movement->EngineSetup.EngineIdleRPM, Spec.EngineIdleRpm)) Problems.Add(TEXT("engine-idle-rpm"));
-    if (!NearlyEqual(Movement->TransmissionSetup.FinalRatio, Spec.FinalDriveRatio)) Problems.Add(TEXT("final-drive"));
+    if (Movement->bReverseAsBrake) Problems.Add(TEXT("reverse-as-brake"));
+    if (Movement->bThrottleAsBrake) Problems.Add(TEXT("throttle-as-brake"));
+    if (!PowertrainNearlyEqual(Movement->Mass, Spec.MassKg, 0.5f)) Problems.Add(TEXT("chassis-mass"));
+    if (!Movement->bEnableCenterOfMassOverride || Movement->CenterOfMassOverride.Z > Spec.FrontWheel.RadiusCm)
+        Problems.Add(TEXT("stable-center-of-mass"));
+    if (Movement->EngineSetup.TorqueCurve.GetRichCurveConst()->IsEmpty()) Problems.Add(TEXT("torque-curve"));
+    if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxTorque, Spec.EngineMaxTorqueNm)) Problems.Add(TEXT("engine-torque"));
+    if (!PowertrainNearlyEqual(Movement->EngineSetup.MaxRPM, Spec.EngineMaxRpm)) Problems.Add(TEXT("engine-max-rpm"));
+    if (!PowertrainNearlyEqual(Movement->EngineSetup.EngineIdleRPM, Spec.EngineIdleRpm)) Problems.Add(TEXT("engine-idle-rpm"));
+    if (!PowertrainNearlyEqual(Movement->TransmissionSetup.FinalRatio, Spec.FinalDriveRatio)) Problems.Add(TEXT("final-drive"));
+    if (!Movement->TransmissionSetup.bUseAutomaticGears) Problems.Add(TEXT("automatic-gears"));
+    if (Movement->TransmissionSetup.bUseAutoReverse) Problems.Add(TEXT("auto-reverse"));
     if (Movement->TransmissionSetup.ForwardGearRatios.Num() != Spec.ForwardGearRatios.Num()) Problems.Add(TEXT("forward-gear-count"));
     else
     {
         for (int32 Index = 0; Index < Spec.ForwardGearRatios.Num(); ++Index)
         {
-            if (!NearlyEqual(Movement->TransmissionSetup.ForwardGearRatios[Index], Spec.ForwardGearRatios[Index]))
+            if (!PowertrainNearlyEqual(Movement->TransmissionSetup.ForwardGearRatios[Index], Spec.ForwardGearRatios[Index]))
             {
                 Problems.Add(FString::Printf(TEXT("forward-gear-%d"), Index + 1));
             }
         }
     }
     if (Movement->TransmissionSetup.ReverseGearRatios.Num() != 1 ||
-        !NearlyEqual(Movement->TransmissionSetup.ReverseGearRatios[0], Spec.ReverseGearRatio))
+        !PowertrainNearlyEqual(Movement->TransmissionSetup.ReverseGearRatios[0], Spec.ReverseGearRatio))
     {
         Problems.Add(TEXT("reverse-gear"));
     }
+    if (Spec.ReverseGearRatio <= 0.0f) Problems.Add(TEXT("reverse-gear-sign"));
     if (Movement->DifferentialSetup.DifferentialType != ToChaosDifferential(Spec.DriveLayout)) Problems.Add(TEXT("differential-layout"));
 
     if (Problems.Num() > 0)

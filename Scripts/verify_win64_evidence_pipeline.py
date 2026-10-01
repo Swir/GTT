@@ -42,7 +42,7 @@ for token in ['[string]$Version = ""',"Config\\DefaultGame.ini","ProjectVersion"
     assert token in package, f"missing package helper token: {token}"
 for token in ["WIN64_PREFLIGHT.json","BUILD_ATTEMPT.json",'preflight.result -ne "PASS"','attempt.result -ne "PASS"',"uat_exit_code","PACKAGE_VALIDATION.json"]:
     assert token in validator, f"missing package validator evidence token: {token}"
-for token in ["GTT.exe","Start-Process","MinimumAliveSeconds","GTTWorkshopCapacityRuntimeScenario","workshop_capacity_runtime_scenario = $true","GTTWorkshopPriorityPickupRuntimeScenario","workshop_priority_pickup_runtime_scenario = $true","RUNTIME_SMOKE.json","result = 'PASS'","visual_acceptance = 'NOT_PERFORMED'","Stop-Process"]:
+for token in ["GTT.exe","Start-Process","MinimumAliveSeconds","GTTWorkshopCapacityRuntimeScenario","workshop_capacity_runtime_scenario = $true","GTTWorkshopPriorityPickupRuntimeScenario","workshop_priority_pickup_runtime_scenario = $true","GTTDrivetrainRuntimeScenario","GTTTrailerRuntimeScenario","GTTDisableDrivetrainScenario","GTTDisableTrailerScenario","GTTDisableRecoveryChoiceScenario","GTT_RUNTIME_CORE.log","GTT_RUNTIME_NATIVE.log","GTT_RUNTIME_SERVICES.log","-UserDir=$userDir","isolated_user_dirs = $true","runtime_passes = $passes","RUNTIME_SMOKE.json","result = 'PASS'","visual_acceptance = 'NOT_PERFORMED'","Stop-Process"]:
     assert token in smoke, f"missing runtime smoke evidence token: {token}"
 assert "ChaosVehiclesPlugin" in uproject and '"EngineAssociation": "5.8"' in uproject
 assert "python Scripts/verify_win64_evidence_pipeline.py" in dedicated_workflow and "pull_request:" in dedicated_workflow and "push:" in dedicated_workflow

@@ -36,6 +36,7 @@ private:
         PrepareAndBook,
         VerifyCheckpointLoad,
         AwaitSubstituteRejection,
+        AwaitExactCheckIn,
         AwaitExactExecution,
         Complete
     };

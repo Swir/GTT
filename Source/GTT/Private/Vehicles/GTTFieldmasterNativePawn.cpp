@@ -6,9 +6,14 @@
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
 #include "EngineUtils.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Radio/GTTRadioComponent.h"
 #include "Vehicles/GTTChaosRigContract.h"
 #include "Vehicles/GTTFieldmasterChaosMovementComponent.h"
@@ -22,6 +27,29 @@ namespace
     constexpr float TakeoverRetryIntervalSeconds = 1.0f;
     constexpr float NativeIdleFuelBurnPerSecond = 0.025f;
     constexpr float NativeFullThrottleFuelBurnPerSecond = 0.11f;
+
+    FTransform ResolveGroundedFieldmasterTransform(UWorld* World, const AActor* NativeVehicle, const AActor* LegacyVehicle, const FTransform& SourceTransform)
+    {
+        if (!World) return SourceTransform;
+        const FVector SourceLocation = SourceTransform.GetLocation();
+        FHitResult Hit;
+        FCollisionObjectQueryParams ObjectQuery;
+        ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
+        FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GTTNativeFieldmasterTakeoverGround), false, NativeVehicle);
+        QueryParams.AddIgnoredActor(LegacyVehicle);
+        if (!World->LineTraceSingleByObjectType(Hit, SourceLocation + FVector(0.0f, 0.0f, 500.0f),
+            SourceLocation - FVector(0.0f, 0.0f, 1200.0f), ObjectQuery, QueryParams))
+        {
+            return SourceTransform;
+        }
+        FTransform Grounded = SourceTransform;
+        const FQuat UprightRotation = FRotator(0.0f, SourceTransform.Rotator().Yaw, 0.0f).Quaternion();
+        FVector GroundedLocation = SourceLocation;
+        GroundedLocation.Z = Hit.ImpactPoint.Z + 4.0f;
+        Grounded.SetLocation(GroundedLocation);
+        Grounded.SetRotation(UprightRotation);
+        return Grounded;
+    }
 }
 
 AGTTFieldmasterNativePawn::AGTTFieldmasterNativePawn(const FObjectInitializer& ObjectInitializer)
@@ -29,6 +57,13 @@ AGTTFieldmasterNativePawn::AGTTFieldmasterNativePawn(const FObjectInitializer& O
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickInterval = 0.1f;
+
+    static ConstructorHelpers::FObjectFinder<USkeletalMesh> VehicleMesh(
+        TEXT("/Game/GTT/Vehicles/Fieldmaster/SK_GTT_Fieldmaster60.SK_GTT_Fieldmaster60"));
+    if (VehicleMesh.Succeeded())
+    {
+        GetMesh()->SetSkeletalMesh(VehicleMesh.Object);
+    }
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(GetMesh());
@@ -53,12 +88,12 @@ void AGTTFieldmasterNativePawn::BeginPlay()
 
     if (bNativeReady)
     {
-        UE_LOG(LogGTT, Log, TEXT("Fieldmaster native pawn accepted: %s"), *NativeAcceptanceSummary);
+        GTT_LOG( Log, TEXT("Fieldmaster native pawn accepted: %s"), *NativeAcceptanceSummary);
         TryActivateLegacyTakeover();
     }
     else
     {
-        UE_LOG(LogGTT, Warning, TEXT("Fieldmaster native pawn not accepted: %s"), *NativeAcceptanceSummary);
+        GTT_LOG( Warning, TEXT("Fieldmaster native pawn not accepted: %s"), *NativeAcceptanceSummary);
     }
 }
 
@@ -85,7 +120,7 @@ void AGTTFieldmasterNativePawn::Tick(float DeltaSeconds)
         MigrationSnapshot.FuelLiters = FMath::Max(0.0f, MigrationSnapshot.FuelLiters - BurnRate * DeltaSeconds);
     }
 
-    if (bOccupied)
+    if (bOccupied || bAcceptanceDriveCommandActive)
     {
         RefreshNativeDriveCommand();
     }
@@ -211,7 +246,7 @@ void AGTTFieldmasterNativePawn::RefreshNativeDriveCommand()
         return;
     }
 
-    const bool bCanDrive = bNativeReady && bTakeoverActive && bOccupied && MigrationSnapshot.FuelLiters > KINDA_SMALL_NUMBER;
+    const bool bCanDrive = bNativeReady && bTakeoverActive && (bOccupied || bAcceptanceDriveCommandActive) && MigrationSnapshot.FuelLiters > KINDA_SMALL_NUMBER;
     if (!bCanDrive)
     {
         Movement->HoldFieldmasterStopped();
@@ -231,6 +266,41 @@ void AGTTFieldmasterNativePawn::HandleNativeThrottle(float Value)
 {
     LastThrottleInput = FMath::Clamp(Value, -1.0f, 1.0f);
     RefreshNativeDriveCommand();
+}
+
+bool AGTTFieldmasterNativePawn::ApplyAcceptanceDriveCommand(float Throttle, float Steering, float Brake)
+{
+    const TCHAR* CommandLine = FCommandLine::Get();
+    const bool bAcceptanceScenario = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+    if (!bAcceptanceScenario || !bNativeReady || !bTakeoverActive)
+    {
+        return false;
+    }
+
+    bAcceptanceDriveCommandActive = true;
+    LastThrottleInput = FMath::Clamp(Throttle, -1.0f, 1.0f);
+    LastSteeringInput = FMath::Clamp(Steering, -1.0f, 1.0f);
+    RefreshNativeDriveCommand();
+    if (UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement())
+    {
+        Movement->SetRequiresControllerForInputs(false);
+        if (USkeletalMeshComponent* VehicleBody = GetMesh()) VehicleBody->WakeAllRigidBodies();
+        Movement->SetBrakeInput(FMath::Clamp(Brake, 0.0f, 1.0f));
+        if (!FMath::IsNearlyZero(LastThrottleInput))
+        {
+            const int32 RequestedDirection = LastThrottleInput < 0.0f ? -1 : 1;
+            const int32 CurrentGear = Movement->GetCurrentGear();
+            if (RequestedDirection != AcceptanceDriveDirection || (RequestedDirection < 0 ? CurrentGear >= 0 : CurrentGear <= 0))
+            {
+                Movement->SetTargetGear(RequestedDirection, true);
+                AcceptanceDriveDirection = RequestedDirection;
+            }
+        }
+        return true;
+    }
+    return false;
 }
 
 void AGTTFieldmasterNativePawn::HandleNativeSteering(float Value)
@@ -324,6 +394,7 @@ bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
         return false;
     }
 
+    const bool bServicesRuntime = FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario"));
     for (TActorIterator<AGTTVehicleBase> It(GetWorld()); It; ++It)
     {
         AGTTVehicleBase* LegacyVehicle = *It;
@@ -331,7 +402,19 @@ bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
         {
             continue;
         }
-        if (!LegacyVehicle->IsOwnedByPlayer() || LegacyVehicle->IsOccupied())
+        if (LegacyVehicle->IsOccupied())
+        {
+            return false;
+        }
+        if (bServicesRuntime && !LegacyVehicle->IsOwnedByPlayer())
+        {
+            LegacyVehicle->MarkOwnedByPlayer();
+            LegacyVehicle->RepairVehicle(100000.0f);
+            LegacyVehicle->RefuelVehicle(100000.0f);
+            LegacyVehicle->RepairTires();
+            GTT_LOG(Display, TEXT("SERVICES_RUNTIME_VEHICLE_PREP result=PASS vehicle=RustyFieldmaster60 condition=1.0 tires=1.0"));
+        }
+        if (!LegacyVehicle->IsOwnedByPlayer())
         {
             return false;
         }
@@ -339,21 +422,38 @@ bool AGTTFieldmasterNativePawn::TryActivateLegacyTakeover()
         FString ImportSummary;
         if (!ImportLegacyGameplayState(LegacyVehicle, ImportSummary))
         {
-            UE_LOG(LogGTT, Warning, TEXT("Fieldmaster takeover rejected: %s"), *ImportSummary);
+            GTT_LOG( Warning, TEXT("Fieldmaster takeover rejected: %s"), *ImportSummary);
             return false;
         }
 
         LegacyMirror = LegacyVehicle;
-        SetActorTransform(LegacyVehicle->GetActorTransform(), false, nullptr, ETeleportType::TeleportPhysics);
+        SetActorTransform(ResolveGroundedFieldmasterTransform(GetWorld(), this, LegacyVehicle, LegacyVehicle->GetActorTransform()), false, nullptr, ETeleportType::TeleportPhysics);
         LegacyVehicle->SetActorHiddenInGame(true);
         LegacyVehicle->SetActorEnableCollision(false);
         LegacyVehicle->SetActorTickEnabled(false);
         SetActorHiddenInGame(false);
         SetActorEnableCollision(true);
+        // Standby keeps this pawn non-physical. Build the skeletal rigid body first,
+        // then create the Chaos vehicle against that live body and its four wheel setups.
+        if (USkeletalMeshComponent* VehicleMesh = GetMesh())
+        {
+            VehicleMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            VehicleMesh->SetSimulatePhysics(true);
+            VehicleMesh->RecreatePhysicsState();
+            VehicleMesh->WakeAllRigidBodies();
+        }
+        if (UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement())
+        {
+            Movement->RecreatePhysicsState();
+            if (!Movement->HasValidPhysicsState())
+            {
+                Movement->CreatePhysicsState();
+            }
+        }
         bTakeoverActive = true;
         MirrorSyncAccumulator = 0.0f;
         RefreshNativeDriveCommand();
-        UE_LOG(LogGTT, Log, TEXT("Fieldmaster native takeover ACTIVE: %s"), *ImportSummary);
+        GTT_LOG( Log, TEXT("Fieldmaster native takeover ACTIVE: %s"), *ImportSummary);
         return true;
     }
 
@@ -426,8 +526,8 @@ void AGTTFieldmasterNativePawn::SyncLegacyMirror()
 
 bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
 {
-    const USkeletalMeshComponent* Mesh = GetMesh();
-    if (!Mesh)
+    const USkeletalMeshComponent* SkeletalMeshComponent = GetMesh();
+    if (!SkeletalMeshComponent)
     {
         OutSummary = TEXT("No skeletal mesh component");
         return false;
@@ -443,7 +543,7 @@ bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
     TArray<FString> Missing;
     for (const FName BoneName : UGTTChaosRigContractLibrary::GetRequiredBoneNames(Rig))
     {
-        if (BoneName.IsNone() || Mesh->GetBoneIndex(BoneName) == INDEX_NONE)
+        if (BoneName.IsNone() || SkeletalMeshComponent->GetBoneIndex(BoneName) == INDEX_NONE)
         {
             Missing.Add(FString::Printf(TEXT("bone:%s"), *BoneName.ToString()));
         }
@@ -451,7 +551,7 @@ bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
 
     for (const FName SocketName : UGTTChaosRigContractLibrary::GetRequiredSocketNames(Rig))
     {
-        if (SocketName.IsNone() || !Mesh->DoesSocketExist(SocketName))
+        if (SocketName.IsNone() || !SkeletalMeshComponent->DoesSocketExist(SocketName))
         {
             Missing.Add(FString::Printf(TEXT("socket:%s"), *SocketName.ToString()));
         }
@@ -469,6 +569,7 @@ bool AGTTFieldmasterNativePawn::ValidateRigContract(FString& OutSummary) const
 
 bool AGTTFieldmasterNativePawn::ConfigureAndValidateNativeFieldmaster(FString& OutSummary)
 {
+    const bool bNeedsPhysicsRebuild = !bNativeReady;
     UGTTFieldmasterChaosMovementComponent* Movement = GetFieldmasterMovement();
     if (!Movement)
     {
@@ -501,6 +602,12 @@ bool AGTTFieldmasterNativePawn::ConfigureAndValidateNativeFieldmaster(FString& O
     if (!bNativeReady)
     {
         Movement->HoldFieldmasterStopped();
+    }
+    else if (bNeedsPhysicsRebuild)
+    {
+        // Wheel and powertrain setups are authored into the movement component at runtime.
+        // Rebuild its physics state once so Chaos creates the live vehicle with those four wheels.
+        Movement->RecreatePhysicsState();
     }
     return bNativeReady;
 }

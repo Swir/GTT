@@ -217,7 +217,7 @@ void AGTTVehicleBase::ApplyVehicleDamage(float DamageAmount)
         LastSteeringInput = 0.0f;
         ActiveFaultStatus = TEXT("BROKEN DOWN");
         SetEngineRunning(false);
-        UE_LOG(LogGTT, Warning, TEXT("Vehicle %s broke down."), *GetName());
+        GTT_LOG( Warning, TEXT("Vehicle %s broke down."), *GetName());
         OnVehicleBrokenDown();
     }
 }
@@ -466,7 +466,7 @@ void AGTTVehicleBase::UpdateBreakableParts()
         Part->AddImpulse((GetActorUpVector() * FMath::FRandRange(120.0f, 260.0f)) + SideKick, NAME_None, true);
         Runtime.bDetached = true;
         ++DetachedPartCount;
-        UE_LOG(LogGTT, Warning, TEXT("%s lost body part: %s"), *GetName(), *Runtime.PartName.ToString());
+        GTT_LOG( Warning, TEXT("%s lost body part: %s"), *GetName(), *Runtime.PartName.ToString());
     }
 }
 
@@ -515,7 +515,7 @@ void AGTTVehicleBase::TriggerMechanicalStall(const TCHAR* Reason)
     ActiveFaultStatus = Reason;
     FaultRestartTimeRemaining = FaultRestartDelaySeconds;
     SetEngineRunning(false);
-    UE_LOG(LogGTT, Warning, TEXT("%s mechanical fault: %s"), *GetName(), Reason);
+    GTT_LOG( Warning, TEXT("%s mechanical fault: %s"), *GetName(), Reason);
 }
 
 void AGTTVehicleBase::SetEngineRunning(bool bNewRunning)

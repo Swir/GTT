@@ -57,7 +57,8 @@ bool UGTTNativeChaosRuntimeGuardSubsystem::EvaluateLiveChaosContract(
     OutMinSuspension = 1.0f;
     OutMaxSuspension = 0.0f;
 
-    if (!NativePawn || !Movement || !Movement->IsActive() || !Mesh || !Mesh->GetPhysicsAsset()
+    if (!NativePawn || !Movement || !Movement->IsActive()
+        || Movement->GetNumWheels() < RequiredWheelCount || !Mesh || !Mesh->GetPhysicsAsset()
         || Mesh->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
     {
         return false;
@@ -106,7 +107,7 @@ void UGTTNativeChaosRuntimeGuardSubsystem::EvaluateFieldmaster(AGTTFieldmasterNa
     if (EvidenceSeconds >= RuntimeEvidenceIntervalSeconds)
     {
         EvidenceSeconds = 0.0f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_CHAOS_RUNTIME_ACCEPTANCE vehicle=RustyFieldmaster60 takeover=YES ready=%s movement=%s physics_asset=%s wheels=%d/4 contacts=%d suspension=%d/4 suspension_range=%.3f..%.3f accepted=%s"),
             NativePawn->IsNativeFieldmasterReady() ? TEXT("YES") : TEXT("NO"),
             Movement && Movement->IsActive() ? TEXT("ACTIVE") : TEXT("INACTIVE"),
@@ -125,7 +126,7 @@ void UGTTNativeChaosRuntimeGuardSubsystem::EvaluateFieldmaster(AGTTFieldmasterNa
     InvalidSeconds += DeltaTime;
     if (InvalidSeconds < InvalidRuntimeGraceSeconds) return;
 
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("NATIVE_CHAOS_RUNTIME_FALLBACK vehicle=RustyFieldmaster60 unhealthy_seconds=%.2f ready=%s wheels=%d/4 suspension=%d/4"),
         InvalidSeconds, NativePawn->IsNativeFieldmasterReady() ? TEXT("YES") : TEXT("NO"), ValidWheels, SuspensionSamples);
     NativePawn->DeactivateLegacyTakeover();
@@ -155,7 +156,7 @@ void UGTTNativeChaosRuntimeGuardSubsystem::EvaluateRoadVehicle(AGTTRoadVehicleNa
     if (EvidenceSeconds >= RuntimeEvidenceIntervalSeconds)
     {
         EvidenceSeconds = 0.0f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_CHAOS_RUNTIME_ACCEPTANCE vehicle=%s takeover=YES ready=%s movement=%s physics_asset=%s wheels=%d/4 contacts=%d suspension=%d/4 suspension_range=%.3f..%.3f accepted=%s"),
             *NativePawn->GetPersistentVehicleId().ToString(), NativePawn->IsNativeReady() ? TEXT("YES") : TEXT("NO"),
             Movement && Movement->IsActive() ? TEXT("ACTIVE") : TEXT("INACTIVE"),
@@ -173,7 +174,7 @@ void UGTTNativeChaosRuntimeGuardSubsystem::EvaluateRoadVehicle(AGTTRoadVehicleNa
     InvalidSeconds += DeltaTime;
     if (InvalidSeconds < InvalidRuntimeGraceSeconds) return;
 
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("NATIVE_CHAOS_RUNTIME_FALLBACK vehicle=%s unhealthy_seconds=%.2f ready=%s wheels=%d/4 suspension=%d/4"),
         *NativePawn->GetPersistentVehicleId().ToString(), InvalidSeconds,
         NativePawn->IsNativeReady() ? TEXT("YES") : TEXT("NO"), ValidWheels, SuspensionSamples);

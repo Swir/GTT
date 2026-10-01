@@ -79,6 +79,7 @@ jobs:
           path: |
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.preflight.json
+            ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-build.log
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-probe.log
 
       - name: Qualify exact Win64 candidate
@@ -89,6 +90,20 @@ jobs:
           -Configuration "$env:GTT_CONFIGURATION"
           -Version "$env:GTT_VERSION"
           -PackageDirectory "$env:GTT_PACKAGE_DIR"
+
+      - name: Upload candidate failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GTT-Win64-failure-diagnostics-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ env.GTT_PACKAGE_DIR }}\GTT_RUNTIME*.log
+            ${{ env.GTT_PACKAGE_DIR }}\RUNTIME_SMOKE.json
+            ${{ env.GTT_PACKAGE_DIR }}\DEMO_SCENARIO.json
+            ${{ env.GTT_PACKAGE_DIR }}\*.attempt.json
+            ${{ env.GTT_PACKAGE_DIR }}\*.preflight.json
 
       - name: Verify exact-candidate identity and archive boundary before upload
         shell: pwsh
@@ -210,4 +225,5 @@ jobs:
             ${{ env.GTT_PACKAGE_DIR }}\DemoVisualEvidence\GTT_visual_*.png
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.preflight.json
+            ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-build.log
             ${{ env.GTT_QUALIFICATION_DIR }}\WIN64_RUNNER_QUALIFICATION.json.editor-probe.log

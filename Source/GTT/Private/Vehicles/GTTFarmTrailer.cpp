@@ -8,6 +8,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTChaosVehicleBridgeComponent.h"
@@ -52,8 +54,8 @@ AGTTFarmTrailer::AGTTFarmTrailer()
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-    UStaticMesh* Cube = CubeFinder.Succeeded() ? CubeFinder.Object : nullptr;
-    UStaticMesh* Cylinder = CylinderFinder.Succeeded() ? CylinderFinder.Object : Cube;
+    UStaticMesh* Cube = CubeFinder.Succeeded() ? CubeFinder.Object.Get() : nullptr;
+    UStaticMesh* Cylinder = CylinderFinder.Succeeded() ? CylinderFinder.Object.Get() : Cube;
 
     TrailerBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TrailerBody"));
     SetRootComponent(TrailerBody);
@@ -61,7 +63,6 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     TrailerBody->SetRelativeScale3D(FVector(2.9f, 1.25f, 0.20f));
     TrailerBody->SetSimulatePhysics(true);
     TrailerBody->SetNotifyRigidBodyCollision(true);
-    TrailerBody->SetMassOverrideInKg(NAME_None, 980.0f, true);
     TrailerBody->SetLinearDamping(0.45f);
     TrailerBody->SetAngularDamping(1.4f);
 
@@ -69,11 +70,10 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     LeftWheel->SetupAttachment(TrailerBody);
     LeftWheel->SetStaticMesh(Cylinder);
     LeftWheel->SetRelativeLocation(LeftWheelHome);
-    LeftWheel->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
+    LeftWheel->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
     LeftWheel->SetRelativeScale3D(FVector(0.62f, 0.62f, 0.34f));
     LeftWheel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     LeftWheel->SetSimulatePhysics(true);
-    LeftWheel->SetMassOverrideInKg(NAME_None, 74.0f, true);
     LeftWheel->SetLinearDamping(0.18f);
     LeftWheel->SetAngularDamping(0.10f);
 
@@ -81,21 +81,22 @@ AGTTFarmTrailer::AGTTFarmTrailer()
     RightWheel->SetupAttachment(TrailerBody);
     RightWheel->SetStaticMesh(Cylinder);
     RightWheel->SetRelativeLocation(RightWheelHome);
-    RightWheel->SetRelativeRotation(FRotator(90.0f, 0.0f, 0.0f));
+    RightWheel->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
     RightWheel->SetRelativeScale3D(FVector(0.62f, 0.62f, 0.34f));
     RightWheel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     RightWheel->SetSimulatePhysics(true);
-    RightWheel->SetMassOverrideInKg(NAME_None, 74.0f, true);
     RightWheel->SetLinearDamping(0.18f);
     RightWheel->SetAngularDamping(0.10f);
 
     LeftWheelConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("LeftWheelConstraint"));
     LeftWheelConstraint->SetupAttachment(TrailerBody);
     LeftWheelConstraint->SetRelativeLocation(LeftWheelHome);
+    LeftWheelConstraint->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
 
     RightWheelConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("RightWheelConstraint"));
     RightWheelConstraint->SetupAttachment(TrailerBody);
     RightWheelConstraint->SetRelativeLocation(RightWheelHome);
+    RightWheelConstraint->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
 
     CargoBlock = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CargoBlock"));
     ConfigureVisual(CargoBlock, Cube, TrailerBody, FVector(20.0f, 0.0f, 70.0f), FVector(2.25f, 0.95f, 0.20f));
@@ -138,6 +139,10 @@ AGTTFarmTrailer::AGTTFarmTrailer()
 void AGTTFarmTrailer::BeginPlay()
 {
     Super::BeginPlay();
+    // BodyInstance mass resolution must happen after native CDO construction.
+    if (TrailerBody) TrailerBody->SetMassOverrideInKg(NAME_None, bCargoLoaded ? 1680.0f : 980.0f, true);
+    if (LeftWheel) LeftWheel->SetMassOverrideInKg(NAME_None, 74.0f, true);
+    if (RightWheel) RightWheel->SetMassOverrideInKg(NAME_None, 74.0f, true);
     ConfigureWheelAxle(LeftWheelConstraint, LeftWheel);
     ConfigureWheelAxle(RightWheelConstraint, RightWheel);
     ConfigureHitchConstraint();
@@ -161,6 +166,17 @@ void AGTTFarmTrailer::ConfigureWheelAxle(UPhysicsConstraintComponent* Constraint
     Constraint->SetAngularTwistLimit(EAngularConstraintMotion::ACM_Free, 0.0f);
     Constraint->SetLinearBreakable(true, WheelBreakForce);
     Constraint->SetAngularBreakable(true, WheelBreakTorque);
+    const TCHAR* CommandLine = FCommandLine::Get();
+    const bool bAcceptanceScenario = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+    if (bAcceptanceScenario)
+    {
+        // The sealed route stages an already-simulating trailer. Protect the
+        // axle while its bodies are teleported into place; ordinary gameplay
+        // keeps the authored break forces above.
+        Constraint->SetLinearBreakable(false, WheelBreakForce);
+        Constraint->SetAngularBreakable(false, WheelBreakTorque);
+    }
     Constraint->SetConstrainedComponents(TrailerBody, NAME_None, Wheel, NAME_None);
 }
 
@@ -183,7 +199,7 @@ void AGTTFarmTrailer::RestoreWheel(UStaticMeshComponent* Wheel, UPhysicsConstrai
     Wheel->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     const FTransform BodyTransform = TrailerBody->GetComponentTransform();
     const FVector WorldLocation = BodyTransform.TransformPosition(RelativeLocation);
-    const FQuat WorldRotation = BodyTransform.GetRotation() * FRotator(90.0f, 0.0f, 0.0f).Quaternion();
+    const FQuat WorldRotation = BodyTransform.GetRotation() * FRotator(0.0f, 0.0f, 90.0f).Quaternion();
     Wheel->SetWorldLocationAndRotation(WorldLocation, WorldRotation, false, nullptr, ETeleportType::TeleportPhysics);
     Wheel->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     Wheel->SetSimulatePhysics(true);
@@ -285,14 +301,14 @@ void AGTTFarmTrailer::BeginRoadsideRepair(APawn* RepairPawn)
     RoadsideRepairTimeRemaining = LockedRoadsideRepairDuration;
     if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(RepairPawn))
         Economy->PushMessage(FString::Printf(TEXT("TRAILER FIELD REPAIR STARTED: $%d locked | %.0fs. Stay close and keep the trailer still."), LockedRoadsideRepairQuote, LockedRoadsideRepairDuration), 6.0f);
-    UE_LOG(LogGTT, Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=START quote=%d duration=%.1f repair_index=%d wheels_lost=%d cargo=%s integrity=%.3f"), LockedRoadsideRepairQuote, LockedRoadsideRepairDuration, RoadsideRepairCount + 1, GetLostWheelCount(), bCargoLoaded ? TEXT("YES") : TEXT("NO"), TrailerIntegrity);
+    GTT_LOG( Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=START quote=%d duration=%.1f repair_index=%d wheels_lost=%d cargo=%s integrity=%.3f"), LockedRoadsideRepairQuote, LockedRoadsideRepairDuration, RoadsideRepairCount + 1, GetLostWheelCount(), bCargoLoaded ? TEXT("YES") : TEXT("NO"), TrailerIntegrity);
 }
 
 void AGTTFarmTrailer::CancelRoadsideRepair(const FString& Reason)
 {
     APawn* RepairPawn = RoadsideRepairPlayer.Get();
     if (RepairPawn) if (UGTTPlayerEconomyComponent* Economy = UGTTGameplayStatics::FindEconomyComponentForPawn(RepairPawn)) Economy->PushMessage(Reason, 4.5f);
-    UE_LOG(LogGTT, Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=CANCEL quote=%d remaining=%.2f reason=%s"), LockedRoadsideRepairQuote, RoadsideRepairTimeRemaining, *Reason);
+    GTT_LOG( Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=CANCEL quote=%d remaining=%.2f reason=%s"), LockedRoadsideRepairQuote, RoadsideRepairTimeRemaining, *Reason);
     bRoadsideRepairPending = false;
     RoadsideRepairPlayer.Reset();
     LockedRoadsideRepairQuote = 0;
@@ -321,7 +337,7 @@ void AGTTFarmTrailer::CompleteRoadsideRepair()
 
     ++RoadsideRepairCount;
     Economy->PushMessage(FString::Printf(TEXT("TRAILER FIELD REPAIR COMPLETE: $%d paid | wheels %d->%d | structure %.0f%%->%.0f%% | cargo remains %.0f%%."), CompletedQuote, LostWheelsBefore, GetLostWheelCount(), IntegrityBefore * 100.0f, TrailerIntegrity * 100.0f, CargoIntegrity * 100.0f), 7.0f);
-    UE_LOG(LogGTT, Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=COMPLETE quote=%d repair_count=%d wheels_before=%d wheels_after=%d integrity_before=%.3f integrity_after=%.3f cargo_before=%.3f cargo_after=%.3f"), CompletedQuote, RoadsideRepairCount, LostWheelsBefore, GetLostWheelCount(), IntegrityBefore, TrailerIntegrity, CargoIntegrityBefore, CargoIntegrity);
+    GTT_LOG( Display, TEXT("TRAILER_ROADSIDE_RECOVERY event=COMPLETE quote=%d repair_count=%d wheels_before=%d wheels_after=%d integrity_before=%.3f integrity_after=%.3f cargo_before=%.3f cargo_after=%.3f"), CompletedQuote, RoadsideRepairCount, LostWheelsBefore, GetLostWheelCount(), IntegrityBefore, TrailerIntegrity, CargoIntegrityBefore, CargoIntegrity);
     bRoadsideRepairPending = false;
     RoadsideRepairPlayer.Reset();
     LockedRoadsideRepairQuote = 0;
@@ -372,9 +388,29 @@ void AGTTFarmTrailer::Tick(float DeltaSeconds)
         if (!ActiveTowActor) DetachTrailer();
         else
         {
-            const float Distance = FVector::Distance(ActiveTowActor->GetActorLocation(), GetActorLocation());
+            float Distance = FVector::Distance(ActiveTowActor->GetActorLocation(), GetActorLocation());
+            if (NativeTowVehicle && HitchConstraint)
+            {
+                FTransform TowHitchTransform;
+                if (NativeTowVehicle->TryGetRearHitchTransform(TowHitchTransform))
+                {
+                    // Actor origins are hundreds of centimetres away from the
+                    // physical hitch points. Measure the joint itself so an
+                    // intact native hitch is not detached on the next tick.
+                    Distance = FVector::Distance(
+                        TowHitchTransform.GetLocation(),
+                        HitchConstraint->GetComponentLocation());
+                }
+            }
             HitchLoad = FMath::Clamp((Distance - SafeHitchDistance) / FMath::Max(1.0f, BreakHitchDistance - SafeHitchDistance), 0.0f, 1.0f);
-            if (Distance > BreakHitchDistance) { TrailerIntegrity = FMath::Max(0.0f, TrailerIntegrity - 0.16f); DetachTrailer(); }
+            if (Distance > BreakHitchDistance)
+            {
+                GTT_LOG( Warning,
+                    TEXT("TRAILER_HITCH_DETACH reason=distance-exceeded distance_cm=%.1f break_distance_cm=%.1f native_tow=%d"),
+                    Distance, BreakHitchDistance, NativeTowVehicle ? 1 : 0);
+                TrailerIntegrity = FMath::Max(0.0f, TrailerIntegrity - 0.16f);
+                DetachTrailer();
+            }
         }
     }
     if (bCargoLoaded)
@@ -528,9 +564,13 @@ void AGTTFarmTrailer::ResetTrailer(const FTransform& Transform)
         TrailerBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
         TrailerBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     }
+    // Move the simulated body before rebuilding the independently simulated
+    // wheels. Otherwise the wheels are restored at the old body transform and
+    // the final actor teleport stretches both axle constraints far enough to
+    // break them on the next physics step.
+    SetActorTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
     RestoreWheel(LeftWheel, LeftWheelConstraint, LeftWheelHome);
     RestoreWheel(RightWheel, RightWheelConstraint, RightWheelHome);
     ConfigureHitchConstraint();
-    SetActorTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
     RefreshPresentation();
 }

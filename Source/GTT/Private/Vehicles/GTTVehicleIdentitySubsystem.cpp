@@ -85,7 +85,7 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
         if (Id.IsNone()) continue;
         if (UsedIds.Contains(Id))
         {
-            UE_LOG(LogGTT, Error,
+            GTT_LOG( Error,
                 TEXT("VEHICLE_IDENTITY event=OWNED_COLLISION result=UNRESOLVED vehicle=%s actor=%s reason=persisted_id_is_immutable"),
                 *Id.ToString(), *Vehicle->GetName());
         }
@@ -117,7 +117,7 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
         const FName BaseId = Vehicle->GetPersistentVehicleId();
         if (BaseId.IsNone())
         {
-            UE_LOG(LogGTT, Warning,
+            GTT_LOG( Warning,
                 TEXT("VEHICLE_IDENTITY event=OBSERVE result=SKIP actor=%s reason=missing_persistent_id"),
                 *Vehicle->GetName());
             ObservedVehicles.Add(WeakVehicle);
@@ -134,7 +134,7 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
         const FName UniqueId = BuildUniqueInstanceId(Vehicle, BaseId, UsedIds);
         if (UniqueId.IsNone() || !Vehicle->AssignPersistentVehicleIdForInstance(UniqueId))
         {
-            UE_LOG(LogGTT, Error,
+            GTT_LOG( Error,
                 TEXT("VEHICLE_IDENTITY event=ASSIGN result=FAIL base=%s actor=%s"),
                 *BaseId.ToString(), *Vehicle->GetName());
             ObservedVehicles.Add(WeakVehicle);
@@ -145,7 +145,7 @@ int32 UGTTVehicleIdentitySubsystem::RefreshFleetIdentity()
         ObservedVehicles.Add(WeakVehicle);
         ++CollisionRepairCount;
         ++RepairedThisPass;
-        UE_LOG(LogGTT, Display,
+        GTT_LOG( Display,
             TEXT("VEHICLE_IDENTITY event=ASSIGN result=PASS base=%s unique=%s actor=%s"),
             *BaseId.ToString(), *UniqueId.ToString(), *Vehicle->GetName());
     }

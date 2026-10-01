@@ -202,7 +202,7 @@ void UGTTCivilianIncidentDispatchSubsystem::BeginDispatch(AGTTTrafficCarPawn* Ve
             SeverityPercent),
         6.0f);
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("CIVILIAN_INCIDENT_DISPATCH_OPEN id=%s car=%s severity=%.2f location=%s"),
         *ActiveIncidentId.ToString(),
         *Vehicle->GetName(),
@@ -260,7 +260,7 @@ bool UGTTCivilianIncidentDispatchSubsystem::TryRebindSavedIncident()
         bRestoredFromCheckpoint = false;
     }
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("CIVILIAN_INCIDENT_DISPATCH_REBOUND id=%s car=%s distance_cm=%.0f"),
         *ActiveIncidentId.ToString(),
         *BestCandidate->GetName(),
@@ -315,7 +315,7 @@ void UGTTCivilianIncidentDispatchSubsystem::UpdateLifecycleFromVehicle()
             State = EGTTCivilianIncidentDispatchState::Active;
             SaveCheckpoint();
             NotifyPlayer(TEXT("ROADSIDE ASSIST PAUSED: warden traffic control has priority at this scene."), 5.0f);
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("CIVILIAN_INCIDENT_DISPATCH_WARDEN_PRIORITY id=%s car=%s"),
                 *ActiveIncidentId.ToString(),
                 *Vehicle->GetName());
@@ -350,7 +350,7 @@ void UGTTCivilianIncidentDispatchSubsystem::ResolveDispatch(const TCHAR* Reason,
         return;
     }
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("CIVILIAN_INCIDENT_DISPATCH_CLOSE id=%s reason=%s"),
         *ActiveIncidentId.ToString(),
         Reason ? Reason : TEXT("unknown"));
@@ -426,7 +426,7 @@ void UGTTCivilianIncidentDispatchSubsystem::LoadCheckpoint()
     OrphanSeconds = 0.0f;
     bRestoredFromCheckpoint = true;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("CIVILIAN_INCIDENT_DISPATCH_LOAD id=%s severity=%.2f location=%s assist_was_in_progress=%s"),
         *ActiveIncidentId.ToString(),
         ActiveSeverity,

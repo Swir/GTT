@@ -151,7 +151,7 @@ void UGTTNativeRolloverSafetySubsystem::EvaluateVehicle(AWheeledVehiclePawn* Veh
     {
         State.RecoveryPulseRemaining = EmergencyRecoverySeconds;
         State.EmergencyCooldown = EmergencyCooldownSeconds;
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("NATIVE_FLEET_EMERGENCY_RIGHTING vehicle=%s tilt=%.1f speed=%.1f contacts=%d tire_integrity=%.2f"),
             *NativeVehicleLabel(Vehicle), Snapshot.TiltAngleDeg, Snapshot.SpeedKmh, Snapshot.WheelContacts, TireIntegrity);
     }
@@ -177,7 +177,7 @@ void UGTTNativeRolloverSafetySubsystem::EvaluateVehicle(AWheeledVehiclePawn* Veh
 void UGTTNativeRolloverSafetySubsystem::EmitEvidence(AWheeledVehiclePawn* Vehicle, FRuntimeState& State) const
 {
     const FGTTNativeRolloverSnapshot& Snapshot = State.Snapshot;
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_FLEET_ROLLOVER_EVIDENCE vehicle=%s active=%d contacts=%d speed_kmh=%.1f tilt=%.1f correction=%.2f tipped=%.2f emergency=%d cooldown=%.2f"),
         *NativeVehicleLabel(Vehicle), Snapshot.bActive ? 1 : 0, Snapshot.WheelContacts, Snapshot.SpeedKmh,
         Snapshot.TiltAngleDeg, Snapshot.CorrectionStrength, Snapshot.TippedSeconds,

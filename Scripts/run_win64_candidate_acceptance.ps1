@@ -22,7 +22,31 @@ function Invoke-GTTScript {
     $resolved = Join-Path $PSScriptRoot $Path
     if (-not (Test-Path $resolved -PathType Leaf)) { throw "Required acceptance script missing: $resolved" }
     Write-Host "[GTT][ACCEPTANCE] $Path $($Arguments -join ' ')"
-    & $resolved @Arguments
+
+    # Array splatting is positional in PowerShell. Passing strings such as
+    # '-ProjectFile' through @Arguments therefore binds them as values instead
+    # of named parameters (for example, ProjectFile was being coerced into the
+    # positional MinimumFreeGiB parameter). Convert the existing token list to
+    # a real named-parameter splat before invoking each acceptance helper.
+    $parameters = @{}
+    for ($index = 0; $index -lt $Arguments.Count; $index++) {
+        $token = [string]$Arguments[$index]
+        if (-not $token.StartsWith('-') -or $token.Length -lt 2) {
+            throw "Invalid argument token '$token' for acceptance script '$Path'."
+        }
+
+        $name = $token.Substring(1)
+        $hasValue = ($index + 1 -lt $Arguments.Count) -and
+            -not (($Arguments[$index + 1] -is [string]) -and ([string]$Arguments[$index + 1]).StartsWith('-'))
+        if ($hasValue) {
+            $parameters[$name] = $Arguments[$index + 1]
+            $index++
+        } else {
+            $parameters[$name] = $true
+        }
+    }
+
+    & $resolved @parameters
     if ($LASTEXITCODE -ne 0) { throw "$Path failed with exit code $LASTEXITCODE" }
 }
 
@@ -61,6 +85,7 @@ $RuntimeLog = Join-Path $PackageDirectory "GTT_RUNTIME.log"
 $VisualRuntimeLog = Join-Path $PackageDirectory "GTT_VISUAL_RUNTIME.log"
 $FinalAsset = Join-Path $ProjectRoot "Content\GTT\Vehicles\Trailer\SK_GTT_FarmTrailer.uasset"
 $EditorImportEvidenceFile = Join-Path $ProjectRoot "Intermediate\GTT\AuthoredTrailer\AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json"
+$NativeRigEvidenceFile = Join-Path $ProjectRoot "Intermediate\GTT\NativeVehicles\NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json"
 $PreviousGithubSha = $env:GITHUB_SHA
 $env:GITHUB_SHA = $GitSha
 
@@ -77,11 +102,56 @@ try {
         "-UnrealEditorCmd", $EditorCmd,
         "-Project", $ProjectFile
     )
+    Invoke-GTTScript "import_gtt_vehicle_rigs_unreal.ps1" @(
+        "-UnrealEditorCmd", $EditorCmd,
+        "-Project", $ProjectFile
+    )
     if (-not (Test-Path $FinalAsset -PathType Leaf)) {
         throw "Authored trailer skeletal asset missing after UE import: $FinalAsset"
     }
     if (-not (Test-Path $EditorImportEvidenceFile -PathType Leaf)) {
         throw "Authored trailer editor acceptance evidence missing after UE import: $EditorImportEvidenceFile"
+    }
+    if (-not (Test-Path $NativeRigEvidenceFile -PathType Leaf)) {
+        throw "Native vehicle rig editor acceptance evidence missing: $NativeRigEvidenceFile"
+    }
+    $nativeRigEvidence = Get-Content -Raw $NativeRigEvidenceFile | ConvertFrom-Json
+    if ($nativeRigEvidence.schema -ne "gtt.native-vehicle-rig-editor-acceptance.v1" -or
+        $nativeRigEvidence.result -ne "PASS" -or
+        [string]$nativeRigEvidence.git_sha -ne $GitSha -or
+        $nativeRigEvidence.assets.Count -ne 3) {
+        throw "Native vehicle rig editor acceptance evidence is not bound to this exact candidate."
+    }
+
+    $nativeRigSourceRoot = Join-Path $ProjectRoot "Intermediate\GTT\NativeVehicles"
+    $expectedNativeRigSources = [ordered]@{
+        "Fieldmaster60" = "GTT_Fieldmaster60_Rig.gltf"
+        "Rattleback82" = "GTT_Rattleback82_Rig.gltf"
+        "Mulebox1200" = "GTT_Mulebox1200_Rig.gltf"
+    }
+    foreach ($vehicleName in $expectedNativeRigSources.Keys) {
+        $records = @($nativeRigEvidence.assets | Where-Object { [string]$_.vehicle -eq $vehicleName })
+        if ($records.Count -ne 1) {
+            throw "Native rig evidence must contain exactly one source record for $vehicleName."
+        }
+        $record = $records[0]
+        $expectedSourceName = [string]$expectedNativeRigSources[$vehicleName]
+        $sourceName = [string]$record.source_gltf
+        $sourceBytes = [int64]$record.source_gltf_bytes
+        $sourceHash = ([string]$record.source_gltf_sha256).ToLowerInvariant()
+        if ($sourceName -ne $expectedSourceName -or $sourceBytes -le 0 -or $sourceHash -notmatch '^[0-9a-f]{64}$') {
+            throw "Native rig source provenance is invalid for $vehicleName."
+        }
+
+        $sourcePath = Join-Path $nativeRigSourceRoot $sourceName
+        if (-not (Test-Path $sourcePath -PathType Leaf)) {
+            throw "Native rig source file missing for provenance verification: $sourcePath"
+        }
+        $actualBytes = (Get-Item -LiteralPath $sourcePath).Length
+        $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourcePath).Hash.ToLowerInvariant()
+        if ($actualBytes -ne $sourceBytes -or $actualHash -ne $sourceHash) {
+            throw "Native rig source provenance mismatch for $vehicleName."
+        }
     }
 
     $editorImportEvidence = Get-Content -Raw $EditorImportEvidenceFile | ConvertFrom-Json
@@ -118,6 +188,7 @@ try {
     )
     Copy-Item -Force $ImportFile (Join-Path $PackageDirectory "AUTHORED_TRAILER_IMPORT.json")
     Copy-Item -Force $EditorImportEvidenceFile (Join-Path $PackageDirectory "AUTHORED_TRAILER_EDITOR_ACCEPTANCE.json")
+    Copy-Item -Force $NativeRigEvidenceFile (Join-Path $PackageDirectory "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json")
 
     Invoke-GTTScript "smoke_test_windows.ps1" @(
         "-PackageDirectory", $PackageDirectory,

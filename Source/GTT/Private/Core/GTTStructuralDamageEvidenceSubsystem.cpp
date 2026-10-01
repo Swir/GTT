@@ -3,6 +3,7 @@
 #include "Core/GTTDamageRecoveryEvidenceSubsystem.h"
 #include "Core/GTTGameMode.h"
 #include "Core/GTTGameplayStatics.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Economy/GTTPlayerEconomyComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -11,6 +12,8 @@
 #include "Misc/Parse.h"
 #include "Save/GTTSaveGame.h"
 #include "World/GTTServiceTerminal.h"
+#include "World/GTTDayNightCycle.h"
+#include "World/GTTWorkshopHoursPolicy.h"
 #include "GTT.h"
 
 namespace
@@ -39,24 +42,20 @@ void UGTTStructuralDamageEvidenceSubsystem::Initialize(FSubsystemCollectionBase&
     bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY_BEGIN version=10 route=structural-save-load-workshop"));
+        GTT_LOG( Display, TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY_BEGIN version=10 route=structural-save-load-workshop"));
     }
 }
 
-AGTTRoadVehicleNativePawn* UGTTStructuralDamageEvidenceSubsystem::FindActiveOwnedRoadVehicle() const
+AGTTRoadVehicleNativePawn* UGTTStructuralDamageEvidenceSubsystem::FindRoadVehicleById(FName VehicleId) const
 {
     UWorld* World = GetWorld();
-    if (!World) return nullptr;
+    if (!World || VehicleId.IsNone()) return nullptr;
     for (TActorIterator<AGTTRoadVehicleNativePawn> It(World); It; ++It)
     {
         AGTTRoadVehicleNativePawn* Vehicle = *It;
         if (!IsValid(Vehicle) || !Vehicle->IsNativeReady() || !Vehicle->IsLegacyTakeoverActive()) continue;
         if (!Vehicle->GetMigrationSnapshot().bOwnedByPlayer) continue;
-        if (Vehicle->GetPersistentVehicleId() == FName(TEXT("Rattleback82")) ||
-            Vehicle->GetPersistentVehicleId() == FName(TEXT("Mulebox1200")))
-        {
-            return Vehicle;
-        }
+        if (Vehicle->GetPersistentVehicleId() == VehicleId) return Vehicle;
     }
     return nullptr;
 }
@@ -74,7 +73,7 @@ AGTTServiceTerminal* UGTTStructuralDamageEvidenceSubsystem::FindWorkshopTerminal
 
 void UGTTStructuralDamageEvidenceSubsystem::Fail(const FString& Reason)
 {
-    UE_LOG(LogGTT, Error, TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY result=FAIL phase=%d reason=%s elapsed=%.2f"),
+    GTT_LOG( Error, TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY result=FAIL phase=%d reason=%s elapsed=%.2f"),
         static_cast<int32>(Phase), *Reason, Elapsed);
     bFinished = true;
     Phase = EEvidencePhase::Complete;
@@ -97,13 +96,18 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
         {
             UGTTDamageRecoveryEvidenceSubsystem* Previous = World->GetSubsystem<UGTTDamageRecoveryEvidenceSubsystem>();
             if (!Previous || Previous->IsTickable()) return;
-            TargetVehicle = FindActiveOwnedRoadVehicle();
-            if (!TargetVehicle.IsValid())
+            if (!Previous->DidCompleteSuccessfully())
             {
-                if (Elapsed > 105.0f) Fail(TEXT("damage recovery completed without an active owned Native road vehicle"));
+                Fail(TEXT("damage recovery predecessor did not PASS"));
                 return;
             }
-            TargetVehicleId = TargetVehicle->GetPersistentVehicleId();
+            TargetVehicleId = Previous->GetEvidenceVehicleId();
+            TargetVehicle = FindRoadVehicleById(TargetVehicleId);
+            if (TargetVehicleId.IsNone() || !TargetVehicle.IsValid())
+            {
+                Fail(TEXT("damage recovery exact vehicle is unavailable for structural evidence"));
+                return;
+            }
             Phase = EEvidencePhase::StageStructuralDamage;
             PhaseStartedSeconds = Elapsed;
             return;
@@ -134,7 +138,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_DAMAGE vehicle=%s result=PASS front=%.3f rear=%.3f left=%.3f right=%.3f cooling=%.3f panel_mask=%d surcharge=%d"),
                 *TargetVehicleId.ToString(), SavedBody.FrontHealth, SavedBody.RearHealth,
                 SavedBody.LeftHealth, SavedBody.RightHealth, SavedBody.CoolingStress,
@@ -189,7 +193,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
 
         case EEvidencePhase::VerifyStructuralReload:
         {
-            if (Elapsed - PhaseStartedSeconds < 0.75f) return;
+            if (Elapsed - PhaseStartedSeconds < 0.10f) return;
             AGTTRoadVehicleNativePawn* Vehicle = TargetVehicle.Get();
             if (!Vehicle || !Vehicle->IsLegacyTakeoverActive())
             {
@@ -210,7 +214,7 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_PERSISTENCE vehicle=%s result=PASS front_saved=%.3f front_reloaded=%.3f left_saved=%.3f left_reloaded=%.3f cooling_saved=%.3f cooling_reloaded=%.3f panel_mask_saved=%d panel_mask_reloaded=%d surcharge=%d"),
                 *TargetVehicleId.ToString(), SavedBody.FrontHealth, Reloaded.FrontHealth,
                 SavedBody.LeftHealth, Reloaded.LeftHealth, SavedBody.CoolingStress, Reloaded.CoolingStress,
@@ -233,17 +237,44 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 Fail(TEXT("structural workshop integration unavailable"));
                 return;
             }
-
-            if (Economy->GetCash() < 450)
+            for (TActorIterator<AGTTDayNightCycle> It(World); It; ++It)
             {
-                const int32 Reserve = 450 - Economy->GetCash();
-                Economy->AddCash(Reserve, TEXT("Demo structural workshop evidence reserve"));
-                UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=STRUCTURAL_WORKSHOP_TEST_RESERVE amount=%d"), Reserve);
+                AGTTDayNightCycle* Clock = *It;
+                if (!IsValid(Clock)) continue;
+                Clock->RestoreTime(Clock->GetDayNumber(), GTTWorkshopHoursPolicy::OpeningHour + 1.0f);
+                break;
             }
-
             Terminal->SetServiceType(EGTTServiceType::Workshop);
-            Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 260.0f + FVector(0.0f, 0.0f, 85.0f),
+            Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 100.0f + FVector(0.0f, 0.0f, 85.0f),
                 false, nullptr, ETeleportType::TeleportPhysics);
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+                Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+                Mesh->SetSimulatePhysics(false);
+            }
+            if (Terminal->ResolveNativeRoadServiceTarget() != Vehicle)
+            {
+                Fail(TEXT("structural workshop production target does not match inherited vehicle"));
+                return;
+            }
+            if (!Vehicle->NeedsNativeWorkshopService())
+            {
+                Fail(TEXT("structural vehicle unexpectedly reports no mechanical workshop need"));
+                return;
+            }
+            ExpectedWorkshopQuote = Terminal->GetNativeRoadCheckoutQuote(Vehicle);
+            if (ExpectedWorkshopQuote <= 0)
+            {
+                Fail(TEXT("structural workshop returned a non-positive checkout quote"));
+                return;
+            }
+            if (Economy->GetCash() < ExpectedWorkshopQuote)
+            {
+                const int32 Reserve = ExpectedWorkshopQuote - Economy->GetCash();
+                Economy->AddCash(Reserve, TEXT("Demo structural workshop exact-quote reserve"));
+                GTT_LOG(Display, TEXT("DEMO_SCENARIO_ACTION action=STRUCTURAL_WORKSHOP_TEST_RESERVE amount=%d expected_quote=%d"), Reserve, ExpectedWorkshopQuote);
+            }
             CashBeforeWorkshop = Economy->GetCash();
             Phase = EEvidencePhase::InvokeWorkshop;
             PhaseStartedSeconds = Elapsed;
@@ -253,11 +284,22 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
         case EEvidencePhase::InvokeWorkshop:
         {
             if (Elapsed - PhaseStartedSeconds < 0.5f) return;
+            AGTTRoadVehicleNativePawn* Vehicle = TargetVehicle.Get();
             AGTTServiceTerminal* Terminal = FindWorkshopTerminal();
             APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
-            if (!Terminal || !PlayerPawn)
+            if (!Vehicle || !Terminal || !PlayerPawn)
             {
-                Fail(TEXT("workshop terminal/player missing during structural repair"));
+                Fail(TEXT("workshop terminal/player/vehicle missing during structural repair"));
+                return;
+            }
+            if (Terminal->ResolveNativeRoadServiceTarget() != Vehicle || !Vehicle->NeedsNativeWorkshopService())
+            {
+                Fail(TEXT("structural workshop production target/mechanical need drifted before interaction"));
+                return;
+            }
+            if (Terminal->GetNativeRoadCheckoutQuote(Vehicle) != ExpectedWorkshopQuote)
+            {
+                Fail(TEXT("structural workshop checkout quote drifted before interaction"));
                 return;
             }
             Terminal->SetServiceType(EGTTServiceType::Workshop);
@@ -284,10 +326,16 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
             const int32 RepairedMask = Vehicle->GetDetachedPanelMask();
             const int32 CashAfter = Economy->GetCash();
             const int32 Paid = CashBeforeWorkshop - CashAfter;
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetSimulatePhysics(true);
+                Mesh->WakeAllRigidBodies();
+            }
             const bool bBodyRestored = MinBodyHealth(Repaired) >= 0.999f && Repaired.CoolingStress <= 0.01f &&
                 RepairedMask == 0 && Vehicle->GetBodyDamageRepairSurcharge() == 0;
-            const bool bSurchargeCharged = SavedRepairSurcharge > 0 && Paid > SavedRepairSurcharge;
-            if (!bBodyRestored || !bSurchargeCharged)
+            const bool bExactProductionDebit = SavedRepairSurcharge > 0 &&
+                ExpectedWorkshopQuote > SavedRepairSurcharge && Paid == ExpectedWorkshopQuote;
+            if (!bBodyRestored || !bExactProductionDebit)
             {
                 Fail(TEXT("paid workshop did not restore structural zones/panels or charge the structural surcharge"));
                 return;
@@ -308,15 +356,16 @@ void UGTTStructuralDamageEvidenceSubsystem::Tick(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
-                TEXT("DEMO_SCENARIO_STRUCTURAL_REPAIR vehicle=%s result=PASS cash_before=%d cash_after=%d paid=%d surcharge_before=%d panel_mask_before=%d panel_mask_after=%d body_min_after=%.3f cooling_after=%.3f"),
-                *TargetVehicleId.ToString(), CashBeforeWorkshop, CashAfter, Paid, SavedRepairSurcharge,
+            GTT_LOG( Display,
+                TEXT("DEMO_SCENARIO_STRUCTURAL_REPAIR vehicle=%s result=PASS cash_before=%d cash_after=%d expected_quote=%d paid=%d surcharge_before=%d panel_mask_before=%d panel_mask_after=%d body_min_after=%.3f cooling_after=%.3f"),
+                *TargetVehicleId.ToString(), CashBeforeWorkshop, CashAfter, ExpectedWorkshopQuote, Paid, SavedRepairSurcharge,
                 SavedPanelMask, RepairedMask, MinBodyHealth(Repaired), Repaired.CoolingStress);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_RECOVERY result=PASS vehicle=%s route=structural-save-load-workshop"),
                 *TargetVehicleId.ToString());
 
             Phase = EEvidencePhase::Complete;
+            bSucceeded = true;
             bFinished = true;
             return;
         }

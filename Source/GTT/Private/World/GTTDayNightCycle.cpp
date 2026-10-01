@@ -76,7 +76,7 @@ void AGTTDayNightCycle::UpdateLighting()
     if (ADirectionalLight* SunActor = Sun.Get())
     {
         SunActor->SetActorRotation(FRotator(SunPitch, -35.0f, 0.0f));
-        if (UDirectionalLightComponent* Light = SunActor->GetDirectionalLightComponent())
+        if (UDirectionalLightComponent* Light = Cast<UDirectionalLightComponent>(SunActor->GetLightComponent()))
         {
             Light->SetIntensity(FMath::Lerp(0.08f, 7.5f, DayAlpha));
         }

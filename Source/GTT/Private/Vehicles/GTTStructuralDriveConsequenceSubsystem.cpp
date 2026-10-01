@@ -12,6 +12,8 @@
 #include "Misc/Parse.h"
 #include "Vehicles/GTTRoadVehicleNativePawn.h"
 #include "World/GTTServiceTerminal.h"
+#include "World/GTTDayNightCycle.h"
+#include "World/GTTWorkshopHoursPolicy.h"
 #include "GTT.h"
 
 namespace
@@ -33,7 +35,7 @@ void UGTTStructuralDriveConsequenceSubsystem::Initialize(FSubsystemCollectionBas
     bEvidenceEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
     if (bEvidenceEnabled)
     {
-        UE_LOG(LogGTT, Display,
+        GTT_LOG( Display,
             TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE_BEGIN version=11 route=damage-physics-save-load-workshop"));
     }
 }
@@ -115,17 +117,16 @@ void UGTTStructuralDriveConsequenceSubsystem::ApplyDriveConsequences(AGTTRoadVeh
     (void)DeltaTime;
 }
 
-AGTTRoadVehicleNativePawn* UGTTStructuralDriveConsequenceSubsystem::FindActiveOwnedRoadVehicle() const
+AGTTRoadVehicleNativePawn* UGTTStructuralDriveConsequenceSubsystem::FindRoadVehicleById(FName VehicleId) const
 {
     UWorld* World = GetWorld();
-    if (!World) return nullptr;
+    if (!World || VehicleId.IsNone()) return nullptr;
     for (TActorIterator<AGTTRoadVehicleNativePawn> It(World); It; ++It)
     {
         AGTTRoadVehicleNativePawn* Vehicle = *It;
         if (!IsValid(Vehicle) || !Vehicle->IsNativeReady() || !Vehicle->IsLegacyTakeoverActive()) continue;
         if (!Vehicle->GetMigrationSnapshot().bOwnedByPlayer) continue;
-        const FName Id = Vehicle->GetPersistentVehicleId();
-        if (Id == FName(TEXT("Rattleback82")) || Id == FName(TEXT("Mulebox1200"))) return Vehicle;
+        if (Vehicle->GetPersistentVehicleId() == VehicleId) return Vehicle;
     }
     return nullptr;
 }
@@ -143,7 +144,7 @@ AGTTServiceTerminal* UGTTStructuralDriveConsequenceSubsystem::FindWorkshopTermin
 
 void UGTTStructuralDriveConsequenceSubsystem::FailEvidence(const FString& Reason)
 {
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE result=FAIL phase=%d reason=%s elapsed=%.2f"),
         static_cast<int32>(EvidencePhase), *Reason, EvidenceElapsed);
     bEvidenceFinished = true;
@@ -168,13 +169,18 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
         {
             UGTTStructuralDamageEvidenceSubsystem* Previous = World->GetSubsystem<UGTTStructuralDamageEvidenceSubsystem>();
             if (!Previous || Previous->IsTickable()) return;
-            EvidenceVehicle = FindActiveOwnedRoadVehicle();
-            if (!EvidenceVehicle.IsValid())
+            if (!Previous->DidCompleteSuccessfully())
             {
-                if (EvidenceElapsed > 155.0f) FailEvidence(TEXT("structural recovery completed without an active owned Native road vehicle"));
+                FailEvidence(TEXT("structural recovery predecessor did not PASS"));
                 return;
             }
-            EvidenceVehicleId = EvidenceVehicle->GetPersistentVehicleId();
+            EvidenceVehicleId = Previous->GetEvidenceVehicleId();
+            EvidenceVehicle = FindRoadVehicleById(EvidenceVehicleId);
+            if (EvidenceVehicleId.IsNone() || !EvidenceVehicle.IsValid())
+            {
+                FailEvidence(TEXT("structural recovery exact vehicle is unavailable for structural drive evidence"));
+                return;
+            }
             EvidencePhase = EEvidencePhase::StageDamage;
             EvidencePhaseStarted = EvidenceElapsed;
             return;
@@ -221,7 +227,7 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_HANDLING vehicle=%s result=PASS severity=%.3f drag_rate=%.3f pull_rate=%.3f power_retention=%.3f steering_retention=%.3f cooling=%.3f limp=YES front=%.3f right=%.3f panels=%d"),
                 *EvidenceVehicleId.ToString(), DamagedState.DamageSeverity, DamagedState.DragRatePerSecond,
                 DamagedState.LateralPullRate, DamagedState.PowerRetention, DamagedState.SteeringRetention,
@@ -275,7 +281,7 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_RELOAD_HANDLING vehicle=%s result=PASS severity_before=%.3f severity_after=%.3f drag_before=%.3f drag_after=%.3f pull_before=%.3f pull_after=%.3f power_before=%.3f power_after=%.3f steering_before=%.3f steering_after=%.3f limp=YES"),
                 *EvidenceVehicleId.ToString(), DamagedState.DamageSeverity, Reloaded.DamageSeverity,
                 DamagedState.DragRatePerSecond, Reloaded.DragRatePerSecond,
@@ -299,15 +305,44 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
                 FailEvidence(TEXT("workshop integration unavailable for structural drive recovery"));
                 return;
             }
-            if (Economy->GetCash() < 550)
+            for (TActorIterator<AGTTDayNightCycle> It(World); It; ++It)
             {
-                const int32 Reserve = 550 - Economy->GetCash();
-                Economy->AddCash(Reserve, TEXT("Demo structural drive recovery reserve"));
-                UE_LOG(LogGTT, Display, TEXT("DEMO_SCENARIO_ACTION action=STRUCTURAL_DRIVE_WORKSHOP_RESERVE amount=%d"), Reserve);
+                AGTTDayNightCycle* Clock = *It;
+                if (!IsValid(Clock)) continue;
+                Clock->RestoreTime(Clock->GetDayNumber(), GTTWorkshopHoursPolicy::OpeningHour + 1.0f);
+                break;
             }
             Terminal->SetServiceType(EGTTServiceType::Workshop);
-            Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 260.0f + FVector(0.0f, 0.0f, 85.0f),
+            Vehicle->SetActorLocation(Terminal->GetActorLocation() + Terminal->GetActorForwardVector() * 100.0f + FVector(0.0f, 0.0f, 85.0f),
                 false, nullptr, ETeleportType::TeleportPhysics);
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+                Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+                Mesh->SetSimulatePhysics(false);
+            }
+            if (Terminal->ResolveNativeRoadServiceTarget() != Vehicle)
+            {
+                FailEvidence(TEXT("structural drive workshop production target does not match inherited vehicle"));
+                return;
+            }
+            if (!Vehicle->NeedsNativeWorkshopService())
+            {
+                FailEvidence(TEXT("structural drive vehicle unexpectedly reports no mechanical workshop need"));
+                return;
+            }
+            ExpectedWorkshopQuote = Terminal->GetNativeRoadCheckoutQuote(Vehicle);
+            if (ExpectedWorkshopQuote <= 0)
+            {
+                FailEvidence(TEXT("structural drive workshop returned a non-positive checkout quote"));
+                return;
+            }
+            if (Economy->GetCash() < ExpectedWorkshopQuote)
+            {
+                const int32 Reserve = ExpectedWorkshopQuote - Economy->GetCash();
+                Economy->AddCash(Reserve, TEXT("Demo structural drive exact-quote reserve"));
+                GTT_LOG(Display, TEXT("DEMO_SCENARIO_ACTION action=STRUCTURAL_DRIVE_WORKSHOP_RESERVE amount=%d expected_quote=%d"), Reserve, ExpectedWorkshopQuote);
+            }
             CashBeforeWorkshop = Economy->GetCash();
             EvidencePhase = EEvidencePhase::InvokeWorkshop;
             EvidencePhaseStarted = EvidenceElapsed;
@@ -317,11 +352,22 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
         case EEvidencePhase::InvokeWorkshop:
         {
             if (EvidenceElapsed - EvidencePhaseStarted < 0.50f) return;
+            AGTTRoadVehicleNativePawn* Vehicle = EvidenceVehicle.Get();
             AGTTServiceTerminal* Terminal = FindWorkshopTerminal();
             APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
-            if (!Terminal || !PlayerPawn)
+            if (!Vehicle || !Terminal || !PlayerPawn)
             {
-                FailEvidence(TEXT("workshop/player missing during structural drive recovery"));
+                FailEvidence(TEXT("workshop/player/vehicle missing during structural drive recovery"));
+                return;
+            }
+            if (Terminal->ResolveNativeRoadServiceTarget() != Vehicle || !Vehicle->NeedsNativeWorkshopService())
+            {
+                FailEvidence(TEXT("structural drive workshop production target/mechanical need drifted before interaction"));
+                return;
+            }
+            if (Terminal->GetNativeRoadCheckoutQuote(Vehicle) != ExpectedWorkshopQuote)
+            {
+                FailEvidence(TEXT("structural drive workshop checkout quote drifted before interaction"));
                 return;
             }
             Terminal->SetServiceType(EGTTServiceType::Workshop);
@@ -345,25 +391,31 @@ void UGTTStructuralDriveConsequenceSubsystem::TickEvidence(float DeltaTime)
             const FGTTStructuralDriveState Recovered = GetDriveStateForVehicle(Vehicle);
             const FGTTRoadBodyDamageSnapshot Body = Vehicle->GetBodyDamageSnapshot();
             const int32 Paid = CashBeforeWorkshop - Economy->GetCash();
+            if (USkeletalMeshComponent* Mesh = Vehicle->GetMesh())
+            {
+                Mesh->SetSimulatePhysics(true);
+                Mesh->WakeAllRigidBodies();
+            }
             if (Recovered.bLimpHomeActive || Recovered.DamageSeverity > 0.015f ||
                 Recovered.DragRatePerSecond > 0.01f || FMath::Abs(Recovered.LateralPullRate) > 0.01f ||
                 Recovered.PowerRetention < 0.995f || Recovered.SteeringRetention < 0.995f ||
-                MinBodyHealth(Body) < 0.999f || Body.CoolingStress > 0.01f || Body.DetachedPanelCount != 0 || Paid <= 0)
+                MinBodyHealth(Body) < 0.999f || Body.CoolingStress > 0.01f || Body.DetachedPanelCount != 0 || Paid != ExpectedWorkshopQuote)
             {
                 FailEvidence(TEXT("paid workshop did not restore pristine structural driving behavior"));
                 return;
             }
 
-            UE_LOG(LogGTT, Display,
-                TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE_RECOVERY vehicle=%s result=PASS cash_before=%d cash_after=%d paid=%d severity_before=%.3f severity_after=%.3f drag_before=%.3f drag_after=%.3f pull_before=%.3f pull_after=%.3f power_after=%.3f steering_after=%.3f limp_after=NO"),
-                *EvidenceVehicleId.ToString(), CashBeforeWorkshop, Economy->GetCash(), Paid,
+            GTT_LOG( Display,
+                TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE_RECOVERY vehicle=%s result=PASS cash_before=%d cash_after=%d expected_quote=%d paid=%d severity_before=%.3f severity_after=%.3f drag_before=%.3f drag_after=%.3f pull_before=%.3f pull_after=%.3f power_after=%.3f steering_after=%.3f limp_after=NO"),
+                *EvidenceVehicleId.ToString(), CashBeforeWorkshop, Economy->GetCash(), ExpectedWorkshopQuote, Paid,
                 DamagedState.DamageSeverity, Recovered.DamageSeverity,
                 DamagedState.DragRatePerSecond, Recovered.DragRatePerSecond,
                 DamagedState.LateralPullRate, Recovered.LateralPullRate,
                 Recovered.PowerRetention, Recovered.SteeringRetention);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("DEMO_SCENARIO_STRUCTURAL_DRIVE result=PASS vehicle=%s route=damage-physics-save-load-workshop"),
                 *EvidenceVehicleId.ToString());
+            bEvidenceSucceeded = true;
             bEvidenceFinished = true;
             EvidencePhase = EEvidencePhase::Complete;
             return;
@@ -396,7 +448,7 @@ void UGTTStructuralDriveConsequenceSubsystem::Tick(float DeltaTime)
             if (!IsValid(Vehicle) || !Vehicle->IsLegacyTakeoverActive()) continue;
             const FGTTStructuralDriveState State = GetDriveStateForVehicle(Vehicle);
             if (State.DamageSeverity <= 0.015f) continue;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_STRUCTURAL_DRIVE_STATE vehicle=%s severity=%.3f drag_rate=%.3f pull_rate=%.3f power_retention=%.3f steering_retention=%.3f cooling=%.3f panels=%d limp=%s"),
                 *Vehicle->GetPersistentVehicleId().ToString(), State.DamageSeverity, State.DragRatePerSecond,
                 State.LateralPullRate, State.PowerRetention, State.SteeringRetention,

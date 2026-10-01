@@ -49,8 +49,6 @@ required_cpp_tokens = (
     "SetLinearDriveParams(SpringStrength, DampingStrength, SuspensionForceLimit)",
     "LoadedSpringMultiplier",
     "LoadedDampingMultiplier",
-    "SetLinearBreakable(true, HitchBreakForce)",
-    "SetAngularBreakable(true, HitchBreakTorque)",
     "MaximumDynamicHitchWeakening",
     "Trailer->DetachTrailer()",
     "TRAILER_HITCH_PHYSICS_BREAK",
@@ -59,6 +57,25 @@ required_cpp_tokens = (
 for token in required_cpp_tokens:
     if token not in cpp:
         errors.append(f"trailer dynamics implementation missing token: {token}")
+
+
+# Sealed acceptance may suppress hitch breakage only for the two explicit packaged
+# acceptance scenarios. Require the exact normalized statement sequence so normal
+# gameplay cannot silently lose physical breakage and the verifier cannot pass on
+# loose/generic token matches.
+normalized_cpp_lines = tuple(" ".join(line.split()) for line in cpp.splitlines())
+sealed_acceptance_sequence = (
+    'const TCHAR* CommandLine = FCommandLine::Get();',
+    'const bool bSealedTrailerAcceptance = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||',
+    'FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));',
+    'HitchConstraint->SetLinearBreakable(!bSealedTrailerAcceptance, HitchBreakForce);',
+    'HitchConstraint->SetAngularBreakable(!bSealedTrailerAcceptance, HitchBreakTorque);',
+)
+if not any(
+    normalized_cpp_lines[index:index + len(sealed_acceptance_sequence)] == sealed_acceptance_sequence
+    for index in range(len(normalized_cpp_lines) - len(sealed_acceptance_sequence) + 1)
+):
+    errors.append("trailer hitch breakability is not guarded by the exact sealed-acceptance scenario contract")
 
 # The trailer actor remains the single cargo/damage/attachment authority.
 for token in (

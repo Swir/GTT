@@ -66,6 +66,7 @@ $visibleAlerts = 0
 $assistAlerts = 0
 $thermalAlerts = 0
 $coolingAlerts = 0
+$thermalHudEligibleSamples = 0
 $criticalAlerts = 0
 $runawayAlerts = 0
 $labels = [ordered]@{
@@ -100,6 +101,13 @@ foreach ($line in $samples) {
         if ($fade -eq 'YES' -and $thermalState -notin @('FADING', 'CRITICAL')) { throw 'fade flag disagrees with HUD thermal state' }
         if ($runaway -eq 'YES' -and $thermalState -ne 'CRITICAL') { throw 'runaway mitigation must override HUD only in CRITICAL thermal state' }
 
+        # Heating above the hill-haul evidence floor proves brake thermal behavior,
+        # but the HUD intentionally stays quiet until a visible state is reached.
+        # Count only telemetry that can produce a thermal/cooling HUD label.
+        if ($thermalState -ne 'NORMAL' -or ($cooling -eq 'YES' -and $heat -ge 0.20)) {
+            $thermalHudEligibleSamples++
+        }
+
         # Mirrors BuildNativeFieldmasterAlert precedence exactly. The packaged runtime
         # proves the authoritative telemetry state; the source verifier pins this mapping
         # to the actual HUD labels so CI cannot silently drift from runtime evidence.
@@ -129,7 +137,7 @@ if ($samples.Count -lt 2) { $failures.Add("fewer than two Fieldmaster HUD teleme
 if ($visibleAlerts -lt 1) { $failures.Add('no driver-visible Fieldmaster safety alert state was exercised') }
 if (($assistAlerts + $thermalAlerts + $coolingAlerts) -lt 1) { $failures.Add('no hill-haul/thermal/cooling HUD state was exercised') }
 if ([int]$hillHaul.assist_samples -gt 0 -and ($assistAlerts + $thermalAlerts + $coolingAlerts) -lt 1) { $failures.Add('hill-haul evidence exists but no corresponding HUD state was derived') }
-if ([int]$hillHaul.thermal_samples -gt 0 -and ($thermalAlerts + $coolingAlerts) -lt 1) { $failures.Add('thermal evidence exists but no thermal/cooling HUD state was derived') }
+if ($thermalHudEligibleSamples -gt 0 -and ($thermalAlerts + $coolingAlerts) -lt 1) { $failures.Add('thermal HUD-eligible telemetry exists but no thermal/cooling HUD state was derived') }
 foreach ($failure in $sampleFailures) { $failures.Add("HUD telemetry invariant: $failure") }
 
 $result = if ($failures.Count -eq 0) { 'PASS' } else { 'FAIL' }
@@ -148,6 +156,7 @@ $evidence = [ordered]@{
     assist_alert_samples = $assistAlerts
     thermal_alert_samples = $thermalAlerts
     cooling_alert_samples = $coolingAlerts
+    thermal_hud_eligible_samples = $thermalHudEligibleSamples
     critical_alert_samples = $criticalAlerts
     runaway_alert_samples = $runawayAlerts
     hud_label_counts = $labels

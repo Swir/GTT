@@ -64,8 +64,6 @@ AGTTFarmVanPawn::AGTTFarmVanPawn()
     {
         VehicleMesh->SetStaticMesh(CubeMesh);
         VehicleMesh->SetRelativeScale3D(FVector(2.45f, 1.08f, 0.52f));
-        VehicleMesh->SetMassOverrideInKg(NAME_None, 1680.0f, true);
-        VehicleMesh->SetCenterOfMass(FVector(-10.0f, 0.0f, -48.0f));
     }
 
     CabinMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CabinMesh"));
@@ -139,6 +137,17 @@ AGTTFarmVanPawn::AGTTFarmVanPawn()
     RegisterBreakablePart(LeftRearWheel, 0.12f, TEXT("left rear wheel"));
 }
 
+void AGTTFarmVanPawn::BeginPlay()
+{
+    Super::BeginPlay();
+    // BodyInstance mass/material queries are unsafe while the native CDO is being constructed.
+    if (VehicleMesh)
+    {
+        VehicleMesh->SetMassOverrideInKg(NAME_None, 1680.0f, true);
+        VehicleMesh->SetCenterOfMass(FVector(-10.0f, 0.0f, -48.0f));
+    }
+}
+
 void AGTTFarmVanPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -150,7 +159,7 @@ void AGTTFarmVanPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 void AGTTFarmVanPawn::SetCargoLoadFactor(float NewLoadFactor)
 {
     CargoLoadFactor = FMath::Clamp(NewLoadFactor, 0.0f, 1.0f);
-    UE_LOG(LogGTT, Log, TEXT("MULEBOX_CARGO_LOAD vehicle=Mulebox1200 load=%.2f"), CargoLoadFactor);
+    GTT_LOG( Log, TEXT("MULEBOX_CARGO_LOAD vehicle=Mulebox1200 load=%.2f"), CargoLoadFactor);
 }
 
 void AGTTFarmVanPawn::CaptureChaosThrottle(float Value)

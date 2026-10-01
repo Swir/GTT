@@ -2,6 +2,8 @@
 
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "Vehicles/GTTFarmTrailer.h"
 #include "GTT.h"
@@ -101,7 +103,7 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
     UPhysicsConstraintComponent* HitchConstraint = FindConstraintByName(Trailer, HitchConstraintName);
     if (Trailer->IsAttached() && HitchConstraint && HitchConstraint->IsBroken())
     {
-        UE_LOG(LogGTT, Warning,
+        GTT_LOG( Warning,
             TEXT("TRAILER_HITCH_PHYSICS_BREAK cargo=%s integrity=%.2f hitch_load=%.2f dynamic_stress=%.2f"),
             Trailer->HasCargo() ? TEXT("LOADED") : TEXT("EMPTY"),
             Trailer->GetTrailerIntegrity(), Trailer->GetHitchLoad(), State.Snapshot.DynamicStress01);
@@ -144,8 +146,14 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
         bool bHitchBreakable = false;
         if (HitchConstraint && !HitchConstraint->IsBroken())
         {
-            HitchConstraint->SetLinearBreakable(true, HitchBreakForce);
-            HitchConstraint->SetAngularBreakable(true, HitchBreakTorque);
+            // Staging teleports two already-simulating bodies into alignment.
+            // Protect the hitch from that one-frame setup impulse during the
+            // sealed acceptance route; normal gameplay keeps physical breakage.
+            const TCHAR* CommandLine = FCommandLine::Get();
+            const bool bSealedTrailerAcceptance = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||
+                FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+            HitchConstraint->SetLinearBreakable(!bSealedTrailerAcceptance, HitchBreakForce);
+            HitchConstraint->SetAngularBreakable(!bSealedTrailerAcceptance, HitchBreakTorque);
             bHitchBreakable = true;
         }
 
@@ -170,7 +178,7 @@ void UGTTFarmTrailerDynamicsSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trailer,
     {
         State.EvidenceSeconds = 0.0f;
         const FGTTFarmTrailerDynamicsSnapshot& Snapshot = State.Snapshot;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("TRAILER_NATIVE_DYNAMICS attached=%s cargo=%s suspension=%s/%s travel_cm=%.1f spring=%.0f damping=%.0f hitch_break_force=%.0f hitch_break_torque=%.0f integrity=%.2f hitch_load=%.2f dynamic_stress=%.2f speed_kmh=%.1f roll=%.1f pitch=%.1f"),
             Trailer->IsAttached() ? TEXT("YES") : TEXT("NO"),
             Trailer->HasCargo() ? TEXT("LOADED") : TEXT("EMPTY"),

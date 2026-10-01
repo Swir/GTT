@@ -34,16 +34,19 @@ public:
 
     UFUNCTION(BlueprintPure, Category="GTT|Vehicle|Structural") FGTTStructuralDriveState GetDriveStateForVehicle(const AGTTRoadVehicleNativePawn* Vehicle) const;
     UFUNCTION(BlueprintPure, Category="GTT|Demo|Evidence") bool IsDemoEvidenceComplete() const { return !bEvidenceEnabled || bEvidenceFinished; }
+    bool DidCompleteSuccessfully() const { return !bEvidenceEnabled || (bEvidenceFinished && bEvidenceSucceeded); }
+    FName GetEvidenceVehicleId() const { return EvidenceVehicleId; }
 
 private:
     enum class EEvidencePhase : uint8 { WaitForStructuralRecovery, StageDamage, VerifyDamagedDynamics, SaveDamagedDynamics, VerifyReloadedDynamics, PrepareWorkshop, InvokeWorkshop, VerifyRecoveredDynamics, Complete };
     void ApplyDriveConsequences(AGTTRoadVehicleNativePawn* Vehicle, float DeltaTime);
     void TickEvidence(float DeltaTime);
-    AGTTRoadVehicleNativePawn* FindActiveOwnedRoadVehicle() const;
+    AGTTRoadVehicleNativePawn* FindRoadVehicleById(FName VehicleId) const;
     AGTTServiceTerminal* FindWorkshopTerminal() const;
     void FailEvidence(const FString& Reason);
     bool bEvidenceEnabled = false;
     bool bEvidenceFinished = false;
+    bool bEvidenceSucceeded = false;
     float EvidenceElapsed = 0.0f;
     float EvidencePhaseStarted = 0.0f;
     float TelemetryAccumulator = 0.0f;
@@ -52,4 +55,5 @@ private:
     FName EvidenceVehicleId = NAME_None;
     FGTTStructuralDriveState DamagedState;
     int32 CashBeforeWorkshop = 0;
+    int32 ExpectedWorkshopQuote = 0;
 };

@@ -67,18 +67,48 @@ def configure_pipelines(source_data):
     mesh_pipeline = generic.get_editor_property("mesh_pipeline")
     mesh_pipeline.set_editor_property("import_skeletal_meshes", True)
     mesh_pipeline.set_editor_property("import_static_meshes", False)
-    mesh_pipeline.set_editor_property("combine_skeletal_meshes", True)
+    mesh_pipeline.set_editor_property(
+        "combine_skeletal_meshes_behavior",
+        unreal.InterchangeCombineSkeletalMeshesBehavior.BY_SKELETON,
+    )
     mesh_pipeline.set_editor_property("create_physics_asset", True)
 
     common_meshes = generic.get_editor_property("common_meshes_properties")
     common_meshes.set_editor_property("import_sockets", True)
+    common_meshes.set_editor_property(
+        "convert_statics_in_bone_hierarchy_to_skeletals", False
+    )
 
     common_skeletal = generic.get_editor_property(
         "common_skeletal_meshes_and_animations_properties"
     )
     common_skeletal.set_editor_property("import_only_animations", False)
-    common_skeletal.set_editor_property("import_meshes_in_bone_hierarchy", False)
     return pipelines
+
+
+def load_imported_skeletal_mesh():
+    if unreal.EditorAssetLibrary.does_asset_exist(ASSET_PATH):
+        expected = unreal.EditorAssetLibrary.load_asset(ASSET_PATH)
+        if isinstance(expected, unreal.SkeletalMesh):
+            return expected
+
+    candidates = []
+    for candidate_path in unreal.EditorAssetLibrary.list_assets(
+        DESTINATION, recursive=True, include_folder=False
+    ):
+        candidate = unreal.EditorAssetLibrary.load_asset(candidate_path)
+        if isinstance(candidate, unreal.SkeletalMesh):
+            candidates.append(candidate)
+
+    if len(candidates) != 1:
+        fail(f"SKELETAL_MESH_COUNT_{len(candidates)}")
+
+    mesh = candidates[0]
+    if not unreal.EditorAssetLibrary.rename_asset(mesh.get_path_name(), ASSET_PATH):
+        fail("SKELETAL_MESH_RENAME_FAILED")
+    if mesh.get_path_name() != f"{ASSET_PATH}.{ASSET_NAME}":
+        fail("SKELETAL_MESH_RENAME_PATH_MISMATCH")
+    return mesh
 
 
 def socket_names(mesh) -> set[str]:
@@ -184,9 +214,13 @@ def main() -> None:
         fail("INTERCHANGE_TRANSLATOR_UNAVAILABLE")
 
     pipelines = configure_pipelines(source_data)
+    # UE 5.8 exposes OverridePipelines to Python as SoftObjectPath values. Keep
+    # the configured transient pipeline instances alive in ``pipelines`` and
+    # pass their object paths so Interchange can resolve and duplicate them.
+    pipeline_paths = [unreal.SoftObjectPath(pipeline.get_path_name()) for pipeline in pipelines]
     params = unreal.ImportAssetParameters(
         is_automated=True,
-        override_pipelines=pipelines,
+        override_pipelines=pipeline_paths,
         destination_name=ASSET_NAME,
         replace_existing=True,
     )
@@ -194,9 +228,7 @@ def main() -> None:
     if not imported:
         fail("INTERCHANGE_IMPORT_FAILED")
 
-    mesh = unreal.EditorAssetLibrary.load_asset(ASSET_PATH)
-    if mesh is None or not isinstance(mesh, unreal.SkeletalMesh):
-        fail("SKELETAL_MESH_NOT_CREATED")
+    mesh = load_imported_skeletal_mesh()
 
     verified_bones = validate_bones(mesh)
     normalize_sockets(mesh)
@@ -214,6 +246,12 @@ def main() -> None:
 
     if not unreal.EditorAssetLibrary.save_loaded_asset(mesh, False):
         fail("SKELETAL_MESH_SAVE_FAILED")
+    # Interchange creates the USkeleton in its own package. Saving only the
+    # mesh leaves that package transient, so a cooked build can deserialize
+    # the skeletal mesh with a null Skeleton and crash when a poseable mesh is
+    # registered at runtime.
+    if not unreal.EditorAssetLibrary.save_loaded_asset(skeleton, False):
+        fail("SKELETON_SAVE_FAILED")
     if not unreal.EditorAssetLibrary.save_loaded_asset(physics_asset, False):
         fail("PHYSICS_ASSET_SAVE_FAILED")
 

@@ -66,7 +66,7 @@ void AGTTRoadVehicleNativePawn::RestorePersistentBodyDamage(const FGTTRoadBodyDa
     RecreateDetachedDebris(RightDamageDebris, bRightPanelDetached, FVector(30.0f, 155.0f, 35.0f));
 
     UpdateDamageConsequences(0.0f);
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_ROAD_STRUCTURAL_RESTORE vehicle=%s front=%.3f rear=%.3f left=%.3f right=%.3f cooling=%.3f panel_mask=%d detached=%d surcharge=%d"),
         *NativeVehicleId.ToString(), BodyDamage.FrontHealth, BodyDamage.RearHealth,
         BodyDamage.LeftHealth, BodyDamage.RightHealth, BodyDamage.CoolingStress,
@@ -113,7 +113,7 @@ bool AGTTRoadVehicleNativePawn::ApplyScriptedImpactDamage(float ImpactSpeedKmh, 
         !FMath::IsNearlyEqual(Before.CoolingStress, BodyDamage.CoolingStress) ||
         BeforeMask != GetDetachedPanelMask();
 
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("NATIVE_ROAD_SCRIPTED_IMPACT vehicle=%s zone=%s speed_kmh=%.1f changed=%s panel_mask=%d surcharge=%d"),
         *NativeVehicleId.ToString(), DamageZoneToString(Zone), ImpactSpeedKmh,
         bChanged ? TEXT("YES") : TEXT("NO"), GetDetachedPanelMask(), GetBodyDamageRepairSurcharge());

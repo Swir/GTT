@@ -178,6 +178,35 @@ $mtFound = -not [string]::IsNullOrWhiteSpace($mtExe) -and (Test-Path $mtExe -Pat
 $windowsSdkFound = $rcFound -and $mtFound
 Add-Check "windows-sdk" $windowsSdkFound "root=$windowsKits; version=$windowsSdkVersion; rc=$rcExe; mt=$mtExe"
 
+$netFxSdkRoot = ""
+$netFxCandidates = New-Object System.Collections.Generic.List[string]
+if (-not [string]::IsNullOrWhiteSpace($env:UE_SDKS_ROOT)) {
+    foreach ($version in @("4.6.2", "4.6.1", "4.6")) {
+        $netFxCandidates.Add((Join-Path $env:UE_SDKS_ROOT "HostWin64\Win64\Windows Kits\NETFXSDK\$version"))
+    }
+}
+foreach ($registryRoot in @(
+    "HKCU:\SOFTWARE\Microsoft\Microsoft SDKs\NETFXSDK",
+    "HKCU:\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\NETFXSDK",
+    "HKLM:\SOFTWARE\Microsoft\Microsoft SDKs\NETFXSDK",
+    "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\NETFXSDK"
+)) {
+    if (Test-Path $registryRoot) {
+        foreach ($key in @(Get-ChildItem $registryRoot -ErrorAction SilentlyContinue | Sort-Object { try { [version]$_.PSChildName } catch { [version]"0.0" } } -Descending)) {
+            $candidate = [string](Get-ItemPropertyValue -Path $key.PSPath -Name KitsInstallationFolder -ErrorAction SilentlyContinue)
+            if (-not [string]::IsNullOrWhiteSpace($candidate)) { $netFxCandidates.Add($candidate) }
+        }
+    }
+}
+foreach ($candidate in $netFxCandidates) {
+    if ((Test-Path (Join-Path $candidate "Include\um\mscoree.h") -PathType Leaf) -and
+        (Test-Path (Join-Path $candidate "Lib\um\x64\mscoree.lib") -PathType Leaf)) {
+        $netFxSdkRoot = $candidate
+        break
+    }
+}
+Add-Check "netfx-sdk" (-not [string]::IsNullOrWhiteSpace($netFxSdkRoot)) "root=$netFxSdkRoot; required=Include\um\mscoree.h + Lib\um\x64\mscoree.lib"
+
 $freeGiB = -1.0
 try {
     $rootPath = [System.IO.Path]::GetPathRoot($OutputPath)

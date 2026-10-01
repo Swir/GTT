@@ -17,7 +17,8 @@ namespace
 void UGTTWorkshopCapacityLifecycleBridgeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+    bEnabled = (FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))
+        || FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario")))
         && FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopCapacityRuntimeScenario"));
 }
 
@@ -75,7 +76,7 @@ void UGTTWorkshopCapacityLifecycleBridgeSubsystem::Tick(float DeltaTime)
     Clock->RestoreTime(TargetDay, TargetHour);
     bAdvanced = true;
 
-    UE_LOG(LogGTT, Display,
+    GTT_LOG( Display,
         TEXT("WORKSHOP_CAPACITY_LIFECYCLE_BRIDGE result=PASS checked_in=%d target_day=%d target_hour=%.2f reason=0.1.49_timed_service_compatibility"),
         CheckedInCount, TargetDay, TargetHour);
 }

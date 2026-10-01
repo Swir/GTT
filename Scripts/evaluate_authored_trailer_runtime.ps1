@@ -46,7 +46,55 @@ foreach ($evidence in @($native,$drivetrain)) {
 
 $pattern = 'AUTHORED_TRAILER_RUNTIME_EVIDENCE\s+trailer=(?<trailer>\S+)\s+active=(?<active>[01])\s+nativeTow=(?<nativeTow>[01])\s+contacts=(?<contacts>[0-9.]+)\s+left=(?<left>[01])\s+right=(?<right>[01])\s+clearL=(?<clearL>-?[0-9.]+)\s+clearR=(?<clearR>-?[0-9.]+)\s+axleTilt=(?<axleTilt>-?[0-9.]+)\s+hitchError=(?<hitchError>-?[0-9.]+)\s+articulation=(?<articulation>-?[0-9.]+)\s+stabilization=(?<stabilization>[0-9.]+)\s+warning=(?<warning>[01])'
 $samples = [System.Collections.Generic.List[object]]::new()
-$invalidRigLines = @($lines | Where-Object { $_ -match 'AUTHORED_TRAILER_RUNTIME_EVIDENCE.*active=0.*reason=NO_VALID_AUTHORED_RIG' })
+$invalidRigLines = [System.Collections.Generic.List[string]]::new()
+$bootstrapRigLines = [System.Collections.Generic.List[string]]::new()
+$pendingBootstrapRigLines = @{}
+$activatedSinceBoot = @{}
+$sawRuntimeBoot = $false
+
+# The runtime scanner can tick once after the trailer actor exists but before the
+# presentation subsystem has attached the authored component. Treat that as a
+# recovered bootstrap observation only when the same process subsequently emits
+# its explicit ACTIVATED marker. Missing recovery or any later rig loss remains a
+# hard invalid observation.
+foreach ($line in $lines) {
+    if ($line -match 'NATIVE_FLEET_TAKEOVER_BOOT(?:\s|$)') {
+        foreach ($pendingLines in @($pendingBootstrapRigLines.Values)) {
+            foreach ($pendingLine in @($pendingLines)) { $invalidRigLines.Add([string]$pendingLine) }
+        }
+        $pendingBootstrapRigLines = @{}
+        $activatedSinceBoot = @{}
+        $sawRuntimeBoot = $true
+        continue
+    }
+
+    $activationMatch = [regex]::Match($line, 'AUTHORED_TRAILER_PRESENTATION\s+event=ACTIVATED\s+actor=(?<trailer>\S+)')
+    if ($activationMatch.Success) {
+        $trailerName = $activationMatch.Groups['trailer'].Value
+        $activatedSinceBoot[$trailerName] = $true
+        if ($pendingBootstrapRigLines.ContainsKey($trailerName)) {
+            foreach ($pendingLine in @($pendingBootstrapRigLines[$trailerName])) { $bootstrapRigLines.Add([string]$pendingLine) }
+            $pendingBootstrapRigLines.Remove($trailerName)
+        }
+        continue
+    }
+
+    $invalidMatch = [regex]::Match($line, 'AUTHORED_TRAILER_RUNTIME_EVIDENCE\s+trailer=(?<trailer>\S+)\s+active=0\s+reason=NO_VALID_AUTHORED_RIG')
+    if (-not $invalidMatch.Success) { continue }
+    $trailerName = $invalidMatch.Groups['trailer'].Value
+    if ($sawRuntimeBoot -and -not $activatedSinceBoot.ContainsKey($trailerName)) {
+        if (-not $pendingBootstrapRigLines.ContainsKey($trailerName)) {
+            $pendingBootstrapRigLines[$trailerName] = [System.Collections.Generic.List[string]]::new()
+        }
+        $pendingBootstrapRigLines[$trailerName].Add($line)
+    }
+    else {
+        $invalidRigLines.Add($line)
+    }
+}
+foreach ($pendingLines in @($pendingBootstrapRigLines.Values)) {
+    foreach ($pendingLine in @($pendingLines)) { $invalidRigLines.Add([string]$pendingLine) }
+}
 
 foreach ($line in $lines) {
     $match = [regex]::Match($line, $pattern)
@@ -80,8 +128,9 @@ if ($attached.Count -lt 2) { $failures.Add("fewer than two authored trailer samp
 if ($grounded.Count -lt 2) { $failures.Add("both authored trailer wheels were not grounded in at least two samples ($($grounded.Count))") }
 if ($safe.Count -lt 2) { $failures.Add("hitch alignment/contact safety was not proven in at least two samples ($($safe.Count))") }
 if ($trailers.Count -lt 1) { $failures.Add('no valid authored trailer instance was observed') }
+if ($invalidRigLines.Count -gt 0) { $failures.Add("authored trailer rig became invalid or did not recover after bootstrap ($($invalidRigLines.Count) observations)") }
 
-$scenarioSamplePattern = 'NATIVE_TRAILER_SCENARIO_SAMPLE\s+speed_kmh=(?<speed>[0-9.]+)\s+distance_cm=(?<distance>[0-9.]+)\s+loaded=(?<loaded>[01])\s+attached=(?<attached>[01])\s+active=(?<active>[01])\s+contacts=(?<contacts>[0-9.]+)\s+left=(?<left>[01])\s+right=(?<right>[01])\s+hitch_error_cm=(?<hitch>-?[0-9.]+)\s+articulation_deg=(?<articulation>-?[0-9.]+)\s+cargo_integrity=(?<cargo>[0-9.]+)\s+trailer_integrity=(?<trailer>[0-9.]+)\s+hitch_load=(?<hitchLoad>[0-9.]+)'
+$scenarioSamplePattern = 'NATIVE_TRAILER_SCENARIO_SAMPLE\s+speed_kmh=(?<speed>[0-9.]+)\s+distance_cm=(?<distance>[0-9.]+)\s+loaded=(?<loaded>[01])\s+attached=(?<attached>[01])\s+active=(?<active>[01])\s+contacts=(?<contacts>[0-9.]+)\s+left=(?<left>[01])\s+right=(?<right>[01])\s+hitch_error_cm=(?<hitch>-?[0-9.]+)\s+articulation_deg=(?<articulation>-?[0-9.]+)\s+cargo_integrity=(?<cargo>[0-9.]+)\s+trailer_integrity=(?<trailer>[0-9.]+)\s+hitch_load=(?<hitchLoad>[0-9.]+)\s+source=formal(?:\s|$)'
 $scenarioSamples = [System.Collections.Generic.List[object]]::new()
 foreach ($line in $lines) {
     $match = [regex]::Match($line, $scenarioSamplePattern)
@@ -103,12 +152,12 @@ foreach ($line in $lines) {
     })
 }
 
-$scenarioCompletePattern = 'NATIVE_TRAILER_SCENARIO_COMPLETE\s+result=(?<result>PASS|FAIL)\s+route=loaded-authored-tow\s+attachment=(?<attachment>[01])\s+authored=(?<authored>[01])\s+loaded=(?<loaded>[01])\s+stopped=(?<stopped>[01])\s+max_speed_kmh=(?<speed>[0-9.]+)\s+distance_cm=(?<distance>[0-9.]+)\s+dual_contact_samples=(?<dual>\d+)\s+safe_samples=(?<safe>\d+)\s+max_hitch_error_cm=(?<hitch>[0-9.]+)\s+max_articulation_deg=(?<articulation>[0-9.]+)\s+min_cargo_integrity=(?<cargo>[0-9.]+)\s+final_speed_kmh=(?<finalSpeed>[0-9.]+)'
-$scenarioComplete = $null
+$scenarioCompletePattern = 'NATIVE_TRAILER_SCENARIO_COMPLETE\s+result=(?<result>PASS|FAIL)\s+route=loaded-authored-tow\s+attachment=(?<attachment>[01])\s+authored=(?<authored>[01])\s+loaded=(?<loaded>[01])\s+stopped=(?<stopped>[01])\s+max_speed_kmh=(?<speed>[0-9.]+)\s+distance_cm=(?<distance>[0-9.]+)\s+dual_contact_samples=(?<dual>\d+)\s+safe_samples=(?<safe>\d+)\s+max_hitch_error_cm=(?<hitch>[0-9.]+)\s+max_articulation_deg=(?<articulation>[0-9.]+)\s+min_cargo_integrity=(?<cargo>[0-9.]+)\s+final_speed_kmh=(?<finalSpeed>[0-9.]+).*\s+source=formal(?:\s|$)'
+$scenarioCompletes = [System.Collections.Generic.List[object]]::new()
 foreach ($line in $lines) {
     $match = [regex]::Match($line, $scenarioCompletePattern)
     if (-not $match.Success) { continue }
-    $scenarioComplete = [pscustomobject]@{
+    $scenarioCompletes.Add([pscustomobject]@{
         result = $match.Groups['result'].Value
         attachment = [int]$match.Groups['attachment'].Value
         authored = [int]$match.Groups['authored'].Value
@@ -122,17 +171,20 @@ foreach ($line in $lines) {
         max_articulation_deg = [double]::Parse($match.Groups['articulation'].Value,[Globalization.CultureInfo]::InvariantCulture)
         min_cargo_integrity = [double]::Parse($match.Groups['cargo'].Value,[Globalization.CultureInfo]::InvariantCulture)
         final_speed_kmh = [double]::Parse($match.Groups['finalSpeed'].Value,[Globalization.CultureInfo]::InvariantCulture)
-    }
+    })
 }
+$scenarioComplete = if ($scenarioCompletes.Count -eq 1) { $scenarioCompletes[0] } else { $null }
 
-$scenarioDiagnosticFailures = @($lines | Where-Object { $_ -match 'NATIVE_TRAILER_SCENARIO phase=DIAGNOSTIC result=FAIL' })
+$scenarioDiagnosticFailures = @($lines | Where-Object { $_ -match 'NATIVE_TRAILER_SCENARIO phase=DIAGNOSTIC result=FAIL' -and $_ -match 'source=formal' })
 $movingLoadedSafe = @($scenarioSamples | Where-Object {
     $_.speed_kmh -ge 4.0 -and $_.loaded -eq 1 -and $_.attached -eq 1 -and $_.active -eq 1 -and
     $_.contacts -ge 0.999 -and $_.left -eq 1 -and $_.right -eq 1 -and $_.hitch_error_cm -le 80.0
 })
 
-if (-not $scenarioComplete) {
+if ($scenarioCompletes.Count -eq 0) {
     $failures.Add('no NATIVE_TRAILER_SCENARIO_COMPLETE marker was found')
+} elseif ($scenarioCompletes.Count -ne 1) {
+    $failures.Add("expected exactly one formal NATIVE_TRAILER_SCENARIO_COMPLETE marker, found $($scenarioCompletes.Count)")
 } else {
     if ($scenarioComplete.result -ne 'PASS') { $failures.Add('deterministic loaded authored-trailer scenario did not PASS') }
     if ($scenarioComplete.attachment -ne 1 -or $scenarioComplete.authored -ne 1 -or $scenarioComplete.loaded -ne 1 -or $scenarioComplete.stopped -ne 1) {
@@ -170,6 +222,7 @@ $evidence = [ordered]@{
     safe_hitch_samples = $safe.Count
     valid_trailer_instances = $trailers
     invalid_rig_observation_count = $invalidRigLines.Count
+    bootstrap_rig_observation_count = $bootstrapRigLines.Count
     max_hitch_error_cm = $maxHitchError
     max_articulation_deg = $maxArticulation
     max_abs_axle_tilt_deg = $maxAxleTilt

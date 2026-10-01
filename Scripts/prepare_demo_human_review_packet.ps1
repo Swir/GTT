@@ -26,7 +26,7 @@ if (-not (Test-Path $sidecarPath -PathType Leaf)) { throw "Sealed candidate SHA2
 $archiveVerifier = Join-Path $PSScriptRoot "verify_win64_candidate_archive.ps1"
 if (-not (Test-Path $archiveVerifier -PathType Leaf)) { throw "Canonical archive verifier missing: $archiveVerifier" }
 & $archiveVerifier -PackageDirectory $PackageDirectory -Version $Version -Configuration $Configuration -ExpectedGitSha $ExpectedGitSha
-if ($LASTEXITCODE -ne 0) { throw "Canonical sealed candidate archive verification failed." }
+if (-not $?) { throw "Canonical sealed candidate archive verification failed." }
 
 $archiveHash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLowerInvariant()
 $sidecar = (Get-Content -Raw $sidecarPath).Trim()

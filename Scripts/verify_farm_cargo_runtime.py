@@ -20,6 +20,14 @@ def require(path: str, *tokens: str) -> str:
 def main() -> None:
     header = require("Source/GTT/Public/Core/GTTFarmCargoEvidenceScenarioSubsystem.h", "UGTTFarmCargoEvidenceScenarioSubsystem", "UTickableWorldSubsystem", "WrongVehicleProbe", "VerifyPersistence", "BaselineLogisticsSave")
     cpp = require("Source/GTT/Private/Core/GTTFarmCargoEvidenceScenarioSubsystem.cpp", 'FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"))', 'FParse::Param(FCommandLine::Get(), TEXT("GTTFarmCargoRuntimeScenario"))', "StartDelaySeconds = 180.0f", "GlobalDeadlineSeconds = 196.0f", "Logistics->CaptureToSave(BaselineLogisticsSave)", "Logistics->RecordCargoSuccess(0, 1.0f, true, false, true)", "StartTerminal->Interact_Implementation(PlayerPawn.Get())", "PickupTerminal->Interact_Implementation(PlayerPawn.Get())", "Authority->GetBoundCargoVehicle()", "wrong-vehicle-handoff-was-not-rejected", "HillTerminal->Interact_Implementation(PlayerPawn.Get())", "FinalTerminal->Interact_Implementation(PlayerPawn.Get())", "PayoutDelta = Economy->GetCash() - EvidenceCashBefore", "CargoRunsDelta = Logistics->GetCargoCompletedRuns() - EvidenceCargoRunsBefore", "ReputationDelta = Logistics->GetReputation() - EvidenceReputationBefore", "GameMode->SaveProgress()", "Logistics->RestoreFromSave(BaselineLogisticsSave)", "FARM_CARGO_RUNTIME_COMPLETE result=%s route=feed-hill-wood")
+    for token in ("Controller->Possess(SpawnedPickupVan.Get())", "LoadedVehicle.Get() == SpawnedPickupVan.Get()", "Controller->Possess(PlayerPawn.Get())"):
+        if token not in cpp: raise AssertionError(f"Farm Cargo evidence vehicle selection is not deterministic: missing {token}")
+    parking_match = re.search(r"EvidenceParkingOffsetCm\s*=\s*([0-9.]+)f", cpp)
+    decoy_match = re.search(r"EvidenceDecoySpawnOffsetCm\s*=\s*(-?[0-9.]+)f", cpp)
+    if not parking_match or not (250.0 < float(parking_match.group(1)) <= 700.0):
+        raise AssertionError("Farm Cargo evidence vehicle must be collision-clear but remain inside the production 700 cm pickup radius")
+    if not decoy_match or abs(float(decoy_match.group(1))) <= 700.0:
+        raise AssertionError("Farm Cargo decoy must begin outside the production pickup radius")
     if "AddCash(" in cpp or "SettleCargoContract(" in cpp: raise AssertionError("runtime harness must observe, not replace, FarmJobDirector payout/market authority")
     if "TryCompleteJob(" in cpp or "TryCompleteFinalStop(" in cpp: raise AssertionError("runtime harness must go through real FarmJobTerminal interactions")
     authority = require("Source/GTT/Private/Activities/GTTFarmCargoAuthoritySubsystem.cpp", "FARM_CARGO_AUTHORITY event=BIND result=PASS", "FARM_CARGO_AUTHORITY event=HANDOFF_CHECK result=PASS", "BoundCargoVehicleId")

@@ -1,4 +1,5 @@
 from pathlib import Path
+import importlib.util
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +17,59 @@ spec_h = read("Source/GTT/Public/Vehicles/GTTChaosVehicleSpec.h")
 roadmap = read("Docs/ROADMAP.md")
 playtest = read("Docs/PLAYTEST_0.0.35.md")
 workflow = read(".github/workflows/project-sanity.yml")
+editor_import = read("Scripts/Unreal/import_gtt_vehicle_rigs.py")
+native_setup_h = read("Source/GTT/Public/Vehicles/GTTChaosNativeSetupLibrary.h")
+native_setup_cpp = read("Source/GTT/Private/Vehicles/GTTChaosNativeSetupLibrary.cpp")
+
+# The source rig must use glTF's Y-up coordinate system. Interchange maps it to
+# UE Z-up. A Z-up glTF can still import and pass the bone/wheel contract while
+# its physics asset starts the vehicle on its side, so verify the generated
+# geometry and joint positions rather than only checking names.
+generator_path = ROOT / "Scripts/generate_gtt_vehicle_rigs.py"
+generator_spec = importlib.util.spec_from_file_location("gtt_vehicle_rig_generator", generator_path)
+generator = importlib.util.module_from_spec(generator_spec)
+assert generator_spec.loader is not None
+generator_spec.loader.exec_module(generator)
+for vehicle_name, vehicle_spec in generator.VEHICLES.items():
+    document = generator.generate(vehicle_name, vehicle_spec)
+    nodes = {node["name"]: node for node in document["nodes"]}
+    length, width, height = vehicle_spec["size"]
+    radius = vehicle_spec["wheel"]
+    wheelbase = vehicle_spec["wheelbase"]
+    track = vehicle_spec["track"]
+    expected = {
+        "wheel_fl": (wheelbase / 2, radius, -track / 2),
+        "wheel_fr": (wheelbase / 2, radius, track / 2),
+        "wheel_rl": (-wheelbase / 2, radius, -track / 2),
+        "wheel_rr": (-wheelbase / 2, radius, track / 2),
+    }
+    for bone, position in expected.items():
+        assert tuple(nodes[bone]["translation"]) == position, f"{vehicle_name} {bone} is not authored Y-up"
+    body_position = document["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
+    body_bounds = document["accessors"][body_position]
+    assert body_bounds["min"][1] >= radius - 1e-6, f"{vehicle_name} body must sit above its wheels in glTF Y"
+    assert body_bounds["max"][1] >= radius + height - 1e-6, f"{vehicle_name} body height must use glTF Y"
+    assert body_bounds["min"][0] <= -length / 2 + 1e-6 and body_bounds["max"][0] >= length / 2 - 1e-6, \
+        f"{vehicle_name} length must use glTF X"
+
+# Chaos Vehicles expects one chassis rigid body. Simulated wheel bodies from the
+# generic PhysicsAsset generator fight the suspension traces and destabilize the
+# vehicle, so the editor import must reduce every generated asset to root only.
+for token in (
+    'GTTChaosNativeSetupLibrary.stabilize_generated_physics_asset(physics,unreal.Name(name))',
+    '"physics_body_bones":["root"]',
+):
+    assert token in editor_import, f"editor import does not enforce root-only chassis physics: {token}"
+for token in (
+    "StabilizeGeneratedPhysicsAsset",
+    'BodySetup->BoneName == TEXT("root")',
+    "SkeletalBodySetups.Reset(1)",
+    "ConstraintSetup.Reset()",
+    "UpdateBodySetupIndexMap()",
+    "RootBody->AggGeom = FKAggregateGeom()",
+    "RootBody->AggGeom.BoxElems.Add(ChassisBox)",
+):
+    assert token in native_setup_h + native_setup_cpp, f"native setup does not enforce root-only chassis physics: {token}"
 
 wheel_classes = [
     "UGTTFieldmasterFrontWheel", "UGTTFieldmasterRearWheel",

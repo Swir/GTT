@@ -5,6 +5,8 @@ import re
 root = Path(__file__).resolve().parents[1]
 h = (root / 'Source/GTT/Public/Core/GTTDemoSmokeScenarioSubsystem.h').read_text(encoding='utf-8')
 cpp = (root / 'Source/GTT/Private/Core/GTTDemoSmokeScenarioSubsystem.cpp').read_text(encoding='utf-8')
+fieldmaster_cpp = (root / 'Source/GTT/Private/Vehicles/GTTFieldmasterNativePawn.cpp').read_text(encoding='utf-8')
+road_vehicle_cpp = (root / 'Source/GTT/Private/Vehicles/GTTRoadVehicleNativePawn.cpp').read_text(encoding='utf-8')
 recovery_h = (root / 'Source/GTT/Public/Core/GTTDamageRecoveryEvidenceSubsystem.h').read_text(encoding='utf-8')
 recovery_cpp = (root / 'Source/GTT/Private/Core/GTTDamageRecoveryEvidenceSubsystem.cpp').read_text(encoding='utf-8')
 struct_h = (root / 'Source/GTT/Public/Core/GTTStructuralDamageEvidenceSubsystem.h').read_text(encoding='utf-8')
@@ -63,12 +65,18 @@ current_build_evidence = all(x in attestor for x in [
 
 checks = {
     'core world subsystem': 'UTickableWorldSubsystem' in h,
+    'fresh acceptance fleet ownership fixture': all(x in cpp for x in ['PrepareAcceptanceFleet', 'MarkOwnedByPlayer', 'RepairVehicle', 'RepairTires', 'RestorePersistentMigrationSnapshot', 'DEMO_SCENARIO_FLEET_PREP result=PASS']),
     'recovery world subsystem': 'UTickableWorldSubsystem' in recovery_h,
     'structural world subsystem': 'UTickableWorldSubsystem' in struct_h,
     'structural drive world subsystem': 'UTickableWorldSubsystem' in drive_h,
     'opt-in commandline': all('GTTDemoSmokeScenario' in text for text in [cpp, recovery_cpp, struct_cpp, drive_cpp, smoke]),
     'explicit 26 core markers': all(f'TEXT("{s}")' in cpp for s in core_steps) and 'steps=26' in cpp,
-    'native control actuation': all(x in cpp for x in ['SetThrottleInput', 'SetSteeringInput', 'SetBrakeInput', 'DEMO_SCENARIO_CONTROL']),
+    'native control actuation': (
+        'ApplyAcceptanceDriveCommand' in cpp
+        and 'DEMO_SCENARIO_CONTROL' in cpp
+        and all(x in fieldmaster_cpp for x in ['ApplyAcceptanceDriveCommand', 'SetTargetGear', 'GTTDemoSmokeScenario'])
+        and all(x in road_vehicle_cpp for x in ['ApplyAcceptanceDriveCommand', 'SetThrottleInput', 'SetSteeringInput', 'SetBrakeInput', 'SetTargetGear', 'GTTDemoSmokeScenario'])
+    ),
     'live wheel motion evidence': all(x in cpp for x in ['GetWheelState', 'bInContact', 'NormalizedSuspensionLength', 'GetVelocity().SizeSquared2D()']),
     'wanted-4 escalation': 'AddHeat(130.f)' in cpp and 'GetWantedLevel()>=4' in cpp,
     'active police response': 'GetActiveFootUnitCount()>0' in cpp,
@@ -76,16 +84,16 @@ checks = {
     'pursuit interaction proof': all(x in cpp for x in ['PursuitStartDistance', 'Distance+250.f<PursuitStartDistance', 'PURSUIT_CLOSING']),
     'physical crossing proof': all(x in cpp for x in ['DriveNativeRoadblockCrossing', 'GetSpikeStripWorldLocation', 'ROADBLOCK_PHYSICAL_CROSSING', 'HANDLING_CONSEQUENCE']),
     'post-spike escape proof': all(x in cpp for x in ['POST_SPIKE_ESCAPE', 'PostSpikeEscapeStartSeconds', 'GetRuntimeWheelRisk', 'GetRuntimeThrottleLimit', 'GetRuntimeSteeringLimit']),
-    'damage persistence proof': all(x in recovery_cpp for x in ['SaveProgress()', 'LoadProgress()', 'DEMO_SCENARIO_DAMAGE_PERSISTENCE', 'TryActivateLegacyTakeover']),
-    'paid workshop proof': all(x in recovery_cpp for x in ['EGTTServiceType::Workshop', 'Interact_Implementation(PlayerPawn)', 'CashBeforeWorkshop', 'CashAfterWorkshop', 'DEMO_SCENARIO_WORKSHOP_RECOVERY']),
+    'damage persistence proof': all(x in recovery_cpp for x in ['DidCompleteSuccessfully()', 'GetProvenRoadblockVehicleId()', 'FindRoadVehicleById', 'SaveProgress()', 'LoadProgress()', 'DEMO_SCENARIO_DAMAGE_PERSISTENCE', 'TryActivateLegacyTakeover']),
+    'paid workshop proof': all(x in recovery_cpp for x in ['EGTTServiceType::Workshop', 'ResolveNativeRoadServiceTarget()', 'NeedsNativeWorkshopService()', 'GetNativeRoadCheckoutQuote', 'ExpectedWorkshopQuote', 'Interact_Implementation(PlayerPawn)', 'expected_quote=%d paid=%d', 'DEMO_SCENARIO_WORKSHOP_RECOVERY']),
     'structural persistence proof': all(x in struct_cpp for x in ['ApplyScriptedImpactDamage', 'RoadStructuralDamage.FindByPredicate', 'DEMO_SCENARIO_STRUCTURAL_PERSISTENCE', 'SavedPanelMask']),
-    'structural repair proof': all(x in struct_cpp for x in ['SavedRepairSurcharge', 'Interact_Implementation(PlayerPawn)', 'DEMO_SCENARIO_STRUCTURAL_REPAIR', 'Paid > SavedRepairSurcharge']),
+    'structural repair proof': all(x in struct_cpp for x in ['Previous->DidCompleteSuccessfully()', 'Previous->GetEvidenceVehicleId()', 'ResolveNativeRoadServiceTarget()', 'NeedsNativeWorkshopService()', 'GetNativeRoadCheckoutQuote', 'ExpectedWorkshopQuote', 'Paid == ExpectedWorkshopQuote', 'DEMO_SCENARIO_STRUCTURAL_REPAIR']),
     'structural physical consequence': all(x in drive_cpp for x in ['Mesh->AddForce(DragForce', 'Mesh->AddForce(LateralForce', 'bLimpHomeActive', 'DEMO_SCENARIO_STRUCTURAL_HANDLING']),
     'structural consequence save-load proof': all(x in drive_cpp for x in ['SaveProgress()', 'RestorePersistentBodyDamage(Pristine, 0)', 'LoadProgress()', 'DEMO_SCENARIO_STRUCTURAL_RELOAD_HANDLING']),
-    'structural consequence workshop proof': all(x in drive_cpp for x in ['Interact_Implementation(PlayerPawn)', 'DEMO_SCENARIO_STRUCTURAL_DRIVE_RECOVERY', 'limp_after=NO']),
+    'structural consequence workshop proof': all(x in drive_cpp for x in ['Previous->DidCompleteSuccessfully()', 'Previous->GetEvidenceVehicleId()', 'ResolveNativeRoadServiceTarget()', 'NeedsNativeWorkshopService()', 'GetNativeRoadCheckoutQuote', 'ExpectedWorkshopQuote', 'Paid != ExpectedWorkshopQuote', 'DEMO_SCENARIO_STRUCTURAL_DRIVE_RECOVERY', 'limp_after=NO']),
     'evaluator schema v11': 'gtt.demo-scenario.v11' in eval_ps and 'required_step_count=33' in eval_ps,
     'evaluator retains core': all(s in eval_ps for s in core_steps) and 'DEMO_SCENARIO_COMPLETE result=PASS steps=26' in eval_ps,
-    'evaluator recovery gates': all(x in eval_ps for x in ['damage_persistence_passed', 'workshop_recovery_passed', 'damage_recovery_complete', 'structural_persistence_passed', 'structural_repair_passed', 'structural_recovery_complete', 'structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
+    'evaluator recovery gates': all(x in eval_ps for x in ['native_spike_vehicle', 'workshop_expected_quote', 'workshop_paid', 'structural_expected_quote', 'structural_paid', 'structural_drive_expected_quote', 'structural_drive_paid', 'damage_persistence_passed', 'workshop_recovery_passed', 'damage_recovery_complete', 'structural_persistence_passed', 'structural_repair_passed', 'structural_recovery_complete', 'structural_handling_passed', 'structural_reload_handling_passed', 'structural_drive_recovery_passed']),
     'demo gate consumes scenario': "scenario.result -ne 'PASS'" in demo,
     'canonical runner order': workflow_order_ok,
     'extended packaged runtime': runtime_window_ok,

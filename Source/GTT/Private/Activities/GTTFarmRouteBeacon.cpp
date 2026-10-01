@@ -29,7 +29,7 @@ AGTTFarmRouteBeacon::AGTTFarmRouteBeacon()
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickInterval = 0.10f;
-    bCanBeDamaged = false;
+    SetCanBeDamaged(false);
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     RootComponent = SceneRoot;

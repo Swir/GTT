@@ -52,9 +52,11 @@ $charged=IntField $service 'charged'
 if([string]::IsNullOrWhiteSpace($vehicle) -or $vehicle -eq 'None'){throw 'Stable vehicle id is empty.'}
 if($locked -le 0 -or $charged -ne $locked){throw "Queued service debit mismatch: charged=$charged locked=$locked"}
 $acceptedCount=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_ACCEPTED vehicle=$([regex]::Escape($vehicle)) .*charged=NO exact_id=YES.*$").Count
-$completedCount=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_COMPLETED vehicle=$([regex]::Escape($vehicle)) charged=$locked locked_quote_match=YES exact_id=YES saved=YES.*$").Count
+$readyCount=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_READY_FOR_PICKUP vehicle=$([regex]::Escape($vehicle)) priority=STANDARD charged=$locked locked_quote_match=YES exact_id=YES timed_service=YES saved=YES fleet_release=PENDING.*$").Count
+$pickupCount=[regex]::Matches($log,"(?m)^.*WORKSHOP_QUEUE_PICKUP_RELEASED vehicle=$([regex]::Escape($vehicle)) paid_amount=$locked exact_id=YES repair_complete=YES fleet_return=YES.*$").Count
 if($acceptedCount -lt 1){throw 'Production WORKSHOP_QUEUE_ACCEPTED marker is missing.'}
-if($completedCount -ne 1){throw "Expected exactly one production WORKSHOP_QUEUE_COMPLETED marker, found $completedCount."}
+if($readyCount -ne 1){throw "Expected exactly one production WORKSHOP_QUEUE_READY_FOR_PICKUP marker, found $readyCount."}
+if($pickupCount -ne 1){throw "Expected exactly one production WORKSHOP_QUEUE_PICKUP_RELEASED marker, found $pickupCount."}
 $diagnosticFailures=[regex]::Matches($log,'(?m)^.*WORKSHOP_QUEUE_RUNTIME phase=DIAGNOSTIC result=FAIL.*$').Count
 if($diagnosticFailures -ne 0){throw "Workshop-queue route reported $diagnosticFailures diagnostic failures."}
 
@@ -88,7 +90,9 @@ $evidence=[ordered]@{
     refuelled=$true
     farm_cargo_authority_preserved=$true
     production_accept_markers=$acceptedCount
-    production_complete_markers=$completedCount
+    production_ready_markers=$readyCount
+    production_pickup_markers=$pickupCount
+    production_complete_markers=$pickupCount
     diagnostic_failure_count=$diagnosticFailures
     evaluated_utc=(Get-Date).ToUniversalTime().ToString('o')
 }

@@ -74,7 +74,7 @@ void UGTTNativePhysicsAcceptanceSubsystem::EvaluateNativeFieldmaster(AGTTFieldma
         State.InvalidSeconds += DeltaTime;
         if (State.InvalidSeconds >= InvalidFallbackSeconds)
         {
-            UE_LOG(LogGTT, Error,
+            GTT_LOG( Error,
                 TEXT("NATIVE_PHYSICS_FALLBACK vehicle=RustyFieldmaster60 invalid_seconds=%.2f reason=\"%s\""),
                 State.InvalidSeconds,
                 *ValidationReason);
@@ -108,7 +108,7 @@ void UGTTNativePhysicsAcceptanceSubsystem::EvaluateNativeFieldmaster(AGTTFieldma
         UGTTChaosNativeSetupLibrary::ValidateCanonicalWheelSetups(Movement, FieldmasterVehicleId, WheelRuntimeSummary);
     }
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_PHYSICS_EVIDENCE vehicle=RustyFieldmaster60 accepted=%s contacts=%d/4 clearances_cm=[%.1f,%.1f,%.1f,%.1f] physics_asset=%s body_count=%d movement=%s collision=%d reason=\"%s\""),
         bAuthoredPhysicsValid ? TEXT("YES") : TEXT("NO"),
         State.LastGroundContacts,
@@ -123,7 +123,7 @@ void UGTTNativePhysicsAcceptanceSubsystem::EvaluateNativeFieldmaster(AGTTFieldma
     {
         const UChaosVehicleWheel* FrontWheel = Movement->WheelSetups[0].WheelClass ? Cast<UChaosVehicleWheel>(Movement->WheelSetups[0].WheelClass->GetDefaultObject()) : nullptr;
         const UChaosVehicleWheel* RearWheel = Movement->WheelSetups[2].WheelClass ? Cast<UChaosVehicleWheel>(Movement->WheelSetups[2].WheelClass->GetDefaultObject()) : nullptr;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_WHEEL_SETUP_EVIDENCE vehicle=RustyFieldmaster60 setup=%s front_class=%s rear_class=%s front_radius=%.1f rear_radius=%.1f front_travel=[%.1f,%.1f] rear_travel=[%.1f,%.1f] front_spring=%.1f rear_spring=%.1f front_damping=%.2f rear_damping=%.2f"),
             *WheelRuntimeSummary,
             *Movement->WheelSetups[0].WheelClass->GetName(),

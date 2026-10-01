@@ -50,8 +50,11 @@ def main() -> int:
         '"import_sockets", True',
         "ImportAssetParameters(",
         "is_automated=True",
-        "override_pipelines=pipelines",
+        "pipeline_paths = [unreal.SoftObjectPath(pipeline.get_path_name()) for pipeline in pipelines]",
+        "override_pipelines=pipeline_paths",
         "manager.import_asset",
+        "EditorAssetLibrary.list_assets(",
+        "EditorAssetLibrary.rename_asset(mesh.get_path_name(), ASSET_PATH)",
         "/Game/GTT/Vehicles/Trailer",
         "SK_GTT_FarmTrailer",
         "SkeletalMeshEditorSubsystem.create_physics_asset",
@@ -65,6 +68,8 @@ def main() -> int:
         "verified_sockets",
         "physics_asset_object_path",
         "hashlib.sha256",
+        "EditorAssetLibrary.save_loaded_asset(skeleton, False)",
+        'fail("SKELETON_SAVE_FAILED")',
     )
     for token in required_importer:
         require(token in importer, f"UE import contract missing: {token}")
@@ -80,7 +85,9 @@ def main() -> int:
     required_wrapper = (
         "generate_gtt_farm_trailer_gltf.py",
         "verify_v0_1_60_authored_trailer_source_rig.py",
-        "-run=pythonscript",
+        "-ExecutePythonScript=",
+        "-ScriptErrorsAreFatal",
+        "-abslog=",
         "import_gtt_farm_trailer.py",
         "-unattended",
         "-NullRHI",

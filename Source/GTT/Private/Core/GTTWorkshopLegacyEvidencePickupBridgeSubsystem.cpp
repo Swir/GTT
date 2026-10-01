@@ -16,14 +16,15 @@ void UGTTWorkshopLegacyEvidencePickupBridgeSubsystem::Initialize(FSubsystemColle
 {
     Super::Initialize(Collection);
     const bool bDemoSmoke = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
+    const bool bServicesRuntime = FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario"));
     const bool bQueueEvidence = FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopQueueRuntimeScenario"));
     const bool bCapacityEvidence = FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopCapacityRuntimeScenario"));
     bPriorityPickupEvidence = FParse::Param(FCommandLine::Get(), TEXT("GTTWorkshopPriorityPickupRuntimeScenario"));
-    bEnabled = bDemoSmoke && (bQueueEvidence || bCapacityEvidence);
+    bEnabled = (bDemoSmoke || bServicesRuntime) && (bQueueEvidence || bCapacityEvidence);
 
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_LEGACY_EVIDENCE_PICKUP_BRIDGE enabled=YES production_pickup_api=YES economy_mutation=NO repair_mutation=NO priority_pickup_isolation=%s"),
             bPriorityPickupEvidence ? TEXT("YES") : TEXT("NO"));
     }
@@ -64,7 +65,7 @@ void UGTTWorkshopLegacyEvidencePickupBridgeSubsystem::Tick(float DeltaTime)
 
         FString Summary;
         const bool bReleased = Queue->ReleaseCompletedRepairForPickup(Snapshot.PersistentVehicleId, Summary);
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("WORKSHOP_LEGACY_EVIDENCE_AUTO_PICKUP vehicle=%s result=%s paid_amount=%d exact_id=YES charged_again=NO repair_mutation=NO"),
             *Snapshot.PersistentVehicleId.ToString(), bReleased ? TEXT("PASS") : TEXT("FAIL"), Snapshot.PaidAmount);
     }

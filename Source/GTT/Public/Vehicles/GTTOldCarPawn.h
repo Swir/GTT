@@ -17,6 +17,8 @@ public:
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 protected:
+    virtual void BeginPlay() override;
+
     void CaptureChaosThrottle(float Value);
     void CaptureChaosSteering(float Value);
 

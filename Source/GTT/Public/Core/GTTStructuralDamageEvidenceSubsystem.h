@@ -17,6 +17,8 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UGTTStructuralDamageEvidenceSubsystem, STATGROUP_Tickables); }
     virtual bool IsTickable() const override { return bEnabled && !bFinished; }
+    bool DidCompleteSuccessfully() const { return bFinished && bSucceeded; }
+    FName GetEvidenceVehicleId() const { return TargetVehicleId; }
 
 private:
     enum class EEvidencePhase : uint8
@@ -31,12 +33,13 @@ private:
         Complete
     };
 
-    AGTTRoadVehicleNativePawn* FindActiveOwnedRoadVehicle() const;
+    AGTTRoadVehicleNativePawn* FindRoadVehicleById(FName VehicleId) const;
     AGTTServiceTerminal* FindWorkshopTerminal() const;
     void Fail(const FString& Reason);
 
     bool bEnabled = false;
     bool bFinished = false;
+    bool bSucceeded = false;
     float Elapsed = 0.0f;
     float PhaseStartedSeconds = 0.0f;
     EEvidencePhase Phase = EEvidencePhase::WaitForDamageRecovery;
@@ -46,4 +49,5 @@ private:
     int32 SavedPanelMask = 0;
     int32 SavedRepairSurcharge = 0;
     int32 CashBeforeWorkshop = 0;
+    int32 ExpectedWorkshopQuote = 0;
 };

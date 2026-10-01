@@ -14,13 +14,16 @@ changelog = (root / 'CHANGELOG.d/0.0.73.md').read_text(encoding='utf-8')
 required = [
     (header + cpp, 'UGTTTrailerAuthoredRuntimeSubsystem'),
     (header, 'FGTTAuthoredTrailerRuntimeSnapshot'),
+    (header + cpp, 'USkinnedMeshComponent'),
+    (cpp, 'GetSkinnedAsset'),
     (cpp, 'GTT.AuthoredTrailerRig'),
     (cpp, 'AuthoredTrailerMesh'),
     (cpp, 'GetPhysicsAsset'),
     (cpp, 'wheel_l'),
     (cpp, 'wheel_r'),
-    (cpp, 'tow_eye'),
-    (cpp, 'axle_center'),
+    (cpp, 'socket_hitch'),
+    (cpp, 'socket_axle_l'),
+    (cpp, 'socket_axle_r'),
     (cpp, 'TraceWheelContact'),
     (cpp, 'GetTowLoadFactor'),
     (cpp, 'AddForceAtLocation'),
@@ -69,5 +72,8 @@ if 'GroundTraceDistanceCm = 105.0f' not in header or 'HitchWarningErrorCm = 80.0
 
 if 'SetVisibility(false, true)' not in cpp or 'SetVisibility(Trailer->HasCargo(), true)' not in cpp:
     raise SystemExit('Safe authored/greybox presentation takeover fallback is missing.')
+
+if 'GetComponents<USkeletalMeshComponent>' in cpp:
+    raise SystemExit('Poseable authored trailer rigs must not be filtered out by a skeletal-component-only lookup.')
 
 print('[OK] Authored trailer runtime takeover, wheel-contact dynamics, heavy-haul integration and SVG-only roadmap lock verified.')

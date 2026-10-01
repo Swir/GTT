@@ -1,21 +1,28 @@
 #include "Core/GTTDrivetrainEvidenceScenarioSubsystem.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
+#include "Vehicles/GTTVehicleBase.h"
 #include "GTT.h"
 
 namespace
 {
     constexpr float StartDelaySeconds = 76.0f;
+    constexpr float FocusedStartDelaySeconds = 8.0f;
     constexpr float GlobalDeadlineSeconds = 122.0f;
+    constexpr float SettleDurationSeconds = 0.75f;
     constexpr float ForwardAccelerationTimeoutSeconds = 16.0f;
-    constexpr float ReverseAccelerationTimeoutSeconds = 12.0f;
+    // The Chaos transmission can report the committed reverse gear one or two
+    // physics frames after reverse motion has already crossed the threshold.
+    constexpr float ReverseAccelerationTimeoutSeconds = 14.0f;
     constexpr float ForwardReturnTimeoutSeconds = 10.0f;
     constexpr float ShiftReleaseSpeedKmh = 3.5f;
+    constexpr float DirectionCommitSpeedKmh = 0.5f;
     constexpr float SafeShiftEvidenceToleranceKmh = 0.25f;
     constexpr float ForwardEvidenceSpeedKmh = 6.0f;
     constexpr float ReverseEvidenceSpeedKmh = 5.0f;
@@ -24,17 +31,29 @@ namespace
     constexpr float ReverseThrottle = -0.72f;
     constexpr float ReturnThrottle = 0.72f;
     constexpr float ShiftBrake = 0.85f;
+    const FVector EvidencePadLocation(8500.0f, 5000.0f, 0.0f);
+    const FRotator EvidencePadRotation(0.0f, 180.0f, 0.0f);
 }
 
 void UGTTDrivetrainEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    bEnabled = FParse::Param(FCommandLine::Get(), TEXT("GTTDemoSmokeScenario"));
+    const TCHAR* CommandLine = FCommandLine::Get();
+    const bool bFocusedDrivetrainRuntime = FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario"));
+    const bool bDemoSmokeRuntime = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario"));
+    const bool bIsolatedFocusedDrivetrainRuntime = bFocusedDrivetrainRuntime && !bDemoSmokeRuntime;
+    bEnabled = bFocusedDrivetrainRuntime ||
+        (bDemoSmokeRuntime && !FParse::Param(CommandLine, TEXT("GTTDisableDrivetrainScenario")));
     if (bEnabled)
     {
-        UE_LOG(LogGTT, Log,
-            TEXT("NATIVE_DRIVETRAIN_SCENARIO_BEGIN version=1 start_delay=%.1f deadline=%.1f release_kmh=%.2f"),
-            StartDelaySeconds, GlobalDeadlineSeconds, ShiftReleaseSpeedKmh);
+        if (bIsolatedFocusedDrivetrainRuntime)
+        {
+            Elapsed = StartDelaySeconds - FocusedStartDelaySeconds;
+        }
+        GTT_LOG( Log,
+            TEXT("NATIVE_DRIVETRAIN_SCENARIO_BEGIN version=1 start_delay=%.1f effective_start_delay=%.1f deadline=%.1f release_kmh=%.2f"),
+            StartDelaySeconds, bIsolatedFocusedDrivetrainRuntime ? FocusedStartDelaySeconds : StartDelaySeconds,
+            GlobalDeadlineSeconds, ShiftReleaseSpeedKmh);
     }
 }
 
@@ -58,8 +77,29 @@ AGTTFieldmasterNativePawn* UGTTDrivetrainEvidenceScenarioSubsystem::ResolveField
     for (TActorIterator<AGTTFieldmasterNativePawn> It(World); It; ++It)
     {
         AGTTFieldmasterNativePawn* Candidate = *It;
-        if (Candidate && Candidate->IsNativeFieldmasterReady() && Candidate->IsLegacyTakeoverActive())
+        if (!Candidate || !Candidate->IsNativeFieldmasterReady()) continue;
+        if (!Candidate->IsLegacyTakeoverActive())
         {
+            for (TActorIterator<AGTTVehicleBase> LegacyIt(World); LegacyIt; ++LegacyIt)
+            {
+                AGTTVehicleBase* Legacy = *LegacyIt;
+                if (!Legacy || Legacy->GetPersistentVehicleId() != TEXT("RustyFieldmaster60")) continue;
+                if (!Legacy->IsOwnedByPlayer()) Legacy->MarkOwnedByPlayer();
+                Legacy->RepairVehicle(100000.0f);
+                Legacy->RefuelVehicle(100000.0f);
+                Legacy->RepairTires();
+                break;
+            }
+            Candidate->TryActivateLegacyTakeover();
+        }
+        if (Candidate->IsLegacyTakeoverActive())
+        {
+            FGTTVehicleMigrationSnapshot State = Candidate->GetMigrationSnapshot();
+            State.ConditionPercent = 1.0f;
+            State.FuelLiters = FMath::Max(State.FuelLiters, 10.0f);
+            State.bOwnedByPlayer = true;
+            State.TireIntegrity = 1.0f;
+            Candidate->ApplyMigrationSnapshot(State);
             Fieldmaster = Candidate;
             return Candidate;
         }
@@ -77,10 +117,56 @@ float UGTTDrivetrainEvidenceScenarioSubsystem::GetSignedSpeedKmh(const AGTTField
     return Pawn ? FVector::DotProduct(Pawn->GetVelocity(), Pawn->GetActorForwardVector()) * 0.036f : 0.0f;
 }
 
+bool UGTTDrivetrainEvidenceScenarioSubsystem::StageFieldmaster(
+    AGTTFieldmasterNativePawn* Pawn,
+    UChaosWheeledVehicleMovementComponent* Movement)
+{
+    UWorld* World = GetWorld();
+    USkeletalMeshComponent* VehicleBody = Pawn ? Pawn->GetMesh() : nullptr;
+    if (!World || !Pawn || !Movement || !VehicleBody)
+    {
+        return false;
+    }
+
+    FVector StageLocation = EvidencePadLocation;
+    FHitResult GroundHit;
+    FCollisionObjectQueryParams GroundObjects;
+    GroundObjects.AddObjectTypesToQuery(ECC_WorldStatic);
+    FCollisionQueryParams GroundQuery(SCENE_QUERY_STAT(GTTDrivetrainEvidenceGround), false, Pawn);
+    if (!World->LineTraceSingleByObjectType(
+        GroundHit,
+        StageLocation + FVector(0.0f, 0.0f, 1000.0f),
+        StageLocation - FVector(0.0f, 0.0f, 1500.0f),
+        GroundObjects,
+        GroundQuery))
+    {
+        return false;
+    }
+
+    StageLocation.Z = GroundHit.ImpactPoint.Z + 4.0f;
+    Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    Movement->SetUseAutomaticGears(true);
+    VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    Pawn->SetActorTransform(
+        FTransform(EvidencePadRotation, StageLocation),
+        false,
+        nullptr,
+        ETeleportType::ResetPhysics);
+    VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+    VehicleBody->WakeAllRigidBodies();
+
+    GTT_LOG( Log,
+        TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=STAGE result=PASS location=(%.0f,%.0f,%.0f) settle_seconds=%.2f"),
+        StageLocation.X, StageLocation.Y, StageLocation.Z, SettleDurationSeconds);
+    return true;
+}
+
 void UGTTDrivetrainEvidenceScenarioSubsystem::MarkFailure(const TCHAR* Reason)
 {
     bSequenceHealthy = false;
-    UE_LOG(LogGTT, Error,
+    GTT_LOG( Error,
         TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=DIAGNOSTIC result=FAIL reason=%s elapsed=%.2f"),
         Reason, Elapsed);
 }
@@ -91,15 +177,13 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::BeginForwardAcceleration(
 {
     if (!Pawn || !Movement) return;
 
-    Movement->SetBrakeInput(0.0f);
-    Movement->SetSteeringInput(0.0f);
     Movement->SetTargetGear(1, true);
-    Movement->SetThrottleInput(ForwardThrottle);
+    Pawn->ApplyAcceptanceDriveCommand(ForwardThrottle, 0.0f, 0.0f);
     Phase = EDrivetrainEvidencePhase::ForwardAcceleration;
     PhaseStartedSeconds = Elapsed;
     MaxForwardGearObserved = FMath::Max(MaxForwardGearObserved, Movement->GetCurrentGear());
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=FORWARD_ACCELERATE result=START gear=%d signed_speed_kmh=%.2f throttle=%.2f"),
         Movement->GetCurrentGear(), GetSignedSpeedKmh(Pawn), ForwardThrottle);
 }
@@ -109,8 +193,13 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::CompleteScenario(
     UChaosWheeledVehicleMovementComponent* Movement,
     const TCHAR* Reason)
 {
+    if (Pawn)
+    {
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    }
     if (Movement)
     {
+        Movement->SetUseAutomaticGears(true);
         Movement->SetThrottleInput(0.0f);
         Movement->SetSteeringInput(0.0f);
         Movement->SetBrakeInput(1.0f);
@@ -124,7 +213,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::CompleteScenario(
         && bSafeForwardCommitObserved
         && bForwardReturnObserved;
 
-    UE_LOG(LogGTT, Log,
+    GTT_LOG( Log,
         TEXT("NATIVE_DRIVETRAIN_SCENARIO_COMPLETE result=%s route=forward-auto-reverse-forward max_forward_gear=%d reverse_interlock_speed_kmh=%.2f reverse_commit_speed_kmh=%.2f forward_commit_speed_kmh=%.2f final_signed_speed_kmh=%.2f reason=%s elapsed=%.2f"),
         bPass ? TEXT("PASS") : TEXT("FAIL"), MaxForwardGearObserved, ReverseInterlockStartSpeedKmh,
         ReverseCommitSpeedKmh, ForwardCommitSpeedKmh, GetSignedSpeedKmh(Pawn), Reason, Elapsed);
@@ -165,19 +254,32 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
     switch (Phase)
     {
     case EDrivetrainEvidencePhase::Waiting:
-        BeginForwardAcceleration(Pawn, Movement);
+        if (!StageFieldmaster(Pawn, Movement))
+        {
+            MarkFailure(TEXT("fieldmaster-staging-failed"));
+            CompleteScenario(Pawn, Movement, TEXT("staging-failed"));
+            break;
+        }
+        Phase = EDrivetrainEvidencePhase::Settling;
+        PhaseStartedSeconds = Elapsed;
+        break;
+
+    case EDrivetrainEvidencePhase::Settling:
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+        if (Elapsed - PhaseStartedSeconds >= SettleDurationSeconds && AbsoluteSpeedKmh <= DirectionCommitSpeedKmh)
+        {
+            BeginForwardAcceleration(Pawn, Movement);
+        }
         break;
 
     case EDrivetrainEvidencePhase::ForwardAcceleration:
     {
-        Movement->SetBrakeInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetThrottleInput(ForwardThrottle);
+        Pawn->ApplyAcceptanceDriveCommand(ForwardThrottle, 0.0f, 0.0f);
 
         if (!bAutomaticUpshiftObserved && CurrentGear >= 2 && SignedSpeedKmh >= ForwardEvidenceSpeedKmh)
         {
             bAutomaticUpshiftObserved = true;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=AUTOMATIC_UPSHIFT result=PASS gear=%d speed_kmh=%.2f max_forward_gear=%d"),
                 CurrentGear, SignedSpeedKmh, MaxForwardGearObserved);
         }
@@ -188,7 +290,7 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
         {
             if (!bAutomaticUpshiftObserved)
             {
-                UE_LOG(LogGTT, Log,
+                GTT_LOG( Log,
                     TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=AUTOMATIC_UPSHIFT result=FAIL gear=%d speed_kmh=%.2f max_forward_gear=%d reason=timeout"),
                     CurrentGear, SignedSpeedKmh, MaxForwardGearObserved);
                 MarkFailure(TEXT("automatic-upshift-not-observed"));
@@ -196,14 +298,12 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
             ReverseInterlockStartSpeedKmh = AbsoluteSpeedKmh;
             bReverseInterlockObserved = AbsoluteSpeedKmh > ShiftReleaseSpeedKmh;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=REVERSE_INTERLOCK result=%s speed_abs_kmh=%.2f gear=%d release_kmh=%.2f action=HOLD_GEAR_AND_BRAKE"),
                 bReverseInterlockObserved ? TEXT("PASS") : TEXT("FAIL"), AbsoluteSpeedKmh, CurrentGear, ShiftReleaseSpeedKmh);
             if (!bReverseInterlockObserved) MarkFailure(TEXT("forward-speed-too-low-for-reverse-interlock-evidence"));
 
-            Movement->SetThrottleInput(0.0f);
-            Movement->SetBrakeInput(ShiftBrake);
-            Movement->SetSteeringInput(0.0f);
+            Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
             Phase = EDrivetrainEvidencePhase::BrakeForReverse;
             PhaseStartedSeconds = Elapsed;
         }
@@ -211,21 +311,19 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
     }
 
     case EDrivetrainEvidencePhase::BrakeForReverse:
-        Movement->SetThrottleInput(0.0f);
-        Movement->SetBrakeInput(ShiftBrake);
-        Movement->SetSteeringInput(0.0f);
-        if (AbsoluteSpeedKmh <= ShiftReleaseSpeedKmh)
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
+        if (AbsoluteSpeedKmh <= DirectionCommitSpeedKmh)
         {
             ReverseCommitSpeedKmh = AbsoluteSpeedKmh;
             bSafeReverseCommitObserved = ReverseCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
             const int32 GearBefore = CurrentGear;
+            Movement->SetUseAutomaticGears(false);
             Movement->SetTargetGear(-1, true);
-            UE_LOG(LogGTT, Log,
+            Pawn->ApplyAcceptanceDriveCommand(ReverseThrottle, 0.0f, 0.0f);
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=REVERSE_COMMIT result=%s speed_abs_kmh=%.2f gear_before=%d target=-1 release_kmh=%.2f"),
                 bSafeReverseCommitObserved ? TEXT("PASS") : TEXT("FAIL"), ReverseCommitSpeedKmh, GearBefore, ShiftReleaseSpeedKmh);
             if (!bSafeReverseCommitObserved) MarkFailure(TEXT("reverse-commit-above-safe-window"));
-            Movement->SetBrakeInput(0.0f);
-            Movement->SetThrottleInput(ReverseThrottle);
             Phase = EDrivetrainEvidencePhase::ReverseAcceleration;
             PhaseStartedSeconds = Elapsed;
         }
@@ -233,20 +331,17 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EDrivetrainEvidencePhase::ReverseAcceleration:
     {
-        Movement->SetBrakeInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetThrottleInput(ReverseThrottle);
+        Pawn->ApplyAcceptanceDriveCommand(ReverseThrottle, 0.0f, 0.0f);
         const bool bReverseProven = CurrentGear < 0 && SignedSpeedKmh <= -ReverseEvidenceSpeedKmh;
         const bool bTimedOut = Elapsed - PhaseStartedSeconds >= ReverseAccelerationTimeoutSeconds;
         if (bReverseProven || bTimedOut)
         {
             bReverseMotionObserved = bReverseProven;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=REVERSE_MOTION result=%s signed_speed_kmh=%.2f gear=%d target_speed_kmh=-%.2f"),
                 bReverseProven ? TEXT("PASS") : TEXT("FAIL"), SignedSpeedKmh, CurrentGear, ReverseEvidenceSpeedKmh);
             if (!bReverseProven) MarkFailure(TEXT("reverse-motion-not-observed"));
-            Movement->SetThrottleInput(0.0f);
-            Movement->SetBrakeInput(ShiftBrake);
+            Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
             Phase = EDrivetrainEvidencePhase::BrakeForForward;
             PhaseStartedSeconds = Elapsed;
         }
@@ -254,21 +349,19 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
     }
 
     case EDrivetrainEvidencePhase::BrakeForForward:
-        Movement->SetThrottleInput(0.0f);
-        Movement->SetBrakeInput(ShiftBrake);
-        Movement->SetSteeringInput(0.0f);
-        if (AbsoluteSpeedKmh <= ShiftReleaseSpeedKmh)
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, ShiftBrake);
+        if (AbsoluteSpeedKmh <= DirectionCommitSpeedKmh)
         {
             ForwardCommitSpeedKmh = AbsoluteSpeedKmh;
             bSafeForwardCommitObserved = ForwardCommitSpeedKmh <= ShiftReleaseSpeedKmh + SafeShiftEvidenceToleranceKmh;
             const int32 GearBefore = CurrentGear;
             Movement->SetTargetGear(1, true);
-            UE_LOG(LogGTT, Log,
+            Movement->SetUseAutomaticGears(true);
+            Pawn->ApplyAcceptanceDriveCommand(ReturnThrottle, 0.0f, 0.0f);
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=FORWARD_COMMIT result=%s speed_abs_kmh=%.2f gear_before=%d target=1 release_kmh=%.2f"),
                 bSafeForwardCommitObserved ? TEXT("PASS") : TEXT("FAIL"), ForwardCommitSpeedKmh, GearBefore, ShiftReleaseSpeedKmh);
             if (!bSafeForwardCommitObserved) MarkFailure(TEXT("forward-commit-above-safe-window"));
-            Movement->SetBrakeInput(0.0f);
-            Movement->SetThrottleInput(ReturnThrottle);
             Phase = EDrivetrainEvidencePhase::ForwardReturn;
             PhaseStartedSeconds = Elapsed;
         }
@@ -276,15 +369,13 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Tick(float DeltaTime)
 
     case EDrivetrainEvidencePhase::ForwardReturn:
     {
-        Movement->SetBrakeInput(0.0f);
-        Movement->SetSteeringInput(0.0f);
-        Movement->SetThrottleInput(ReturnThrottle);
+        Pawn->ApplyAcceptanceDriveCommand(ReturnThrottle, 0.0f, 0.0f);
         const bool bForwardProven = CurrentGear > 0 && SignedSpeedKmh >= ForwardReturnEvidenceSpeedKmh;
         const bool bTimedOut = Elapsed - PhaseStartedSeconds >= ForwardReturnTimeoutSeconds;
         if (bForwardProven || bTimedOut)
         {
             bForwardReturnObserved = bForwardProven;
-            UE_LOG(LogGTT, Log,
+            GTT_LOG( Log,
                 TEXT("NATIVE_DRIVETRAIN_SCENARIO phase=FORWARD_MOTION result=%s signed_speed_kmh=%.2f gear=%d target_speed_kmh=%.2f"),
                 bForwardProven ? TEXT("PASS") : TEXT("FAIL"), SignedSpeedKmh, CurrentGear, ForwardReturnEvidenceSpeedKmh);
             if (!bForwardProven) MarkFailure(TEXT("forward-return-motion-not-observed"));

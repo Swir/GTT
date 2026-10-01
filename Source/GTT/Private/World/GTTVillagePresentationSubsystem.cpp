@@ -135,7 +135,11 @@ APointLight* UGTTVillagePresentationSubsystem::SpawnStreetLight(const FVector& L
         return Lamp;
     }
 
-    UPointLightComponent* Light = Lamp->GetPointLightComponent();
+    UPointLightComponent* Light = Cast<UPointLightComponent>(Lamp->GetLightComponent());
+    if (!Light)
+    {
+        return Lamp;
+    }
     Light->SetIntensity(4200.0f);
     Light->SetAttenuationRadius(850.0f);
     Light->SetLightColor(FLinearColor(1.0f,0.68f,0.34f));
@@ -182,7 +186,7 @@ void UGTTVillagePresentationSubsystem::RefreshPresentation()
     {
         if (UTextRenderComponent* Text = It->GetTextRender())
         {
-            const FString CurrentText = Text->GetText().ToString();
+            const FString CurrentText = Text->Text.ToString();
             if (CurrentText.StartsWith(TEXT("GTT 0.0.12 |")))
             {
                 Text->SetText(FText::FromString(TEXT("GTT 0.0.37 | LIVING VILLAGE SANDBOX")));

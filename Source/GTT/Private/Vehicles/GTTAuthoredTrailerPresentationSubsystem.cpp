@@ -12,6 +12,7 @@
 
 namespace
 {
+    const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
     constexpr float TrailerPresentationScanIntervalSeconds = 1.0f;
     constexpr float RuntimeEvidenceIntervalSeconds = 0.50f;
     constexpr float WheelRadiusCm = 64.0f;
@@ -129,7 +130,7 @@ namespace
         }
 
         const FVector TowForward = TowActor->GetActorForwardVector().GetSafeNormal2D();
-        const FVector TrailerForward = Trailer->GetActorForwardVector().GetSafeNormal2D();
+        const FVector TrailerForward = -Trailer->GetActorForwardVector().GetSafeNormal2D();
         if (TowForward.IsNearlyZero() || TrailerForward.IsNearlyZero())
         {
             return 0.0f;
@@ -240,6 +241,12 @@ bool UGTTAuthoredTrailerPresentationSubsystem::ValidateAuthoredAsset(USkeletalMe
         return false;
     }
 
+    if (!Mesh->GetSkeleton())
+    {
+        OutReason = TEXT("Skeleton missing");
+        return false;
+    }
+
     const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
     for (const FName BoneName : {BodyBoneName, LeftWheelBoneName, RightWheelBoneName})
     {
@@ -310,7 +317,7 @@ bool UGTTAuthoredTrailerPresentationSubsystem::TryActivateAuthoredPresentation(A
     {
         if (AuthoredMesh)
         {
-            UE_LOG(LogGTT, Warning, TEXT("AUTHORED_TRAILER_PRESENTATION event=REJECTED actor=%s reason=%s"), *GetNameSafe(Trailer), *ValidationFailure);
+            GTT_LOG( Warning, TEXT("AUTHORED_TRAILER_PRESENTATION event=REJECTED actor=%s reason=%s"), *GetNameSafe(Trailer), *ValidationFailure);
         }
         return false;
     }
@@ -320,12 +327,14 @@ bool UGTTAuthoredTrailerPresentationSubsystem::TryActivateAuthoredPresentation(A
     UStaticMeshComponent* HitchCoupler = FindStaticMeshComponent(Trailer, HitchCouplerComponentName);
     if (!LeftWheel || !RightWheel || !HitchCoupler) return false;
 
-    UPoseableMeshComponent* AuthoredVisual = NewObject<UPoseableMeshComponent>(Trailer);
+    UPoseableMeshComponent* AuthoredVisual = NewObject<UPoseableMeshComponent>(Trailer, TEXT("AuthoredTrailerMesh"));
     if (!AuthoredVisual) return false;
+    Trailer->AddInstanceComponent(AuthoredVisual);
     AuthoredVisual->SetupAttachment(Trailer->GetRootComponent());
-    AuthoredVisual->SetSkeletalMesh(AuthoredMesh);
+    AuthoredVisual->SetSkinnedAssetAndUpdate(AuthoredMesh);
     AuthoredVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     AuthoredVisual->SetGenerateOverlapEvents(false);
+    AuthoredVisual->ComponentTags.AddUnique(AuthoredTrailerTag);
     AuthoredVisual->SetCastShadow(true);
     AuthoredVisual->RegisterComponent();
     AuthoredVisual->SetRelativeTransform(FTransform::Identity);
@@ -346,7 +355,7 @@ bool UGTTAuthoredTrailerPresentationSubsystem::TryActivateAuthoredPresentation(A
     RuntimeVisuals.Add(Runtime);
     UpdateWheelPose(RuntimeVisuals.Last());
 
-    UE_LOG(LogGTT, Display, TEXT("AUTHORED_TRAILER_PRESENTATION event=ACTIVATED actor=%s asset=%s bones=body,wheel_l,wheel_r sockets=socket_hitch,socket_cargo,socket_axle_l,socket_axle_r physics_asset=YES"), *GetNameSafe(Trailer), AuthoredTrailerAssetPath);
+    GTT_LOG( Display, TEXT("AUTHORED_TRAILER_PRESENTATION event=ACTIVATED actor=%s asset=%s bones=body,wheel_l,wheel_r sockets=socket_hitch,socket_cargo,socket_axle_l,socket_axle_r physics_asset=YES"), *GetNameSafe(Trailer), AuthoredTrailerAssetPath);
     return true;
 }
 
@@ -413,8 +422,7 @@ void UGTTAuthoredTrailerPresentationSubsystem::EmitRuntimeEvidence(FRuntimeTrail
     const bool bWarning = JackknifeRisk >= JackknifeWarningRiskThreshold;
     const bool bNativeTow = Trailer->IsAttachedToNativeFieldmaster();
 
-    UE_LOG(
-        LogGTT,
+    GTT_LOG(
         Display,
         TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=1 nativeTow=%d contacts=%.3f left=%d right=%d clearL=%.2f clearR=%.2f axleTilt=%.2f hitchError=%.2f articulation=%.2f stabilization=%.3f warning=%d"),
         *GetNameSafe(Trailer),
@@ -494,7 +502,7 @@ void UGTTAuthoredTrailerPresentationSubsystem::EmitRuntimeEvidence(FRuntimeTrail
     UE_LOG(
         LogGTT,
         Display,
-        TEXT("NATIVE_TRAILER_SCENARIO_SAMPLE speed_kmh=%.2f distance_cm=%.1f loaded=1 attached=1 active=1 contacts=%.3f left=%d right=%d hitch_error_cm=%.2f articulation_deg=%.2f cargo_integrity=%.3f trailer_integrity=%.3f hitch_load=%.3f"),
+        TEXT("AUTHORED_TRAILER_PASSIVE_SAMPLE speed_kmh=%.2f distance_cm=%.1f loaded=1 attached=1 active=1 contacts=%.3f left=%d right=%d hitch_error_cm=%.2f articulation_deg=%.2f cargo_integrity=%.3f trailer_integrity=%.3f hitch_load=%.3f"),
         SpeedKmh,
         Runtime.ScenarioDistanceCm,
         ContactFraction,
@@ -511,7 +519,7 @@ void UGTTAuthoredTrailerPresentationSubsystem::EmitRuntimeEvidence(FRuntimeTrail
         UE_LOG(
             LogGTT,
             Warning,
-            TEXT("NATIVE_TRAILER_SCENARIO phase=DIAGNOSTIC result=FAIL reason=HITCH_ENVELOPE hitch_error_cm=%.2f hard_limit_cm=%.2f"),
+            TEXT("AUTHORED_TRAILER_PASSIVE_WARNING reason=HITCH_ENVELOPE hitch_error_cm=%.2f hard_limit_cm=%.2f"),
             HitchErrorCm,
             ScenarioHardHitchErrorCm);
     }
@@ -530,7 +538,7 @@ void UGTTAuthoredTrailerPresentationSubsystem::EmitRuntimeEvidence(FRuntimeTrail
         UE_LOG(
             LogGTT,
             Display,
-            TEXT("NATIVE_TRAILER_SCENARIO_COMPLETE result=PASS route=loaded-authored-tow attachment=1 authored=1 loaded=1 stopped=1 max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d max_hitch_error_cm=%.2f max_articulation_deg=%.2f min_cargo_integrity=%.3f final_speed_kmh=%.2f"),
+            TEXT("AUTHORED_TRAILER_PASSIVE_SUMMARY status=OBSERVED route=loaded-authored-tow attachment=1 authored=1 loaded=1 stopped=1 max_speed_kmh=%.2f distance_cm=%.1f dual_contact_samples=%d safe_samples=%d max_hitch_error_cm=%.2f max_articulation_deg=%.2f min_cargo_integrity=%.3f final_speed_kmh=%.2f"),
             Runtime.ScenarioMaxSpeedKmh,
             Runtime.ScenarioDistanceCm,
             Runtime.ScenarioDualContactSamples,

@@ -7,10 +7,13 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
 #include "Vehicles/GTTChaosPowertrainSetupLibrary.h"
@@ -30,6 +33,29 @@ namespace
     constexpr float MinimumImpactSpeedKmh = 14.0f;
     constexpr float SevereImpactSpeedKmh = 38.0f;
     constexpr float PanelDetachMinimumSpeedKmh = 27.0f;
+
+    FTransform ResolveGroundedNativeTransform(UWorld* World, const AActor* NativeVehicle, const AActor* LegacyVehicle, const FTransform& SourceTransform)
+    {
+        if (!World) return SourceTransform;
+        const FVector SourceLocation = SourceTransform.GetLocation();
+        FHitResult Hit;
+        FCollisionObjectQueryParams ObjectQuery;
+        ObjectQuery.AddObjectTypesToQuery(ECC_WorldStatic);
+        FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GTTNativeRoadTakeoverGround), false, NativeVehicle);
+        QueryParams.AddIgnoredActor(LegacyVehicle);
+        if (!World->LineTraceSingleByObjectType(Hit, SourceLocation + FVector(0.0f, 0.0f, 500.0f),
+            SourceLocation - FVector(0.0f, 0.0f, 1200.0f), ObjectQuery, QueryParams))
+        {
+            return SourceTransform;
+        }
+        FTransform Grounded = SourceTransform;
+        const FQuat UprightRotation = FRotator(0.0f, SourceTransform.Rotator().Yaw, 0.0f).Quaternion();
+        FVector GroundedLocation = SourceLocation;
+        GroundedLocation.Z = Hit.ImpactPoint.Z + 4.0f;
+        Grounded.SetLocation(GroundedLocation);
+        Grounded.SetRotation(UprightRotation);
+        return Grounded;
+    }
 
     void ConfigureDamageDebrisComponent(UStaticMeshComponent* Component, UStaticMesh* Mesh)
     {
@@ -83,6 +109,9 @@ AGTTRattlebackNativePawn::AGTTRattlebackNativePawn()
     IdleFuelBurnPerSecond = 0.028f;
     FullThrottleFuelBurnPerSecond = 0.19f;
     ExitOffset = FVector(0.0f, 165.0f, 65.0f);
+    static ConstructorHelpers::FObjectFinder<USkeletalMesh> VehicleMesh(
+        TEXT("/Game/GTT/Vehicles/Rattleback/SK_GTT_Rattleback82.SK_GTT_Rattleback82"));
+    if (VehicleMesh.Succeeded()) GetMesh()->SetSkeletalMesh(VehicleMesh.Object);
 }
 
 AGTTMuleboxNativePawn::AGTTMuleboxNativePawn()
@@ -93,6 +122,9 @@ AGTTMuleboxNativePawn::AGTTMuleboxNativePawn()
     IdleFuelBurnPerSecond = 0.04f;
     FullThrottleFuelBurnPerSecond = 0.22f;
     ExitOffset = FVector(0.0f, 205.0f, 82.0f);
+    static ConstructorHelpers::FObjectFinder<USkeletalMesh> VehicleMesh(
+        TEXT("/Game/GTT/Vehicles/Mulebox/SK_GTT_Mulebox1200.SK_GTT_Mulebox1200"));
+    if (VehicleMesh.Succeeded()) GetMesh()->SetSkeletalMesh(VehicleMesh.Object);
 }
 
 void AGTTRoadVehicleNativePawn::BeginPlay()
@@ -106,12 +138,12 @@ void AGTTRoadVehicleNativePawn::BeginPlay()
     SetActorEnableCollision(false);
     if (bNativeReady)
     {
-        UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_ACCEPTED vehicle=%s %s"), *NativeVehicleId.ToString(), *NativeAcceptanceSummary);
+        GTT_LOG( Log, TEXT("NATIVE_ROAD_ACCEPTED vehicle=%s %s"), *NativeVehicleId.ToString(), *NativeAcceptanceSummary);
         TryActivateLegacyTakeover();
     }
     else
     {
-        UE_LOG(LogGTT, Warning, TEXT("NATIVE_ROAD_WAIT vehicle=%s %s"), *NativeVehicleId.ToString(), *NativeAcceptanceSummary);
+        GTT_LOG( Warning, TEXT("NATIVE_ROAD_WAIT vehicle=%s %s"), *NativeVehicleId.ToString(), *NativeAcceptanceSummary);
     }
 }
 
@@ -177,8 +209,8 @@ void AGTTRoadVehicleNativePawn::Interact_Implementation(AActor* Interactor)
     if (!bNativeReady || !bTakeoverActive || bOccupied || !MigrationSnapshot.bOwnedByPlayer || MigrationSnapshot.ConditionPercent <= 0.0f) return;
     APawn* InteractingPawn = Cast<APawn>(Interactor);
     if (!InteractingPawn) return;
-    AController* Controller = InteractingPawn->GetController();
-    if (!Controller) return;
+    AController* PossessingController = InteractingPawn->GetController();
+    if (!PossessingController) return;
     PreviousPawn = InteractingPawn;
     FGTTChaosRigContract Rig;
     if (GetMesh() && UGTTChaosRigContractLibrary::GetRigForVehicleId(NativeVehicleId, Rig) && GetMesh()->DoesSocketExist(Rig.DriverSocket))
@@ -187,9 +219,9 @@ void AGTTRoadVehicleNativePawn::Interact_Implementation(AActor* Interactor)
         InteractingPawn->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
     InteractingPawn->SetActorHiddenInGame(true);
     InteractingPawn->SetActorEnableCollision(false);
-    Controller->Possess(this);
+    PossessingController->Possess(this);
     bOccupied = true;
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_DRIVER_ENTER vehicle=%s"), *NativeVehicleId.ToString());
+    GTT_LOG( Log, TEXT("NATIVE_ROAD_DRIVER_ENTER vehicle=%s"), *NativeVehicleId.ToString());
 }
 
 FText AGTTRoadVehicleNativePawn::GetInteractionText_Implementation() const
@@ -204,9 +236,9 @@ FText AGTTRoadVehicleNativePawn::GetInteractionText_Implementation() const
 
 void AGTTRoadVehicleNativePawn::ExitNativeVehicle()
 {
-    AController* Controller = GetController();
+    AController* PossessingController = GetController();
     APawn* PawnToRestore = PreviousPawn.Get();
-    if (!Controller || !PawnToRestore) return;
+    if (!PossessingController || !PawnToRestore) return;
     LastThrottleInput = 0.0f;
     if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
     {
@@ -223,11 +255,11 @@ void AGTTRoadVehicleNativePawn::ExitNativeVehicle()
     PawnToRestore->SetActorRotation(FRotator(0.0f, GetActorRotation().Yaw, 0.0f));
     PawnToRestore->SetActorHiddenInGame(false);
     PawnToRestore->SetActorEnableCollision(true);
-    Controller->Possess(PawnToRestore);
+    PossessingController->Possess(PawnToRestore);
     PreviousPawn.Reset();
     bOccupied = false;
     SyncLegacyMirror();
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_DRIVER_EXIT vehicle=%s"), *NativeVehicleId.ToString());
+    GTT_LOG( Log, TEXT("NATIVE_ROAD_DRIVER_EXIT vehicle=%s"), *NativeVehicleId.ToString());
 }
 
 void AGTTRoadVehicleNativePawn::NotifyHit(UPrimitiveComponent* MyComp, AActor* Other, UPrimitiveComponent* OtherComp, bool bSelfMoved,
@@ -272,7 +304,7 @@ void AGTTRoadVehicleNativePawn::NotifyHit(UPrimitiveComponent* MyComp, AActor* O
         !FMath::IsNearlyEqual(PreviousTires, MigrationSnapshot.TireIntegrity))
     {
         SyncLegacyMirror();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_ROAD_IMPACT_DAMAGE vehicle=%s zone=%s speed_kmh=%.1f condition=%.1f%% tire_integrity=%.2f condition_delta=%.3f tire_delta=%.3f cargo=%.2f impacts=%d other=%s"),
             *NativeVehicleId.ToString(),
             DamageZoneToString(LastImpactZone),
@@ -304,6 +336,7 @@ bool AGTTRoadVehicleNativePawn::ValidateRigContract(FString& OutSummary) const
 
 bool AGTTRoadVehicleNativePawn::ConfigureAndValidateNativeRoadVehicle(FString& OutSummary)
 {
+    const bool bNeedsPhysicsRebuild = !bNativeReady;
     UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent());
     if (!Movement || NativeVehicleId.IsNone()) { OutSummary = TEXT("Native movement or vehicle ID missing"); bNativeReady = false; return false; }
     FString RigSummary;
@@ -320,6 +353,12 @@ bool AGTTRoadVehicleNativePawn::ConfigureAndValidateNativeRoadVehicle(FString& O
         bPowertrainValid ? *PowertrainValidationSummary : *PowertrainConfigureSummary,
         bPhysicsAssetPresent ? TEXT("YES") : TEXT("NO"));
     NativeAcceptanceSummary = OutSummary;
+    if (bNativeReady && bNeedsPhysicsRebuild)
+    {
+        // ConfigureCanonicalWheelSetups runs after the component's initial registration.
+        // Rebuild once so the Chaos simulation owns the canonical four-wheel setup.
+        Movement->RecreatePhysicsState();
+    }
     return bNativeReady;
 }
 
@@ -355,25 +394,52 @@ bool AGTTRoadVehicleNativePawn::TryActivateLegacyTakeover()
 {
     if (bTakeoverActive) return true;
     if (!bNativeReady || !GetWorld()) return false;
+    const bool bServicesRuntime = FParse::Param(FCommandLine::Get(), TEXT("GTTServicesRuntimeScenario"));
     for (TActorIterator<AGTTVehicleBase> It(GetWorld()); It; ++It)
     {
         AGTTVehicleBase* LegacyVehicle = *It;
         if (!LegacyVehicle || LegacyVehicle->GetPersistentVehicleId() != NativeVehicleId) continue;
-        if (!LegacyVehicle->IsOwnedByPlayer() || LegacyVehicle->IsOccupied()) return false;
+        if (LegacyVehicle->IsOccupied()) return false;
+        if (bServicesRuntime && !LegacyVehicle->IsOwnedByPlayer())
+        {
+            LegacyVehicle->MarkOwnedByPlayer();
+            LegacyVehicle->RepairVehicle(100000.0f);
+            LegacyVehicle->RefuelVehicle(100000.0f);
+            LegacyVehicle->RepairTires();
+            GTT_LOG(Display, TEXT("SERVICES_RUNTIME_VEHICLE_PREP result=PASS vehicle=%s condition=1.0 tires=1.0"), *NativeVehicleId.ToString());
+        }
+        if (!LegacyVehicle->IsOwnedByPlayer()) return false;
         FString ImportSummary;
         if (!ImportLegacyGameplayState(LegacyVehicle, ImportSummary)) return false;
         LegacyMirror = LegacyVehicle;
-        SetActorTransform(LegacyVehicle->GetActorTransform(), false, nullptr, ETeleportType::TeleportPhysics);
+        SetActorTransform(ResolveGroundedNativeTransform(GetWorld(), this, LegacyVehicle, LegacyVehicle->GetActorTransform()), false, nullptr, ETeleportType::TeleportPhysics);
         LegacyVehicle->SetActorHiddenInGame(true);
         LegacyVehicle->SetActorEnableCollision(false);
         LegacyVehicle->SetActorTickEnabled(false);
         SetActorHiddenInGame(false);
         SetActorEnableCollision(true);
+        // Standby keeps this pawn non-physical. Build the skeletal rigid body first,
+        // then create the Chaos vehicle against that live body and its four wheel setups.
+        if (USkeletalMeshComponent* VehicleMesh = GetMesh())
+        {
+            VehicleMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            VehicleMesh->SetSimulatePhysics(true);
+            VehicleMesh->RecreatePhysicsState();
+            VehicleMesh->WakeAllRigidBodies();
+        }
+        if (UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent()))
+        {
+            Movement->RecreatePhysicsState();
+            if (!Movement->HasValidPhysicsState())
+            {
+                Movement->CreatePhysicsState();
+            }
+        }
         bTakeoverActive = true;
         MirrorSyncAccumulator = 0.0f;
         WheelEvidenceAccumulator = 0.0f;
         DamageEvidenceAccumulator = 0.0f;
-        UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_TAKEOVER_ACTIVE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
+        GTT_LOG( Log, TEXT("NATIVE_ROAD_TAKEOVER_ACTIVE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
         return true;
     }
     return false;
@@ -418,7 +484,7 @@ void AGTTRoadVehicleNativePawn::RuntimeAcceptanceGuard()
     FString Summary;
     if (!ConfigureAndValidateNativeRoadVehicle(Summary))
     {
-        UE_LOG(LogGTT, Error, TEXT("NATIVE_ROAD_FALLBACK vehicle=%s reason=%s"), *NativeVehicleId.ToString(), *Summary);
+        GTT_LOG( Error, TEXT("NATIVE_ROAD_FALLBACK vehicle=%s reason=%s"), *NativeVehicleId.ToString(), *Summary);
         DeactivateLegacyTakeover();
     }
 }
@@ -471,11 +537,14 @@ void AGTTRoadVehicleNativePawn::UpdateNativeWheelRuntime(float DeltaSeconds)
         return;
     }
 
-    const float ContactRisk = FMath::Clamp((4.0f - static_cast<float>(RuntimeWheelContacts)) / 3.0f, 0.0f, 1.0f);
-    const float SlipRisk = FMath::Clamp(static_cast<float>(SlippingWheels) / 3.0f, 0.0f, 1.0f);
-    const float SkidRisk = FMath::Clamp(static_cast<float>(SkiddingWheels) / 2.0f, 0.0f, 1.0f);
-    const float MagnitudeRisk = FMath::Clamp(MaxSlipMagnitude / 650.0f, 0.0f, 1.0f);
-    const float AngleRisk = FMath::Clamp(MaxSlipAngle / 32.0f, 0.0f, 1.0f);
+    // Transient airborne/slip samples are warnings, not total loss of control by themselves.
+    // Keep headroom so persistent tire and body damage can still produce a measurable
+    // additional handling consequence in low-render and uneven-terrain runtime tests.
+    const float ContactRisk = FMath::Clamp((4.0f - static_cast<float>(RuntimeWheelContacts)) / 3.0f, 0.0f, 1.0f) * 0.60f;
+    const float SlipRisk = FMath::Clamp(static_cast<float>(SlippingWheels) / 3.0f, 0.0f, 1.0f) * 0.35f;
+    const float SkidRisk = FMath::Clamp(static_cast<float>(SkiddingWheels) / 2.0f, 0.0f, 1.0f) * 0.45f;
+    const float MagnitudeRisk = FMath::Clamp(MaxSlipMagnitude / 650.0f, 0.0f, 1.0f) * 0.60f;
+    const float AngleRisk = FMath::Clamp(MaxSlipAngle / 32.0f, 0.0f, 1.0f) * 0.50f;
     const float SuspensionRisk = FMath::Clamp((MaxSuspensionLength - MinSuspensionLength) / 0.55f, 0.0f, 1.0f) * 0.72f;
     const float RawRisk = FMath::Max3(ContactRisk, SkidRisk,
         FMath::Max(SlipRisk, FMath::Max(MagnitudeRisk, FMath::Max(AngleRisk, SuspensionRisk))));
@@ -499,7 +568,7 @@ void AGTTRoadVehicleNativePawn::UpdateNativeWheelRuntime(float DeltaSeconds)
     if (WheelEvidenceAccumulator >= WheelEvidenceIntervalSeconds)
     {
         WheelEvidenceAccumulator = 0.0f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_ROAD_WHEEL_STATE_EVIDENCE vehicle=%s contacts=%d/4 slipping=%d skidding=%d slip_mag=%.2f slip_angle=%.2f suspension_spread=%.2f risk=%.2f throttle_limit=%.2f brake_assist=%.2f steering_limit=%.2f tire_integrity=%.2f tire_level=%d rear_body=%.2f"),
             *NativeVehicleId.ToString(),
             RuntimeWheelContacts,
@@ -557,7 +626,7 @@ void AGTTRoadVehicleNativePawn::UpdateDamageConsequences(float DeltaSeconds)
     if (DamageEvidenceAccumulator >= DamageEvidenceIntervalSeconds)
     {
         DamageEvidenceAccumulator = 0.0f;
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_ROAD_DAMAGE_DYNAMICS vehicle=%s front=%.2f rear=%.2f left=%.2f right=%.2f cooling=%.2f detached=%d power_limit=%.2f steering_limit=%.2f steering_bias=%.2f repair_surcharge=%d"),
             *NativeVehicleId.ToString(), BodyDamage.FrontHealth, BodyDamage.RearHealth,
             BodyDamage.LeftHealth, BodyDamage.RightHealth, BodyDamage.CoolingStress,
@@ -642,7 +711,7 @@ void AGTTRoadVehicleNativePawn::ApplyNativeImpactDamage(float ImpactSpeedKmh, EG
 
     TryDetachDamagePanel(Zone, HitLocation, NormalImpulse, ImpactSpeedKmh);
 
-    UE_LOG(LogGTT, Warning,
+    GTT_LOG( Warning,
         TEXT("NATIVE_ROAD_DAMAGE_ZONE vehicle=%s zone=%s speed_kmh=%.1f zone_health=%.2f zone_delta=%.3f condition=%.2f tires=%.2f detached=%d"),
         *NativeVehicleId.ToString(), DamageZoneToString(Zone), ImpactSpeedKmh,
         ZoneHealth, PreviousZoneHealth - ZoneHealth, MigrationSnapshot.ConditionPercent,
@@ -651,7 +720,7 @@ void AGTTRoadVehicleNativePawn::ApplyNativeImpactDamage(float ImpactSpeedKmh, EG
     if (MigrationSnapshot.ConditionPercent <= KINDA_SMALL_NUMBER)
     {
         StopNativeDriveForBreakdown();
-        UE_LOG(LogGTT, Warning, TEXT("NATIVE_ROAD_BREAKDOWN vehicle=%s impact_speed_kmh=%.1f"), *NativeVehicleId.ToString(), ImpactSpeedKmh);
+        GTT_LOG( Warning, TEXT("NATIVE_ROAD_BREAKDOWN vehicle=%s impact_speed_kmh=%.1f"), *NativeVehicleId.ToString(), ImpactSpeedKmh);
     }
 }
 
@@ -692,7 +761,7 @@ void AGTTRoadVehicleNativePawn::TryDetachDamagePanel(EGTTRoadDamageZone Zone, co
         Panel->AddImpulseAtLocation(NormalImpulse.GetClampedToMaxSize(180000.0f), HitLocation);
     }
 
-    UE_LOG(LogGTT, Warning,
+    GTT_LOG( Warning,
         TEXT("NATIVE_ROAD_PANEL_DETACH vehicle=%s zone=%s speed_kmh=%.1f detached=%d"),
         *NativeVehicleId.ToString(), DamageZoneToString(Zone), ImpactSpeedKmh, BodyDamage.DetachedPanelCount);
 }
@@ -789,7 +858,7 @@ bool AGTTRoadVehicleNativePawn::ApplyNativeWorkshopService()
 
     RestoreNativeBodyDamage();
     SyncLegacyMirror();
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_WORKSHOP_RESTORE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
+    GTT_LOG( Log, TEXT("NATIVE_ROAD_WORKSHOP_RESTORE vehicle=%s %s"), *NativeVehicleId.ToString(), *ImportSummary);
     return true;
 }
 
@@ -802,6 +871,56 @@ void AGTTRoadVehicleNativePawn::StopNativeDriveForBreakdown()
         Movement->SetSteeringInput(0.0f);
         Movement->SetBrakeInput(1.0f);
     }
+}
+
+bool AGTTRoadVehicleNativePawn::ApplyAcceptanceDriveCommand(float Throttle, float Steering, float Brake)
+{
+    const TCHAR* CommandLine = FCommandLine::Get();
+    const bool bAcceptanceScenario = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario")) ||
+        FParse::Param(CommandLine, TEXT("GTTServicesRuntimeScenario"));
+    if (!bAcceptanceScenario || !bNativeReady || !bTakeoverActive)
+    {
+        return false;
+    }
+
+    bAcceptanceDriveCommandActive = true;
+    LastThrottleInput = FMath::Clamp(Throttle, -1.0f, 1.0f);
+    UChaosWheeledVehicleMovementComponent* Movement = Cast<UChaosWheeledVehicleMovementComponent>(GetVehicleMovementComponent());
+    if (!Movement || !Movement->IsActive())
+    {
+        return false;
+    }
+    Movement->SetRequiresControllerForInputs(false);
+    if (USkeletalMeshComponent* VehicleBody = GetMesh()) VehicleBody->WakeAllRigidBodies();
+
+    const float SpeedKmh = GetVelocity().Size() * 0.036f;
+    const float TunePower = 1.0f + FMath::Clamp(MigrationSnapshot.EngineUpgradeLevel, 0, 3) * 0.08f;
+    const float ConditionPower = FMath::Lerp(0.35f, 1.0f, FMath::Clamp(MigrationSnapshot.ConditionPercent, 0.0f, 1.0f));
+    const float ScaledThrottle = FMath::Clamp(
+        FMath::Abs(LastThrottleInput) * TunePower * ConditionPower * GetCargoPowerLimit(SpeedKmh) * RuntimeThrottleLimit * DamageThrottleLimit,
+        0.0f,
+        1.0f);
+    const float TireGrip = FMath::Lerp(0.45f, 1.0f, FMath::Clamp(MigrationSnapshot.TireIntegrity, 0.0f, 1.0f));
+    const float TuneGrip = 1.0f + FMath::Clamp(MigrationSnapshot.TireUpgradeLevel, 0, 3) * 0.05f;
+    Movement->SetThrottleInput(ScaledThrottle);
+    Movement->SetSteeringInput(FMath::Clamp(
+        (Steering * DamageSteeringLimit + DamageSteeringBias) * TireGrip * TuneGrip * GetCargoSteeringLimit(SpeedKmh) * RuntimeSteeringLimit,
+        -1.0f,
+        1.0f));
+    Movement->SetBrakeInput(FMath::Clamp(FMath::Max(Brake, RuntimeBrakeAssist), 0.0f, 1.0f));
+    if (!FMath::IsNearlyZero(LastThrottleInput))
+    {
+        const int32 RequestedDirection = LastThrottleInput < 0.0f ? -1 : 1;
+        const int32 CurrentGear = Movement->GetCurrentGear();
+        if (RequestedDirection != AcceptanceDriveDirection || (RequestedDirection < 0 ? CurrentGear >= 0 : CurrentGear <= 0))
+        {
+            Movement->SetTargetGear(RequestedDirection, true);
+            AcceptanceDriveDirection = RequestedDirection;
+        }
+    }
+    return true;
 }
 
 void AGTTRoadVehicleNativePawn::HandleNativeThrottle(float Value)
@@ -849,7 +968,7 @@ void AGTTRoadVehicleNativePawn::HandleNativeSteering(float Value)
 void AGTTRoadVehicleNativePawn::SetCargoLoadFactor(float NewLoadFactor)
 {
     CargoLoadFactor = FMath::Clamp(NewLoadFactor, 0.0f, 1.0f);
-    UE_LOG(LogGTT, Log, TEXT("NATIVE_ROAD_CARGO vehicle=%s load=%.2f"), *NativeVehicleId.ToString(), CargoLoadFactor);
+    GTT_LOG( Log, TEXT("NATIVE_ROAD_CARGO vehicle=%s load=%.2f"), *NativeVehicleId.ToString(), CargoLoadFactor);
 }
 
 float AGTTRoadVehicleNativePawn::GetCargoPowerLimit(float SpeedKmh) const { return 1.0f; }

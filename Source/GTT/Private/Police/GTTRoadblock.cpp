@@ -1,6 +1,7 @@
 #include "Police/GTTRoadblock.h"
 
 #include "Components/SceneComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
@@ -20,7 +21,13 @@ AGTTRoadblock::AGTTRoadblock()
     UStaticMesh* CubeMesh = CubeFinder.Succeeded() ? CubeFinder.Object : nullptr;
     LeftBarrier = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LeftBarrier")); LeftBarrier->SetupAttachment(SceneRoot); LeftBarrier->SetStaticMesh(CubeMesh); LeftBarrier->SetRelativeLocation(FVector(0,-220,60)); LeftBarrier->SetRelativeScale3D(FVector(.22f,1.65f,.65f)); LeftBarrier->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     RightBarrier = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RightBarrier")); RightBarrier->SetupAttachment(SceneRoot); RightBarrier->SetStaticMesh(CubeMesh); RightBarrier->SetRelativeLocation(FVector(0,220,60)); RightBarrier->SetRelativeScale3D(FVector(.22f,1.65f,.65f)); RightBarrier->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-    SpikeStrip = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SpikeStrip")); SpikeStrip->SetupAttachment(SceneRoot); SpikeStrip->SetStaticMesh(CubeMesh); SpikeStrip->SetRelativeLocation(FVector(95,0,8)); SpikeStrip->SetRelativeScale3D(FVector(.18f,4.25f,.07f)); SpikeStrip->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); SpikeStrip->SetNotifyRigidBodyCollision(true); SpikeStrip->OnComponentHit.AddDynamic(this,&AGTTRoadblock::HandleSpikeHit);
+    // Keep the strip on the approach side of the barriers so a vehicle cannot
+    // be blocked by the barricade before reaching it.
+    SpikeStrip = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SpikeStrip")); SpikeStrip->SetupAttachment(SceneRoot); SpikeStrip->SetStaticMesh(CubeMesh); SpikeStrip->SetRelativeLocation(FVector(-95,0,8)); SpikeStrip->SetRelativeScale3D(FVector(.18f,4.25f,.07f)); SpikeStrip->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); SpikeStrip->SetNotifyRigidBodyCollision(true); SpikeStrip->OnComponentHit.AddDynamic(this,&AGTTRoadblock::HandleSpikeHit);
+    // Chaos wheel suspension uses traces rather than rigid tire bodies. This
+    // trigger records the physical chassis crossing while the thin visible
+    // strip remains correctly sized on the road.
+    SpikeTrigger = CreateDefaultSubobject<UBoxComponent>(TEXT("SpikeTrigger")); SpikeTrigger->SetupAttachment(SceneRoot); SpikeTrigger->SetRelativeLocation(FVector(-95,0,45)); SpikeTrigger->SetBoxExtent(FVector(32,425,45)); SpikeTrigger->SetCollisionEnabled(ECollisionEnabled::QueryOnly); SpikeTrigger->SetCollisionResponseToAllChannels(ECR_Ignore); SpikeTrigger->SetCollisionResponseToChannel(ECC_Vehicle,ECR_Overlap); SpikeTrigger->SetGenerateOverlapEvents(true); SpikeTrigger->OnComponentBeginOverlap.AddDynamic(this,&AGTTRoadblock::HandleSpikeOverlap);
     Sign = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Sign")); Sign->SetupAttachment(SceneRoot); Sign->SetRelativeLocation(FVector(-35,0,165)); Sign->SetRelativeRotation(FRotator(0,180,0)); Sign->SetHorizontalAlignment(EHTA_Center); Sign->SetWorldSize(46); Sign->SetTextRenderColor(FColor(255,70,55)); Sign->SetText(FText::FromString(TEXT("COUNTY ROADBLOCK\nSPIKE STRIP")));
 }
 
@@ -41,6 +48,16 @@ FVector AGTTRoadblock::GetSpikeApproachDirection() const
 }
 
 void AGTTRoadblock::HandleSpikeHit(UPrimitiveComponent*,AActor* OtherActor,UPrimitiveComponent*,FVector,const FHitResult&)
+{
+    ApplySpikeConsequence(OtherActor);
+}
+
+void AGTTRoadblock::HandleSpikeOverlap(UPrimitiveComponent*,AActor* OtherActor,UPrimitiveComponent*,int32,bool,const FHitResult&)
+{
+    ApplySpikeConsequence(OtherActor);
+}
+
+void AGTTRoadblock::ApplySpikeConsequence(AActor* OtherActor)
 {
     if(!OtherActor||!GetWorld()) return;
     const float Now=GetWorld()->GetTimeSeconds();
@@ -72,5 +89,5 @@ void AGTTRoadblock::HandleSpikeHit(UPrimitiveComponent*,AActor* OtherActor,UPrim
     if(!bAccepted) return;
     LastSpikedActor=OtherActor; LastSpikeHitTimeSeconds=Now; LastSpikedVehicleId=VehicleId;
     LastTireIntegrityBefore=TireBefore; LastTireIntegrityAfter=TireAfter; ++SpikeHitCount;
-    UE_LOG(LogGTT,Warning,TEXT("ROADBLOCK_SPIKE_CONSEQUENCE vehicle=%s path=%s tier=%d hit=%d tire_before=%.3f tire_after=%.3f tire_delta=%.3f body_damage=%.1f speed_kmh=%.1f"),*LastSpikedVehicleId.ToString(),VehiclePath,ResponseTier,SpikeHitCount,LastTireIntegrityBefore,LastTireIntegrityAfter,LastTireIntegrityBefore-LastTireIntegrityAfter,BodyDamage,SpeedKmh);
+    GTT_LOG(Warning,TEXT("ROADBLOCK_SPIKE_CONSEQUENCE vehicle=%s path=%s tier=%d hit=%d tire_before=%.3f tire_after=%.3f tire_delta=%.3f body_damage=%.1f speed_kmh=%.1f"),*LastSpikedVehicleId.ToString(),VehiclePath,ResponseTier,SpikeHitCount,LastTireIntegrityBefore,LastTireIntegrityAfter,LastTireIntegrityBefore-LastTireIntegrityAfter,BodyDamage,SpeedKmh);
 }

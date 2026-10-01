@@ -1,6 +1,7 @@
 #include "Vehicles/GTTTrailerNativeAcceptanceSubsystem.h"
 
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -11,11 +12,12 @@
 namespace
 {
     const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
-    const FName RequiredRootBone(TEXT("root"));
+    const FName RequiredRootBone(TEXT("body"));
     const FName RequiredLeftWheelBone(TEXT("wheel_l"));
     const FName RequiredRightWheelBone(TEXT("wheel_r"));
-    const FName RequiredTowEyeSocket(TEXT("tow_eye"));
-    const FName RequiredAxleSocket(TEXT("axle_center"));
+    const FName RequiredTowEyeSocket(TEXT("socket_hitch"));
+    const FName RequiredLeftAxleSocket(TEXT("socket_axle_l"));
+    const FName RequiredRightAxleSocket(TEXT("socket_axle_r"));
     constexpr float EvidenceIntervalSeconds = 2.0f;
 }
 
@@ -45,12 +47,12 @@ void UGTTTrailerNativeAcceptanceSubsystem::Tick(float DeltaSeconds)
     }
 }
 
-USkeletalMeshComponent* UGTTTrailerNativeAcceptanceSubsystem::FindAuthoredRig(AGTTFarmTrailer* Trailer) const
+USkinnedMeshComponent* UGTTTrailerNativeAcceptanceSubsystem::FindAuthoredRig(AGTTFarmTrailer* Trailer) const
 {
     if (!Trailer) return nullptr;
-    TArray<USkeletalMeshComponent*> Meshes;
-    Trailer->GetComponents<USkeletalMeshComponent>(Meshes);
-    for (USkeletalMeshComponent* Mesh : Meshes)
+    TArray<USkinnedMeshComponent*> Meshes;
+    Trailer->GetComponents<USkinnedMeshComponent>(Meshes);
+    for (USkinnedMeshComponent* Mesh : Meshes)
     {
         if (Mesh && (Mesh->ComponentHasTag(AuthoredTrailerTag) || Mesh->GetFName() == TEXT("AuthoredTrailerMesh")))
         {
@@ -60,14 +62,15 @@ USkeletalMeshComponent* UGTTTrailerNativeAcceptanceSubsystem::FindAuthoredRig(AG
     return nullptr;
 }
 
-bool UGTTTrailerNativeAcceptanceSubsystem::ValidateAuthoredRig(USkeletalMeshComponent* Rig, FString& OutReason) const
+bool UGTTTrailerNativeAcceptanceSubsystem::ValidateAuthoredRig(USkinnedMeshComponent* Rig, FString& OutReason) const
 {
     if (!Rig)
     {
         OutReason = TEXT("NO_AUTHORED_RIG");
         return false;
     }
-    if (!Rig->GetPhysicsAsset())
+    const USkeletalMesh* MeshAsset = Cast<USkeletalMesh>(Rig->GetSkinnedAsset());
+    if (!MeshAsset || !MeshAsset->GetPhysicsAsset())
     {
         OutReason = TEXT("MISSING_PHYSICS_ASSET");
         return false;
@@ -82,7 +85,8 @@ bool UGTTTrailerNativeAcceptanceSubsystem::ValidateAuthoredRig(USkeletalMeshComp
         return false;
     }
 
-    const bool bSockets = Rig->DoesSocketExist(RequiredTowEyeSocket) && Rig->DoesSocketExist(RequiredAxleSocket);
+    const bool bSockets = Rig->DoesSocketExist(RequiredTowEyeSocket) &&
+        Rig->DoesSocketExist(RequiredLeftAxleSocket) && Rig->DoesSocketExist(RequiredRightAxleSocket);
     if (!bSockets)
     {
         OutReason = TEXT("MISSING_TOW_EYE_OR_AXLE_SOCKET");
@@ -118,7 +122,9 @@ bool UGTTTrailerNativeAcceptanceSubsystem::EvaluateNativeHitch(AGTTFarmTrailer* 
     State.bHitchAligned = State.HitchErrorCm <= MaxHitchAlignmentErrorCm;
 
     const FVector TowForward = NativeTow->GetActorForwardVector().GetSafeNormal2D();
-    const FVector TrailerForward = Trailer->GetActorForwardVector().GetSafeNormal2D();
+    // The authored drawbar and tow eye are on local -X, so the trailer's
+    // travel-forward direction is opposite the actor's local +X axis.
+    const FVector TrailerForward = -Trailer->GetActorForwardVector().GetSafeNormal2D();
     const float Dot = FMath::Clamp(FVector::DotProduct(TowForward, TrailerForward), -1.0f, 1.0f);
     State.ArticulationYawDeg = FMath::RadiansToDegrees(FMath::Acos(Dot));
 
@@ -141,11 +147,13 @@ void UGTTTrailerNativeAcceptanceSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trai
 {
     if (!Trailer) return;
     FGTTTrailerNativeAcceptanceState& State = RuntimeByTrailer.FindOrAdd(Trailer);
-    USkeletalMeshComponent* Rig = FindAuthoredRig(Trailer);
+    USkinnedMeshComponent* Rig = FindAuthoredRig(Trailer);
     State.bAuthoredRigPresent = Rig != nullptr;
-    State.bPhysicsAssetReady = Rig && Rig->GetPhysicsAsset();
+    const USkeletalMesh* MeshAsset = Rig ? Cast<USkeletalMesh>(Rig->GetSkinnedAsset()) : nullptr;
+    State.bPhysicsAssetReady = MeshAsset && MeshAsset->GetPhysicsAsset();
     State.bRequiredBonesReady = Rig && Rig->GetBoneIndex(RequiredRootBone) != INDEX_NONE && Rig->GetBoneIndex(RequiredLeftWheelBone) != INDEX_NONE && Rig->GetBoneIndex(RequiredRightWheelBone) != INDEX_NONE;
-    State.bRequiredSocketsReady = Rig && Rig->DoesSocketExist(RequiredTowEyeSocket) && Rig->DoesSocketExist(RequiredAxleSocket);
+    State.bRequiredSocketsReady = Rig && Rig->DoesSocketExist(RequiredTowEyeSocket) &&
+        Rig->DoesSocketExist(RequiredLeftAxleSocket) && Rig->DoesSocketExist(RequiredRightAxleSocket);
 
     FString RigReason;
     const bool bRigAccepted = ValidateAuthoredRig(Rig, RigReason);
@@ -160,7 +168,7 @@ void UGTTTrailerNativeAcceptanceSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trai
         State.InvalidSeconds += DeltaSeconds;
         if (State.InvalidSeconds >= InvalidGraceSeconds)
         {
-            UE_LOG(LogTemp, Warning, TEXT("NATIVE_TRAILER_FAILSAFE trailer=%s rig=%s hitch=%s yaw=%.1f error=%.1f action=DETACH"), *GetNameSafe(Trailer), *RigReason, *HitchReason, State.ArticulationYawDeg, State.HitchErrorCm);
+            GTT_LOG( Warning, TEXT("NATIVE_TRAILER_FAILSAFE trailer=%s rig=%s hitch=%s yaw=%.1f error=%.1f action=DETACH"), *GetNameSafe(Trailer), *RigReason, *HitchReason, State.ArticulationYawDeg, State.HitchErrorCm);
             Trailer->DetachTrailer();
             State.InvalidSeconds = 0.0f;
         }
@@ -179,13 +187,13 @@ void UGTTTrailerNativeAcceptanceSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trai
 
 void UGTTTrailerNativeAcceptanceSubsystem::EmitEvidence(AGTTFarmTrailer* Trailer, const FGTTTrailerNativeAcceptanceState& State, const FString& Reason) const
 {
-    UE_LOG(LogTemp, Display, TEXT("NATIVE_TRAILER_ACCEPTANCE_EVIDENCE trailer=%s authored=%d physics=%d bones=%d sockets=%d nativeTow=%d aligned=%d axle=%d accepted=%d yaw=%.1f hitchError=%.1f reason=%s"),
+    GTT_LOG( Display, TEXT("NATIVE_TRAILER_ACCEPTANCE_EVIDENCE trailer=%s authored=%d physics=%d bones=%d sockets=%d nativeTow=%d aligned=%d axle=%d accepted=%d yaw=%.1f hitchError=%.1f reason=%s"),
         *GetNameSafe(Trailer), State.bAuthoredRigPresent ? 1 : 0, State.bPhysicsAssetReady ? 1 : 0, State.bRequiredBonesReady ? 1 : 0,
         State.bRequiredSocketsReady ? 1 : 0, State.bNativeTowReady ? 1 : 0, State.bHitchAligned ? 1 : 0,
         Trailer && Trailer->HasIntactAxle() ? 1 : 0, State.bRuntimeAccepted ? 1 : 0, State.ArticulationYawDeg, State.HitchErrorCm, *Reason);
 
     if (Trailer && Trailer->IsAttachedToNativeFieldmaster() && State.ArticulationYawDeg >= JackknifeWarningYawDeg && State.ArticulationYawDeg < JackknifeDetachYawDeg)
     {
-        UE_LOG(LogTemp, Warning, TEXT("NATIVE_TRAILER_JACKKNIFE_WARNING trailer=%s yaw=%.1f limit=%.1f"), *GetNameSafe(Trailer), State.ArticulationYawDeg, JackknifeDetachYawDeg);
+        GTT_LOG( Warning, TEXT("NATIVE_TRAILER_JACKKNIFE_WARNING trailer=%s yaw=%.1f limit=%.1f"), *GetNameSafe(Trailer), State.ArticulationYawDeg, JackknifeDetachYawDeg);
     }
 }

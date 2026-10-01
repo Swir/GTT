@@ -71,7 +71,7 @@ void AGTTFieldmasterNativePawn::NotifyHit(UPrimitiveComponent* MyComp, AActor* O
     if (!FMath::IsNearlyEqual(PreviousCondition, MigrationSnapshot.ConditionPercent) || !FMath::IsNearlyEqual(PreviousTires, MigrationSnapshot.TireIntegrity))
     {
         SyncLegacyMirror();
-        UE_LOG(LogGTT, Log,
+        GTT_LOG( Log,
             TEXT("NATIVE_IMPACT_DAMAGE vehicle=RustyFieldmaster60 speed_kmh=%.1f condition=%.1f%% tire_integrity=%.2f condition_delta=%.1f%% tire_delta=%.3f"),
             ImpactSpeedKmh,
             MigrationSnapshot.ConditionPercent * 100.0f,
@@ -122,7 +122,7 @@ void AGTTFieldmasterNativePawn::ApplyNativeMudResponse(float DragStrength, float
             1.0f);
     }
 
-    UE_LOG(LogGTT, VeryVerbose,
+    GTT_LOG( VeryVerbose,
         TEXT("NATIVE_TERRAIN_RESPONSE vehicle=RustyFieldmaster60 mud=%.2f grip=%.2f throttle_limit=%.2f speed_kmh=%.1f tire_integrity=%.2f tire_level=%d"),
         GetNativeMudSeverity(), TerrainGrip, MudTraction, SpeedKmh, MigrationSnapshot.TireIntegrity, TireLevel);
 }

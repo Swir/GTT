@@ -145,6 +145,44 @@ try {
         throw "Candidate archive crossed the human visual review / Demo Release boundary."
     }
 
+    $rigEvidenceRelative = "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json"
+    $rigEvidencePath = Join-Path $tempRoot $rigEvidenceRelative
+    if (-not (Test-Path $rigEvidencePath -PathType Leaf)) { throw "Candidate archive missing Native vehicle rig editor evidence." }
+    try { $rigEvidence = Get-Content -Raw $rigEvidencePath | ConvertFrom-Json }
+    catch { throw "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json is invalid JSON: $($_.Exception.Message)" }
+    if ([string]$rigEvidence.schema -ne "gtt.native-vehicle-rig-editor-acceptance.v1" -or
+        [string]$rigEvidence.result -ne "PASS" -or [string]$rigEvidence.git_sha -ne $ExpectedGitSha -or
+        @($rigEvidence.assets).Count -ne 3) {
+        throw "Candidate archive Native vehicle rig editor evidence is not bound to the exact candidate."
+    }
+    $expectedRigSources = [ordered]@{
+        Fieldmaster60 = "GTT_Fieldmaster60_Rig.gltf"
+        Rattleback82 = "GTT_Rattleback82_Rig.gltf"
+        Mulebox1200 = "GTT_Mulebox1200_Rig.gltf"
+    }
+    $attestedRigSources = @($attestation.native_vehicle_rig_sources)
+    if ($attestedRigSources.Count -ne 3) { throw "Candidate attestation must seal exactly three Native rig source records." }
+    foreach ($vehicle in $expectedRigSources.Keys) {
+        $evidenceMatches = @($rigEvidence.assets | Where-Object { [string]$_.vehicle -eq $vehicle })
+        $attestedMatches = @($attestedRigSources | Where-Object { [string]$_.vehicle -eq $vehicle })
+        if ($evidenceMatches.Count -ne 1 -or $attestedMatches.Count -ne 1) {
+            throw "Native rig source provenance must contain exactly one record for $vehicle."
+        }
+        $evidenceRecord = $evidenceMatches[0]
+        $attestedRecord = $attestedMatches[0]
+        $sourceName = [string]$evidenceRecord.source_gltf
+        $sourceBytes = [int64]$evidenceRecord.source_gltf_bytes
+        $sourceHash = ([string]$evidenceRecord.source_gltf_sha256).ToLowerInvariant()
+        if ($sourceName -ne [string]$expectedRigSources[$vehicle] -or $sourceBytes -le 0 -or $sourceHash -notmatch '^[0-9a-f]{64}$') {
+            throw "Native rig '$vehicle' evidence source provenance is invalid."
+        }
+        if ([string]$attestedRecord.source_gltf -ne $sourceName -or
+            [int64]$attestedRecord.source_gltf_bytes -ne $sourceBytes -or
+            ([string]$attestedRecord.source_gltf_sha256).ToLowerInvariant() -ne $sourceHash) {
+            throw "Native rig '$vehicle' attestation provenance mismatch: does not match editor evidence."
+        }
+    }
+
     $evidenceFiles = @($attestation.evidence_files)
     if ($evidenceFiles.Count -ne [int]$attestation.evidence_file_count) {
         throw "Candidate attestation evidence_file_count does not match evidence_files."
@@ -158,7 +196,6 @@ try {
         if ($seenEvidence.ContainsKey($relative)) { throw "Candidate attestation contains duplicate evidence path: $relative" }
         $seenEvidence[$relative] = $true
         if (-not $manifest.ContainsKey($relative)) { throw "Attested evidence is absent from final manifest: $relative" }
-
         $filePath = Join-Path $tempRoot ($relative.Replace('/', [IO.Path]::DirectorySeparatorChar))
         if (-not (Test-Path $filePath -PathType Leaf)) { throw "Attested evidence is absent from archive: $relative" }
         $file = Get-Item $filePath
@@ -167,6 +204,9 @@ try {
             throw "Attested evidence hash mismatch: $relative"
         }
         if ([int64]$file.Length -ne [int64]$entry.bytes) { throw "Attested evidence byte count mismatch: $relative" }
+    }
+    if (-not $seenEvidence.ContainsKey($rigEvidenceRelative)) {
+        throw "Native vehicle rig editor evidence is not hash/byte-bound by attestation evidence_files."
     }
 
     $exeCandidates = @(Get-ChildItem -Path $tempRoot -Recurse -File -Filter "GTT.exe")

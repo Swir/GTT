@@ -1,10 +1,11 @@
 #include "Vehicles/GTTTrailerAuthoredRuntimeSubsystem.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Vehicles/GTTFarmTrailer.h"
 #include "Vehicles/GTTFieldmasterNativePawn.h"
@@ -13,12 +14,28 @@
 namespace
 {
     const FName AuthoredTrailerTag(TEXT("GTT.AuthoredTrailerRig"));
-    const FName RequiredRootBone(TEXT("root"));
+    const FName RequiredRootBone(TEXT("body"));
     const FName RequiredLeftWheelBone(TEXT("wheel_l"));
     const FName RequiredRightWheelBone(TEXT("wheel_r"));
-    const FName RequiredTowEyeSocket(TEXT("tow_eye"));
-    const FName RequiredAxleSocket(TEXT("axle_center"));
+    const FName RequiredTowEyeSocket(TEXT("socket_hitch"));
+    const FName RequiredLeftAxleSocket(TEXT("socket_axle_l"));
+    const FName RequiredRightAxleSocket(TEXT("socket_axle_r"));
+    const FName LeftWheelComponentName(TEXT("LeftWheel"));
+    const FName RightWheelComponentName(TEXT("RightWheel"));
+    const FName HitchCouplerComponentName(TEXT("HitchCoupler"));
     constexpr float EvidenceIntervalSeconds = 2.0f;
+
+    UStaticMeshComponent* FindPhysicalComponent(AGTTFarmTrailer* Trailer, const FName ComponentName)
+    {
+        if (!Trailer) return nullptr;
+        TArray<UStaticMeshComponent*> Components;
+        Trailer->GetComponents<UStaticMeshComponent>(Components);
+        for (UStaticMeshComponent* Component : Components)
+        {
+            if (Component && Component->GetFName() == ComponentName) return Component;
+        }
+        return nullptr;
+    }
 
     bool IsLegacyPresentationComponent(const UStaticMeshComponent* Component)
     {
@@ -60,12 +77,12 @@ void UGTTTrailerAuthoredRuntimeSubsystem::Tick(float DeltaSeconds)
     }
 }
 
-USkeletalMeshComponent* UGTTTrailerAuthoredRuntimeSubsystem::FindAuthoredRig(AGTTFarmTrailer* Trailer) const
+USkinnedMeshComponent* UGTTTrailerAuthoredRuntimeSubsystem::FindAuthoredRig(AGTTFarmTrailer* Trailer) const
 {
     if (!Trailer) return nullptr;
-    TArray<USkeletalMeshComponent*> Meshes;
-    Trailer->GetComponents<USkeletalMeshComponent>(Meshes);
-    for (USkeletalMeshComponent* Mesh : Meshes)
+    TArray<USkinnedMeshComponent*> Meshes;
+    Trailer->GetComponents<USkinnedMeshComponent>(Meshes);
+    for (USkinnedMeshComponent* Mesh : Meshes)
     {
         if (Mesh && (Mesh->ComponentHasTag(AuthoredTrailerTag) || Mesh->GetFName() == TEXT("AuthoredTrailerMesh")))
         {
@@ -75,17 +92,19 @@ USkeletalMeshComponent* UGTTTrailerAuthoredRuntimeSubsystem::FindAuthoredRig(AGT
     return nullptr;
 }
 
-bool UGTTTrailerAuthoredRuntimeSubsystem::ValidateRig(USkeletalMeshComponent* Rig) const
+bool UGTTTrailerAuthoredRuntimeSubsystem::ValidateRig(USkinnedMeshComponent* Rig) const
 {
-    if (!Rig || !Rig->GetPhysicsAsset()) return false;
+    const USkeletalMesh* MeshAsset = Rig ? Cast<USkeletalMesh>(Rig->GetSkinnedAsset()) : nullptr;
+    if (!MeshAsset || !MeshAsset->GetPhysicsAsset()) return false;
     const bool bBones = Rig->GetBoneIndex(RequiredRootBone) != INDEX_NONE &&
         Rig->GetBoneIndex(RequiredLeftWheelBone) != INDEX_NONE &&
         Rig->GetBoneIndex(RequiredRightWheelBone) != INDEX_NONE;
-    const bool bSockets = Rig->DoesSocketExist(RequiredTowEyeSocket) && Rig->DoesSocketExist(RequiredAxleSocket);
+    const bool bSockets = Rig->DoesSocketExist(RequiredTowEyeSocket) &&
+        Rig->DoesSocketExist(RequiredLeftAxleSocket) && Rig->DoesSocketExist(RequiredRightAxleSocket);
     return bBones && bSockets;
 }
 
-void UGTTTrailerAuthoredRuntimeSubsystem::SetAuthoredPresentation(AGTTFarmTrailer* Trailer, USkeletalMeshComponent* Rig, bool bActive, FRuntimeState& State) const
+void UGTTTrailerAuthoredRuntimeSubsystem::SetAuthoredPresentation(AGTTFarmTrailer* Trailer, USkinnedMeshComponent* Rig, bool bActive, FRuntimeState& State) const
 {
     if (!Trailer || State.bPresentationTakeover == bActive) return;
 
@@ -132,15 +151,19 @@ bool UGTTTrailerAuthoredRuntimeSubsystem::TraceWheelContact(AGTTFarmTrailer* Tra
     return OutGroundClearanceCm <= GroundContactSlackCm;
 }
 
-void UGTTTrailerAuthoredRuntimeSubsystem::ApplyAuthoredDynamics(AGTTFarmTrailer* Trailer, USkeletalMeshComponent* Rig, FRuntimeState& State, float DeltaSeconds) const
+void UGTTTrailerAuthoredRuntimeSubsystem::ApplyAuthoredDynamics(AGTTFarmTrailer* Trailer, USkinnedMeshComponent* Rig, FRuntimeState& State, float DeltaSeconds) const
 {
     if (!Trailer || !Rig || !Trailer->IsAttachedToNativeFieldmaster()) return;
 
     UPrimitiveComponent* Body = Cast<UPrimitiveComponent>(Trailer->GetRootComponent());
     if (!Body || !Body->IsSimulatingPhysics()) return;
 
-    const FVector LeftWheelWorld = Rig->GetSocketTransform(RequiredLeftWheelBone, RTS_World).GetLocation();
-    const FVector RightWheelWorld = Rig->GetSocketTransform(RequiredRightWheelBone, RTS_World).GetLocation();
+    const UStaticMeshComponent* LeftWheel = FindPhysicalComponent(Trailer, LeftWheelComponentName);
+    const UStaticMeshComponent* RightWheel = FindPhysicalComponent(Trailer, RightWheelComponentName);
+    const FVector LeftWheelWorld = LeftWheel ? LeftWheel->GetComponentLocation()
+        : Rig->GetSocketTransform(RequiredLeftWheelBone, RTS_World).GetLocation();
+    const FVector RightWheelWorld = RightWheel ? RightWheel->GetComponentLocation()
+        : Rig->GetSocketTransform(RequiredRightWheelBone, RTS_World).GetLocation();
     State.Snapshot.bLeftWheelContact = TraceWheelContact(Trailer, LeftWheelWorld, State.Snapshot.LeftGroundClearanceCm);
     State.Snapshot.bRightWheelContact = TraceWheelContact(Trailer, RightWheelWorld, State.Snapshot.RightGroundClearanceCm);
     State.Snapshot.ContactRatio = 0.5f * (static_cast<float>(State.Snapshot.bLeftWheelContact) + static_cast<float>(State.Snapshot.bRightWheelContact));
@@ -148,7 +171,8 @@ void UGTTTrailerAuthoredRuntimeSubsystem::ApplyAuthoredDynamics(AGTTFarmTrailer*
     const float LateralSpan = FMath::Max(1.0f, FVector::Distance(FVector(LeftWheelWorld.X, LeftWheelWorld.Y, 0.0f), FVector(RightWheelWorld.X, RightWheelWorld.Y, 0.0f)));
     State.Snapshot.AxleTiltDeg = FMath::RadiansToDegrees(FMath::Atan2(RightWheelWorld.Z - LeftWheelWorld.Z, LateralSpan));
 
-    const FVector AxleWorld = Rig->GetSocketTransform(RequiredAxleSocket, RTS_World).GetLocation();
+    const FVector AxleWorld = (Rig->GetSocketTransform(RequiredLeftAxleSocket, RTS_World).GetLocation() +
+        Rig->GetSocketTransform(RequiredRightAxleSocket, RTS_World).GetLocation()) * 0.5f;
     const FVector VelocityAtAxle = Body->GetPhysicsLinearVelocityAtPoint(AxleWorld);
     const FVector Right = Trailer->GetActorRightVector().GetSafeNormal();
     const float LateralSpeed = FVector::DotProduct(VelocityAtAxle, Right);
@@ -175,7 +199,7 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
 {
     if (!Trailer) return;
     FRuntimeState& State = RuntimeByTrailer.FindOrAdd(Trailer);
-    USkeletalMeshComponent* Rig = FindAuthoredRig(Trailer);
+    USkinnedMeshComponent* Rig = FindAuthoredRig(Trailer);
     const bool bRigValid = ValidateRig(Rig);
     State.Rig = Rig;
     State.Snapshot = FGTTAuthoredTrailerRuntimeSnapshot{};
@@ -188,7 +212,7 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
     {
         if (State.EvidenceCooldown <= 0.0f)
         {
-            UE_LOG(LogGTT, Verbose, TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=0 reason=NO_VALID_AUTHORED_RIG"), *GetNameSafe(Trailer));
+            GTT_LOG( Verbose, TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=0 reason=NO_VALID_AUTHORED_RIG"), *GetNameSafe(Trailer));
             State.EvidenceCooldown = EvidenceIntervalSeconds;
         }
         return;
@@ -202,9 +226,12 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
             FTransform RearHitch;
             if (NativeTow->TryGetRearHitchTransform(RearHitch))
             {
-                const FVector TowEye = Rig->GetSocketTransform(RequiredTowEyeSocket, RTS_World).GetLocation();
+                const UStaticMeshComponent* HitchCoupler = FindPhysicalComponent(Trailer, HitchCouplerComponentName);
+                const FVector TowEye = HitchCoupler ? HitchCoupler->GetComponentLocation()
+                    : Rig->GetSocketTransform(RequiredTowEyeSocket, RTS_World).GetLocation();
                 State.Snapshot.HitchAlignmentErrorCm = FVector::Distance(RearHitch.GetLocation(), TowEye);
-                const float Dot = FMath::Clamp(FVector::DotProduct(NativeTow->GetActorForwardVector().GetSafeNormal2D(), Trailer->GetActorForwardVector().GetSafeNormal2D()), -1.0f, 1.0f);
+                const FVector TrailerTravelForward = -Trailer->GetActorForwardVector().GetSafeNormal2D();
+                const float Dot = FMath::Clamp(FVector::DotProduct(NativeTow->GetActorForwardVector().GetSafeNormal2D(), TrailerTravelForward), -1.0f, 1.0f);
                 State.Snapshot.ArticulationYawDeg = FMath::RadiansToDegrees(FMath::Acos(Dot));
             }
         }
@@ -212,8 +239,12 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
     }
     else
     {
-        const FVector LeftWheelWorld = Rig->GetSocketTransform(RequiredLeftWheelBone, RTS_World).GetLocation();
-        const FVector RightWheelWorld = Rig->GetSocketTransform(RequiredRightWheelBone, RTS_World).GetLocation();
+        const UStaticMeshComponent* LeftWheel = FindPhysicalComponent(Trailer, LeftWheelComponentName);
+        const UStaticMeshComponent* RightWheel = FindPhysicalComponent(Trailer, RightWheelComponentName);
+        const FVector LeftWheelWorld = LeftWheel ? LeftWheel->GetComponentLocation()
+            : Rig->GetSocketTransform(RequiredLeftWheelBone, RTS_World).GetLocation();
+        const FVector RightWheelWorld = RightWheel ? RightWheel->GetComponentLocation()
+            : Rig->GetSocketTransform(RequiredRightWheelBone, RTS_World).GetLocation();
         State.Snapshot.bLeftWheelContact = TraceWheelContact(Trailer, LeftWheelWorld, State.Snapshot.LeftGroundClearanceCm);
         State.Snapshot.bRightWheelContact = TraceWheelContact(Trailer, RightWheelWorld, State.Snapshot.RightGroundClearanceCm);
         State.Snapshot.ContactRatio = 0.5f * (static_cast<float>(State.Snapshot.bLeftWheelContact) + static_cast<float>(State.Snapshot.bRightWheelContact));
@@ -221,7 +252,7 @@ void UGTTTrailerAuthoredRuntimeSubsystem::EvaluateTrailer(AGTTFarmTrailer* Trail
 
     if (State.EvidenceCooldown <= 0.0f)
     {
-        UE_LOG(LogGTT, Log, TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=%d nativeTow=%d contacts=%.1f left=%d right=%d clearL=%.1f clearR=%.1f axleTilt=%.1f hitchError=%.1f articulation=%.1f stabilization=%.2f warning=%d"),
+        GTT_LOG( Log, TEXT("AUTHORED_TRAILER_RUNTIME_EVIDENCE trailer=%s active=%d nativeTow=%d contacts=%.1f left=%d right=%d clearL=%.1f clearR=%.1f axleTilt=%.1f hitchError=%.1f articulation=%.1f stabilization=%.2f warning=%d"),
             *GetNameSafe(Trailer), State.bPresentationTakeover ? 1 : 0, Trailer->IsAttachedToNativeFieldmaster() ? 1 : 0,
             State.Snapshot.ContactRatio, State.Snapshot.bLeftWheelContact ? 1 : 0, State.Snapshot.bRightWheelContact ? 1 : 0,
             State.Snapshot.LeftGroundClearanceCm, State.Snapshot.RightGroundClearanceCm, State.Snapshot.AxleTiltDeg,

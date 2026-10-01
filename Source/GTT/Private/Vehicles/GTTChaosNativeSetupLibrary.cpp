@@ -1,6 +1,9 @@
 #include "Vehicles/GTTChaosNativeSetupLibrary.h"
 
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/SkeletalBodySetup.h"
 #include "Vehicles/GTTChaosRigContract.h"
 #include "Vehicles/GTTChaosVehicleSpec.h"
 #include "Vehicles/GTTChaosVehicleWheels.h"
@@ -190,5 +193,81 @@ bool UGTTChaosNativeSetupLibrary::ValidateCanonicalWheelSetups(const UChaosWheel
         RearWheel ? RearWheel->SuspensionMaxDrop : -1.0f,
         RearWheel ? RearWheel->SpringRate : -1.0f,
         RearWheel ? RearWheel->SuspensionDampingRatio : -1.0f);
+    return true;
+}
+
+bool UGTTChaosNativeSetupLibrary::StabilizeGeneratedPhysicsAsset(UPhysicsAsset* PhysicsAsset, FName VehicleId, FString& OutSummary)
+{
+    if (!PhysicsAsset)
+    {
+        OutSummary = TEXT("No PhysicsAsset");
+        return false;
+    }
+
+    USkeletalBodySetup* RootBody = nullptr;
+    int32 RootBodyCount = 0;
+    for (USkeletalBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
+    {
+        if (BodySetup && BodySetup->BoneName == TEXT("root"))
+        {
+            RootBody = BodySetup;
+            ++RootBodyCount;
+        }
+    }
+    if (RootBodyCount != 1 || !RootBody)
+    {
+        OutSummary = FString::Printf(TEXT("Expected one root chassis body, found %d"), RootBodyCount);
+        return false;
+    }
+
+    struct FChassisShape
+    {
+        float LengthCm;
+        float WidthCm;
+        float HeightCm;
+        float WheelRadiusCm;
+    };
+    FChassisShape Shape{};
+    if (VehicleId == TEXT("Fieldmaster60") || VehicleId == TEXT("RustyFieldmaster60"))
+    {
+        Shape = {480.0f, 225.0f, 175.0f, 62.0f};
+    }
+    else if (VehicleId == TEXT("Rattleback82"))
+    {
+        Shape = {445.0f, 186.0f, 135.0f, 36.0f};
+    }
+    else if (VehicleId == TEXT("Mulebox1200"))
+    {
+        Shape = {515.0f, 205.0f, 215.0f, 43.0f};
+    }
+    else
+    {
+        OutSummary = FString::Printf(TEXT("Unknown vehicle chassis contract: %s"), *VehicleId.ToString());
+        return false;
+    }
+
+    PhysicsAsset->Modify();
+    RootBody->Modify();
+    PhysicsAsset->SkeletalBodySetups.Reset(1);
+    PhysicsAsset->SkeletalBodySetups.Add(RootBody);
+    PhysicsAsset->ConstraintSetup.Reset();
+    PhysicsAsset->BoundsBodies.Reset();
+    RootBody->AggGeom = FKAggregateGeom();
+    FKBoxElem ChassisBox;
+    ChassisBox.Center = FVector(0.0f, 0.0f, Shape.WheelRadiusCm + Shape.HeightCm * 0.5f);
+    ChassisBox.X = Shape.LengthCm;
+    ChassisBox.Y = Shape.WidthCm;
+    ChassisBox.Z = Shape.HeightCm;
+    RootBody->AggGeom.BoxElems.Add(ChassisBox);
+    PhysicsAsset->UpdateBodySetupIndexMap();
+    PhysicsAsset->UpdateBoundsBodiesArray();
+    RootBody->InvalidatePhysicsData();
+    RootBody->CreatePhysicsMeshes();
+#if WITH_EDITOR
+    PhysicsAsset->RefreshPhysicsAssetChange();
+#endif
+    PhysicsAsset->MarkPackageDirty();
+    OutSummary = FString::Printf(TEXT("Canonical root-only chassis physics for %s box=%.0fx%.0fx%.0f center_z=%.1f"),
+        *VehicleId.ToString(), Shape.LengthCm, Shape.WidthCm, Shape.HeightCm, ChassisBox.Center.Z);
     return true;
 }

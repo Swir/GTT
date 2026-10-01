@@ -206,6 +206,11 @@ int32 AGTTServiceTerminal::GetNativeRoadCheckoutQuote(const AGTTRoadVehicleNativ
         : BaseQuote;
 }
 
+AGTTRoadVehicleNativePawn* AGTTServiceTerminal::ResolveNativeRoadServiceTarget() const
+{
+    return FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius);
+}
+
 void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
 {
     APawn* Pawn = Cast<APawn>(Interactor);
@@ -222,7 +227,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     const bool bWorkshopOpen = IsWorkshopOpenNow();
     const FString WorkshopSchedule = GTTWorkshopHoursPolicy::GetScheduleText();
 
-    if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
+    if (AGTTRoadVehicleNativePawn* NativeRoad = ResolveNativeRoadServiceTarget())
     {
         const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
         FGTTGarageFleetSnapshot FleetSnapshot;
@@ -242,7 +247,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
             Economy->PushMessage(FString::Printf(
                 TEXT("Workshop appointment %s: %s | locked $%d | %s. Queue lifecycle owns this exact vehicle; direct walk-up repair/refuel is blocked so the locked quote, timer and no-precharge contract cannot be bypassed."),
                 *QueueState, *NativeRoad->GetVehicleDisplayName().ToString(), QueueSnapshot.LockedQuote, *Timing), 8.0f);
-            UE_LOG(LogGTT, Display,
+            GTT_LOG( Display,
                 TEXT("WORKSHOP_QUEUE_TERMINAL_GUARD vehicle=%s state=%s locked_quote=%d queue_authority=YES direct_service=BLOCKED hard_hold=NO"),
                 *QueueSnapshot.PersistentVehicleId.ToString(), *QueueState, QueueSnapshot.LockedQuote);
             return;
@@ -319,7 +324,7 @@ void AGTTServiceTerminal::Interact_Implementation(AActor* Interactor)
     {
         AGTTVehicleBase* Mirror = FindFieldmasterMirror(GetWorld(), Native);
         if (!Mirror) { Economy->PushMessage(TEXT("Workshop: Native Fieldmaster compatibility mirror is unavailable.")); return; }
-        const FGTTRoadVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
+        const FGTTVehicleMigrationSnapshot State = Native->GetMigrationSnapshot();
         const bool bWorkshopHold = IsWorkshopHold(GetWorld(), FieldmasterVehicleId);
         const bool bNeedsRepair = State.ConditionPercent < 0.999f || bWorkshopHold;
         const bool bNeedsFuel = State.FuelLiters + KINDA_SMALL_NUMBER < Mirror->GetFuelCapacity();
@@ -401,7 +406,7 @@ FText AGTTServiceTerminal::GetInteractionText_Implementation() const
     const bool bWorkshopOpen = IsWorkshopOpenNow();
     const FString WorkshopSchedule = GTTWorkshopHoursPolicy::GetScheduleText();
 
-    if (AGTTRoadVehicleNativePawn* NativeRoad = FindActiveNativeRoadVehicle(GetWorld(), GetActorLocation(), VehicleSearchRadius))
+    if (AGTTRoadVehicleNativePawn* NativeRoad = ResolveNativeRoadServiceTarget())
     {
         const FGTTRoadVehicleMigrationSnapshot State = NativeRoad->GetMigrationSnapshot();
         FGTTGarageFleetSnapshot FleetSnapshot;

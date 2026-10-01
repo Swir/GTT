@@ -46,6 +46,36 @@ $import = Read-JsonRequired "AUTHORED_TRAILER_IMPORT.json"
 Assert-ExactIdentity $import "AUTHORED_TRAILER_IMPORT.json"
 if ([string]$import.result -ne "PASS") { throw "AUTHORED_TRAILER_IMPORT.json is not PASS." }
 
+$nativeRig = Read-JsonRequired "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json"
+Assert-ExactIdentity $nativeRig "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json"
+if ([string]$nativeRig.schema -ne "gtt.native-vehicle-rig-editor-acceptance.v1" -or
+    [string]$nativeRig.result -ne "PASS" -or @($nativeRig.assets).Count -ne 3) {
+    throw "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json is not PASS schema v1 with exactly three assets."
+}
+$expectedNativeRigSources = [ordered]@{
+    Fieldmaster60 = "GTT_Fieldmaster60_Rig.gltf"
+    Rattleback82 = "GTT_Rattleback82_Rig.gltf"
+    Mulebox1200 = "GTT_Mulebox1200_Rig.gltf"
+}
+$nativeVehicleRigSources = @()
+foreach ($vehicle in $expectedNativeRigSources.Keys) {
+    $matches = @($nativeRig.assets | Where-Object { [string]$_.vehicle -eq $vehicle })
+    if ($matches.Count -ne 1) { throw "Native rig evidence must contain exactly one '$vehicle' record." }
+    $record = $matches[0]
+    if ([string]$record.source_gltf -ne [string]$expectedNativeRigSources[$vehicle]) {
+        throw "Native rig '$vehicle' source filename is not canonical."
+    }
+    if ([int64]$record.source_gltf_bytes -le 0) { throw "Native rig '$vehicle' source byte length is invalid." }
+    $sourceHash = ([string]$record.source_gltf_sha256).ToLowerInvariant()
+    if ($sourceHash -notmatch '^[0-9a-f]{64}$') { throw "Native rig '$vehicle' source SHA-256 is invalid." }
+    $nativeVehicleRigSources += [ordered]@{
+        vehicle = $vehicle
+        source_gltf = [string]$record.source_gltf
+        source_gltf_bytes = [int64]$record.source_gltf_bytes
+        source_gltf_sha256 = $sourceHash
+    }
+}
+
 $runtime = Read-JsonRequired "RUNTIME_SMOKE.json"
 Assert-ExactIdentity $runtime "RUNTIME_SMOKE.json"
 if ([string]$runtime.result -ne "PASS") { throw "RUNTIME_SMOKE.json is not PASS." }
@@ -176,6 +206,7 @@ $criticalNames = @(
     "BUILD_INFO.json",
     "PACKAGE_VALIDATION.json",
     "AUTHORED_TRAILER_IMPORT.json",
+    "NATIVE_VEHICLE_RIG_EDITOR_ACCEPTANCE.json",
     "RUNTIME_SMOKE.json",
     "DEMO_SCENARIO.json",
     "GAMEPLAY_SMOKE.json",
@@ -199,6 +230,9 @@ $criticalNames = @(
     "VISUAL_RUNTIME_SMOKE.json",
     "DEMO_VISUAL_EVIDENCE.json",
     "WIN64_ACCEPTANCE_SUMMARY.json",
+    "GTT_RUNTIME_CORE.log",
+    "GTT_RUNTIME_NATIVE.log",
+    "GTT_RUNTIME_SERVICES.log",
     "GTT_RUNTIME.log",
     "GTT_VISUAL_RUNTIME.log"
 )
@@ -248,6 +282,7 @@ $attestation = [ordered]@{
     authored_trailer_safe_loaded_motion_samples = [int]$trailer.safe_loaded_motion_samples
     authored_trailer_controlled_stop = [bool]$trailer.controlled_stop_proven
     authored_trailer_invalid_rig_observations = [int]$trailer.invalid_rig_observation_count
+    native_vehicle_rig_sources = @($nativeVehicleRigSources)
     fieldmaster_hill_haul_runtime = "PASS"
     hill_haul_loaded_samples = [int]$hillHaul.loaded_trailer_samples
     hill_haul_assist_samples = [int]$hillHaul.assist_samples
@@ -307,8 +342,18 @@ if ($roundTrip.schema -ne "gtt.win64-candidate-attestation.v1" -or $roundTrip.re
     [int]$roundTrip.hill_haul_loaded_samples -lt 2 -or [int]$roundTrip.hill_haul_assist_samples -lt 1 -or
     [int]$roundTrip.hill_haul_thermal_samples -lt 1 -or $roundTrip.fieldmaster_hud_runtime -ne "PASS" -or
     [int]$roundTrip.fieldmaster_hud_telemetry_samples -lt 2 -or [int]$roundTrip.fieldmaster_hud_visible_alert_samples -lt 1 -or
+    @($roundTrip.native_vehicle_rig_sources).Count -ne 3 -or
     $roundTrip.human_visual_review -ne "REQUIRED" -or [bool]$roundTrip.demo_release_authorized) {
     throw "WIN64_CANDIDATE_ATTESTATION.json failed round-trip identity/current-gate/boundary validation."
+}
+foreach ($sealedRig in @($nativeVehicleRigSources)) {
+    $roundMatches = @($roundTrip.native_vehicle_rig_sources | Where-Object { [string]$_.vehicle -eq [string]$sealedRig.vehicle })
+    if ($roundMatches.Count -ne 1 -or
+        [string]$roundMatches[0].source_gltf -ne [string]$sealedRig.source_gltf -or
+        [int64]$roundMatches[0].source_gltf_bytes -ne [int64]$sealedRig.source_gltf_bytes -or
+        ([string]$roundMatches[0].source_gltf_sha256).ToLowerInvariant() -ne [string]$sealedRig.source_gltf_sha256) {
+        throw "WIN64_CANDIDATE_ATTESTATION.json failed Native rig provenance round-trip validation."
+    }
 }
 
 Write-Host "[GTT][ATTEST] PASS: exact candidate identity, current-target Native Chaos/trailer gates and final evidence hashes are sealed."
