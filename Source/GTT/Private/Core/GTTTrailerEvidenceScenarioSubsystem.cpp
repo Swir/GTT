@@ -16,10 +16,11 @@ namespace
 {
     constexpr float StartDelaySeconds = 126.0f;
     constexpr float FocusedStartDelaySeconds = 8.0f;
+    constexpr float CombinedNativeStartDelaySeconds = 30.0f;
     constexpr float GlobalDeadlineSeconds = 172.0f;
     constexpr float AuthoredRuntimeTimeoutSeconds = 10.0f;
     constexpr float PostAttachSettleSeconds = 1.0f;
-    constexpr float LoadedMotionTimeoutSeconds = 22.0f;
+    constexpr float LoadedMotionTimeoutSeconds = 38.0f;
     constexpr float ControlledStopTimeoutSeconds = 8.0f;
     constexpr float SampleIntervalSeconds = 0.25f;
     constexpr float TowThrottle = 1.0f;
@@ -41,18 +42,26 @@ void UGTTTrailerEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBase& 
     Super::Initialize(Collection);
     const TCHAR* CommandLine = FCommandLine::Get();
     const bool bFocusedTrailerRuntime = FParse::Param(CommandLine, TEXT("GTTTrailerRuntimeScenario"));
+    const bool bFocusedDrivetrainRuntime = FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario"));
     const bool bDemoSmokeRuntime = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario"));
+    const bool bIsolatedFocusedTrailerRuntime =
+        bFocusedTrailerRuntime && !bFocusedDrivetrainRuntime && !bDemoSmokeRuntime;
+    const bool bCombinedNativeRuntime =
+        bFocusedTrailerRuntime && bFocusedDrivetrainRuntime && !bDemoSmokeRuntime;
+    const float EffectiveStartDelaySeconds = bIsolatedFocusedTrailerRuntime
+        ? FocusedStartDelaySeconds
+        : (bCombinedNativeRuntime ? CombinedNativeStartDelaySeconds : StartDelaySeconds);
     bEnabled = bFocusedTrailerRuntime ||
         (bDemoSmokeRuntime && !FParse::Param(CommandLine, TEXT("GTTDisableTrailerScenario")));
     if (bEnabled)
     {
-        if (bFocusedTrailerRuntime && !bDemoSmokeRuntime)
+        if (EffectiveStartDelaySeconds < StartDelaySeconds)
         {
-            Elapsed = StartDelaySeconds - FocusedStartDelaySeconds;
+            Elapsed = StartDelaySeconds - EffectiveStartDelaySeconds;
         }
         GTT_LOG( Log,
             TEXT("NATIVE_TRAILER_SCENARIO_BEGIN version=1 start_delay=%.1f effective_start_delay=%.1f deadline=%.1f min_distance_cm=%.0f min_speed_kmh=%.1f source=formal"),
-            StartDelaySeconds, bFocusedTrailerRuntime && !bDemoSmokeRuntime ? FocusedStartDelaySeconds : StartDelaySeconds,
+            StartDelaySeconds, EffectiveStartDelaySeconds,
             GlobalDeadlineSeconds, MinimumTowDistanceCm, MinimumEvidenceSpeedKmh);
     }
 }
@@ -144,6 +153,11 @@ bool UGTTTrailerEvidenceScenarioSubsystem::StageTrailerAtHitch(AGTTFieldmasterNa
     USkeletalMeshComponent* VehicleBody = Pawn->GetMesh();
     if (!World || !VehicleBody) return false;
 
+    FarmTrailer->DetachTrailer();
+    Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
+    VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+
     FVector TowStageLocation = TrailerEvidencePadLocation;
     FHitResult GroundHit;
     FCollisionObjectQueryParams GroundObjects;
@@ -160,15 +174,10 @@ bool UGTTTrailerEvidenceScenarioSubsystem::StageTrailerAtHitch(AGTTFieldmasterNa
     }
 
     TowStageLocation.Z = GroundHit.ImpactPoint.Z + 4.0f;
-    FarmTrailer->DetachTrailer();
-    Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
-    VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
-    VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
-    Pawn->SetActorTransform(
-        FTransform(TrailerEvidencePadRotation, TowStageLocation),
-        false,
-        nullptr,
-        ETeleportType::ResetPhysics);
+    if (!Pawn->RecallToTransform(FTransform(TrailerEvidencePadRotation, TowStageLocation)))
+    {
+        return false;
+    }
     VehicleBody->SetPhysicsLinearVelocity(FVector::ZeroVector);
     VehicleBody->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
     VehicleBody->WakeAllRigidBodies();

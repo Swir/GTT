@@ -13,6 +13,7 @@
 namespace
 {
     constexpr float StartDelaySeconds = 76.0f;
+    constexpr float FocusedStartDelaySeconds = 8.0f;
     constexpr float GlobalDeadlineSeconds = 122.0f;
     constexpr float SettleDurationSeconds = 0.75f;
     constexpr float ForwardAccelerationTimeoutSeconds = 16.0f;
@@ -38,13 +39,21 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::Initialize(FSubsystemCollectionBas
 {
     Super::Initialize(Collection);
     const TCHAR* CommandLine = FCommandLine::Get();
-    bEnabled = FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario")) ||
-        (FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario")) && !FParse::Param(CommandLine, TEXT("GTTDisableDrivetrainScenario")));
+    const bool bFocusedDrivetrainRuntime = FParse::Param(CommandLine, TEXT("GTTDrivetrainRuntimeScenario"));
+    const bool bDemoSmokeRuntime = FParse::Param(CommandLine, TEXT("GTTDemoSmokeScenario"));
+    const bool bIsolatedFocusedDrivetrainRuntime = bFocusedDrivetrainRuntime && !bDemoSmokeRuntime;
+    bEnabled = bFocusedDrivetrainRuntime ||
+        (bDemoSmokeRuntime && !FParse::Param(CommandLine, TEXT("GTTDisableDrivetrainScenario")));
     if (bEnabled)
     {
+        if (bIsolatedFocusedDrivetrainRuntime)
+        {
+            Elapsed = StartDelaySeconds - FocusedStartDelaySeconds;
+        }
         GTT_LOG( Log,
-            TEXT("NATIVE_DRIVETRAIN_SCENARIO_BEGIN version=1 start_delay=%.1f deadline=%.1f release_kmh=%.2f"),
-            StartDelaySeconds, GlobalDeadlineSeconds, ShiftReleaseSpeedKmh);
+            TEXT("NATIVE_DRIVETRAIN_SCENARIO_BEGIN version=1 start_delay=%.1f effective_start_delay=%.1f deadline=%.1f release_kmh=%.2f"),
+            StartDelaySeconds, bIsolatedFocusedDrivetrainRuntime ? FocusedStartDelaySeconds : StartDelaySeconds,
+            GlobalDeadlineSeconds, ShiftReleaseSpeedKmh);
     }
 }
 
@@ -184,6 +193,10 @@ void UGTTDrivetrainEvidenceScenarioSubsystem::CompleteScenario(
     UChaosWheeledVehicleMovementComponent* Movement,
     const TCHAR* Reason)
 {
+    if (Pawn)
+    {
+        Pawn->ApplyAcceptanceDriveCommand(0.0f, 0.0f, 1.0f);
+    }
     if (Movement)
     {
         Movement->SetUseAutomaticGears(true);

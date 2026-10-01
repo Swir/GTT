@@ -95,9 +95,12 @@ void UGTTChaosVehicleBridgeComponent::ResolveSpec()
     ResolvedSpec = FGTTChaosVehicleSpec();
     if (!VehicleOwner) return;
 
-    if (!UGTTVehicleChaosSpecLibrary::GetSpecForVehicleId(VehicleOwner->GetPersistentVehicleId(), ResolvedSpec))
+    const FName VehicleId = VehicleOwner->GetPersistentVehicleId();
+    if (VehicleId.IsNone()) return;
+
+    if (!UGTTVehicleChaosSpecLibrary::GetSpecForVehicleId(VehicleId, ResolvedSpec))
     {
-        GTT_LOG( Warning, TEXT("Chaos bridge has no canonical spec for %s"), *VehicleOwner->GetPersistentVehicleId().ToString());
+        GTT_LOG( Warning, TEXT("Chaos bridge has no canonical spec for %s"), *VehicleId.ToString());
     }
 }
 
@@ -106,9 +109,12 @@ void UGTTChaosVehicleBridgeComponent::ResolveRigContract()
     ResolvedRigContract = FGTTChaosRigContract();
     if (!VehicleOwner) return;
 
-    if (!UGTTChaosRigContractLibrary::GetRigForVehicleId(VehicleOwner->GetPersistentVehicleId(), ResolvedRigContract))
+    const FName VehicleId = VehicleOwner->GetPersistentVehicleId();
+    if (VehicleId.IsNone()) return;
+
+    if (!UGTTChaosRigContractLibrary::GetRigForVehicleId(VehicleId, ResolvedRigContract))
     {
-        GTT_LOG( Warning, TEXT("Chaos bridge has no rig contract for %s"), *VehicleOwner->GetPersistentVehicleId().ToString());
+        GTT_LOG( Warning, TEXT("Chaos bridge has no rig contract for %s"), *VehicleId.ToString());
     }
 }
 
